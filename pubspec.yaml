@@ -1,0 +1,22 @@
+name: swg_bwc
+description: Enterprise Body-Worn Camera kiosk for SWG-BWC-04 rugged Android devices.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  wakelock_plus: ^1.2.8
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,40 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace "com.swg.swg_bwc"
+    compileSdk 36
+    // Use the NDK already installed in the Android SDK. Flutter's default
+    // (28.2.13676358) triggers a broken sdkmanager install on this machine.
+    ndkVersion "30.0.16248370"
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        applicationId "com.swg.swg_bwc"
+        minSdk 29
+        targetSdk 35
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}
