@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace "com.swg.swg_bwc"
-    compileSdk 36
+    compileSdk = 37
     // Use the NDK already installed in the Android SDK. Flutter's default
     // (28.2.13676358) triggers a broken sdkmanager install on this machine.
     ndkVersion "30.0.16248370"

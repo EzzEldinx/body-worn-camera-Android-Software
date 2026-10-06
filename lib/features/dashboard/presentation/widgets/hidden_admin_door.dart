@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../../../core/constants/app_constants.dart';
 
 /// Invisible tap accumulator over the company mark.
@@ -14,6 +13,7 @@ class HiddenAdminDoor extends StatefulWidget {
     this.requiredTaps = AppConstants.adminTapCount,
     this.window = AppConstants.adminTapWindow,
   });
+
 
   final Widget child;
   final VoidCallback onUnlocked;

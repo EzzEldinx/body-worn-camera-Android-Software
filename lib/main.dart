@@ -5,19 +5,18 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_strings.dart';
+import 'core/services/central_link.dart';
 import 'features/dashboard/presentation/providers/kiosk_controller.dart';
 import 'features/dashboard/presentation/screens/kiosk_dashboard_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Hide status / nav bars from the Flutter side. Android lock-task is the
-  // real Home-key guard and is armed after the first frame.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  // Portrait only: matches the manifest and the dashboard screen.
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
+    DeviceOrientation.portraitDown,
   ]);
 
   runApp(const ProviderScope(child: SwgBwcApp()));
@@ -37,6 +36,9 @@ class _SwgBwcAppState extends ConsumerState<SwgBwcApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _armKiosk());
+
+    // Starts the socket + GPS once; screens reach it via centralLinkProvider.
+    ref.read(centralLinkProvider);
   }
 
   @override

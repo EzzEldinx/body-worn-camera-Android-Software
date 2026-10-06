@@ -112,7 +112,7 @@ class _AdminPinDialogState extends State<AdminPinDialog> {
               ),
               onSubmitted: (_) => _submit(),
             ),
-          ],
+          ],  
         ),
         actions: [
           TextButton(
