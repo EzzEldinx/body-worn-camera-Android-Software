@@ -13,7 +13,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  // Portrait only: matches the manifest and the dashboard screen.
+  // Portrait: the camera is worn vertically; the video is shown in a 16:9 window.
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

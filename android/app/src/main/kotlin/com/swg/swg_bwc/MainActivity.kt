@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
@@ -65,6 +67,14 @@ class MainActivity : FlutterActivity() {
                     // دوال النداء من أزرار الشاشة في فلاتر
                     "toggleIR" -> { toggleIR(); result.success(null) }
                     "toggleLaser" -> { toggleLaser(); result.success(null) }
+                    "setTorch" -> {
+                        try {
+                            setTorchNative(call.argument<Boolean>("on") ?: false)
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("torch", e.message, null)
+                        }
+                    }
                     
                     else -> result.notImplemented()
                 }
@@ -84,6 +94,16 @@ class MainActivity : FlutterActivity() {
     }
 
     // 🔥 إرسال إشارات للنظام لفتح الليزر والـ IR 🔥
+    private fun setTorchNative(on: Boolean) {
+        val cm = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val id = cm.cameraIdList.firstOrNull {
+            val ch = cm.getCameraCharacteristics(it)
+            ch.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true &&
+                ch.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+        } ?: throw IllegalStateException("No flash available on this device")
+        cm.setTorchMode(id, on)
+    }
+
     private fun toggleIR() {
         sendBroadcast(Intent("lolaage.ir.down"))
         sendBroadcast(Intent("lolaage.ir.up"))
@@ -153,6 +173,12 @@ class MainActivity : FlutterActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         forwardCustomKey(event.keyCode, event.action)
         if (kioskArmed && event.keyCode == KeyEvent.KEYCODE_BACK) return true
+        // Volume and camera keys are app controls (zoom / photo), not system volume.
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP,
+            KeyEvent.KEYCODE_VOLUME_DOWN,
+            KeyEvent.KEYCODE_CAMERA -> return true
+        }
         return super.dispatchKeyEvent(event)
     }
 

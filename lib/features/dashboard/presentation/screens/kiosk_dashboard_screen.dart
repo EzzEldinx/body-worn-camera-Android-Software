@@ -27,12 +27,23 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   bool isRecording = false;
   int _recordDurationInSeconds = 0;
   Timer? _timer;
-  Timer? _sosTimer;
+  Timer? _sosTick;
+  double _sosProgress = 0;
+  bool _sosActive = false;
+  Timer? _toastTimer;
+  String? _toastMsg;
+  bool _toastErr = false;
+  bool _zoomHinted = false;
+  bool _wide = true; // true: 16:9 window with black bars, false: full portrait view
+  static const bool _showKeyCodes = true; // shows the last hardware key code; set false when done
+  String _lastKey = '-';
+  DateTime _lastZoomKey = DateTime(2000);
+  DateTime _lastPhotoAt = DateTime(2000);
+  StreamSubscription<String>? _linkSub;
   bool _sosFired = false;
   String? _currentFile;
 
   StreamSubscription<HardwareKeyEvent>? _hardwareSubscription;
-  String _lastHardwareKeyText = "Waiting for BWC buttons...";
 
   bool _isPttActive = false;
   bool _isFlashOn = false;
@@ -42,7 +53,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   bool _isLaserOn = false;
 
   double _currentZoomLevel = 1.0;
-  double _maxZoomLevel = 1.0;
+  double _maxZoomLevel = 4.0;
   double _minZoomLevel = 1.0;
 
   bool _wasLightButtonPressed = false;
@@ -59,41 +70,50 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     
     _initCamera();
     _initHardwareKeys();
+    _linkSub = ref.read(centralLinkProvider).messages.listen((m) {
+      HapticFeedback.mediumImpact();
+      _toast(m);
+    });
   }
 
   void _initHardwareKeys() {
     final hardwareListener = HardwareKeyListener();
     
     _hardwareSubscription = hardwareListener.events.listen((HardwareKeyEvent event) {
-      if (mounted) {
-        setState(() => _lastHardwareKeyText = 'Key: ${event.keyCode} | Act: ${event.action}');
-      }
+      debugPrint('Key: ${event.keyCode} action: ${event.action}');
 
-      int code = event.keyCode;
-      int action = event.action;
+      final code = event.keyCode;
+      final action = event.action;
+      if (_showKeyCodes && mounted) {
+        setState(() => _lastKey = '$code ${action == 0 ? 'down' : 'up'}');
+      }
 
       if (code == 1002) {
         _handleSosKey(action);
         return;
       }
+      if (code == 1003) {
+        if (action == 0) _setPtt(true);
+        if (action == 1) _setPtt(false);
+        return;
+      }
+      // Volume keys zoom (Android codes 24/25, or the vendor's 1006/1007).
+      if (code == 24 || code == 25) {
+        if (action == 0) _stepZoom(code == 24);
+        return;
+      }
+      if (code == 1006 || code == 1007) {
+        if (action == 1) _stepZoom(code == 1006);
+        return;
+      }
+      if (action == 0) return; // everything below acts on release
 
-      if (code == 1003) { 
-        if (action == 0) if (mounted) setState(() => _isPttActive = true);
-        if (action == 1) if (mounted) setState(() => _isPttActive = false);
-      } 
-      else if (action == 1 || action == 0) {
-        if (action == 0) return; 
-
-        if (code == 1001) _toggleRecording();
-        else if (code == 1002) _toggleLaserBtn();
-        else if (code == 1004 || code == 27) _takePhoto();
-        else if (code == 1005) {
-          if (action == 0) _wasLightButtonPressed = true;
-          else if (action == 1) {
-            if (_wasLightButtonPressed) _wasLightButtonPressed = false;
-            else _takePhoto();
-          }
-        }
+      if (code == 1001) {
+        _toggleRecording();
+      } else if (code == 1004 || code == 27) {
+        _takePhoto();
+      } else if (code == 1005) {
+        _toggleFlashLight();
       }
     }, onError: (error) {
       debugPrint('Channel Error: $error');
@@ -102,7 +122,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
   Future<void> _initCamera() async {
     try {
-      _cameras = await availableCameras();
+      _cameras ??= await availableCameras();
       if (_cameras != null && _cameras!.isNotEmpty) {
         _controller = CameraController(
           _cameras![_selectedCameraIndex],
@@ -113,17 +133,10 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
         await _controller!.initialize();
 
-        // Zoom is optional: this plugin may not implement it natively.
-        try {
-          _maxZoomLevel = await _controller!.getMaxZoomLevel();
-          _minZoomLevel = await _controller!.getMinZoomLevel();
-          _currentZoomLevel = _minZoomLevel;
-        } catch (e) {
-          debugPrint('Zoom not supported by this plugin: $e');
-          _maxZoomLevel = 1.0;
-          _minZoomLevel = 1.0;
-          _currentZoomLevel = 1.0;
-        }
+        // Zoom is digital (screen only): this plugin has no native zoom.
+        _minZoomLevel = 1.0;
+        _maxZoomLevel = 4.0;
+        _currentZoomLevel = 1.0;
 
         if (mounted) setState(() => _isCameraInitialized = true);
       }
@@ -133,10 +146,38 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   }
 
   Future<void> _switchCamera() async {
-    if (_cameras == null || _cameras!.length < 2) return;
+    final list = _cameras;
+    if (list == null || list.length < 2) {
+      _toast('This device has only one camera');
+      return;
+    }
+    if (isRecording) {
+      _toast('Stop recording before switching cameras', error: true);
+      return;
+    }
+    final previous = _selectedCameraIndex;
+    final wantFront = list[previous].lensDirection != CameraLensDirection.front;
+    final want = wantFront ? CameraLensDirection.front : CameraLensDirection.back;
+    final found = list.indexWhere((c) => c.lensDirection == want);
+    final next = found >= 0 ? found : (previous + 1) % list.length;
+
+    // Release the current camera first: two controllers cannot share the hardware.
     setState(() => _isCameraInitialized = false);
-    _selectedCameraIndex = _selectedCameraIndex == 0 ? 1 : 0;
+    final old = _controller;
+    _controller = null;
+    try {
+      await old?.dispose();
+    } catch (_) {}
+
+    _selectedCameraIndex = next;
     await _initCamera();
+    if (!_isCameraInitialized) {
+      _toast('Could not open the ${wantFront ? 'front' : 'rear'} camera, going back', error: true);
+      _selectedCameraIndex = previous;
+      await _initCamera();
+    } else {
+      _toast(wantFront ? 'Front camera' : 'Rear camera');
+    }
   }
 
   // ---- Storage / feedback helpers -------------------------------------
@@ -148,24 +189,92 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     return dir.path;
   }
 
-  void _report(String msg) {
+  void _toast(String msg, {bool error = false}) {
     debugPrint(msg);
-    if (mounted) setState(() => _lastHardwareKeyText = msg);
+    _toastTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _toastMsg = msg;
+      _toastErr = error;
+    });
+    _toastTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _toastMsg = null);
+    });
   }
 
-  // Hold the SOS key 2 s = alert control room; short press = laser toggle.
+  void _report(String msg) => _toast(msg, error: msg.contains('FAIL'));
+
+  // ---- SOS: hold 2 s (screen button or hardware key) -------------------
+  void _sosDown() {
+    _sosFired = false;
+    _sosTick?.cancel();
+    HapticFeedback.selectionClick();
+    final start = DateTime.now();
+    setState(() {
+      _sosActive = true;
+      _sosProgress = 0.02;
+    });
+    _sosTick = Timer.periodic(const Duration(milliseconds: 50), (t) {
+      final p = DateTime.now().difference(start).inMilliseconds / 2000;
+      if (p >= 1) {
+        t.cancel();
+        _fireSos();
+      } else if (mounted) {
+        setState(() => _sosProgress = p);
+      }
+    });
+  }
+
+  void _sosUp({bool hint = true}) {
+    _sosTick?.cancel();
+    if (mounted) {
+      setState(() {
+        _sosActive = false;
+        _sosProgress = 0;
+      });
+    }
+    if (hint && !_sosFired) _toast('Hold SOS for 2 seconds to send an alert');
+  }
+
+  void _fireSos() {
+    _sosFired = true;
+    HapticFeedback.heavyImpact();
+    if (mounted) {
+      setState(() {
+        _sosActive = false;
+        _sosProgress = 0;
+      });
+    }
+    final sent = ref.read(centralLinkProvider).emitSos();
+    _toast(
+      sent
+          ? 'SOS sent. Waiting for the control room...'
+          : 'No connection. The SOS will go out as soon as the network is back.',
+      error: !sent,
+    );
+  }
+
+  // Hardware SOS key: hold 2 s = alert, short press = laser.
   void _handleSosKey(int action) {
     if (action == 0) {
-      _sosFired = false;
-      _sosTimer?.cancel();
-      _sosTimer = Timer(const Duration(seconds: 2), () {
-        _sosFired = true;
-        ref.read(centralLinkProvider).emitSos();
-        _report('SOS SENT');
-      });
+      _sosDown();
     } else if (action == 1) {
-      _sosTimer?.cancel();
-      if (!_sosFired) _toggleLaserBtn();
+      final fired = _sosFired;
+      _sosUp(hint: false);
+      if (!fired) _toggleLaserBtn();
+    }
+  }
+
+  // ---- PTT -----------------------------------------------------------------
+  void _setPtt(bool on) {
+    if (_isPttActive == on) return;
+    if (mounted) setState(() => _isPttActive = on);
+    HapticFeedback.lightImpact();
+    ref.read(centralLinkProvider).sendPtt(on);
+    if (on) {
+      _toast(isRecording
+          ? 'PTT active. Your microphone is in the live stream'
+          : 'PTT signal sent. Start recording so the control room can hear you');
     }
   }
 
@@ -193,6 +302,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       final path = '$dir/VID_${DateTime.now().millisecondsSinceEpoch}.mp4';
       _currentFile = path;
 
+      var streamed = true;
       try {
         await c.startVideoRecordingAndStreaming(
           path,
@@ -201,7 +311,8 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         );
       } catch (e) {
         // Evidence must never depend on the network: fall back to local only.
-        _report('STREAM FAILED, recording locally: $e');
+        streamed = false;
+        debugPrint('Stream failed: $e');
         try {
           await c.stopEverything();
         } catch (_) {}
@@ -215,6 +326,8 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         });
       }
       link.sendStatus(recording: true);
+      HapticFeedback.mediumImpact();
+      _toast(streamed ? 'Recording and streaming live' : 'Recording locally, stream is offline', error: !streamed);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (mounted) setState(() => _recordDurationInSeconds++);
       });
@@ -231,6 +344,9 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       return;
     }
 
+    final now = DateTime.now();
+    if (now.difference(_lastPhotoAt).inMilliseconds < 800) return; // one key can fire twice
+    _lastPhotoAt = now;
     if (mounted) setState(() => _showPhotoFlash = true);
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) setState(() => _showPhotoFlash = false);
@@ -240,43 +356,65 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       final dir = await _mediaDir();
       final name = 'IMG_${DateTime.now().millisecondsSinceEpoch}.jpg';
       await c.takePicture('$dir/$name');
-      _report('SAVED: $name');
+      HapticFeedback.mediumImpact();
+      _toast('Photo saved');
     } catch (e) {
       _report('PHOTO FAILED: $e');
     }
   }
 
   Future<void> _toggleFlashLight() async {
-    if (_controller == null || _controller!.value.isInitialized != true) return;
+    final c = _controller;
+    final next = !_isFlashOn;
+    String? error;
     try {
-      _isFlashOn = !_isFlashOn;
-      await _controller!.setFlashMode(_isFlashOn ? FlashMode.torch : FlashMode.off);
-      if (mounted) setState(() {});
-    } catch (e) {}
+      // Native torch first (works without the streaming plugin's help).
+      await _kioskChannel.invokeMethod('setTorch', {'on': next});
+    } catch (e1) {
+      error = '$e1';
+      try {
+        if (c != null && c.value.isInitialized == true) {
+          await c.setFlashMode(next ? FlashMode.torch : FlashMode.off);
+          error = null;
+        }
+      } catch (_) {}
+    }
+    if (error != null) {
+      _toast('Torch failed: $error', error: true);
+      return;
+    }
+    if (mounted) setState(() => _isFlashOn = next);
+    _toast(next ? 'Torch on' : 'Torch off');
+  }
+
+  // Volume keys: a single press steps 0.5x, holding the key steps smoothly.
+  void _stepZoom(bool zoomIn) {
+    final now = DateTime.now();
+    final step = now.difference(_lastZoomKey).inMilliseconds < 250 ? 0.1 : 0.5;
+    _lastZoomKey = now;
+    _setZoomDirect(_currentZoomLevel + (zoomIn ? step : -step));
   }
 
   void _toggleNightMode() {
     setState(() => _isNightModeOn = !_isNightModeOn);
     _kioskChannel.invokeMethod('toggleIR');
+    _toast('Night vision ${_isNightModeOn ? 'on' : 'off'}');
   }
 
   void _toggleLaserBtn() {
     setState(() => _isLaserOn = !_isLaserOn);
-    _kioskChannel.invokeMethod('toggleLaser'); 
-    if (mounted) setState(() => _lastHardwareKeyText = "LASER: ${_isLaserOn ? 'ON' : 'OFF'}");
+    _kioskChannel.invokeMethod('toggleLaser');
+    _toast('Laser ${_isLaserOn ? 'on' : 'off'}');
   }
 
-  Future<void> _setZoomDirect(double zoom) async {
-    if (_controller == null || !_isCameraInitialized) return;
-    double targetZoom = zoom;
-    if (targetZoom > _maxZoomLevel) targetZoom = _maxZoomLevel;
-    if (targetZoom < _minZoomLevel) targetZoom = _minZoomLevel;
-    
-    setState(() => _currentZoomLevel = targetZoom);
-    try {
-      await _controller!.setZoomLevel(_currentZoomLevel);
-    } catch (e) {
-      debugPrint('Zoom failed: $e');
+  // Zoom is digital and only changes this screen: the streaming plugin has no
+  // native zoom, so the recording and live stream stay at 1x.
+  void _setZoomDirect(double zoom) {
+    setState(() => _currentZoomLevel =
+        zoom.clamp(_minZoomLevel, _maxZoomLevel).toDouble());
+    if (!_zoomHinted && _currentZoomLevel > 1.0) {
+      _zoomHinted = true;
+      _toast('Zoom is digital and only affects this screen, not the recording');
     }
   }
 
@@ -315,6 +453,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
             }
 
             return AlertDialog(
+              scrollable: true,
               backgroundColor: Colors.grey[900],
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: const Center(child: Text('Admin Access', style: TextStyle(color: Colors.white))),
@@ -339,7 +478,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
                       crossAxisCount: 3,
                       mainAxisSpacing: 12,
                       crossAxisSpacing: 12,
-                      childAspectRatio: 1.2,
+                      childAspectRatio: 2.0,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
                         for (var i = 1; i <= 9; i++)
@@ -375,9 +514,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   // دالة فك التجميد الفعلية
   void _unlockKiosk() {
     _kioskChannel.invokeMethod('disableKiosk');
-    setState(() {
-      _lastHardwareKeyText = "KIOSK UNLOCKED!";
-    });
+    _toast('Kiosk unlocked');
     // هنستنى ثانية واحدة ونخرج من التطبيق خالص
     Future.delayed(const Duration(seconds: 1), () {
       SystemNavigator.pop(); 
@@ -394,192 +531,272 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     ]);
     _hardwareSubscription?.cancel();
     _timer?.cancel();
-    _sosTimer?.cancel();
+    _sosTick?.cancel();
+    _toastTimer?.cancel();
+    _linkSub?.cancel();
     _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isFrontCamera = false;
-    double landscapeRatio = 16 / 9; 
-
-    if (_cameras != null && _cameras!.isNotEmpty) {
-      isFrontCamera = _cameras![_selectedCameraIndex].lensDirection == CameraLensDirection.front;
-    }
-
-    if (_isCameraInitialized && _controller != null) {
-      final size = _controller!.value.previewSize!;
-      landscapeRatio = size.width > size.height ? size.width / size.height : size.height / size.width;
-    }
+    final cams = _cameras;
+    final isFront = cams != null &&
+        cams.isNotEmpty &&
+        cams[_selectedCameraIndex].lensDirection == CameraLensDirection.front;
 
     return Scaffold(
-      backgroundColor: Colors.black, 
+      backgroundColor: Colors.black,
       body: HiddenAdminDoor(
-        // 🔥 هنا ربطنا الباب السري بظهور شاشة الـ PIN 🔥
         onUnlocked: () => _showAdminPinDialog(),
         child: Stack(
           children: [
-            Positioned.fill(
-              child: _isCameraInitialized
-                  ? Center(
-                      child: AspectRatio(
-                        aspectRatio: landscapeRatio, 
-                        child: RotatedBox(
-                          quarterTurns: isFrontCamera ? 2 : 0,
-                          child: _controller!.buildPreview(),
-                        ),
-                      ),
-                    )
-                  : const Center(child: CircularProgressIndicator(color: Colors.red)),
-            ),
-
+            Positioned.fill(child: _previewLayer(isFront)),
             if (_showPhotoFlash)
-              Positioned.fill(child: Container(color: Colors.white.withOpacity(0.8))),
-
+              Positioned.fill(child: Container(color: Colors.white.withValues(alpha: 0.8))),
             SafeArea(
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Expanded(child: StatusOverlay()),
-                        IconButton(
-                          icon: const Icon(Icons.flip_camera_ios, color: Colors.white, size: 32),
-                          onPressed: _switchCamera,
-                        )
-                      ],
-                    ),
-                  ),
-                  
-                  const Spacer(),
-
-                  if (isRecording)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.circle, color: Colors.red, size: 12),
-                          const SizedBox(width: 8),
-                          Text(_formatDuration(_recordDurationInSeconds), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                        ],
-                      ),
-                    ),
-                  GestureDetector(
-                    onTap: _toggleRecording,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isRecording ? Colors.red : Colors.red.withOpacity(0.5),
-                        border: Border.all(color: Colors.white24, width: 4),
-                      ),
-                      child: Icon(isRecording ? Icons.stop : Icons.videocam, size: 48, color: Colors.white),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('REC', style: TextStyle(color: isRecording ? Colors.red : Colors.white54, fontWeight: FontWeight.bold)),
-                        Text('LASER (SOS)', style: TextStyle(color: _isLaserOn ? Colors.red : Colors.white54, fontWeight: FontWeight.bold)),
-                        Text('PTT', style: TextStyle(color: _isPttActive ? Colors.green : Colors.white54, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            Positioned(
-              right: 16,
-              top: 140,
-              child: Column(
-                children: [
-                  _buildSideButton(icon: Icons.flash_on, color: _isFlashOn ? Colors.yellow : Colors.white, onPressed: _toggleFlashLight),
-                  const SizedBox(height: 16),
-                  _buildSideButton(icon: Icons.nightlight_round, color: _isNightModeOn ? Colors.blue : Colors.white, onPressed: _toggleNightMode),
-                  const SizedBox(height: 16),
-                  _buildSideButton(icon: Icons.flare, color: _isLaserOn ? Colors.redAccent : Colors.white, onPressed: _toggleLaserBtn),
-                ],
-              ),
-            ),
-
-            if (_isCameraInitialized)
-              Positioned(
-                left: 16,
-                top: 140,
-                bottom: 140,
-                child: Container(
-                  width: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.black45,
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.add, color: Colors.white),
-                        onPressed: () => _setZoomDirect(_currentZoomLevel + 0.5),
-                      ),
-                      Expanded(
-                        child: RotatedBox(
-                          quarterTurns: 3, 
-                          child: Slider(
-                            value: _currentZoomLevel,
-                            min: _minZoomLevel,
-                            max: _maxZoomLevel,
-                            activeColor: Colors.red,
-                            inactiveColor: Colors.white38,
-                            onChanged: (value) => _setZoomDirect(value),
+                        const StatusOverlay(),
+                        if (_showKeyCodes)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text('Last key: $_lastKey', style: const TextStyle(color: Colors.white54, fontSize: 11)),
                           ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            _miniBtn(_wide ? Icons.crop_portrait : Icons.crop_16_9, Colors.white, _toggleView),
+                            _miniBtn(Icons.flash_on, _isFlashOn ? Colors.yellow : Colors.white, _toggleFlashLight),
+                            _miniBtn(Icons.nightlight_round, _isNightModeOn ? Colors.blue : Colors.white, _toggleNightMode),
+                            _miniBtn(Icons.flare, _isLaserOn ? Colors.redAccent : Colors.white, _toggleLaserBtn),
+                            _miniBtn(Icons.flip_camera_ios, Colors.white, _switchCamera),
+                          ],
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.remove, color: Colors.white),
-                        onPressed: () => _setZoomDirect(_currentZoomLevel - 0.5),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${_currentZoomLevel.toStringAsFixed(1)}x',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_isCameraInitialized) _zoomRow(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 14),
+                    child: _actions(),
+                  ),
+                ],
+              ),
+            ),
+            if (_toastMsg != null)
+              Align(
+                alignment: const Alignment(0, 0.38),
+                child: IgnorePointer(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _toastErr ? Colors.red.shade800 : Colors.black87,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Text(
+                      _toastMsg!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
               ),
-
-            Positioned(
-              top: 80,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                color: Colors.red.withOpacity(0.8),
-                child: Text(_lastHardwareKeyText, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSideButton({required IconData icon, required Color color, required VoidCallback onPressed}) {
+  void _toggleView() {
+    setState(() => _wide = !_wide);
+    _toast(_wide ? 'Wide view' : 'Full view');
+  }
+
+  // Preview keeps its true proportions. Wide view crops the centre of the
+  // upright frame into a 16:9 window (black bars above and below hold the
+  // buttons); full view shows the whole frame.
+  Widget _previewLayer(bool isFront) {
+    if (!_isCameraInitialized || _controller == null) {
+      return const Center(child: CircularProgressIndicator(color: Colors.red));
+    }
+    final size = _controller!.value.previewSize;
+    final a = size?.width ?? 1280.0;
+    final b = size?.height ?? 720.0;
+    final pw = a < b ? a : b; // upright (portrait) frame
+    final ph = a < b ? b : a;
+
+    final frame = SizedBox(
+      width: pw,
+      height: ph,
+      child: ClipRect(
+        child: Transform.scale(
+          scale: _currentZoomLevel,
+          child: RotatedBox(
+            quarterTurns: isFront ? 2 : 0,
+            child: _controller!.buildPreview(),
+          ),
+        ),
+      ),
+    );
+
+    if (!_wide) {
+      return Center(child: FittedBox(fit: BoxFit.contain, child: frame));
+    }
+    return LayoutBuilder(
+      builder: (context, box) => Center(
+        child: SizedBox(
+          width: box.maxWidth,
+          height: box.maxWidth * 9 / 16,
+          child: ClipRect(child: FittedBox(fit: BoxFit.cover, child: frame)),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniBtn(IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
-      onTap: onPressed,
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(10),
+        width: 40,
+        height: 40,
+        margin: const EdgeInsets.only(left: 8),
         decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle, border: Border.all(color: Colors.white24)),
-        child: Icon(icon, color: color, size: 24),
+        child: Icon(icon, color: color, size: 22),
+      ),
+    );
+  }
+
+  Widget _zoomRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.remove, color: Colors.white),
+            onPressed: () => _setZoomDirect(_currentZoomLevel - 0.5),
+          ),
+          Expanded(
+            child: Slider(
+              value: _currentZoomLevel,
+              min: _minZoomLevel,
+              max: _maxZoomLevel,
+              activeColor: Colors.red,
+              inactiveColor: Colors.white38,
+              onChanged: _setZoomDirect,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            onPressed: () => _setZoomDirect(_currentZoomLevel + 0.5),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text('${_currentZoomLevel.toStringAsFixed(1)}x',
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actions() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isRecording)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.circle, color: Colors.red, size: 12),
+                const SizedBox(width: 8),
+                Text(_formatDuration(_recordDurationInSeconds),
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              ],
+            ),
+          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            GestureDetector(
+              onTap: _takePhoto,
+              child: Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle, border: Border.all(color: Colors.white54, width: 2)),
+                child: const Icon(Icons.photo_camera, color: Colors.white, size: 26),
+              ),
+            ),
+            GestureDetector(
+              onTap: _toggleRecording,
+              child: Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isRecording ? Colors.red : Colors.red.withValues(alpha: 0.55),
+                  border: Border.all(color: Colors.white54, width: 3),
+                ),
+                child: Icon(isRecording ? Icons.stop : Icons.videocam, size: 38, color: Colors.white),
+              ),
+            ),
+            _holdBtn(label: 'SOS', color: Colors.red, active: _sosActive, progress: _sosProgress, onDown: _sosDown, onUp: _sosUp),
+            _holdBtn(label: 'PTT', color: Colors.green, active: _isPttActive, onDown: () => _setPtt(true), onUp: () => _setPtt(false)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Press-and-hold button (SOS, PTT). Listener avoids gesture-arena delays.
+  Widget _holdBtn({
+    required String label,
+    required Color color,
+    required bool active,
+    double progress = 0,
+    required VoidCallback onDown,
+    required VoidCallback onUp,
+  }) {
+    return Listener(
+      onPointerDown: (_) => onDown(),
+      onPointerUp: (_) => onUp(),
+      onPointerCancel: (_) => onUp(),
+      child: SizedBox(
+        width: 62,
+        height: 62,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (progress > 0)
+              SizedBox(
+                width: 62,
+                height: 62,
+                child: CircularProgressIndicator(value: progress, strokeWidth: 4, color: Colors.white, backgroundColor: Colors.white24),
+              ),
+            Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active ? color : color.withValues(alpha: 0.55),
+                border: Border.all(color: Colors.white54, width: 2),
+              ),
+              child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+            ),
+          ],
+        ),
       ),
     );
   }

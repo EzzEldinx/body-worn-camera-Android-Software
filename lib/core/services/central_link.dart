@@ -29,6 +29,11 @@ class CentralLink {
   Timer? _heartbeat;
   Position? _last;
 
+  final _msgs = StreamController<String>.broadcast();
+  Stream<String> get messages => _msgs.stream; // feedback for the officer
+  bool _pendingSos = false;
+  int? _myAlarm;
+
   void start() {
     _socket = io.io(
       CentralConfig.serverUrl,
@@ -39,8 +44,22 @@ class CentralLink {
           .build(),
     );
     _socket!
-      ..onConnect((_) => debugPrint('Connected to central server'))
-      ..onDisconnect((_) => debugPrint('Disconnected from central server'));
+      ..onConnect((_) {
+        debugPrint('Connected to central server');
+        if (_pendingSos) _sendSos(); // an SOS raised while offline goes out now
+      })
+      ..onDisconnect((_) => debugPrint('Disconnected from central server'))
+      ..on('dashboard_sos', (d) {
+        if (d is Map && d['cameraId'] == CentralConfig.cameraId) {
+          _myAlarm = (d['id'] as num?)?.toInt();
+          _msgs.add('SOS received by the control room');
+        }
+      })
+      ..on('dashboard_alarm_ack', (d) {
+        if (d is Map && _myAlarm != null && (d['id'] as num?)?.toInt() == _myAlarm) {
+          _msgs.add('SOS acknowledged by a dispatcher');
+        }
+      });
 
     // GPS runs independently of the socket, so it starts even if the
     // server is down at launch.
@@ -102,8 +121,16 @@ class CentralLink {
         {'cameraId': CentralConfig.cameraId, 'recording': recording});
   }
 
-  void emitSos() {
-    if (!_online) return;
+  /// Returns true if sent now; otherwise it is queued and sent on reconnect.
+  bool emitSos() {
+    _pendingSos = true;
+    if (!_online) return false;
+    _sendSos();
+    return true;
+  }
+
+  void _sendSos() {
+    _pendingSos = false;
     _socket!.emit('camera_sos', {
       'cameraId': CentralConfig.cameraId,
       'lat': _last?.latitude,
@@ -111,10 +138,16 @@ class CentralLink {
     });
   }
 
+  void sendPtt(bool active) {
+    if (!_online) return;
+    _socket!.emit('camera_ptt', {'cameraId': CentralConfig.cameraId, 'active': active});
+  }
+
   void dispose() {
     _heartbeat?.cancel();
     _gpsSub?.cancel();
     _socket?.dispose();
+    _msgs.close();
   }
 }
 
@@ -123,4 +156,3 @@ final centralLinkProvider = Provider<CentralLink>((ref) {
   ref.onDispose(link.dispose);
   return link;
 });
-
