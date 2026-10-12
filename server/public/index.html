@@ -1,11 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SWG Command Center</title>
+<title>Vision Guard - Digital Evidence Management System</title>
 <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
+
+<script>
+  // Plugin da el-masool 3an tashbeek w t-rteeb el-horoof el-arabic (RTL)
+  maplibregl.setRTLTextPlugin(
+    'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js',
+    null,
+    true
+  );
+</script>
+
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.bootcdn.net/ajax/libs/flv.js/1.6.2/flv.min.js"></script>
 <style>
@@ -87,33 +97,98 @@ header.flash{animation:fl 1s 3}
 .tag button+button{margin-left:6px}
 .tag button[data-s],.tag button[data-f]{width:auto;padding:0 10px;font-size:12px}
 #snd{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:50;background:var(--sel);color:#1a1405;font-size:14px;font-weight:600;padding:6px 16px;border-radius:0 0 8px 8px}
+
+/* Custom Flag Switcher Design */
+.lang-switch {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+  flex: none;
+}
+.lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--mut);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.lang-btn svg {
+  width: 18px;
+  height: 13px;
+  border-radius: 2px;
+  object-fit: cover;
+  flex: none;
+}
+.lang-btn.active {
+  background: var(--raise);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
 @media (prefers-reduced-motion:reduce){.mk.rec,header.flash{animation:none}}
 </style>
 </head>
-<body>
+<body dir="rtl">
 <div id="snd">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
 <header id="top">
   <div class="brand">
     <svg viewBox="0 0 24 24" fill="none" stroke="#ffc857" stroke-width="1.8"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><circle cx="12" cy="11" r="2.6"/></svg>
-    SWG Command Center
+    Vision Guard - Digital Evidence Management System
   </div>
   <div class="stats">
-    <span><b id="sOn">0</b>online</span>
-    <span><b id="sRec">0</b>recording</span>
-    <span><b id="sAll">0</b>registered</span>
-    <span class="alert"><b id="sAl">0</b>open alarms</span>
+    <span><b id="sOn">0</b><span id="txtOnline">متصل</span></span>
+    <span><b id="sRec">0</b><span id="txtRec">جاري التسجيل</span></span>
+    <span><b id="sAll">0</b><span id="txtReg">مسجل</span></span>
+    <span class="alert"><b id="sAl">0</b><span id="txtAlarms">إنذارات مفتوحة</span></span>
   </div>
   <div class="clock" id="clock"></div>
+
+  <!-- Sleek Custom Flag Segmented Switcher -->
+  <div class="lang-switch" id="langToggle">
+    <button class="lang-btn active" data-l="ar">
+      <svg viewBox="0 0 900 600">
+        <rect width="900" height="600" fill="#006C35"/>
+        <path fill="#FFF" d="M220 280h460v40H220z"/>
+        <path fill="#FFF" d="M300 360l200-30 100 30-100 10z"/>
+      </svg>
+      عربي
+    </button>
+    <button class="lang-btn" data-l="en">
+      <svg viewBox="0 0 60 30">
+        <clipPath id="s"><path d="M0 0v30h60V0z"/></clipPath>
+        <clipPath id="t"><path d="M30 15h30v15zM0 15h30V0zM30 15H0v15zM60 15H30V0z"/></clipPath>
+        <g clip-path="url(#s)">
+          <path d="M0 0v30h60V0z" fill="#012169"/>
+          <path d="M0 0l60 30M60 0L0 30" stroke="#fff" stroke-width="6"/>
+          <path d="M0 0l60 30M60 0L0 30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/>
+          <path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/>
+          <path d="M30 0v30M0 15h60" stroke="#C8102E" stroke-width="6"/>
+        </g>
+      </svg>
+      EN
+    </button>
+  </div>
+
   <div class="user"><span id="who"></span><button class="btn" id="out">Sign out</button></div>
 </header>
 <main>
   <aside>
-    <div class="sec">Cameras <small id="cnt"></small></div>
-    <input id="q" type="search" placeholder="Search by name, group or ID" aria-label="Search cameras">
+    <div class="sec"><span id="secCameras">الكاميرات</span> <small id="cnt"></small></div>
+    <input id="q" type="search" placeholder="بحث بالاسم، المجموعة أو المعرف" aria-label="Search cameras">
     <div class="chips" id="chips">
-      <button class="chip on" data-f="all">All</button>
-      <button class="chip" data-f="online">Online</button>
-      <button class="chip" data-f="rec">Recording</button>
+      <button class="chip on" data-f="all" id="chipAll">الكل</button>
+      <button class="chip" data-f="online" id="chipOnline">متصل</button>
+      <button class="chip" data-f="rec" id="chipRec">تسجيل</button>
     </div>
     <div id="list"></div>
   </aside>
@@ -122,23 +197,77 @@ header.flash{animation:fl 1s 3}
     <div id="info"></div>
   </section>
   <section id="right">
-    <div class="sec">Live wall
+    <div class="sec"><span id="secWall">حائط البث المباشر</span>
       <div class="lay" id="lay">
         <button data-n="1">1</button><button data-n="4" class="on">2×2</button><button data-n="9">3×3</button>
       </div>
     </div>
     <div id="wall"></div>
-    <div class="sec" style="border-top:1px solid var(--line)">Alarms <small id="aSub"></small></div>
+    <div class="sec" style="border-top:1px solid var(--line)"><span id="secAlarmTitle">الإنذارات</span> <small id="aSub"></small></div>
     <div id="alarms"></div>
   </section>
 </main>
 
 <script>
+const lang = {
+  en: {
+    online: "online",
+    offline: "offline",
+    recording: "recording",
+    registered: "registered",
+    openAlarms: "open alarms",
+    cameras: "Cameras",
+    searchPlaceholder: "Search by name, group or ID",
+    all: "All",
+    onlineChip: "Online",
+    recChip: "Recording",
+    watchLive: "Watch live",
+    noGps: "No GPS fix yet",
+    noCamerasMatch: "No cameras match. Turn on a body camera and it will appear here automatically.",
+    talking: "Talking now (PTT held)",
+    follow: "Follow",
+    following: "Following",
+    liveWall: "Live wall",
+    alarmsTitle: "Alarms",
+    sosFrom: "SOS from",
+    noAlarms: "No alarms. An SOS held on a body camera shows up here instantly.",
+    signOut: "Sign out",
+    adminRole: "Administrator"
+  },
+  ar: {
+    online: "متصل",
+    offline: "غير متصل",
+    recording: "جاري التسجيل",
+    registered: "مسجل",
+    openAlarms: "إنذارات مفتوحة",
+    cameras: "الكاميرات",
+    searchPlaceholder: "بحث بالاسم، المجموعة أو المعرف",
+    all: "الكل",
+    onlineChip: "متصل",
+    recChip: "تسجيل",
+    watchLive: "متابعة البث",
+    noGps: "لا يوجد إحداثيات GPS",
+    noCamerasMatch: "لا توجد كاميرات مطابقة. قم بتشغيل كاميرا الجسم وستظهر هنا تلقائياً.",
+    talking: "يتحدث الآن (PTT)",
+    follow: "متابعة",
+    following: "جاري المتابعة",
+    liveWall: "حائط البث المباشر",
+    alarmsTitle: "الإنذارات",
+    sosFrom: "إغاثة SOS من",
+    noAlarms: "لا توجد إنذارات. أي إغاثة SOS من كاميرا الجسم ستظهر هنا فوراً.",
+    signOut: "تسجيل الخروج",
+    adminRole: "مدير النظام"
+  }
+};
+
+let currentLang = 'ar';
+const t = (key) => lang[currentLang][key] || key;
+
 const $ = (s) => document.querySelector(s);
 const host = location.hostname;
 const cams = new Map(), markers = new Map(), players = new Map();
 let alarms = [], selected = null, filter = 'all', term = '', follow = false;
-let me = { role: 'viewer' }, editing = false;
+let me = { role: 'viewer' }, editing = false, currentUser = null;
 let layout = 4, slots = [null, null, null, null];
 
 const stateOf = (c) => (c.recording ? 'rec' : c.online ? 'online' : 'off');
@@ -146,16 +275,19 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '
 const nm = (c) => c.name || c.cameraId;
 const tagOf = (id) => esc(nm(cams.get(id) || { cameraId: id }));
 const ago = (ts) => {
-  if (!ts) return 'no signal yet';
+  if (!ts) return currentLang === 'ar' ? 'لا توجد إشارة بعد' : 'no signal yet';
   const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (currentLang === 'ar') {
+    return s < 60 ? s + ' ثانية' : s < 3600 ? Math.floor(s / 60) + ' دقيقة' : Math.floor(s / 3600) + ' ساعة';
+  }
   return s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s / 60) + 'm ago' : Math.floor(s / 3600) + 'h ago';
 };
 
 /* ---------- Map ---------- */
 const map = new maplibregl.Map({
   container: 'map',
-  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-  center: [46.6753, 24.7136], zoom: 11
+  style: 'https://tiles.openfreemap.org/styles/liberty',
+  center: [46.6753, 24.7136], zoom: 14
 });
 
 function syncMarker(c) {
@@ -185,17 +317,29 @@ function renderList() {
   requestAnimationFrame(() => {
     queued = false;
     const rows = visible();
-    $('#cnt').textContent = rows.length + ' shown';
+    $('#cnt').textContent = rows.length + (currentLang === 'ar' ? ' معروض' : ' shown');
+    $('#q').placeholder = t('searchPlaceholder');
+    $('#chipAll').textContent = t('all');
+    $('#chipOnline').textContent = t('onlineChip');
+    $('#chipRec').textContent = t('recChip');
+    $('#secCameras').textContent = t('cameras');
+    $('#secWall').textContent = t('liveWall');
+    $('#secAlarmTitle').textContent = t('alarmsTitle');
+    $('#txtOnline').textContent = t('online');
+    $('#txtRec').textContent = t('recording');
+    $('#txtReg').textContent = t('registered');
+    $('#txtAlarms').textContent = t('openAlarms');
+
     $('#list').innerHTML = rows.length ? rows.map((c) => `
       <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''}" data-id="${c.cameraId}" tabindex="0">
         <span class="dot"></span>
         <div class="meta"><b>${esc(nm(c))}</b>
-          <small>${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? 'No GPS fix' : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
+          <small>${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
         ${c.recording ? '<span class="badge">REC</span>' : ''}
         ${c.ptt ? '<span class="badge talk">TALK</span>' : ''}
-        <button data-w="${c.cameraId}" title="Watch live" aria-label="Watch ${c.cameraId} live">▶</button>
+        <button data-w="${c.cameraId}" title="${t('watchLive')}" aria-label="${t('watchLive')}">▶</button>
       </div>`).join('')
-      : '<div class="none">No cameras match. Turn on a body camera and it will appear here automatically.</div>';
+      : `<div class="none">${t('noCamerasMatch')}</div>`;
     stats();
   });
 }
@@ -234,26 +378,26 @@ function select(id, fly) {
 function renderInfo() {
   const c = cams.get(selected), box = $('#info');
   if (!c) { box.style.display = 'none'; return; }
-  const label = c.recording ? 'Recording' : c.online ? 'Online' : 'Offline';
+  const label = c.recording ? t('recording') : c.online ? t('online') : t('offline');
   box.style.display = 'block';
   if (editing && me.role === 'admin') {
     box.innerHTML = `<h3>Edit ${c.cameraId}</h3>
       <input class="in" id="eN" maxlength="40" placeholder="Display name" value="${esc(c.name || '')}" aria-label="Display name">
-      <input class="in" id="eG" maxlength="40" placeholder="Group, for example Riyadh patrol" value="${esc(c.grp || '')}" aria-label="Group">
+      <input class="in" id="eG" maxlength="40" placeholder="Group" value="${esc(c.grp || '')}" aria-label="Group">
       <div class="row"><button class="btn pri" id="eS">Save changes</button><button class="btn" id="eC">Cancel</button></div>
       <div class="row"><button class="btn" id="eD">Remove camera</button></div>`;
     const call = (method, body) => fetch('/api/cameras/' + c.cameraId, { method, headers: { 'Content-Type': 'application/json' }, body });
     $('#eS').onclick = () => call('PATCH', JSON.stringify({ name: $('#eN').value, grp: $('#eG').value })).then(() => { editing = false; renderInfo(); });
     $('#eC').onclick = () => { editing = false; renderInfo(); };
-    $('#eD').onclick = () => { if (confirm('Remove ' + nm(c) + ' from the system? It will return if it connects again.')) call('DELETE'); };
+    $('#eD').onclick = () => { if (confirm('Remove ' + nm(c) + '?')) call('DELETE'); };
     return;
   }
   box.innerHTML = `<h3>${esc(nm(c))}</h3>
-    <p>${label}, last update <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
-    <p>${c.lat == null ? 'No GPS fix yet' : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
-    ${c.ptt ? '<p style="color:var(--ok)">Talking now (PTT held)</p>' : ''}
-    <div class="row"><button class="btn pri" id="bW">Watch live</button>
-    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? 'Following' : 'Follow'}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>`;
+    <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
+    <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
+    ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
+    <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
+    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>`;
   $('#bW').onclick = () => watch(c.cameraId);
   if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };
   $('#bF').onclick = () => { follow = !follow; renderInfo(); if (follow && c.lat != null) map.easeTo({ center: [c.lng, c.lat] }); };
@@ -274,20 +418,18 @@ function renderTile(i) {
   const t = document.querySelector(`.tile[data-i="${i}"]`), id = slots[i];
   if (players.has(i)) { players.get(i).destroy(); players.delete(i); }
   t.classList.remove('live');
-  if (!id) { t.innerHTML = '<div class="empty">Empty slot<small>Press ▶ next to a camera to show it here</small></div>'; return; }
+  if (!id) { t.innerHTML = `<div class="empty">${currentLang === 'ar' ? 'خانة فارغة' : 'Empty slot'}<small>${currentLang === 'ar' ? 'اضغط ▶ بجوار الكاميرا لعرضها هنا' : 'Press ▶ next to a camera to show it here'}</small></div>`; return; }
   t.innerHTML = `<video muted autoplay playsinline></video>
-    <div class="tag"><span>${tagOf(id)}</span><button data-s="${i}" aria-label="Toggle sound">Listen</button><button data-f="${i}" aria-label="Toggle fit">Fit</button><button data-x="${i}" aria-label="Close ${id}">✕</button></div>
-    <div class="wait">Waiting for ${tagOf(id)} to start recording…</div>`;
+    <div class="tag"><span>${tagOf(id)}</span><button data-s="${i}" aria-label="Toggle sound">${currentLang === 'ar' ? 'استماع' : 'Listen'}</button><button data-f="${i}" aria-label="Toggle fit">Fit</button><button data-x="${i}" aria-label="Close ${id}">✕</button></div>
+    <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}</div>`;
   start(i, id, t.querySelector('video'));
   applySound(i);
 }
-/* Player lifecycle follows the camera's recording state, so a stopped and
-   restarted camera reconnects by itself (no page refresh). */
 const retry = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
-const waitMsg = (id) => 'Waiting for ' + tagOf(id) + ' to start recording…';
+const waitMsg = (id) => currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…';
 
 function stopTile(i, msg) {
-  if (players.has(i)) { try { players.get(i).destroy(); } catch (e) { /* already closed */ } players.delete(i); }
+  if (players.has(i)) { try { players.get(i).destroy(); } catch (e) { } players.delete(i); }
   const t = document.querySelector(`.tile[data-i="${i}"]`);
   if (!t) return;
   t.classList.remove('live');
@@ -296,13 +438,13 @@ function stopTile(i, msg) {
 }
 function start(i, id, v) {
   if (!flvjs.isSupported()) return;
-  if (!cams.get(id)?.recording) { stopTile(i, waitMsg(id)); return; } // nothing to play yet, no retry spam
+  if (!cams.get(id)?.recording) { stopTile(i, waitMsg(id)); return; }
   const p = flvjs.createPlayer(
     { type: 'flv', isLive: true, url: `http://${host}:8000/live/${encodeURIComponent(id)}.flv` },
     { enableStashBuffer: false, autoCleanupSourceBuffer: true,
       liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 1.5, liveBufferLatencyMinRemain: 0.3 });
   p.attachMediaElement(v);
-  const again = () => { // stream ended or failed while the camera is still recording
+  const again = () => {
     if (players.get(i) !== p) return;
     stopTile(i);
     const n = (retry.get(i) || 0) + 1; retry.set(i, n);
@@ -318,7 +460,6 @@ function start(i, id, v) {
   players.set(i, p); p.load(); Promise.resolve(p.play()).catch(() => {});
 }
 
-/* Sound: open while the officer holds PTT (plus a short tail for stream delay) or when Listen is on. */
 function applySound(i) {
   const id = slots[i], t = document.querySelector(`.tile[data-i="${i}"]`);
   if (!id || !t) return;
@@ -326,11 +467,10 @@ function applySound(i) {
   const open = !!t.dataset.listen || !!cams.get(id)?.ptt || pttHold.has(id);
   t.classList.toggle('talking', !!cams.get(id)?.ptt);
   if (v) { v.muted = !open; if (open) Promise.resolve(v.play()).catch(() => {}); }
-  if (b) b.textContent = open ? 'Mute' : 'Listen';
+  if (b) b.textContent = open ? (currentLang === 'ar' ? 'كتم' : 'Mute') : (currentLang === 'ar' ? 'استماع' : 'Listen');
 }
 const applySoundFor = (id) => slots.forEach((s, i) => { if (s === id) applySound(i); });
 
-/* Watchdog: restart a tile whose video froze or never started. */
 setInterval(() => {
   slots.forEach((id, i) => {
     if (!id || !cams.get(id)?.recording || !players.has(i)) return;
@@ -341,6 +481,7 @@ setInterval(() => {
     lastT.set(i, v.currentTime);
   });
 }, 4000);
+
 function watch(id) {
   if (slots.includes(id)) return;
   let i = slots.indexOf(null); if (i < 0) i = slots.length - 1;
@@ -357,7 +498,7 @@ $('#wall').addEventListener('click', (e) => {
   const fb = e.target.closest('[data-f]');
   if (fb) {
     const t = fb.closest('.tile');
-    t.classList.toggle('fit'); fb.textContent = t.classList.contains('fit') ? 'Fill' : 'Fit';
+    t.classList.toggle('fit'); fb.textContent = t.classList.contains('fit') ? (currentLang === 'ar' ? 'ملء' : 'Fill') : (currentLang === 'ar' ? 'احتواء' : 'Fit');
     return;
   }
   const x = e.target.closest('[data-x]'); if (!x) return;
@@ -372,11 +513,11 @@ $('#lay').addEventListener('click', (e) => {
 
 /* ---------- Alarms ---------- */
 function renderAlarms() {
-  $('#aSub').textContent = alarms.length ? alarms.filter((a) => !a.ack).length + ' open' : '';
+  $('#aSub').textContent = alarms.length ? alarms.filter((a) => !a.ack).length + (currentLang === 'ar' ? ' مفتوح' : ' open') : '';
   $('#alarms').innerHTML = alarms.length ? alarms.map((a) => `
-    <div class="al ${a.ack ? 'ack' : ''}" data-a="${a.id}"><b>SOS from ${tagOf(a.cameraId)}</b>
+    <div class="al ${a.ack ? 'ack' : ''}" data-a="${a.id}"><b>${t('sosFrom')} ${tagOf(a.cameraId)}</b>
     <small>${new Date(a.ts).toLocaleTimeString()}</small></div>`).join('')
-    : '<div class="none">No alarms. An SOS held on a body camera shows up here instantly.</div>';
+    : `<div class="none">${t('noAlarms')}</div>`;
   stats();
 }
 $('#alarms').addEventListener('click', (e) => {
@@ -394,13 +535,13 @@ function beep() {
       o.connect(g); g.connect(a.destination);
       o.start(a.currentTime + t); o.stop(a.currentTime + t + 0.15);
     });
-  } catch (e) { /* audio blocked until the page has been clicked once */ }
+  } catch (e) { }
 }
 
 /* ---------- Live data ---------- */
 function pttChanged(c) {
   const id = c.cameraId;
-  if (c.ptt) { clearTimeout(pttHold.get(id)); pttHold.delete(id); watch(id); } // appears on the wall by itself
+  if (c.ptt) { clearTimeout(pttHold.get(id)); pttHold.delete(id); watch(id); }
   else pttHold.set(id, setTimeout(() => { pttHold.delete(id); applySoundFor(id); }, 3000));
   applySoundFor(id);
 }
@@ -411,11 +552,10 @@ function upsert(c) {
   syncMarker(c);
   if (c.recording && !wasRec) {
     if (slots.includes(c.cameraId)) {
-      // The old stream ended: open a fresh connection (short delay lets the server register the publisher).
       slots.forEach((id, i) => {
         if (id === c.cameraId) setTimeout(() => { if (slots[i] === id && cams.get(id)?.recording) renderTile(i); }, 600);
       });
-    } else watch(c.cameraId); // a newly live camera appears on the wall by itself
+    } else watch(c.cameraId);
   }
   if (!c.recording && wasRec) slots.forEach((id, i) => { if (id === c.cameraId) stopTile(i, waitMsg(id)); });
   if (!!c.ptt !== wasPtt) pttChanged(c);
@@ -446,17 +586,45 @@ setInterval(() => {
   document.querySelectorAll('[data-ts]').forEach((el) => { el.textContent = ago(+el.dataset.ts); });
 }, 1000);
 
+function updateUserDisplay() {
+  if (!currentUser) return;
+  $('#out').textContent = t('signOut');
+  const ishebAdmin = currentUser.role === 'admin' || (currentUser.name && currentUser.name.toLowerCase() === 'administrator');
+  $('#who').textContent = ishebAdmin ? t('adminRole') : currentUser.name;
+}
+
 fetch('/api/me').then((r) => (r.ok ? r.json() : Promise.reject()))
-  .then((u) => { me = u; $('#who').textContent = u.name; renderInfo(); })
+  .then((u) => { 
+    me = u; 
+    currentUser = u;
+    updateUserDisplay();
+    renderInfo(); 
+  })
   .catch(() => { location.href = '/login.html'; });
+
 $('#out').onclick = () => fetch('/api/logout', { method: 'POST' }).then(() => { location.href = '/login.html'; });
 
-// Browsers only play unmuted audio after the first click on the page.
 const unlockAudio = () => { const b = $('#snd'); if (b) b.remove(); };
 if (navigator.userActivation?.hasBeenActive) unlockAudio();
 else { addEventListener('pointerdown', unlockAudio, { once: true, capture: true }); addEventListener('keydown', unlockAudio, { once: true, capture: true }); }
 
 buildWall(); renderList(); renderAlarms();
+
+// Segmented Flag Switcher Event Listener
+$('#langToggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('.lang-btn');
+  if (!btn || btn.classList.contains('active')) return;
+  
+  currentLang = btn.dataset.l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+  
+  renderList();
+  renderAlarms();
+  renderInfo();
+  buildWall();
+  updateUserDisplay();
+});
 </script>
 </body>
 </html>
