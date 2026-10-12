@@ -6,8 +6,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowInsets
@@ -44,6 +46,12 @@ class MainActivity : FlutterActivity() {
                 "lolaage.photo.down" -> forwardCustomKey(1004, 0)
                 "lolaage.photo.up" -> forwardCustomKey(1004, 1)
 
+                // The CAMERA button really sends "take.picture" and the MIC button sends "audio".
+                "lolaage.take.picture.down" -> forwardCustomKey(1004, 0)
+                "lolaage.take.picture.up" -> forwardCustomKey(1004, 1)
+                "lolaage.audio.down" -> forwardCustomKey(1008, 0)
+                "lolaage.audio.up" -> forwardCustomKey(1008, 1)
+
                 // زرار الكشاف
                 "lolaage.light.down" -> forwardCustomKey(1005, 0)
                 "lolaage.light.up" -> forwardCustomKey(1005, 1)
@@ -67,6 +75,69 @@ class MainActivity : FlutterActivity() {
                     // دوال النداء من أزرار الشاشة في فلاتر
                     "toggleIR" -> { toggleIR(); result.success(null) }
                     "toggleLaser" -> { toggleLaser(); result.success(null) }
+                    "prize" -> {
+                        // Laser, torch, IR and black-and-white mode are driven by the device's own
+                        // system app (com.pri.factorytest). Only these actions are allowed.
+                        val allowed = setOf(
+                            "lolaage.rayled.set",
+                            "lolaage.ircut.switch",
+                            "lolaage.ir.led",
+                            "com.android.led.torch",
+                            "com.lxy.bw.sensormode"
+                        )
+                        val action = call.argument<String>("action")
+                        if (action == null || action !in allowed) {
+                            result.error("prize", "action not allowed", null)
+                        } else {
+                            try {
+                                val i = Intent(action)
+                                i.setClassName("com.pri.factorytest", "com.pri.factorytest.PrizeReceiver")
+                                call.argument<Int>("open")?.let { i.putExtra("open", it) }
+                                call.argument<Int>("value")?.let { i.putExtra("value", it) }
+                                call.argument<String>("sensormode")?.let { i.putExtra("sensormode", it) }
+                                val found = packageManager.queryBroadcastReceivers(i, 0).size
+                                Log.i("BWC", "prize action=$action receivers=$found")
+                                if (found == 0) {
+                                    result.error("prize", "system receiver not found", null)
+                                } else {
+                                    sendBroadcast(i)
+                                    Log.i("BWC", "prize sent: $action")
+                                    result.success(null)
+                                }
+                            } catch (e: Exception) {
+                                result.error("prize", e.message, null)
+                            }
+                        }
+                    }
+                    "getBwMode" -> {
+                        try {
+                            val proc = Runtime.getRuntime().exec(arrayOf("getprop", "sys.debug.bw.sensormode"))
+                            result.success(proc.inputStream.bufferedReader().readText().trim())
+                        } catch (e: Exception) {
+                            result.error("bw", e.message, null)
+                        }
+                    }
+                    "showVolume" -> {
+                        // Opens the system volume slider so the user can drag it up or down.
+                        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                        am.adjustStreamVolume(
+                            AudioManager.STREAM_MUSIC,
+                            AudioManager.ADJUST_SAME,
+                            AudioManager.FLAG_SHOW_UI
+                        )
+                        result.success(mapOf(
+                            "level" to am.getStreamVolume(AudioManager.STREAM_MUSIC),
+                            "max" to am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        ))
+                    }
+                    "cycleVolume" -> {
+                        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                        val next = if (cur <= 0) max else cur - 1
+                        am.setStreamVolume(AudioManager.STREAM_MUSIC, next, 0)
+                        result.success(mapOf("level" to next, "max" to max))
+                    }
                     "setTorch" -> {
                         try {
                             setTorchNative(call.argument<Boolean>("on") ?: false)
@@ -137,6 +208,10 @@ class MainActivity : FlutterActivity() {
             addAction("lolaage.ptt.up")
             addAction("lolaage.photo.down")
             addAction("lolaage.photo.up")
+            addAction("lolaage.take.picture.down")
+            addAction("lolaage.take.picture.up")
+            addAction("lolaage.audio.down")
+            addAction("lolaage.audio.up")
             addAction("lolaage.light.down")
             addAction("lolaage.light.up")
             addAction("lolaage.volume.up")

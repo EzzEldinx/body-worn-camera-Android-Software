@@ -33,6 +33,8 @@ class CentralLink {
   Stream<String> get messages => _msgs.stream; // feedback for the officer
   bool _pendingSos = false;
   int? _myAlarm;
+  bool _recording = false; // re-announced after every reconnect
+  bool _ptt = false;
 
   void start() {
     _socket = io.io(
@@ -46,6 +48,8 @@ class CentralLink {
     _socket!
       ..onConnect((_) {
         debugPrint('Connected to central server');
+        _socket!.emit('camera_status', {'cameraId': CentralConfig.cameraId, 'recording': _recording});
+        if (_ptt) _socket!.emit('camera_ptt', {'cameraId': CentralConfig.cameraId, 'active': true});
         if (_pendingSos) _sendSos(); // an SOS raised while offline goes out now
       })
       ..onDisconnect((_) => debugPrint('Disconnected from central server'))
@@ -116,6 +120,7 @@ class CentralLink {
   }
 
   void sendStatus({required bool recording}) {
+    _recording = recording;
     if (!_online) return;
     _socket!.emit('camera_status',
         {'cameraId': CentralConfig.cameraId, 'recording': recording});
@@ -139,6 +144,7 @@ class CentralLink {
   }
 
   void sendPtt(bool active) {
+    _ptt = active;
     if (!_online) return;
     _socket!.emit('camera_ptt', {'cameraId': CentralConfig.cameraId, 'active': active});
   }

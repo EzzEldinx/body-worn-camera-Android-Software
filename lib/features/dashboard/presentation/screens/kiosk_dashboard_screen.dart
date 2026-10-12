@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -39,6 +41,19 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   String _lastKey = '-';
   DateTime _lastZoomKey = DateTime(2000);
   DateTime _lastPhotoAt = DateTime(2000);
+  DateTime _lastStopAt = DateTime(2000);
+  final GlobalKey _frameKey = GlobalKey();
+
+  // Colour palette (same family as the control-room dashboard).
+  static const Color _bgTop = Color(0xFF0F1828);
+  static const Color _bgBottom = Color(0xFF1B2D4A);
+  static const Color _panel = Color(0xFF1D2C47);
+  static const Color _amber = Color(0xFFFFC857);
+  static const Color _green = Color(0xFF3DDC97);
+  static const Color _red = Color(0xFFFF5D73);
+  static const Color _blue = Color(0xFF5AA9FF);
+  static const Color _violet = Color(0xFF9B8CFF);
+  final Map<String, DateTime> _lastFire = {};
   StreamSubscription<String>? _linkSub;
   bool _sosFired = false;
   String? _currentFile;
@@ -69,6 +84,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     ]);
     
     _initCamera();
+    _syncNightMode();
     _initHardwareKeys();
     _linkSub = ref.read(centralLinkProvider).messages.listen((m) {
       HapticFeedback.mediumImpact();
@@ -97,23 +113,31 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         if (action == 1) _setPtt(false);
         return;
       }
-      // Volume keys zoom (Android codes 24/25, or the vendor's 1006/1007).
-      if (code == 24 || code == 25) {
-        if (action == 0) _stepZoom(code == 24);
+      // Side buttons (what this device really sends, from the system log):
+      //   Plus   -> "light" (1005)         -> torch        Minus -> "volume" (1007) -> speaker volume
+      //   Camera -> "take.picture" (1004)  -> capture      Mic   -> "audio"  (1008) -> laser
+      //   Record (1001) -> record/stop     Green (1003) -> PTT      SOS (1002) -> alert (hold)
+      // Acting on release, and ignoring a repeat within 600 ms, stops one press firing twice.
+      // Minus button: the vendor sends 1007 on press and 1006 on release, so only 1007 counts.
+      if (code == 1006) return;
+      if (code == 1007 || code == 25) {
+        if (_once('volume')) _cycleVolume();
         return;
       }
-      if (code == 1006 || code == 1007) {
-        if (action == 1) _stepZoom(code == 1006);
+      if (code == 24) {
+        if (action == 1 && _once('flash')) _toggleFlashLight();
         return;
       }
       if (action == 0) return; // everything below acts on release
 
       if (code == 1001) {
-        _toggleRecording();
+        if (_once('record', 900)) _toggleRecording();
       } else if (code == 1004 || code == 27) {
         _takePhoto();
       } else if (code == 1005) {
-        _toggleFlashLight();
+        if (_once('flash')) _toggleFlashLight();
+      } else if (code == 1008) {
+        if (_once('laser')) _toggleLaserBtn();
       }
     }, onError: (error) {
       debugPrint('Channel Error: $error');
@@ -254,14 +278,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     );
   }
 
-  // Hardware SOS key: hold 2 s = alert, short press = laser.
+  // Hardware SOS key: hold 2 s = alert (a short press only shows the hint).
   void _handleSosKey(int action) {
     if (action == 0) {
       _sosDown();
     } else if (action == 1) {
-      final fired = _sosFired;
-      _sosUp(hint: false);
-      if (!fired) _toggleLaserBtn();
+      _sosUp();
     }
   }
 
@@ -288,6 +310,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       _timer?.cancel();
       try {
         await c.stopEverything();
+        _lastStopAt = DateTime.now();
         _report('SAVED: ${_currentFile?.split('/').last}');
       } catch (e) {
         _report('STOP FAILED: $e');
@@ -298,6 +321,11 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     }
 
     try {
+      // Let the server fully close the previous stream before publishing again.
+      final since = DateTime.now().difference(_lastStopAt);
+      if (since < const Duration(milliseconds: 1500)) {
+        await Future.delayed(const Duration(milliseconds: 1500) - since);
+      }
       final dir = await _mediaDir();
       final path = '$dir/VID_${DateTime.now().millisecondsSinceEpoch}.mp4';
       _currentFile = path;
@@ -354,10 +382,22 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
     try {
       final dir = await _mediaDir();
-      final name = 'IMG_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await c.takePicture('$dir/$name');
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      var name = 'IMG_$stamp.jpg';
+      if (isRecording) {
+        // A still capture would interrupt the recording, so copy the live frame instead.
+        name = 'IMG_$stamp.png';
+        await _grabFrame('$dir/$name');
+      } else {
+        try {
+          await c.takePicture('$dir/$name');
+        } catch (_) {
+          name = 'IMG_$stamp.png';
+          await _grabFrame('$dir/$name');
+        }
+      }
       HapticFeedback.mediumImpact();
-      _toast('Photo saved');
+      _toast(isRecording ? 'Scene captured, still recording' : 'Photo saved');
     } catch (e) {
       _report('PHOTO FAILED: $e');
     }
@@ -366,6 +406,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   Future<void> _toggleFlashLight() async {
     final c = _controller;
     final next = !_isFlashOn;
+    // The device's own system service drives the LED directly (works while recording).
+    if (await _prize('com.android.led.torch', open: next ? 1 : 0)) {
+      if (mounted) setState(() => _isFlashOn = next);
+      _toast(next ? 'Torch on' : 'Torch off');
+      return;
+    }
     String? error;
     try {
       // Native torch first (works without the streaming plugin's help).
@@ -387,6 +433,27 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     _toast(next ? 'Torch on' : 'Torch off');
   }
 
+  bool _once(String key, [int ms = 600]) {
+    final now = DateTime.now();
+    final last = _lastFire[key];
+    if (last != null && now.difference(last).inMilliseconds < ms) return false;
+    _lastFire[key] = now;
+    return true;
+  }
+
+  // The volume button opens the system's own volume slider, so the user drags it
+  // up or down by touch (a press never changes the level by itself).
+  Future<void> _cycleVolume() async {
+    try {
+      final r = await _kioskChannel.invokeMethod<Map>('showVolume');
+      final level = (r?['level'] as num?)?.toInt() ?? 0;
+      final max = (r?['max'] as num?)?.toInt() ?? 1;
+      _toast('Volume $level of $max. Drag the slider to change it');
+    } catch (e) {
+      _toast('Volume failed: $e', error: true);
+    }
+  }
+
   // Volume keys: a single press steps 0.5x, holding the key steps smoothly.
   void _stepZoom(bool zoomIn) {
     final now = DateTime.now();
@@ -395,16 +462,51 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     _setZoomDirect(_currentZoomLevel + (zoomIn ? step : -step));
   }
 
-  void _toggleNightMode() {
-    setState(() => _isNightModeOn = !_isNightModeOn);
-    _kioskChannel.invokeMethod('toggleIR');
-    _toast('Night vision ${_isNightModeOn ? 'on' : 'off'}');
+  // Sends a command to the device's system app (laser, torch, IR, black-and-white mode).
+  Future<bool> _prize(String action, {int? open, int? value, String? sensormode}) async {
+    try {
+      await _kioskChannel.invokeMethod('prize', {
+        'action': action,
+        if (open != null) 'open': open,
+        if (value != null) 'value': value,
+        if (sensormode != null) 'sensormode': sensormode,
+      });
+      return true;
+    } catch (e) {
+      debugPrint('prize $action failed: $e');
+      return false;
+    }
   }
 
-  void _toggleLaserBtn() {
-    setState(() => _isLaserOn = !_isLaserOn);
-    _kioskChannel.invokeMethod('toggleLaser');
-    _toast('Laser ${_isLaserOn ? 'on' : 'off'}');
+  // Reads the real black-and-white state from the device so the button always matches it.
+  Future<void> _syncNightMode() async {
+    try {
+      final v = (await _kioskChannel.invokeMethod<String>('getBwMode'))?.trim();
+      if (mounted) setState(() => _isNightModeOn = v == '1');
+      if (v == '1') _toast('Night mode (black and white) is on');
+    } catch (_) {}
+  }
+
+  Future<void> _toggleNightMode() async {
+    final next = !_isNightModeOn;
+    final ok = await _prize('com.lxy.bw.sensormode', sensormode: next ? '1' : '0');
+    if (!ok) {
+      _toast('Night mode failed', error: true);
+      return;
+    }
+    if (mounted) setState(() => _isNightModeOn = next);
+    _toast(next ? 'Night mode on (black and white)' : 'Night mode off (colour)');
+  }
+
+  Future<void> _toggleLaserBtn() async {
+    final next = !_isLaserOn;
+    final ok = await _prize('lolaage.rayled.set', open: next ? 1 : 0);
+    if (!ok) {
+      _toast('Laser failed', error: true);
+      return;
+    }
+    if (mounted) setState(() => _isLaserOn = next);
+    _toast('Laser ${next ? 'on' : 'off'}');
   }
 
   // Zoom is digital and only changes this screen: the streaming plugin has no
@@ -546,11 +648,22 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         cams[_selectedCameraIndex].lensDirection == CameraLensDirection.front;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: _bgTop,
       body: HiddenAdminDoor(
         onUnlocked: () => _showAdminPinDialog(),
         child: Stack(
           children: [
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [_bgTop, _bgBottom],
+                  ),
+                ),
+              ),
+            ),
             Positioned.fill(child: _previewLayer(isFront)),
             if (_showPhotoFlash)
               Positioned.fill(child: Container(color: Colors.white.withValues(alpha: 0.8))),
@@ -572,11 +685,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            _miniBtn(_wide ? Icons.crop_portrait : Icons.crop_16_9, Colors.white, _toggleView),
-                            _miniBtn(Icons.flash_on, _isFlashOn ? Colors.yellow : Colors.white, _toggleFlashLight),
-                            _miniBtn(Icons.nightlight_round, _isNightModeOn ? Colors.blue : Colors.white, _toggleNightMode),
-                            _miniBtn(Icons.flare, _isLaserOn ? Colors.redAccent : Colors.white, _toggleLaserBtn),
-                            _miniBtn(Icons.flip_camera_ios, Colors.white, _switchCamera),
+                            _miniBtn(_wide ? Icons.crop_portrait : Icons.crop_16_9, _blue, _toggleView),
+                            _miniBtn(Icons.volume_up, _green, _cycleVolume),
+                            _miniBtn(Icons.flash_on, _amber, _toggleFlashLight, active: _isFlashOn),
+                            _miniBtn(Icons.nightlight_round, _violet, _toggleNightMode, active: _isNightModeOn),
+                            _miniBtn(Icons.flare, _red, _toggleLaserBtn, active: _isLaserOn),
+                            _miniBtn(Icons.flip_camera_ios, _blue, _switchCamera),
                           ],
                         ),
                       ],
@@ -599,7 +713,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: _toastErr ? Colors.red.shade800 : Colors.black87,
+                      color: _toastErr ? const Color(0xFFB3263E) : _panel,
                       borderRadius: BorderRadius.circular(22),
                     ),
                     child: Text(
@@ -614,6 +728,15 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _grabFrame(String path) async {
+    final boundary = _frameKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) throw 'preview not ready';
+    final img = await boundary.toImage(pixelRatio: 1.0); // full preview size, without digital zoom
+    final data = await img.toByteData(format: ui.ImageByteFormat.png);
+    if (data == null) throw 'could not read the frame';
+    await File(path).writeAsBytes(data.buffer.asUint8List());
   }
 
   void _toggleView() {
@@ -640,9 +763,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       child: ClipRect(
         child: Transform.scale(
           scale: _currentZoomLevel,
-          child: RotatedBox(
-            quarterTurns: isFront ? 2 : 0,
-            child: _controller!.buildPreview(),
+          child: RepaintBoundary(
+            key: _frameKey,
+            child: RotatedBox(
+              quarterTurns: isFront ? 2 : 0,
+              child: _controller!.buildPreview(),
+            ),
           ),
         ),
       ),
@@ -654,22 +780,29 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     return LayoutBuilder(
       builder: (context, box) => Center(
         child: SizedBox(
-          width: box.maxWidth,
-          height: box.maxWidth * 9 / 16,
-          child: ClipRect(child: FittedBox(fit: BoxFit.cover, child: frame)),
+          width: box.maxWidth - 16,
+          height: (box.maxWidth - 16) * 9 / 16,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: FittedBox(fit: BoxFit.cover, child: frame),
+          ),
         ),
       ),
     );
   }
 
-  Widget _miniBtn(IconData icon, Color color, VoidCallback onTap) {
+  Widget _miniBtn(IconData icon, Color color, VoidCallback onTap, {bool active = false}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 40,
         height: 40,
         margin: const EdgeInsets.only(left: 8),
-        decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle, border: Border.all(color: Colors.white24)),
+        decoration: BoxDecoration(
+          color: active ? color.withValues(alpha: 0.28) : _panel,
+          shape: BoxShape.circle,
+          border: Border.all(color: active ? color : color.withValues(alpha: 0.45), width: active ? 2 : 1),
+        ),
         child: Icon(icon, color: color, size: 22),
       ),
     );
@@ -681,7 +814,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.remove, color: Colors.white),
+            icon: const Icon(Icons.remove, color: _amber),
             onPressed: () => _setZoomDirect(_currentZoomLevel - 0.5),
           ),
           Expanded(
@@ -689,13 +822,13 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
               value: _currentZoomLevel,
               min: _minZoomLevel,
               max: _maxZoomLevel,
-              activeColor: Colors.red,
-              inactiveColor: Colors.white38,
+              activeColor: _amber,
+              inactiveColor: Colors.white24,
               onChanged: _setZoomDirect,
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
+            icon: const Icon(Icons.add, color: _amber),
             onPressed: () => _setZoomDirect(_currentZoomLevel + 0.5),
           ),
           SizedBox(
@@ -734,8 +867,8 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
               child: Container(
                 width: 54,
                 height: 54,
-                decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle, border: Border.all(color: Colors.white54, width: 2)),
-                child: const Icon(Icons.photo_camera, color: Colors.white, size: 26),
+                decoration: BoxDecoration(color: _panel, shape: BoxShape.circle, border: Border.all(color: _blue, width: 2)),
+                child: const Icon(Icons.photo_camera, color: _blue, size: 26),
               ),
             ),
             GestureDetector(
