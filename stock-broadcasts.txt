@@ -1,0 +1,1714 @@
+﻿
+      Filter #0: BroadcastFilter{22614f8}
+>       Action: "lolaage.ptt.down"
+        Action: "android.intent.action.FN"
+        Action: "android.intent.action.side_key.keydown.PTT"
+        Action: "android.intent.action.PTT.down"
+>       Action: "lolaage.ptt.up"
+        Action: "android.intent.stop.FN"
+        Action: "android.intent.action.side_key.keyup.PTT"
+        Action: "android.intent.action.PTT.up"
+>       Action: "lolaage.audio.up"
+        Action: "android.lynknex.action.AUDIO.down"
+        Action: "com.android.intent.sound.down"
+        Action: "android.intent.action.audio.down"
+>       Action: "lolaage.take.picture.up"
+        Action: "android.lynknex.action.CAMERA.down"
+        Action: "com.hm.poc.action.camera.pic"
+        Action: "android.intent.action.photo.down"
+>       Action: "lolaage.video1.down"
+        Action: "android.intent.action.FN.down"
+        Action: "android.intent.action.side_key.keydown.FN"
+        Action: "android.intent.action.video.down"
+>       Action: "lolaage.sos.up"
+        Action: "com.hm.poc.action.sos"
+        Action: "android.intent.action.SOS.longpress"
+        Action: "com.hm.poc.action.mark"
+>       Action: "cn.frontstart.OK_IRCUT_DOWN"
+>       Action: "cn.frontstart.OK_IRCUT_UP"
+        Action: ""
+        Action: "android.intent.action.ACTION_SHUTDOWN"
+        Action: "android.intent.action.POWEROFF"
+>       Action: "lolaage.take.picture.down"
+>       Action: "lolaage.audio.down"
+>       Action: "lolaage.sos.down"
+>       Action: "lolaage.video.down"
+>       Action: "lolaage.video.up"
+>       Action: "lolaage.light.down"
+>       Action: "lolaage.light.up"
+>       Action: "lolaage.volume.up"
+>       Action: "lolaage.volume.down"
+>       Action: "lolaage.switch.group.down"
+>       Action: "lolaage.police.light.down"
+>       Action: "lolaage.police.light.up"
+        Action: "action_video_preview_on"
+        Action: "action_video_preview_off"
+        Action: "com.android.tmp.mid"
+>       Action: "com.lolaage.keyEvent"
+        Action: "android.intent.action.BATTERY_CHANGED"
+    * ReceiverList{c7b3050 1156 system/1000/u-1 local:83b2613}
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         com.lolaage.keyEvent:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.meigsmart.meigkeyaccessibility.onkeyevent:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         lolaage.volume.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.intent.action.EXTERNAL_APPLICATIONS_AVAILABLE:
+            BroadcastFilter{e9b709a 10099/u0 ReceiverList{b727145 1334 com.android.systemui/10099/u0 remote:f75adbc}}
+>         lolaage.audio.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.intent.action.MANAGED_PROFILE_AVAILABLE:
+            BroadcastFilter{46e9946 10056/u0 ReceiverList{a636121 2655 com.android.providers.calendar/10056/u0 
+remote:eaf4388}}
+>         lolaage.ptt.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.provider.Telephony.SPN_STRINGS_UPDATED:
+            BroadcastFilter{ea9f8a2 10099/u0 ReceiverList{5d5746d 1334 com.android.systemui/10099/u0 remote:453a484}}
+>         lolaage.ptt.up:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.telephony.action.NETWORK_COUNTRY_CHANGED:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         lolaage.audio.up:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.bluetooth.hearingaid.profile.action.CONNECTION_STATE_CHANGED:
+            BroadcastFilter{719d505 1002/u0 ReceiverList{6d1487c 1936 com.android.bluetooth/1002/u0 remote:42f136f}}
+>         lolaage.light.up:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.android.knobkey.channel:
+            BroadcastFilter{478353d 1001/u0 ReceiverList{7d8a694 1538 com.android.phone/1001/u0 remote:ecf3ae7}}
+>         lolaage.sos.up:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.android.server.wifi.action.NetworkSuggestion.USER_DISALLOWED_APP:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         lolaage.video.up:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.mediatek.common.carrierexpress.cxp_notify_feature:
+            BroadcastFilter{a040643 1001/u0 ReceiverList{2389ff2 1538 com.android.phone/1001/u0 remote:983e6fd}}
+>         lolaage.video1.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.mediatek.phone.ACTION_SIM_SLOT_SIM_MOUNT_CHANGE:
+            BroadcastFilter{177df40 1000/u0 ReceiverList{ff27ac3 1156 system/1000/u0 local:ebe1672}}
+>         cn.frontstart.OK_IRCUT_UP:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.intent.action.ACTION_PTTKEY_UP:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         lolaage.volume.up:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         lolaage.police.light.up:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.intent.action.SIM_STATE_CHANGED:
+            BroadcastFilter{8c0c0e4 1002/u0 ReceiverList{e590c77 1936 com.android.bluetooth/1002/u0 remote:809ce76}}
+>         lolaage.sos.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.telecom.action.DEFAULT_DIALER_CHANGED:
+            BroadcastFilter{b983f19 1000/u0 ReceiverList{8857e60 1156 system/1000/u0 local:784a263}}
+>         lolaage.video.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          android.media.action.SPEAKERPHONE_STATE_CHANGED:
+            BroadcastFilter{43c01cc 1000/u0 ReceiverList{2369fff 1156 system/1000/u0 local:22adb1e}}
+>         lolaage.take.picture.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.android.action.OPEN_PTT_APPLICATION:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         cn.frontstart.OK_IRCUT_DOWN:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.andriod.action.PTT1_DOWN:
+            BroadcastFilter{9210dfe 1001/u0 ReceiverList{ee855b9 1538 com.android.phone/1001/u0 remote:5834b80}}
+>         lolaage.police.light.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          zzx_action_mic_long_press:
+            BroadcastFilter{c4b93c 1000/u0 ReceiverList{812890e 1156 system/1000/u0 local:eb59309}}
+>         lolaage.light.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.android.ctyon.PTT.KEY_UP:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         lolaage.switch.group.down:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+          com.yl.ptt.keydown:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+>         lolaage.take.picture.up:
+            BroadcastFilter{22614f8 10115/u0 ReceiverList{1f5945b 3021 com.unionbroad.app/10115/u0 remote:14db76a}}
+  
+      BroadcastRecord{e9d28cb u-1 android.media.STREAM_MUTE_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.STREAM_MUTE_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE=3, android.media.EXTRA_STREAM_VOLUME_MUTED=true}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:41.962 dispatchClockTime=2026-10-11 10:39:41.963
+      BroadcastRecord{35a68a8 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=1}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:41.960 dispatchClockTime=2026-10-11 10:39:41.960
+      BroadcastRecord{351efc1 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=1}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:41.957 dispatchClockTime=2026-10-11 10:39:41.957
+      BroadcastRecord{1361366 u-1 android.media.STREAM_MUTE_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.STREAM_MUTE_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE=3, android.media.EXTRA_STREAM_VOLUME_MUTED=false}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:40.451 dispatchClockTime=2026-10-11 10:39:40.452
+      BroadcastRecord{4d386a7 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=1, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=0}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:40.450 dispatchClockTime=2026-10-11 10:39:40.451
+      BroadcastRecord{d416754 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=1, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=0}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:40.449 dispatchClockTime=2026-10-11 10:39:40.449
+      BroadcastRecord{14cc6fd u-1 android.media.STREAM_MUTE_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.STREAM_MUTE_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE=3, android.media.EXTRA_STREAM_VOLUME_MUTED=true}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:25.715 dispatchClockTime=2026-10-11 10:39:25.715
+      BroadcastRecord{6fffff2 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=3}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:25.713 dispatchClockTime=2026-10-11 10:39:25.713
+      BroadcastRecord{227e643 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=3}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:25.712 dispatchClockTime=2026-10-11 10:39:25.712
+      BroadcastRecord{df7a4c0 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=1, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=3}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:25.711 dispatchClockTime=2026-10-11 10:39:25.711
+      BroadcastRecord{323d5f9 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=3, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:25.611 dispatchClockTime=2026-10-11 10:39:25.611
+      BroadcastRecord{90a293e u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=3, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:25.609 dispatchClockTime=2026-10-11 10:39:25.609
+      BroadcastRecord{5d8a39f u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=3, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:25.606 dispatchClockTime=2026-10-11 10:39:25.606
+      BroadcastRecord{b124cec u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=8}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:24.794 dispatchClockTime=2026-10-11 10:39:24.840
+      BroadcastRecord{4c2d8b5 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=8}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:24.790 dispatchClockTime=2026-10-11 10:39:24.791
+      BroadcastRecord{5fb9b4a u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=8}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:24.788 dispatchClockTime=2026-10-11 10:39:24.789
+      BroadcastRecord{606e8ab u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=8, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:27:15.701 dispatchClockTime=2026-10-11 10:27:15.701
+      BroadcastRecord{b175b08 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=8, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:27:15.699 dispatchClockTime=2026-10-11 10:27:15.699
+      BroadcastRecord{6de62a1 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=8, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:27:15.697 dispatchClockTime=2026-10-11 10:27:15.697
+      BroadcastRecord{20245c9 u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=10}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:20:38.696 dispatchClockTime=2026-10-11 10:20:38.696
+      BroadcastRecord{eb124ce u-1 android.media.VOLUME_CHANGED_ACTION} to user -1
+>     Intent { act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras) }
+>       extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=10}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:20:38.695 dispatchClockTime=2026-10-11 10:20:38.695
+      enq=2026-10-11 10:40:00.005 disp=2026-10-11 10:40:00.006 fin=2026-10-11 10:40:00.009
+>   #1: act=android.media.STREAM_MUTE_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:39:41.962 disp=2026-10-11 10:39:41.963 fin=2026-10-11 10:39:41.963
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE=3, android.media.EXTRA_STREAM_VOLUME_MUTED=true}]
+>   #2: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:39:41.960 disp=2026-10-11 10:39:41.960 fin=2026-10-11 10:39:41.962
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=1}]
+>   #3: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:39:41.957 disp=2026-10-11 10:39:41.957 fin=2026-10-11 10:39:41.959
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=1}]
+>   #4: act=android.media.STREAM_MUTE_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:39:40.451 disp=2026-10-11 10:39:40.452 fin=2026-10-11 10:39:40.452
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE=3, android.media.EXTRA_STREAM_VOLUME_MUTED=false}]
+>   #5: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:39:40.450 disp=2026-10-11 10:39:40.451 fin=2026-10-11 10:39:40.452
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=1, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=0}]
+>   #6: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:40.449 disp=2026-10-11 10:39:40.449 fin=2026-10-11 10:39:40.450
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=1, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=0}]
+>   #7: act=android.media.STREAM_MUTE_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:39:25.715 disp=2026-10-11 10:39:25.715 fin=2026-10-11 10:39:25.715
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE=3, android.media.EXTRA_STREAM_VOLUME_MUTED=true}]
+>   #8: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:25.713 disp=2026-10-11 10:39:25.713 fin=2026-10-11 10:39:25.714
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=3}]
+>   #9: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:25.712 disp=2026-10-11 10:39:25.712 fin=2026-10-11 10:39:25.713
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=3}]
+>   #10: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:25.711 disp=2026-10-11 10:39:25.711 fin=2026-10-11 10:39:25.712
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=1, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=3}]
+>   #11: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:25.611 disp=2026-10-11 10:39:25.611 fin=2026-10-11 10:39:25.612
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=3, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+>   #12: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:39:25.609 disp=2026-10-11 10:39:25.609 fin=2026-10-11 10:39:25.611
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=3, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+>   #13: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:39:25.606 disp=2026-10-11 10:39:25.606 fin=2026-10-11 10:39:25.608
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=3, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+>   #14: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +46ms dispatch +1ms finish
+      enq=2026-10-11 10:39:24.794 disp=2026-10-11 10:39:24.840 fin=2026-10-11 10:39:24.841
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=8}]
+>   #15: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:39:24.790 disp=2026-10-11 10:39:24.791 fin=2026-10-11 10:39:24.792
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=8}]
+>   #16: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:39:24.788 disp=2026-10-11 10:39:24.789 fin=2026-10-11 10:39:24.790
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=8}]
+    #17: act=android.intent.action.TIME_TICK flg=0x50200010
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:28:00.002 disp=2026-10-11 10:28:00.002 fin=2026-10-11 10:28:00.004
+>   #35: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:27:15.701 disp=2026-10-11 10:27:15.701 fin=2026-10-11 10:27:15.702
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=8, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+>   #36: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:27:15.699 disp=2026-10-11 10:27:15.699 fin=2026-10-11 10:27:15.700
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=8, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+>   #37: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:27:15.697 disp=2026-10-11 10:27:15.697 fin=2026-10-11 10:27:15.698
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=8, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=9}]
+    #38: act=android.intent.action.TIME_TICK flg=0x50200010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:21:00.001 disp=2026-10-11 10:21:00.001 fin=2026-10-11 10:21:00.002
+>   #48: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:20:38.696 disp=2026-10-11 10:20:38.696 fin=2026-10-11 10:20:38.697
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=10}]
+>   #49: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:20:38.695 disp=2026-10-11 10:20:38.695 fin=2026-10-11 10:20:38.695
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=10}]
+>   #50: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:20:38.693 disp=2026-10-11 10:20:38.694 fin=2026-10-11 10:20:38.694
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=9, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=10}]
+    #51: act=android.intent.action.TIME_TICK flg=0x50200010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:10:00.002 disp=2026-10-11 10:10:00.003 fin=2026-10-11 10:10:00.005
+>   #63: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:09:03.902 disp=2026-10-11 10:09:03.903 fin=2026-10-11 10:09:03.904
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=10, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=11}]
+>   #64: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:09:03.901 disp=2026-10-11 10:09:03.901 fin=2026-10-11 10:09:03.902
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=10, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=11}]
+>   #65: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:09:03.899 disp=2026-10-11 10:09:03.899 fin=2026-10-11 10:09:03.900
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=10, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=11}]
+    #66: act=android.intent.action.TIME_TICK flg=0x50200010
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:09:00.001 disp=2026-10-11 10:09:00.001 fin=2026-10-11 10:09:00.003
+>   #67: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:08:19.321 disp=2026-10-11 10:08:19.321 fin=2026-10-11 10:08:19.323
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=11, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=12}]
+>   #68: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:08:19.319 disp=2026-10-11 10:08:19.319 fin=2026-10-11 10:08:19.320
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=11, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=12}]
+>   #69: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:08:19.316 disp=2026-10-11 10:08:19.317 fin=2026-10-11 10:08:19.318
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=11, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=12}]
+>   #70: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +3ms dispatch +4ms finish
+      enq=2026-10-11 10:08:18.148 disp=2026-10-11 10:08:18.151 fin=2026-10-11 10:08:18.155
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=12, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=13}]
+>   #71: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:08:18.144 disp=2026-10-11 10:08:18.145 fin=2026-10-11 10:08:18.147
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=12, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=13}]
+>   #72: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:08:18.141 disp=2026-10-11 10:08:18.141 fin=2026-10-11 10:08:18.143
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=12, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=13}]
+    #73: act=android.intent.action.TIME_TICK flg=0x50200010
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:06:00.001 disp=2026-10-11 10:06:00.001 fin=2026-10-11 10:06:00.002
+>   #76: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:15.210 disp=2026-10-11 10:05:15.210 fin=2026-10-11 10:05:15.211
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=13, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=14}]
+>   #77: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:15.209 disp=2026-10-11 10:05:15.209 fin=2026-10-11 10:05:15.210
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=13, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=14}]
+>   #78: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:15.208 disp=2026-10-11 10:05:15.208 fin=2026-10-11 10:05:15.209
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=13, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=14}]
+>   #79: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:07.756 disp=2026-10-11 10:05:07.756 fin=2026-10-11 10:05:07.757
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=14, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=15}]
+>   #80: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:07.754 disp=2026-10-11 10:05:07.754 fin=2026-10-11 10:05:07.755
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=14, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=15}]
+>   #81: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:07.752 disp=2026-10-11 10:05:07.752 fin=2026-10-11 10:05:07.753
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=14, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=15}]
+>   #82: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:04.082 disp=2026-10-11 10:05:04.082 fin=2026-10-11 10:05:04.083
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=3, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=15, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=0}]
+>   #83: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:04.081 disp=2026-10-11 10:05:04.081 fin=2026-10-11 10:05:04.082
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=15, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=0}]
+>   #84: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:05:04.080 disp=2026-10-11 10:05:04.080 fin=2026-10-11 10:05:04.080
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=15, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=1}]
+    #85: act=android.intent.action.TIME_TICK flg=0x50200010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:05:00.001 disp=2026-10-11 10:05:00.001 fin=2026-10-11 10:05:00.002
+>   #86: act=android.hardware.usb.action.USB_STATE flg=0x31000010 (has extras)
+      0 dispatch +18ms finish
+      enq=2026-10-11 10:04:34.613 disp=2026-10-11 10:04:34.613 fin=2026-10-11 10:04:34.631
+>     extras: Bundle[{host_connected=false, connected=true, unlocked=false, adb=true, configured=true}]
+>   #87: act=android.hardware.usb.action.USB_STATE flg=0x31000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:04:34.613 disp=2026-10-11 10:04:34.613 fin=2026-10-11 10:04:34.613
+>     extras: Bundle[{host_connected=false, connected=true, unlocked=false, adb=true, configured=true}]
+>   #88: act=android.hardware.usb.action.USB_STATE flg=0x31000010 (has extras)
+      +1ms dispatch +25ms finish
+      enq=2026-10-11 10:04:34.455 disp=2026-10-11 10:04:34.456 fin=2026-10-11 10:04:34.481
+>     extras: Bundle[{host_connected=false, connected=true, unlocked=false, adb=true, configured=false}]
+>   #89: act=android.hardware.usb.action.USB_STATE flg=0x31000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:04:34.455 disp=2026-10-11 10:04:34.456 fin=2026-10-11 10:04:34.456
+>     extras: Bundle[{host_connected=false, connected=true, unlocked=false, adb=true, configured=false}]
+>   #90: act=android.hardware.usb.action.USB_PORT_CHANGED flg=0x11000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:04:33.944 disp=2026-10-11 10:04:33.944 fin=2026-10-11 10:04:33.944
+>     extras: Bundle[{portStatus=UsbPortStatus{connected=true, currentMode=ufp, currentPowerRole=sink, 
+currentDataRole=device, supportedRoleCombinations=[sink:device], contaminantDetectionStatus=0, 
+contaminantProtectionStatus=0}, port=android.hardware.usb.ParcelableUsbPort@f514906}]
+>   #91: act=android.intent.action.USER_UNLOCKED flg=0x50000010 (has extras)
+      +15ms dispatch +18ms finish
+      enq=2026-10-11 10:04:25.288 disp=2026-10-11 10:04:25.303 fin=2026-10-11 10:04:25.321
+>     extras: Bundle[{android.intent.extra.user_handle=0}]
+>   #92: act=android.hardware.usb.action.USB_STATE flg=0x31000010 (has extras)
+      +1ms dispatch +291ms finish
+      enq=2026-10-11 10:04:24.401 disp=2026-10-11 10:04:24.402 fin=2026-10-11 10:04:24.693
+>     extras: Bundle[{host_connected=false, connected=false, unlocked=false, adb=true, configured=false}]
+>   #93: act=android.hardware.usb.action.USB_STATE flg=0x31000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:04:24.401 disp=2026-10-11 10:04:24.401 fin=2026-10-11 10:04:24.402
+>     extras: Bundle[{host_connected=false, connected=false, unlocked=false, adb=true, configured=false}]
+>   #94: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:04:23.070 disp=2026-10-11 10:04:23.070 fin=2026-10-11 10:04:23.070
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=10, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=1, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=15}]
+>   #95: act=android.media.VOLUME_CHANGED_ACTION flg=0x14000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:04:23.066 disp=2026-10-11 10:04:23.066 fin=2026-10-11 10:04:23.066
+>     extras: Bundle[{android.media.EXTRA_VOLUME_STREAM_TYPE_ALIAS=3, android.media.EXTRA_VOLUME_STREAM_TYPE=9, 
+android.media.EXTRA_VOLUME_STREAM_VALUE=0, android.media.EXTRA_PREV_VOLUME_STREAM_VALUE=15}]
+>   #96: act=android.media.RINGER_MODE_CHANGED flg=0x34000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:04:23.040 disp=2026-10-11 10:04:23.040 fin=2026-10-11 10:04:23.041
+>     extras: Bundle[{android.media.EXTRA_RINGER_MODE=1}]
+>   #97: act=android.intent.action.USER_SWITCHED flg=0x50000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:04:22.838 disp=2026-10-11 10:04:22.838 fin=2026-10-11 10:04:22.840
+>     extras: Bundle[{android.intent.extra.user_handle=0}]
+>   #98: act=android.intent.action.USER_FOREGROUND flg=0x50000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:04:22.838 disp=2026-10-11 10:04:22.838 fin=2026-10-11 10:04:22.838
+>     extras: Bundle[{android.intent.extra.user_handle=0}]
+>   #99: act=android.intent.action.USER_STARTED flg=0x50000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:04:22.837 disp=2026-10-11 10:04:22.838 fin=2026-10-11 10:04:22.838
+>     extras: Bundle[{android.intent.extra.user_handle=0}]
+>   #100: act=android.hardware.usb.action.USB_PORT_CHANGED flg=0x11000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:04:22.542 disp=2026-10-11 10:04:22.543 fin=2026-10-11 10:04:22.543
+>     extras: Bundle[{portStatus=UsbPortStatus{connected=false, currentMode=none, currentPowerRole=no-power, 
+currentDataRole=no-data, supportedRoleCombinations=[no-power:no-data], contaminantDetectionStatus=0, 
+contaminantProtectionStatus=0}, port=android.hardware.usb.ParcelableUsbPort@b282d60}]
+  
+    Broadcast parameters (key=bcast_bg_constants, observing=true):
+      BroadcastRecord{1548320 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=308, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3665, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:40:02.767 dispatchClockTime=2026-10-11 10:40:02.767
+      BroadcastRecord{bafc4d9 u0 org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED} to user 0
+>     Intent { act=org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED flg=0x10 (has extras) }
+>       extras: Bundle[{STRIPPED=1}]
+      caller=com.unionbroad.app 3021:com.unionbroad.app/u0a115 pid=3021 uid=10115
+      enqueueClockTime=2026-10-11 10:39:56.551 dispatchClockTime=2026-10-11 10:39:56.551
+      BroadcastRecord{a71e9e u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=307, charge_counter=117840, level=8, scale=100, 
+temperature=457, voltage=3669, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:54.573 dispatchClockTime=2026-10-11 10:39:54.574
+      BroadcastRecord{eb05d7f u0 org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED} to user 0
+>     Intent { act=org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED flg=0x10 (has extras) }
+>       extras: Bundle[{STRIPPED=1}]
+      caller=com.unionbroad.app 3021:com.unionbroad.app/u0a115 pid=3021 uid=10115
+      enqueueClockTime=2026-10-11 10:39:46.545 dispatchClockTime=2026-10-11 10:39:46.545
+      BroadcastRecord{cceb14c u0 org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED} to user 0
+>     Intent { act=org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED flg=0x10 (has extras) }
+>       extras: Bundle[{STRIPPED=1}]
+      caller=com.unionbroad.app 3021:com.unionbroad.app/u0a115 pid=3021 uid=10115
+      enqueueClockTime=2026-10-11 10:39:46.505 dispatchClockTime=2026-10-11 10:39:46.505
+      BroadcastRecord{aced595 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=306, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3662, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:46.390 dispatchClockTime=2026-10-11 10:39:46.390
+    Historical Broadcast background #6:
+>     BroadcastRecord{56286aa u0 lolaage.rayled.set} to user 0
+>     Intent { act=lolaage.rayled.set flg=0x1000010 pkg=com.pri.factorytest (has extras) }
+>       extras: Bundle[{STRIPPED=1}]
+      caller=com.unionbroad.app 3021:com.unionbroad.app/u0a115 pid=3021 uid=10115
+      enqueueClockTime=2026-10-11 10:39:45.301 dispatchClockTime=2026-10-11 10:39:45.301
+    Historical Broadcast background #7:
+>     BroadcastRecord{177529b u0 lolaage.sos.up} to user 0
+>     Intent { act=lolaage.sos.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:45.293 dispatchClockTime=2026-10-11 10:39:45.298
+    Historical Broadcast background #8:
+>     BroadcastRecord{9db9638 u0 lolaage.sos.down} to user 0
+>     Intent { act=lolaage.sos.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:45.127 dispatchClockTime=2026-10-11 10:39:45.135
+      BroadcastRecord{1943611 u-1 android.net.wifi.SCAN_RESULTS} to user -1
+>     Intent { act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras) }
+>       extras: Bundle[{resultsUpdated=true}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:41.993 dispatchClockTime=2026-10-11 10:39:41.993
+    Historical Broadcast background #10:
+>     BroadcastRecord{6ba6376 u0 lolaage.volume.up} to user 0
+>     Intent { act=lolaage.volume.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:40.435 dispatchClockTime=2026-10-11 10:39:40.436
+    Historical Broadcast background #11:
+>     BroadcastRecord{aee7d77 u0 lolaage.volume.down} to user 0
+>     Intent { act=lolaage.volume.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:40.255 dispatchClockTime=2026-10-11 10:39:40.256
+    Historical Broadcast background #12:
+>     BroadcastRecord{2cfdde4 u0 lolaage.light.up} to user 0
+>     Intent { act=lolaage.light.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:39.799 dispatchClockTime=2026-10-11 10:39:39.800
+    Historical Broadcast background #13:
+>     BroadcastRecord{a75224d u0 lolaage.light.down} to user 0
+>     Intent { act=lolaage.light.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:39.654 dispatchClockTime=2026-10-11 10:39:39.656
+    Historical Broadcast background #14:
+>     BroadcastRecord{8e14102 u0 lolaage.light.up} to user 0
+>     Intent { act=lolaage.light.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:38.833 dispatchClockTime=2026-10-11 10:39:38.837
+    Historical Broadcast background #15:
+>     BroadcastRecord{3437a13 u0 lolaage.light.down} to user 0
+>     Intent { act=lolaage.light.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:38.650 dispatchClockTime=2026-10-11 10:39:38.653
+      BroadcastRecord{9ef450 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=305, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3670, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:38.196 dispatchClockTime=2026-10-11 10:39:38.196
+    Historical Broadcast background #17:
+>     BroadcastRecord{7fe9649 u0 lolaage.audio.up} to user 0
+>     Intent { act=lolaage.audio.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:37.535 dispatchClockTime=2026-10-11 10:39:37.539
+    Historical Broadcast background #18:
+>     BroadcastRecord{ea66b4e u0 lolaage.audio.down} to user 0
+>     Intent { act=lolaage.audio.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:37.388 dispatchClockTime=2026-10-11 10:39:37.391
+      BroadcastRecord{de1a46f u0 org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED} to user 0
+>     Intent { act=org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED flg=0x10 (has extras) }
+>       extras: Bundle[{STRIPPED=1}]
+      caller=com.unionbroad.app 3021:com.unionbroad.app/u0a115 pid=3021 uid=10115
+      enqueueClockTime=2026-10-11 10:39:36.504 dispatchClockTime=2026-10-11 10:39:36.504
+    Historical Broadcast background #20:
+>     BroadcastRecord{607057c u0 lolaage.audio.up} to user 0
+>     Intent { act=lolaage.audio.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:36.452 dispatchClockTime=2026-10-11 10:39:36.453
+    Historical Broadcast background #21:
+>     BroadcastRecord{e914e05 u0 lolaage.audio.down} to user 0
+>     Intent { act=lolaage.audio.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:36.234 dispatchClockTime=2026-10-11 10:39:36.236
+    Historical Broadcast background #22:
+>     BroadcastRecord{681ee5a u0 lolaage.ptt.up} to user 0
+>     Intent { act=lolaage.ptt.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:35.319 dispatchClockTime=2026-10-11 10:39:35.327
+    Historical Broadcast background #23:
+>     BroadcastRecord{f8e188b u0 lolaage.ptt.down} to user 0
+>     Intent { act=lolaage.ptt.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:35.121 dispatchClockTime=2026-10-11 10:39:35.128
+    Historical Broadcast background #24:
+>     BroadcastRecord{17cfd68 u0 lolaage.take.picture.up} to user 0
+>     Intent { act=lolaage.take.picture.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:32.371 dispatchClockTime=2026-10-11 10:39:32.375
+    Historical Broadcast background #25:
+>     BroadcastRecord{dddc581 u0 lolaage.take.picture.down} to user 0
+>     Intent { act=lolaage.take.picture.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:32.173 dispatchClockTime=2026-10-11 10:39:32.175
+    Historical Broadcast background #26:
+>     BroadcastRecord{c609626 u0 lolaage.take.picture.up} to user 0
+>     Intent { act=lolaage.take.picture.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:30.480 dispatchClockTime=2026-10-11 10:39:30.484
+    Historical Broadcast background #27:
+>     BroadcastRecord{a43b267 u0 lolaage.take.picture.down} to user 0
+>     Intent { act=lolaage.take.picture.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:30.302 dispatchClockTime=2026-10-11 10:39:30.303
+      BroadcastRecord{1d88814 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=304, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3674, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:30.012 dispatchClockTime=2026-10-11 10:39:30.013
+    Historical Broadcast background #29:
+>     BroadcastRecord{62038bd u0 lolaage.volume.up} to user 0
+>     Intent { act=lolaage.volume.up flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:24.762 dispatchClockTime=2026-10-11 10:39:24.771
+    Historical Broadcast background #30:
+>     BroadcastRecord{c2feeb2 u0 lolaage.volume.down} to user 0
+>     Intent { act=lolaage.volume.down flg=0x10 }
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:24.636 dispatchClockTime=2026-10-11 10:39:24.651
+      BroadcastRecord{acf0e03 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=303, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3669, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:21.812 dispatchClockTime=2026-10-11 10:39:21.813
+      BroadcastRecord{9c01180 u-1 android.net.wifi.SCAN_RESULTS} to user -1
+>     Intent { act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras) }
+>       extras: Bundle[{resultsUpdated=true}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:19.802 dispatchClockTime=2026-10-11 10:39:19.802
+      BroadcastRecord{51ca3b9 u-1 android.net.wifi.SCAN_RESULTS} to user -1
+>     Intent { act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras) }
+>       extras: Bundle[{resultsUpdated=true}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:18.478 dispatchClockTime=2026-10-11 10:39:18.478
+      BroadcastRecord{dd4c5ac u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=302, charge_counter=117840, level=8, scale=100, 
+temperature=456, voltage=3705, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:13.621 dispatchClockTime=2026-10-11 10:39:13.622
+    Historical Broadcast background #37:
+>     BroadcastRecord{6dac275 u0 lolaage.rayled.set} to user 0
+>     Intent { act=lolaage.rayled.set flg=0x1000010 pkg=com.pri.factorytest (has extras) }
+>       extras: Bundle[{STRIPPED=1}]
+      caller=com.unionbroad.app 3021:com.unionbroad.app/u0a115 pid=3021 uid=10115
+      enqueueClockTime=2026-10-11 10:39:13.349 dispatchClockTime=2026-10-11 10:39:13.349
+      BroadcastRecord{de2a20a u0 com.lxy.bw.sensormode} to user 0
+>     Intent { act=com.lxy.bw.sensormode flg=0x10 pkg=com.pri.factorytest (has extras) }
+>       extras: Bundle[{STRIPPED=1}]
+      caller=com.mediatek.camera 4038:com.mediatek.camera/u0a110 pid=4038 uid=10110
+      enqueueClockTime=2026-10-11 10:39:11.024 dispatchClockTime=2026-10-11 10:39:11.024
+      BroadcastRecord{49a3a7b u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=301, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3666, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:39:05.431 dispatchClockTime=2026-10-11 10:39:05.431
+      BroadcastRecord{99e9098 u-1 android.net.wifi.SCAN_RESULTS} to user -1
+>     Intent { act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras) }
+>       extras: Bundle[{resultsUpdated=true}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:38:59.439 dispatchClockTime=2026-10-11 10:38:59.440
+      BroadcastRecord{62210f1 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=300, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3683, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:38:57.232 dispatchClockTime=2026-10-11 10:38:57.232
+      BroadcastRecord{910d4d6 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=299, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3681, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:38:49.056 dispatchClockTime=2026-10-11 10:38:49.056
+      BroadcastRecord{880357 u-1 android.net.wifi.SCAN_RESULTS} to user -1
+>     Intent { act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras) }
+>       extras: Bundle[{resultsUpdated=true}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:38:41.882 dispatchClockTime=2026-10-11 10:38:41.882
+      BroadcastRecord{7381e44 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=298, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3677, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:38:40.845 dispatchClockTime=2026-10-11 10:38:40.846
+      BroadcastRecord{8b5cb2d u-1 android.net.wifi.RSSI_CHANGED} to user -1
+>     Intent { act=android.net.wifi.RSSI_CHANGED flg=0x4000010 (has extras) }
+>       extras: Bundle[{newRssi=-45}]
+      caller=android 1156:system/1000 pid=1156 uid=1000
+      requiredPermissions=[android.permission.ACCESS_WIFI_STATE]  appOp=-1
+      BroadcastRecord{f1f7df3 u0 com.lxy.bw.sensormode} to user 0
+>     Intent { act=com.lxy.bw.sensormode flg=0x10 pkg=com.pri.factorytest (has extras) }
+>       extras: Bundle[{STRIPPED=1}]
+      caller=com.mediatek.camera 4038:com.mediatek.camera/u0a110 pid=4038 uid=10110
+      enqueueClockTime=2026-10-11 10:38:37.627 dispatchClockTime=2026-10-11 10:38:37.628
+      BroadcastRecord{5badab0 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=297, charge_counter=117840, level=8, scale=100, 
+temperature=464, voltage=3662, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:38:34.100 dispatchClockTime=2026-10-11 10:38:34.100
+      BroadcastRecord{350ed29 u-1 android.intent.action.BATTERY_CHANGED} to user -1
+>     Intent { act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras) }
+>       extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=296, charge_counter=117840, level=8, scale=100, 
+temperature=457, voltage=3662, invalid_charger=0, battery_low=true}]
+      caller=null null pid=1156 uid=1000
+      enqueueClockTime=2026-10-11 10:38:32.654 dispatchClockTime=2026-10-11 10:38:32.654
+    Historical broadcasts summary [background]:
+>   #0: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +5ms finish
+      enq=2026-10-11 10:40:02.767 disp=2026-10-11 10:40:02.767 fin=2026-10-11 10:40:02.772
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=308, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3665, invalid_charger=0, battery_low=true}]
+>   #1: act=org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED flg=0x10 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:39:56.551 disp=2026-10-11 10:39:56.551 fin=2026-10-11 10:39:56.551
+>     extras: Bundle[{STRIPPED=1}]
+>   #2: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:39:54.573 disp=2026-10-11 10:39:54.574 fin=2026-10-11 10:39:54.576
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=307, charge_counter=117840, level=8, scale=100, 
+temperature=457, voltage=3669, invalid_charger=0, battery_low=true}]
+>   #3: act=org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED flg=0x10 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:39:46.545 disp=2026-10-11 10:39:46.545 fin=2026-10-11 10:39:46.545
+>     extras: Bundle[{STRIPPED=1}]
+>   #4: act=org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED flg=0x10 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:46.505 disp=2026-10-11 10:39:46.505 fin=2026-10-11 10:39:46.506
+>     extras: Bundle[{STRIPPED=1}]
+>   #5: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:39:46.390 disp=2026-10-11 10:39:46.390 fin=2026-10-11 10:39:46.392
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=306, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3662, invalid_charger=0, battery_low=true}]
+>   #6: act=lolaage.rayled.set flg=0x1000010 pkg=com.pri.factorytest (has extras)
+      0 dispatch +8ms finish
+      enq=2026-10-11 10:39:45.301 disp=2026-10-11 10:39:45.301 fin=2026-10-11 10:39:45.309
+>     extras: Bundle[{STRIPPED=1}]
+>   #7: act=lolaage.sos.up flg=0x10
+      +5ms dispatch 0 finish
+      enq=2026-10-11 10:39:45.293 disp=2026-10-11 10:39:45.298 fin=2026-10-11 10:39:45.298
+>   #8: act=lolaage.sos.down flg=0x10
+      +8ms dispatch +1ms finish
+      enq=2026-10-11 10:39:45.127 disp=2026-10-11 10:39:45.135 fin=2026-10-11 10:39:45.136
+>   #9: act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:41.993 disp=2026-10-11 10:39:41.993 fin=2026-10-11 10:39:41.994
+>     extras: Bundle[{resultsUpdated=true}]
+>   #10: act=lolaage.volume.up flg=0x10
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:39:40.435 disp=2026-10-11 10:39:40.436 fin=2026-10-11 10:39:40.436
+>   #11: act=lolaage.volume.down flg=0x10
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:39:40.255 disp=2026-10-11 10:39:40.256 fin=2026-10-11 10:39:40.256
+>   #12: act=lolaage.light.up flg=0x10
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:39:39.799 disp=2026-10-11 10:39:39.800 fin=2026-10-11 10:39:39.801
+>   #13: act=lolaage.light.down flg=0x10
+      +2ms dispatch 0 finish
+      enq=2026-10-11 10:39:39.654 disp=2026-10-11 10:39:39.656 fin=2026-10-11 10:39:39.656
+>   #14: act=lolaage.light.up flg=0x10
+      +4ms dispatch +1ms finish
+      enq=2026-10-11 10:39:38.833 disp=2026-10-11 10:39:38.837 fin=2026-10-11 10:39:38.838
+>   #15: act=lolaage.light.down flg=0x10
+      +3ms dispatch 0 finish
+      enq=2026-10-11 10:39:38.650 disp=2026-10-11 10:39:38.653 fin=2026-10-11 10:39:38.653
+>   #16: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:38.196 disp=2026-10-11 10:39:38.196 fin=2026-10-11 10:39:38.197
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=305, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3670, invalid_charger=0, battery_low=true}]
+>   #17: act=lolaage.audio.up flg=0x10
+      +4ms dispatch +1ms finish
+      enq=2026-10-11 10:39:37.535 disp=2026-10-11 10:39:37.539 fin=2026-10-11 10:39:37.540
+>   #18: act=lolaage.audio.down flg=0x10
+      +3ms dispatch +1ms finish
+      enq=2026-10-11 10:39:37.388 disp=2026-10-11 10:39:37.391 fin=2026-10-11 10:39:37.392
+>   #19: act=org.doubango.ngn.events.NgnRegistrationEventArgs.ACTION_REGISTRATION_CHANGED flg=0x10 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:36.504 disp=2026-10-11 10:39:36.504 fin=2026-10-11 10:39:36.505
+>     extras: Bundle[{STRIPPED=1}]
+>   #20: act=lolaage.audio.up flg=0x10
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:39:36.452 disp=2026-10-11 10:39:36.453 fin=2026-10-11 10:39:36.454
+>   #21: act=lolaage.audio.down flg=0x10
+      +2ms dispatch 0 finish
+      enq=2026-10-11 10:39:36.234 disp=2026-10-11 10:39:36.236 fin=2026-10-11 10:39:36.236
+>   #22: act=lolaage.ptt.up flg=0x10
+      +8ms dispatch +1ms finish
+      enq=2026-10-11 10:39:35.319 disp=2026-10-11 10:39:35.327 fin=2026-10-11 10:39:35.328
+>   #23: act=lolaage.ptt.down flg=0x10
+      +7ms dispatch 0 finish
+      enq=2026-10-11 10:39:35.121 disp=2026-10-11 10:39:35.128 fin=2026-10-11 10:39:35.128
+>   #24: act=lolaage.take.picture.up flg=0x10
+      +4ms dispatch 0 finish
+      enq=2026-10-11 10:39:32.371 disp=2026-10-11 10:39:32.375 fin=2026-10-11 10:39:32.375
+>   #25: act=lolaage.take.picture.down flg=0x10
+      +2ms dispatch +1ms finish
+      enq=2026-10-11 10:39:32.173 disp=2026-10-11 10:39:32.175 fin=2026-10-11 10:39:32.176
+>   #26: act=lolaage.take.picture.up flg=0x10
+      +4ms dispatch 0 finish
+      enq=2026-10-11 10:39:30.480 disp=2026-10-11 10:39:30.484 fin=2026-10-11 10:39:30.484
+>   #27: act=lolaage.take.picture.down flg=0x10
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:39:30.302 disp=2026-10-11 10:39:30.303 fin=2026-10-11 10:39:30.304
+>   #28: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +5ms finish
+      enq=2026-10-11 10:39:30.012 disp=2026-10-11 10:39:30.013 fin=2026-10-11 10:39:30.018
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=304, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3674, invalid_charger=0, battery_low=true}]
+>   #29: act=lolaage.volume.up flg=0x10
+      +9ms dispatch +1ms finish
+      enq=2026-10-11 10:39:24.762 disp=2026-10-11 10:39:24.771 fin=2026-10-11 10:39:24.772
+>   #30: act=lolaage.volume.down flg=0x10
+      +15ms dispatch 0 finish
+      enq=2026-10-11 10:39:24.636 disp=2026-10-11 10:39:24.651 fin=2026-10-11 10:39:24.651
+>   #31: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +3ms finish
+      enq=2026-10-11 10:39:21.812 disp=2026-10-11 10:39:21.813 fin=2026-10-11 10:39:21.816
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=303, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3669, invalid_charger=0, battery_low=true}]
+>   #32: act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:19.802 disp=2026-10-11 10:39:19.802 fin=2026-10-11 10:39:19.803
+>     extras: Bundle[{resultsUpdated=true}]
+>   #33: act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:18.478 disp=2026-10-11 10:39:18.478 fin=2026-10-11 10:39:18.479
+>     extras: Bundle[{resultsUpdated=true}]
+    #34: act=android.location.HIGH_POWER_REQUEST_CHANGE flg=0x10
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:39:16.608 disp=2026-10-11 10:39:16.608 fin=2026-10-11 10:39:16.608
+>   #36: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:39:13.621 disp=2026-10-11 10:39:13.622 fin=2026-10-11 10:39:13.623
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=302, charge_counter=117840, level=8, scale=100, 
+temperature=456, voltage=3705, invalid_charger=0, battery_low=true}]
+>   #37: act=lolaage.rayled.set flg=0x1000010 pkg=com.pri.factorytest (has extras)
+      0 dispatch +6ms finish
+      enq=2026-10-11 10:39:13.349 disp=2026-10-11 10:39:13.349 fin=2026-10-11 10:39:13.355
+>     extras: Bundle[{STRIPPED=1}]
+>   #38: act=com.lxy.bw.sensormode flg=0x10 pkg=com.pri.factorytest (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:39:11.024 disp=2026-10-11 10:39:11.024 fin=2026-10-11 10:39:11.027
+>     extras: Bundle[{STRIPPED=1}]
+>   #39: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +4ms finish
+      enq=2026-10-11 10:39:05.431 disp=2026-10-11 10:39:05.431 fin=2026-10-11 10:39:05.435
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=301, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3666, invalid_charger=0, battery_low=true}]
+>   #40: act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:38:59.439 disp=2026-10-11 10:38:59.440 fin=2026-10-11 10:38:59.440
+>     extras: Bundle[{resultsUpdated=true}]
+>   #41: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:38:57.232 disp=2026-10-11 10:38:57.232 fin=2026-10-11 10:38:57.234
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=300, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3683, invalid_charger=0, battery_low=true}]
+>   #42: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +5ms finish
+      enq=2026-10-11 10:38:49.056 disp=2026-10-11 10:38:49.056 fin=2026-10-11 10:38:49.061
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=299, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3681, invalid_charger=0, battery_low=true}]
+>   #43: act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras)
+      0 dispatch 0 finish
+      enq=2026-10-11 10:38:41.882 disp=2026-10-11 10:38:41.882 fin=2026-10-11 10:38:41.882
+>     extras: Bundle[{resultsUpdated=true}]
+>   #44: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +3ms finish
+      enq=2026-10-11 10:38:40.845 disp=2026-10-11 10:38:40.846 fin=2026-10-11 10:38:40.849
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=298, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3677, invalid_charger=0, battery_low=true}]
+>   #45: act=android.net.wifi.RSSI_CHANGED flg=0x4000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:38:38.251 disp=2026-10-11 10:38:38.251 fin=2026-10-11 10:38:38.252
+>     extras: Bundle[{newRssi=-45}]
+    #46: act=android.intent.action.USER_PRESENT flg=0x24200010
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:38:38.146 disp=2026-10-11 10:38:38.146 fin=2026-10-11 10:38:38.148
+>   #47: act=com.lxy.bw.sensormode flg=0x10 pkg=com.pri.factorytest (has extras)
+      +1ms dispatch +9ms finish
+      enq=2026-10-11 10:38:37.627 disp=2026-10-11 10:38:37.628 fin=2026-10-11 10:38:37.637
+>     extras: Bundle[{STRIPPED=1}]
+>   #48: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:38:34.100 disp=2026-10-11 10:38:34.100 fin=2026-10-11 10:38:34.101
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=297, charge_counter=117840, level=8, scale=100, 
+temperature=464, voltage=3662, invalid_charger=0, battery_low=true}]
+>   #49: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:38:32.654 disp=2026-10-11 10:38:32.654 fin=2026-10-11 10:38:32.655
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=296, charge_counter=117840, level=8, scale=100, 
+temperature=457, voltage=3662, invalid_charger=0, battery_low=true}]
+>   #50: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +3ms finish
+      enq=2026-10-11 10:38:24.472 disp=2026-10-11 10:38:24.473 fin=2026-10-11 10:38:24.476
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=295, charge_counter=117840, level=8, scale=100, 
+temperature=457, voltage=3729, invalid_charger=0, battery_low=true}]
+>   #51: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +4ms finish
+      enq=2026-10-11 10:38:16.293 disp=2026-10-11 10:38:16.293 fin=2026-10-11 10:38:16.297
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=294, charge_counter=117840, level=8, scale=100, 
+temperature=458, voltage=3726, invalid_charger=0, battery_low=true}]
+>   #52: act=android.intent.action.PACKAGE_RESTARTED dat=package:com.swg.swg_bwc flg=0x10 (has extras)
+      +3ms dispatch +4ms finish
+      enq=2026-10-11 10:38:09.421 disp=2026-10-11 10:38:09.424 fin=2026-10-11 10:38:09.428
+>     extras: Bundle[{android.intent.extra.UID=10120, android.intent.extra.user_handle=0}]
+>   #53: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:38:08.083 disp=2026-10-11 10:38:08.083 fin=2026-10-11 10:38:08.084
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=293, charge_counter=117840, level=8, scale=100, 
+temperature=462, voltage=3656, invalid_charger=0, battery_low=true}]
+>   #54: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:37:59.896 disp=2026-10-11 10:37:59.896 fin=2026-10-11 10:37:59.899
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=292, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3669, invalid_charger=0, battery_low=true}]
+>   #55: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +3ms finish
+      enq=2026-10-11 10:37:51.702 disp=2026-10-11 10:37:51.703 fin=2026-10-11 10:37:51.706
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=291, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3678, invalid_charger=0, battery_low=true}]
+>   #56: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:37:43.513 disp=2026-10-11 10:37:43.513 fin=2026-10-11 10:37:43.516
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=290, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3672, invalid_charger=0, battery_low=true}]
+>   #57: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:37:35.315 disp=2026-10-11 10:37:35.316 fin=2026-10-11 10:37:35.318
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=289, charge_counter=117840, level=8, scale=100, 
+temperature=463, voltage=3663, invalid_charger=0, battery_low=true}]
+>   #58: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:37:34.103 disp=2026-10-11 10:37:34.103 fin=2026-10-11 10:37:34.104
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=288, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3679, invalid_charger=0, battery_low=true}]
+>   #59: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:37:27.118 disp=2026-10-11 10:37:27.118 fin=2026-10-11 10:37:27.120
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=287, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3679, invalid_charger=0, battery_low=true}]
+>   #60: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +8ms finish
+      enq=2026-10-11 10:37:18.947 disp=2026-10-11 10:37:18.947 fin=2026-10-11 10:37:18.955
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=286, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3658, invalid_charger=0, battery_low=true}]
+>   #61: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:37:10.740 disp=2026-10-11 10:37:10.740 fin=2026-10-11 10:37:10.741
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=285, charge_counter=117840, level=8, scale=100, 
+temperature=463, voltage=3660, invalid_charger=0, battery_low=true}]
+>   #62: act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:37:06.228 disp=2026-10-11 10:37:06.228 fin=2026-10-11 10:37:06.229
+>     extras: Bundle[{resultsUpdated=true}]
+>   #63: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +4ms finish
+      enq=2026-10-11 10:37:02.559 disp=2026-10-11 10:37:02.559 fin=2026-10-11 10:37:02.563
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=284, charge_counter=117840, level=8, scale=100, 
+temperature=463, voltage=3666, invalid_charger=0, battery_low=true}]
+>   #64: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:36:58.364 disp=2026-10-11 10:36:58.365 fin=2026-10-11 10:36:58.367
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=283, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3676, invalid_charger=0, battery_low=true}]
+>   #65: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:36:58.322 disp=2026-10-11 10:36:58.322 fin=2026-10-11 10:36:58.324
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=282, charge_counter=117840, level=8, scale=100, 
+temperature=458, voltage=3676, invalid_charger=0, battery_low=true}]
+>   #66: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:36:58.281 disp=2026-10-11 10:36:58.281 fin=2026-10-11 10:36:58.282
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=281, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3676, invalid_charger=0, battery_low=true}]
+>   #67: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:36:54.365 disp=2026-10-11 10:36:54.365 fin=2026-10-11 10:36:54.368
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=280, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3676, invalid_charger=0, battery_low=true}]
+>   #68: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +5ms finish
+      enq=2026-10-11 10:36:46.162 disp=2026-10-11 10:36:46.163 fin=2026-10-11 10:36:46.168
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=279, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3654, invalid_charger=0, battery_low=true}]
+>   #69: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +5ms finish
+      enq=2026-10-11 10:36:37.967 disp=2026-10-11 10:36:37.967 fin=2026-10-11 10:36:37.972
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=278, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3669, invalid_charger=0, battery_low=true}]
+>   #70: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:36:34.101 disp=2026-10-11 10:36:34.102 fin=2026-10-11 10:36:34.103
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=277, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3676, invalid_charger=0, battery_low=true}]
+>   #71: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:36:29.778 disp=2026-10-11 10:36:29.778 fin=2026-10-11 10:36:29.781
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=276, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3676, invalid_charger=0, battery_low=true}]
+>   #72: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +4ms finish
+      enq=2026-10-11 10:36:21.592 disp=2026-10-11 10:36:21.592 fin=2026-10-11 10:36:21.596
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=275, charge_counter=117840, level=8, scale=100, 
+temperature=463, voltage=3676, invalid_charger=0, battery_low=true}]
+>   #73: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +3ms finish
+      enq=2026-10-11 10:36:13.392 disp=2026-10-11 10:36:13.393 fin=2026-10-11 10:36:13.396
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=274, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3659, invalid_charger=0, battery_low=true}]
+    #74: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +2ms dispatch 0 finish
+      enq=2026-10-11 10:36:06.428 disp=2026-10-11 10:36:06.428 fin=2026-10-11 10:36:06.428
+>   #77: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:36:05.207 disp=2026-10-11 10:36:05.208 fin=2026-10-11 10:36:05.210
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=273, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3642, invalid_charger=0, battery_low=true}]
+    #78: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:35:57.110 disp=2026-10-11 10:35:57.110 fin=2026-10-11 10:35:57.111
+>   #81: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:35:57.007 disp=2026-10-11 10:35:57.007 fin=2026-10-11 10:35:57.008
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=272, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3655, invalid_charger=0, battery_low=true}]
+    #82: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:35:50.952 disp=2026-10-11 10:35:50.953 fin=2026-10-11 10:35:50.953
+>   #84: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +4ms finish
+      enq=2026-10-11 10:35:48.816 disp=2026-10-11 10:35:48.816 fin=2026-10-11 10:35:48.820
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=271, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3644, invalid_charger=0, battery_low=true}]
+    #85: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:35:41.720 disp=2026-10-11 10:35:41.720 fin=2026-10-11 10:35:41.720
+>   #88: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:35:40.629 disp=2026-10-11 10:35:40.630 fin=2026-10-11 10:35:40.631
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=270, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3645, invalid_charger=0, battery_low=true}]
+    #89: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:35:35.484 disp=2026-10-11 10:35:35.485 fin=2026-10-11 10:35:35.485
+>   #91: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:35:34.103 disp=2026-10-11 10:35:34.103 fin=2026-10-11 10:35:34.105
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=269, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3645, invalid_charger=0, battery_low=true}]
+>   #92: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:35:32.433 disp=2026-10-11 10:35:32.433 fin=2026-10-11 10:35:32.435
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=268, charge_counter=117840, level=8, scale=100, 
+temperature=462, voltage=3645, invalid_charger=0, battery_low=true}]
+    #93: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:35:26.261 disp=2026-10-11 10:35:26.261 fin=2026-10-11 10:35:26.262
+>   #96: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:35:24.245 disp=2026-10-11 10:35:24.245 fin=2026-10-11 10:35:24.247
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=267, charge_counter=117840, level=8, scale=100, 
+temperature=461, voltage=3646, invalid_charger=0, battery_low=true}]
+    #97: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:35:17.603 disp=2026-10-11 10:35:17.603 fin=2026-10-11 10:35:17.603
+>   #100: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:35:16.053 disp=2026-10-11 10:35:16.053 fin=2026-10-11 10:35:16.054
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=266, charge_counter=117840, level=8, scale=100, 
+temperature=457, voltage=3663, invalid_charger=0, battery_low=true}]
+    #101: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:35:09.350 disp=2026-10-11 10:35:09.350 fin=2026-10-11 10:35:09.351
+>   #104: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +5ms finish
+      enq=2026-10-11 10:35:07.865 disp=2026-10-11 10:35:07.865 fin=2026-10-11 10:35:07.870
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=265, charge_counter=117840, level=8, scale=100, 
+temperature=462, voltage=3655, invalid_charger=0, battery_low=true}]
+    #105: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:35:01.093 disp=2026-10-11 10:35:01.093 fin=2026-10-11 10:35:01.093
+>   #108: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +8ms finish
+      enq=2026-10-11 10:34:59.664 disp=2026-10-11 10:34:59.665 fin=2026-10-11 10:34:59.673
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=264, charge_counter=117840, level=8, scale=100, 
+temperature=456, voltage=3662, invalid_charger=0, battery_low=true}]
+    #109: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:34:52.810 disp=2026-10-11 10:34:52.810 fin=2026-10-11 10:34:52.811
+>   #112: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:34:51.467 disp=2026-10-11 10:34:51.467 fin=2026-10-11 10:34:51.469
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=263, charge_counter=117840, level=8, scale=100, 
+temperature=459, voltage=3639, invalid_charger=0, battery_low=true}]
+    #113: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:34:44.444 disp=2026-10-11 10:34:44.444 fin=2026-10-11 10:34:44.444
+>   #116: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:34:43.275 disp=2026-10-11 10:34:43.275 fin=2026-10-11 10:34:43.277
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=262, charge_counter=117840, level=8, scale=100, 
+temperature=462, voltage=3657, invalid_charger=0, battery_low=true}]
+    #117: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:34:38.990 disp=2026-10-11 10:34:38.990 fin=2026-10-11 10:34:38.991
+>   #119: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:34:37.820 disp=2026-10-11 10:34:37.821 fin=2026-10-11 10:34:37.823
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=261, charge_counter=117840, level=8, scale=100, 
+temperature=458, voltage=3658, invalid_charger=0, battery_low=true}]
+    #120: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:34:36.198 disp=2026-10-11 10:34:36.198 fin=2026-10-11 10:34:36.199
+>   #121: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:34:35.089 disp=2026-10-11 10:34:35.089 fin=2026-10-11 10:34:35.090
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=260, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3658, invalid_charger=0, battery_low=true}]
+>   #122: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +2ms dispatch +3ms finish
+      enq=2026-10-11 10:34:34.102 disp=2026-10-11 10:34:34.104 fin=2026-10-11 10:34:34.107
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=259, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3641, invalid_charger=0, battery_low=true}]
+    #123: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:34:27.984 disp=2026-10-11 10:34:27.984 fin=2026-10-11 10:34:27.984
+>   #126: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:34:26.899 disp=2026-10-11 10:34:26.899 fin=2026-10-11 10:34:26.900
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=258, charge_counter=117840, level=8, scale=100, 
+temperature=457, voltage=3641, invalid_charger=0, battery_low=true}]
+    #127: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:34:25.293 disp=2026-10-11 10:34:25.293 fin=2026-10-11 10:34:25.293
+>   #128: act=com.android.server.action.NETWORK_STATS_POLL flg=0x14 (has extras)
+      +1ms dispatch +31ms finish
+      enq=2026-10-11 10:34:22.584 disp=2026-10-11 10:34:22.585 fin=2026-10-11 10:34:22.616
+>     extras: Bundle[{android.intent.extra.ALARM_COUNT=1}]
+    #129: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:34:19.824 disp=2026-10-11 10:34:19.825 fin=2026-10-11 10:34:19.825
+>   #132: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:34:18.707 disp=2026-10-11 10:34:18.707 fin=2026-10-11 10:34:18.709
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=257, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3658, invalid_charger=0, battery_low=true}]
+    #133: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:34:11.575 disp=2026-10-11 10:34:11.576 fin=2026-10-11 10:34:11.576
+>   #136: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +4ms finish
+      enq=2026-10-11 10:34:10.521 disp=2026-10-11 10:34:10.522 fin=2026-10-11 10:34:10.526
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=256, charge_counter=117840, level=8, scale=100, 
+temperature=458, voltage=3661, invalid_charger=0, battery_low=true}]
+    #137: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:34:03.314 disp=2026-10-11 10:34:03.314 fin=2026-10-11 10:34:03.315
+>   #140: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +3ms finish
+      enq=2026-10-11 10:34:02.331 disp=2026-10-11 10:34:02.332 fin=2026-10-11 10:34:02.335
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=255, charge_counter=117840, level=8, scale=100, 
+temperature=458, voltage=3658, invalid_charger=0, battery_low=true}]
+    #141: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:33:55.055 disp=2026-10-11 10:33:55.055 fin=2026-10-11 10:33:55.055
+>   #144: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:33:54.131 disp=2026-10-11 10:33:54.131 fin=2026-10-11 10:33:54.132
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=254, charge_counter=117840, level=8, scale=100, 
+temperature=456, voltage=3656, invalid_charger=0, battery_low=true}]
+    #145: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:33:46.796 disp=2026-10-11 10:33:46.796 fin=2026-10-11 10:33:46.796
+>   #148: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:33:45.934 disp=2026-10-11 10:33:45.935 fin=2026-10-11 10:33:45.937
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=253, charge_counter=117840, level=8, scale=100, 
+temperature=456, voltage=3662, invalid_charger=0, battery_low=true}]
+    #149: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:33:38.579 disp=2026-10-11 10:33:38.579 fin=2026-10-11 10:33:38.579
+>   #152: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:33:37.743 disp=2026-10-11 10:33:37.743 fin=2026-10-11 10:33:37.746
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=252, charge_counter=117840, level=8, scale=100, 
+temperature=458, voltage=3662, invalid_charger=0, battery_low=true}]
+    #153: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:33:35.834 disp=2026-10-11 10:33:35.834 fin=2026-10-11 10:33:35.834
+>   #154: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +3ms finish
+      enq=2026-10-11 10:33:34.103 disp=2026-10-11 10:33:34.104 fin=2026-10-11 10:33:34.107
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=251, charge_counter=117840, level=8, scale=100, 
+temperature=460, voltage=3657, invalid_charger=0, battery_low=true}]
+    #155: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:33:30.328 disp=2026-10-11 10:33:30.328 fin=2026-10-11 10:33:30.328
+>   #157: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:33:29.556 disp=2026-10-11 10:33:29.556 fin=2026-10-11 10:33:29.557
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=250, charge_counter=117840, level=8, scale=100, 
+temperature=456, voltage=3657, invalid_charger=0, battery_low=true}]
+    #158: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:33:22.073 disp=2026-10-11 10:33:22.073 fin=2026-10-11 10:33:22.074
+>   #161: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:33:21.359 disp=2026-10-11 10:33:21.359 fin=2026-10-11 10:33:21.360
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=249, charge_counter=117840, level=8, scale=100, 
+temperature=454, voltage=3663, invalid_charger=0, battery_low=true}]
+    #162: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:33:13.893 disp=2026-10-11 10:33:13.893 fin=2026-10-11 10:33:13.893
+>   #165: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:33:13.175 disp=2026-10-11 10:33:13.175 fin=2026-10-11 10:33:13.177
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=248, charge_counter=117840, level=8, scale=100, 
+temperature=455, voltage=3655, invalid_charger=0, battery_low=true}]
+    #166: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:33:08.411 disp=2026-10-11 10:33:08.411 fin=2026-10-11 10:33:08.411
+>   #168: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +6ms finish
+      enq=2026-10-11 10:33:06.835 disp=2026-10-11 10:33:06.835 fin=2026-10-11 10:33:06.841
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=247, charge_counter=117840, level=8, scale=100, 
+temperature=458, voltage=3652, invalid_charger=0, battery_low=true}]
+    #169: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:33:05.655 disp=2026-10-11 10:33:05.655 fin=2026-10-11 10:33:05.656
+>   #170: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:33:04.976 disp=2026-10-11 10:33:04.977 fin=2026-10-11 10:33:04.979
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=246, charge_counter=147300, level=8, scale=100, 
+temperature=453, voltage=3652, invalid_charger=0, battery_low=true}]
+    #171: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:32:57.420 disp=2026-10-11 10:32:57.420 fin=2026-10-11 10:32:57.420
+>   #174: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:32:56.785 disp=2026-10-11 10:32:56.785 fin=2026-10-11 10:32:56.788
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=245, charge_counter=147300, level=8, scale=100, 
+temperature=452, voltage=3664, invalid_charger=0, battery_low=true}]
+    #175: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:32:49.203 disp=2026-10-11 10:32:49.203 fin=2026-10-11 10:32:49.204
+>   #178: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:32:48.589 disp=2026-10-11 10:32:48.589 fin=2026-10-11 10:32:48.592
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=244, charge_counter=147300, level=8, scale=100, 
+temperature=458, voltage=3651, invalid_charger=0, battery_low=true}]
+    #179: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:32:41.006 disp=2026-10-11 10:32:41.006 fin=2026-10-11 10:32:41.007
+>   #182: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:32:40.399 disp=2026-10-11 10:32:40.400 fin=2026-10-11 10:32:40.402
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=243, charge_counter=147300, level=8, scale=100, 
+temperature=454, voltage=3650, invalid_charger=0, battery_low=true}]
+    #183: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:32:32.657 disp=2026-10-11 10:32:32.657 fin=2026-10-11 10:32:32.657
+>   #186: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:32:32.210 disp=2026-10-11 10:32:32.210 fin=2026-10-11 10:32:32.212
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=242, charge_counter=147300, level=8, scale=100, 
+temperature=453, voltage=3644, invalid_charger=0, battery_low=true}]
+    #187: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:32:24.407 disp=2026-10-11 10:32:24.408 fin=2026-10-11 10:32:24.408
+>   #190: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +2ms dispatch +2ms finish
+      enq=2026-10-11 10:32:24.017 disp=2026-10-11 10:32:24.019 fin=2026-10-11 10:32:24.021
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=241, charge_counter=147300, level=8, scale=100, 
+temperature=454, voltage=3670, invalid_charger=0, battery_low=true}]
+    #191: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:32:16.140 disp=2026-10-11 10:32:16.140 fin=2026-10-11 10:32:16.140
+>   #194: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +2ms dispatch +2ms finish
+      enq=2026-10-11 10:32:15.826 disp=2026-10-11 10:32:15.828 fin=2026-10-11 10:32:15.830
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=240, charge_counter=147300, level=8, scale=100, 
+temperature=452, voltage=3666, invalid_charger=0, battery_low=true}]
+    #195: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:32:10.585 disp=2026-10-11 10:32:10.585 fin=2026-10-11 10:32:10.586
+>   #197: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:32:08.226 disp=2026-10-11 10:32:08.226 fin=2026-10-11 10:32:08.229
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=239, charge_counter=147300, level=8, scale=100, 
+temperature=453, voltage=3649, invalid_charger=0, battery_low=true}]
+>   #198: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:32:08.194 disp=2026-10-11 10:32:08.195 fin=2026-10-11 10:32:08.196
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=238, charge_counter=147300, level=8, scale=100, 
+temperature=455, voltage=3649, invalid_charger=0, battery_low=true}]
+>   #199: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:32:08.156 disp=2026-10-11 10:32:08.156 fin=2026-10-11 10:32:08.157
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=237, charge_counter=147300, level=8, scale=100, 
+temperature=452, voltage=3649, invalid_charger=0, battery_low=true}]
+    #200: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:32:07.802 disp=2026-10-11 10:32:07.802 fin=2026-10-11 10:32:07.802
+>   #201: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:32:07.649 disp=2026-10-11 10:32:07.649 fin=2026-10-11 10:32:07.650
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=236, charge_counter=147300, level=8, scale=100, 
+temperature=451, voltage=3649, invalid_charger=0, battery_low=true}]
+    #202: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +8ms dispatch 0 finish
+      enq=2026-10-11 10:31:59.709 disp=2026-10-11 10:31:59.709 fin=2026-10-11 10:31:59.709
+>   #205: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +4ms finish
+      enq=2026-10-11 10:31:59.441 disp=2026-10-11 10:31:59.442 fin=2026-10-11 10:31:59.446
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=235, charge_counter=147300, level=8, scale=100, 
+temperature=450, voltage=3665, invalid_charger=0, battery_low=true}]
+    #206: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:31:51.690 disp=2026-10-11 10:31:51.690 fin=2026-10-11 10:31:51.690
+>   #209: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:31:51.243 disp=2026-10-11 10:31:51.244 fin=2026-10-11 10:31:51.246
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=234, charge_counter=147300, level=8, scale=100, 
+temperature=450, voltage=3635, invalid_charger=0, battery_low=true}]
+    #210: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:31:43.245 disp=2026-10-11 10:31:43.245 fin=2026-10-11 10:31:43.246
+>   #213: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:31:43.059 disp=2026-10-11 10:31:43.059 fin=2026-10-11 10:31:43.061
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=233, charge_counter=147300, level=8, scale=100, 
+temperature=455, voltage=3664, invalid_charger=0, battery_low=true}]
+    #214: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:31:34.882 disp=2026-10-11 10:31:34.882 fin=2026-10-11 10:31:34.882
+>   #217: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:31:34.871 disp=2026-10-11 10:31:34.871 fin=2026-10-11 10:31:34.873
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=232, charge_counter=147300, level=8, scale=100, 
+temperature=451, voltage=3665, invalid_charger=0, battery_low=true}]
+>   #218: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:31:34.103 disp=2026-10-11 10:31:34.103 fin=2026-10-11 10:31:34.104
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=231, charge_counter=147300, level=8, scale=100, 
+temperature=452, voltage=3653, invalid_charger=0, battery_low=true}]
+    #219: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:31:26.697 disp=2026-10-11 10:31:26.697 fin=2026-10-11 10:31:26.698
+>   #222: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:31:26.671 disp=2026-10-11 10:31:26.672 fin=2026-10-11 10:31:26.673
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=230, charge_counter=147300, level=8, scale=100, 
+temperature=451, voltage=3653, invalid_charger=0, battery_low=true}]
+    #223: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:31:21.051 disp=2026-10-11 10:31:21.051 fin=2026-10-11 10:31:21.052
+>   #225: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +5ms finish
+      enq=2026-10-11 10:31:18.477 disp=2026-10-11 10:31:18.478 fin=2026-10-11 10:31:18.483
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=229, charge_counter=147300, level=8, scale=100, 
+temperature=451, voltage=3662, invalid_charger=0, battery_low=true}]
+    #226: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:31:12.876 disp=2026-10-11 10:31:12.876 fin=2026-10-11 10:31:12.876
+>   #229: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:31:10.289 disp=2026-10-11 10:31:10.289 fin=2026-10-11 10:31:10.290
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=228, charge_counter=147300, level=8, scale=100, 
+temperature=448, voltage=3658, invalid_charger=0, battery_low=true}]
+    #230: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:31:04.643 disp=2026-10-11 10:31:04.643 fin=2026-10-11 10:31:04.644
+>   #233: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +4ms finish
+      enq=2026-10-11 10:31:02.096 disp=2026-10-11 10:31:02.096 fin=2026-10-11 10:31:02.100
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=227, charge_counter=147300, level=8, scale=100, 
+temperature=452, voltage=3669, invalid_charger=0, battery_low=true}]
+    #234: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:30:56.489 disp=2026-10-11 10:30:56.490 fin=2026-10-11 10:30:56.490
+>   #237: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:30:53.902 disp=2026-10-11 10:30:53.903 fin=2026-10-11 10:30:53.904
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=226, charge_counter=147300, level=8, scale=100, 
+temperature=448, voltage=3662, invalid_charger=0, battery_low=true}]
+    #238: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:30:48.270 disp=2026-10-11 10:30:48.270 fin=2026-10-11 10:30:48.271
+>   #241: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:30:45.713 disp=2026-10-11 10:30:45.713 fin=2026-10-11 10:30:45.715
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=225, charge_counter=147300, level=8, scale=100, 
+temperature=449, voltage=3658, invalid_charger=0, battery_low=true}]
+    #242: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:30:39.982 disp=2026-10-11 10:30:39.982 fin=2026-10-11 10:30:39.982
+>   #245: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:30:37.529 disp=2026-10-11 10:30:37.529 fin=2026-10-11 10:30:37.531
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=224, charge_counter=147300, level=8, scale=100, 
+temperature=449, voltage=3636, invalid_charger=0, battery_low=true}]
+    #246: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:30:31.780 disp=2026-10-11 10:30:31.780 fin=2026-10-11 10:30:31.780
+>   #249: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:30:29.333 disp=2026-10-11 10:30:29.333 fin=2026-10-11 10:30:29.335
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=223, charge_counter=147300, level=8, scale=100, 
+temperature=449, voltage=3645, invalid_charger=0, battery_low=true}]
+    #250: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +2ms dispatch 0 finish
+      enq=2026-10-11 10:30:23.550 disp=2026-10-11 10:30:23.550 fin=2026-10-11 10:30:23.551
+>   #253: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:30:21.156 disp=2026-10-11 10:30:21.156 fin=2026-10-11 10:30:21.158
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=222, charge_counter=147300, level=8, scale=100, 
+temperature=450, voltage=3667, invalid_charger=0, battery_low=true}]
+    #254: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:30:15.396 disp=2026-10-11 10:30:15.396 fin=2026-10-11 10:30:15.397
+>   #257: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +2ms finish
+      enq=2026-10-11 10:30:12.948 disp=2026-10-11 10:30:12.948 fin=2026-10-11 10:30:12.950
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=221, charge_counter=147300, level=8, scale=100, 
+temperature=450, voltage=3659, invalid_charger=0, battery_low=true}]
+    #258: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:30:07.049 disp=2026-10-11 10:30:07.049 fin=2026-10-11 10:30:07.049
+>   #261: act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:30:06.428 disp=2026-10-11 10:30:06.429 fin=2026-10-11 10:30:06.429
+>     extras: Bundle[{resultsUpdated=true}]
+>   #262: act=android.net.wifi.SCAN_RESULTS flg=0x4000010 (has extras)
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:30:06.392 disp=2026-10-11 10:30:06.393 fin=2026-10-11 10:30:06.393
+>     extras: Bundle[{resultsUpdated=true}]
+>   #263: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +3ms finish
+      enq=2026-10-11 10:30:04.747 disp=2026-10-11 10:30:04.748 fin=2026-10-11 10:30:04.751
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=220, charge_counter=147300, level=8, scale=100, 
+temperature=446, voltage=3663, invalid_charger=0, battery_low=true}]
+    #264: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:29:58.777 disp=2026-10-11 10:29:58.777 fin=2026-10-11 10:29:58.778
+>   #267: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:29:56.559 disp=2026-10-11 10:29:56.560 fin=2026-10-11 10:29:56.562
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=219, charge_counter=147300, level=8, scale=100, 
+temperature=452, voltage=3666, invalid_charger=0, battery_low=true}]
+    #268: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:29:50.538 disp=2026-10-11 10:29:50.539 fin=2026-10-11 10:29:50.540
+>   #271: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +2ms finish
+      enq=2026-10-11 10:29:48.373 disp=2026-10-11 10:29:48.374 fin=2026-10-11 10:29:48.376
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=218, charge_counter=147300, level=8, scale=100, 
+temperature=444, voltage=3662, invalid_charger=0, battery_low=true}]
+    #272: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:29:42.415 disp=2026-10-11 10:29:42.415 fin=2026-10-11 10:29:42.416
+>   #275: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:29:40.189 disp=2026-10-11 10:29:40.189 fin=2026-10-11 10:29:40.192
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=217, charge_counter=147300, level=8, scale=100, 
+temperature=446, voltage=3643, invalid_charger=0, battery_low=true}]
+    #276: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:29:34.193 disp=2026-10-11 10:29:34.193 fin=2026-10-11 10:29:34.194
+>   #279: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +4ms finish
+      enq=2026-10-11 10:29:31.993 disp=2026-10-11 10:29:31.993 fin=2026-10-11 10:29:31.997
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=216, charge_counter=147300, level=8, scale=100, 
+temperature=445, voltage=3675, invalid_charger=0, battery_low=true}]
+    #280: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      +1ms dispatch 0 finish
+      enq=2026-10-11 10:29:25.938 disp=2026-10-11 10:29:25.938 fin=2026-10-11 10:29:25.938
+>   #283: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +1ms finish
+      enq=2026-10-11 10:29:23.790 disp=2026-10-11 10:29:23.790 fin=2026-10-11 10:29:23.791
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=215, charge_counter=147300, level=8, scale=100, 
+temperature=444, voltage=3662, invalid_charger=0, battery_low=true}]
+    #284: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:29:17.722 disp=2026-10-11 10:29:17.724 fin=2026-10-11 10:29:17.724
+>   #287: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:29:15.603 disp=2026-10-11 10:29:15.603 fin=2026-10-11 10:29:15.606
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=214, charge_counter=147300, level=8, scale=100, 
+temperature=445, voltage=3647, invalid_charger=0, battery_low=true}]
+    #288: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:29:09.635 disp=2026-10-11 10:29:09.637 fin=2026-10-11 10:29:09.637
+>   #291: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:29:07.419 disp=2026-10-11 10:29:07.419 fin=2026-10-11 10:29:07.422
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=213, charge_counter=147300, level=8, scale=100, 
+temperature=446, voltage=3649, invalid_charger=0, battery_low=true}]
+    #292: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:29:01.439 disp=2026-10-11 10:29:01.440 fin=2026-10-11 10:29:01.440
+>   #295: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      +1ms dispatch +1ms finish
+      enq=2026-10-11 10:28:59.221 disp=2026-10-11 10:28:59.222 fin=2026-10-11 10:28:59.223
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=212, charge_counter=147300, level=8, scale=100, 
+temperature=446, voltage=3668, invalid_charger=0, battery_low=true}]
+    #296: act=com.android.server.action.NETWORK_STATS_UPDATED flg=0x40000010
+      0 dispatch 0 finish
+      enq=2026-10-11 10:28:53.139 disp=2026-10-11 10:28:53.139 fin=2026-10-11 10:28:53.140
+>   #299: act=android.intent.action.BATTERY_CHANGED flg=0x60000010 (has extras)
+      0 dispatch +3ms finish
+      enq=2026-10-11 10:28:51.025 disp=2026-10-11 10:28:51.025 fin=2026-10-11 10:28:51.028
+>     extras: Bundle[{technology=Li-ion, icon-small=17303535, max_charging_voltage=5000000, health=2, 
+max_charging_current=500000, status=2, plugged=2, present=true, seq=211, charge_counter=147300, level=8, scale=100, 
+temperature=444, voltage=3657, invalid_charger=0, battery_low=true}]
+  
+    Broadcast parameters (key=bcast_offload_constants, observing=true):
+
+

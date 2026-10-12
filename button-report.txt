@@ -1,0 +1,113 @@
+﻿BWC button report 10/11/2026 10:26:33
+== Window focus ==
+mCurrentFocus=null
+mFocusedApp=null
+mCurrentFocus=Window{68634d2 u0 com.swg.swg_bwc/com.swg.swg_bwc.MainActivity}
+mFocusedApp=AppWindowToken{d3ef755 token=Token{5c7420c ActivityRecord{61b93f u0 com.swg.swg_bwc/.MainActivity t269}}}
+mFocusedApp=Token{5c7420c ActivityRecord{61b93f u0 com.swg.swg_bwc/.MainActivity t269}}
+== Vendor packages ==
+package:com.swg.swg_bwc
+== LED and flashlight devices ==
+-- /sys/class/leds
+ls: /sys/class/leds: Permission denied
+-- /sys/class/flashlight
+mt-flash-led1
+mt-flash-led2
+-- /sys/class/torch
+ls: /sys/class/torch: No such file or directory
+== Who listens for lolaage actions ==
+>       lolaage.power.reboot:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.rayled.set:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.power.off:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.ir.led:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.led.green1:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.intent.action.WRITE_APN:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.led.yellow:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.led.blue1:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.led.green:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.led.blue:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.led.red1:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.led.warn:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.ircut.switch:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.uninstall.pack:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.airplane.set:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.led.red:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.gps.set:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.usbmode.set:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+>       lolaage.install.pack:
+          6ca4a7b com.pri.factorytest/.PrizeReceiver
+
+##### PLUS (+) #####
+Kernel input events:
+  [    1376.858311] /dev/input/event1: EV_KEY       012e                 DOWN
+  [    1377.109272] /dev/input/event1: EV_KEY       012e                 UP
+  [    1378.648405] /dev/input/event1: EV_KEY       012e                 DOWN
+What the BWC app received:
+
+##### MINUS (-) #####
+Kernel input events:
+  [    1388.283542] /dev/input/event1: EV_KEY       KEY_MUTE             DOWN
+  [    1388.620886] /dev/input/event1: EV_KEY       KEY_MUTE             UP
+  [    1388.670639] /dev/input/event2: EV_KEY       BTN_TOUCH            DOWN
+  [    1388.728116] /dev/input/event2: EV_KEY       BTN_TOUCH            UP
+  [    1388.889557] /dev/input/event2: EV_KEY       BTN_TOUCH            DOWN
+  [    1391.065205] /dev/input/event2: EV_KEY       BTN_TOUCH            UP
+What the BWC app received:
+  10-11 10:27:15.688  3136  3136 I flutter : Key: 1007 action: 1
+  10-11 10:27:16.020  3136  3136 I flutter : Key: 1006 action: 1
+
+##### CAMERA (camera icon) #####
+Kernel input events:
+  [    1400.505013] /dev/input/event1: EV_KEY       KEY_CAMERA           DOWN
+  [    1400.878580] /dev/input/event1: EV_KEY       KEY_CAMERA           UP
+What the BWC app received:
+
+##### MIC (microphone icon) #####
+Kernel input events:
+  [    1409.796886] /dev/input/event1: EV_KEY       KEY_VOLUMEDOWN       DOWN
+  [    1410.298908] /dev/input/event1: EV_KEY       KEY_VOLUMEDOWN       UP
+What the BWC app received:
+
+##### GREEN oval #####
+Kernel input events:
+  [    1418.689817] /dev/input/event1: EV_KEY       012d                 DOWN
+  [    1418.983796] /dev/input/event1: EV_KEY       012d                 UP
+What the BWC app received:
+  10-11 10:27:46.111  3136  3136 I flutter : Key: 1003 action: 0
+  10-11 10:27:46.394  3136  3136 I flutter : Key: 1003 action: 1
+
+##### SOS (orange, left side) #####
+Kernel input events:
+  [    1427.102017] /dev/input/event1: EV_KEY       BTN_DEAD             DOWN
+  [    1427.503890] /dev/input/event1: EV_KEY       BTN_DEAD             UP
+What the BWC app received:
+  10-11 10:27:54.507  3136  3136 I flutter : Key: 1002 action: 0
+  10-11 10:27:54.910  3136  3136 I flutter : Key: 1002 action: 1
+
+##### RECORD (orange, right side top) #####
+Kernel input events:
+  [    1436.172434] /dev/input/event1: EV_KEY       KEY_VOLUMEUP         DOWN
+  [    1436.373534] /dev/input/event1: EV_KEY       KEY_VOLUMEUP         UP
+What the BWC app received:
+  10-11 10:28:03.580  3136  3136 I flutter : Key: 1001 action: 0
+  10-11 10:28:03.790  3136  3136 I flutter : Key: 1001 action: 1
+
+DONE

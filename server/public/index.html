@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWG Command Center</title>
+<link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/flv.js/1.6.2/flv.min.js"></script>
+<style>
+:root{--bg:#0f1828;--panel:#162238;--raise:#1d2c47;--line:#2a3b5a;--text:#e8eef7;--mut:#8a9bb5;
+--ok:#3ddc97;--rec:#ff5d73;--off:#5b6b86;--sel:#ffc857;
+font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+*{box-sizing:border-box}
+body{margin:0;height:100vh;background:var(--bg);color:var(--text);display:grid;grid-template-rows:56px 1fr;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,.cam:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+header{display:flex;align-items:center;gap:28px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600;letter-spacing:.2px}
+.brand svg{width:26px;height:26px}
+.stats{display:flex;gap:22px;margin-left:12px;color:var(--mut);font-size:14px}
+.stats b{color:var(--text);font-size:18px;margin-right:5px}
+.stats .alert b{color:var(--rec)}
+.clock{margin-left:auto;font-size:15px;color:var(--mut)}
+main{display:grid;grid-template-columns:300px 1fr minmax(400px,36vw);min-height:0}
+aside,#right{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+aside{border-right:1px solid var(--line)}
+#right{border-left:1px solid var(--line)}
+.sec{padding:14px 16px 10px;font-weight:600;font-size:15px;display:flex;align-items:center;justify-content:space-between}
+.sec small{color:var(--mut);font-weight:400}
+#q{margin:0 14px 10px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
+.chips{display:flex;gap:6px;padding:0 14px 10px}
+.chip{padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:none;font-size:13px;color:var(--mut)}
+.chip.on{background:var(--sel);border-color:var(--sel);color:#1a1405;font-weight:600}
+#list{flex:1;overflow:auto;padding:0 8px 12px}
+.cam{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border-left:3px solid transparent}
+.cam:hover{background:var(--raise)}
+.cam.sel{background:var(--raise);border-left-color:var(--sel)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--off);flex:none}
+.online .dot{background:var(--ok)}.rec .dot{background:var(--rec)}
+.meta{flex:1;min-width:0;display:flex;flex-direction:column}
+.meta small{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{font-size:11px;font-weight:700;color:#fff;background:var(--rec);border-radius:4px;padding:2px 6px}
+.cam button{width:30px;height:30px;border-radius:6px;border:1px solid var(--line);background:none}
+.cam button:hover{background:var(--sel);color:#1a1405;border-color:var(--sel)}
+.none{padding:24px 14px;color:var(--mut);font-size:14px;line-height:1.5}
+#mapwrap{position:relative;min-height:0}
+#map{position:absolute;inset:0}
+.mk{width:20px;height:20px;border-radius:50%;background:var(--off);border:3px solid var(--bg);box-shadow:0 0 0 1px rgba(255,255,255,.25);cursor:pointer}
+.mk.online{background:var(--ok)}
+.mk.rec{background:var(--rec);animation:pulse 1.5s infinite}
+.mk.sel{box-shadow:0 0 0 3px var(--sel)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,93,115,.7)}100%{box-shadow:0 0 0 16px rgba(255,93,115,0)}}
+#info{position:absolute;left:16px;bottom:16px;width:280px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:none}
+#info h3{margin:0 0 4px;font-size:18px}
+#info p{margin:2px 0;color:var(--mut);font-size:13px}
+#info .row{display:flex;gap:8px;margin-top:12px}
+.btn{flex:1;padding:8px 10px;border-radius:7px;border:1px solid var(--line);background:var(--raise);font-size:14px}
+.btn.pri{background:var(--sel);border-color:var(--sel);color:#1a1405;font-weight:600}
+.btn.on{border-color:var(--sel);color:var(--sel)}
+.lay{display:flex;gap:6px}
+.lay button{padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:none;font-size:13px;color:var(--mut)}
+.lay button.on{background:var(--raise);color:var(--text);border-color:var(--sel)}
+#wall{flex:1;display:grid;gap:6px;padding:0 10px 10px;min-height:0}
+.tile{position:relative;background:#070c15;border-radius:6px;overflow:hidden;border:1px solid var(--line);min-height:0}
+.tile video{width:100%;height:100%;object-fit:cover;display:block}
+.tile.fit video{object-fit:contain}
+.tile.talking{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok)}
+.tag{position:absolute;top:6px;left:6px;right:6px;display:flex;align-items:center;gap:7px;font-size:13px;pointer-events:none}
+.tag span{background:rgba(7,12,21,.78);padding:3px 9px;border-radius:5px}
+.tag button{margin-left:auto;pointer-events:auto;width:24px;height:24px;border-radius:5px;border:0;background:rgba(7,12,21,.78)}
+.wait,.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--mut);font-size:14px;text-align:center;padding:12px}
+.empty small{font-size:12px}
+.tile.live .wait{display:none}
+#alarms{height:210px;overflow:auto;border-top:1px solid var(--line);padding:0 8px 10px}
+.al{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;cursor:pointer;border-left:3px solid var(--rec);margin-bottom:4px;background:rgba(255,93,115,.12)}
+.al.ack{border-left-color:var(--off);background:none;color:var(--mut)}
+.al b{flex:1}
+.al small{color:var(--mut)}
+header.flash{animation:fl 1s 3}
+@keyframes fl{50%{background:#5a2030}}
+.user{display:flex;align-items:center;gap:12px;color:var(--mut);font-size:14px}
+.user .btn{flex:none;padding:6px 12px}
+.in{width:100%;margin-top:8px;padding:8px 10px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
+.badge.talk{background:var(--ok);color:#06231a}
+.tag button+button{margin-left:6px}
+.tag button[data-s],.tag button[data-f]{width:auto;padding:0 10px;font-size:12px}
+#snd{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:50;background:var(--sel);color:#1a1405;font-size:14px;font-weight:600;padding:6px 16px;border-radius:0 0 8px 8px}
+@media (prefers-reduced-motion:reduce){.mk.rec,header.flash{animation:none}}
+</style>
+</head>
+<body>
+<div id="snd">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
+<header id="top">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#ffc857" stroke-width="1.8"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><circle cx="12" cy="11" r="2.6"/></svg>
+    SWG Command Center
+  </div>
+  <div class="stats">
+    <span><b id="sOn">0</b>online</span>
+    <span><b id="sRec">0</b>recording</span>
+    <span><b id="sAll">0</b>registered</span>
+    <span class="alert"><b id="sAl">0</b>open alarms</span>
+  </div>
+  <div class="clock" id="clock"></div>
+  <div class="user"><span id="who"></span><button class="btn" id="out">Sign out</button></div>
+</header>
+<main>
+  <aside>
+    <div class="sec">Cameras <small id="cnt"></small></div>
+    <input id="q" type="search" placeholder="Search by name, group or ID" aria-label="Search cameras">
+    <div class="chips" id="chips">
+      <button class="chip on" data-f="all">All</button>
+      <button class="chip" data-f="online">Online</button>
+      <button class="chip" data-f="rec">Recording</button>
+    </div>
+    <div id="list"></div>
+  </aside>
+  <section id="mapwrap">
+    <div id="map"></div>
+    <div id="info"></div>
+  </section>
+  <section id="right">
+    <div class="sec">Live wall
+      <div class="lay" id="lay">
+        <button data-n="1">1</button><button data-n="4" class="on">2×2</button><button data-n="9">3×3</button>
+      </div>
+    </div>
+    <div id="wall"></div>
+    <div class="sec" style="border-top:1px solid var(--line)">Alarms <small id="aSub"></small></div>
+    <div id="alarms"></div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const host = location.hostname;
+const cams = new Map(), markers = new Map(), players = new Map();
+let alarms = [], selected = null, filter = 'all', term = '', follow = false;
+let me = { role: 'viewer' }, editing = false;
+let layout = 4, slots = [null, null, null, null];
+
+const stateOf = (c) => (c.recording ? 'rec' : c.online ? 'online' : 'off');
+const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const nm = (c) => c.name || c.cameraId;
+const tagOf = (id) => esc(nm(cams.get(id) || { cameraId: id }));
+const ago = (ts) => {
+  if (!ts) return 'no signal yet';
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  return s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s / 60) + 'm ago' : Math.floor(s / 3600) + 'h ago';
+};
+
+/* ---------- Map ---------- */
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  center: [46.6753, 24.7136], zoom: 11
+});
+
+function syncMarker(c) {
+  if (c.lat == null) return;
+  let m = markers.get(c.cameraId);
+  if (!m) {
+    const el = document.createElement('div');
+    el.addEventListener('click', (e) => { e.stopPropagation(); select(c.cameraId, false); });
+    m = new maplibregl.Marker({ element: el }).setLngLat([c.lng, c.lat]).addTo(map);
+    markers.set(c.cameraId, m);
+  }
+  m.setLngLat([c.lng, c.lat]);
+  m.getElement().className = 'mk ' + stateOf(c) + (selected === c.cameraId ? ' sel' : '');
+}
+
+/* ---------- Fleet list ---------- */
+function visible() {
+  return [...cams.values()]
+    .filter((c) => (nm(c) + ' ' + (c.grp || '') + ' ' + c.cameraId).toLowerCase().includes(term))
+    .filter((c) => filter === 'all' || (filter === 'online' ? c.online : c.recording))
+    .sort((a, b) => ({ rec: 0, online: 1, off: 2 }[stateOf(a)] - { rec: 0, online: 1, off: 2 }[stateOf(b)]) || a.cameraId.localeCompare(b.cameraId));
+}
+let queued = false;
+function renderList() {
+  if (queued) return;
+  queued = true;
+  requestAnimationFrame(() => {
+    queued = false;
+    const rows = visible();
+    $('#cnt').textContent = rows.length + ' shown';
+    $('#list').innerHTML = rows.length ? rows.map((c) => `
+      <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''}" data-id="${c.cameraId}" tabindex="0">
+        <span class="dot"></span>
+        <div class="meta"><b>${esc(nm(c))}</b>
+          <small>${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? 'No GPS fix' : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
+        ${c.recording ? '<span class="badge">REC</span>' : ''}
+        ${c.ptt ? '<span class="badge talk">TALK</span>' : ''}
+        <button data-w="${c.cameraId}" title="Watch live" aria-label="Watch ${c.cameraId} live">▶</button>
+      </div>`).join('')
+      : '<div class="none">No cameras match. Turn on a body camera and it will appear here automatically.</div>';
+    stats();
+  });
+}
+function stats() {
+  const all = [...cams.values()];
+  $('#sOn').textContent = all.filter((c) => c.online).length;
+  $('#sRec').textContent = all.filter((c) => c.recording).length;
+  $('#sAll').textContent = all.length;
+  $('#sAl').textContent = alarms.filter((a) => !a.ack).length;
+}
+$('#list').addEventListener('click', (e) => {
+  const w = e.target.closest('[data-w]');
+  if (w) return watch(w.dataset.w);
+  const row = e.target.closest('.cam');
+  if (row) select(row.dataset.id, true);
+});
+$('#list').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.dataset.id) select(e.target.dataset.id, true);
+});
+$('#q').addEventListener('input', (e) => { term = e.target.value.trim().toLowerCase(); renderList(); });
+$('#chips').addEventListener('click', (e) => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === b));
+  renderList();
+});
+
+/* ---------- Selection and info card ---------- */
+function select(id, fly) {
+  selected = id; follow = false; editing = false;
+  const c = cams.get(id);
+  markers.forEach((m, k) => m.getElement().classList.toggle('sel', k === id));
+  if (fly && c && c.lat != null) map.flyTo({ center: [c.lng, c.lat], zoom: Math.max(map.getZoom(), 15) });
+  renderList(); renderInfo();
+}
+function renderInfo() {
+  const c = cams.get(selected), box = $('#info');
+  if (!c) { box.style.display = 'none'; return; }
+  const label = c.recording ? 'Recording' : c.online ? 'Online' : 'Offline';
+  box.style.display = 'block';
+  if (editing && me.role === 'admin') {
+    box.innerHTML = `<h3>Edit ${c.cameraId}</h3>
+      <input class="in" id="eN" maxlength="40" placeholder="Display name" value="${esc(c.name || '')}" aria-label="Display name">
+      <input class="in" id="eG" maxlength="40" placeholder="Group, for example Riyadh patrol" value="${esc(c.grp || '')}" aria-label="Group">
+      <div class="row"><button class="btn pri" id="eS">Save changes</button><button class="btn" id="eC">Cancel</button></div>
+      <div class="row"><button class="btn" id="eD">Remove camera</button></div>`;
+    const call = (method, body) => fetch('/api/cameras/' + c.cameraId, { method, headers: { 'Content-Type': 'application/json' }, body });
+    $('#eS').onclick = () => call('PATCH', JSON.stringify({ name: $('#eN').value, grp: $('#eG').value })).then(() => { editing = false; renderInfo(); });
+    $('#eC').onclick = () => { editing = false; renderInfo(); };
+    $('#eD').onclick = () => { if (confirm('Remove ' + nm(c) + ' from the system? It will return if it connects again.')) call('DELETE'); };
+    return;
+  }
+  box.innerHTML = `<h3>${esc(nm(c))}</h3>
+    <p>${label}, last update <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
+    <p>${c.lat == null ? 'No GPS fix yet' : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
+    ${c.ptt ? '<p style="color:var(--ok)">Talking now (PTT held)</p>' : ''}
+    <div class="row"><button class="btn pri" id="bW">Watch live</button>
+    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? 'Following' : 'Follow'}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>`;
+  $('#bW').onclick = () => watch(c.cameraId);
+  if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };
+  $('#bF').onclick = () => { follow = !follow; renderInfo(); if (follow && c.lat != null) map.easeTo({ center: [c.lng, c.lat] }); };
+}
+map.on('click', () => { selected = null; markers.forEach((m) => m.getElement().classList.remove('sel')); renderList(); renderInfo(); });
+
+/* ---------- Video wall ---------- */
+function buildWall() {
+  const w = $('#wall'), cols = Math.sqrt(layout);
+  w.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+  w.style.gridTemplateRows = `repeat(${cols},1fr)`;
+  players.forEach((p) => p.destroy()); players.clear();
+  slots = slots.slice(0, layout); while (slots.length < layout) slots.push(null);
+  w.innerHTML = slots.map((_, i) => `<div class="tile" data-i="${i}"></div>`).join('');
+  slots.forEach((_, i) => renderTile(i));
+}
+function renderTile(i) {
+  const t = document.querySelector(`.tile[data-i="${i}"]`), id = slots[i];
+  if (players.has(i)) { players.get(i).destroy(); players.delete(i); }
+  t.classList.remove('live');
+  if (!id) { t.innerHTML = '<div class="empty">Empty slot<small>Press ▶ next to a camera to show it here</small></div>'; return; }
+  t.innerHTML = `<video muted autoplay playsinline></video>
+    <div class="tag"><span>${tagOf(id)}</span><button data-s="${i}" aria-label="Toggle sound">Listen</button><button data-f="${i}" aria-label="Toggle fit">Fit</button><button data-x="${i}" aria-label="Close ${id}">✕</button></div>
+    <div class="wait">Waiting for ${tagOf(id)} to start recording…</div>`;
+  start(i, id, t.querySelector('video'));
+  applySound(i);
+}
+/* Player lifecycle follows the camera's recording state, so a stopped and
+   restarted camera reconnects by itself (no page refresh). */
+const retry = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
+const waitMsg = (id) => 'Waiting for ' + tagOf(id) + ' to start recording…';
+
+function stopTile(i, msg) {
+  if (players.has(i)) { try { players.get(i).destroy(); } catch (e) { /* already closed */ } players.delete(i); }
+  const t = document.querySelector(`.tile[data-i="${i}"]`);
+  if (!t) return;
+  t.classList.remove('live');
+  const w = t.querySelector('.wait');
+  if (w && msg) w.innerHTML = msg;
+}
+function start(i, id, v) {
+  if (!flvjs.isSupported()) return;
+  if (!cams.get(id)?.recording) { stopTile(i, waitMsg(id)); return; } // nothing to play yet, no retry spam
+  const p = flvjs.createPlayer(
+    { type: 'flv', isLive: true, url: `http://${host}:8000/live/${encodeURIComponent(id)}.flv` },
+    { enableStashBuffer: false, autoCleanupSourceBuffer: true,
+      liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 1.5, liveBufferLatencyMinRemain: 0.3 });
+  p.attachMediaElement(v);
+  const again = () => { // stream ended or failed while the camera is still recording
+    if (players.get(i) !== p) return;
+    stopTile(i);
+    const n = (retry.get(i) || 0) + 1; retry.set(i, n);
+    setTimeout(() => {
+      const el = document.querySelector(`.tile[data-i="${i}"] video`);
+      if (slots[i] === id && el && cams.get(id)?.recording) start(i, id, el);
+    }, Math.min(500 * n, 4000));
+  };
+  p.on(flvjs.Events.ERROR, again);
+  p.on(flvjs.Events.LOADING_COMPLETE, again);
+  v.addEventListener('playing', () => { v.parentElement.classList.add('live'); retry.set(i, 0); }, { once: true });
+  startedAt.set(i, Date.now());
+  players.set(i, p); p.load(); Promise.resolve(p.play()).catch(() => {});
+}
+
+/* Sound: open while the officer holds PTT (plus a short tail for stream delay) or when Listen is on. */
+function applySound(i) {
+  const id = slots[i], t = document.querySelector(`.tile[data-i="${i}"]`);
+  if (!id || !t) return;
+  const v = t.querySelector('video'), b = t.querySelector('[data-s]');
+  const open = !!t.dataset.listen || !!cams.get(id)?.ptt || pttHold.has(id);
+  t.classList.toggle('talking', !!cams.get(id)?.ptt);
+  if (v) { v.muted = !open; if (open) Promise.resolve(v.play()).catch(() => {}); }
+  if (b) b.textContent = open ? 'Mute' : 'Listen';
+}
+const applySoundFor = (id) => slots.forEach((s, i) => { if (s === id) applySound(i); });
+
+/* Watchdog: restart a tile whose video froze or never started. */
+setInterval(() => {
+  slots.forEach((id, i) => {
+    if (!id || !cams.get(id)?.recording || !players.has(i)) return;
+    const v = document.querySelector(`.tile[data-i="${i}"] video`); if (!v) return;
+    const live = v.parentElement.classList.contains('live');
+    if (!live && Date.now() - (startedAt.get(i) || 0) > 8000) { lastT.delete(i); return renderTile(i); }
+    if (live && lastT.get(i) === v.currentTime) { lastT.delete(i); return renderTile(i); }
+    lastT.set(i, v.currentTime);
+  });
+}, 4000);
+function watch(id) {
+  if (slots.includes(id)) return;
+  let i = slots.indexOf(null); if (i < 0) i = slots.length - 1;
+  slots[i] = id; renderTile(i);
+}
+$('#wall').addEventListener('click', (e) => {
+  const sp = e.target.closest('[data-s]');
+  if (sp) {
+    const t = sp.closest('.tile');
+    if (t.dataset.listen) delete t.dataset.listen; else t.dataset.listen = '1';
+    applySound(+t.dataset.i);
+    return;
+  }
+  const fb = e.target.closest('[data-f]');
+  if (fb) {
+    const t = fb.closest('.tile');
+    t.classList.toggle('fit'); fb.textContent = t.classList.contains('fit') ? 'Fill' : 'Fit';
+    return;
+  }
+  const x = e.target.closest('[data-x]'); if (!x) return;
+  slots[+x.dataset.x] = null; renderTile(+x.dataset.x);
+});
+$('#lay').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  layout = +b.dataset.n;
+  document.querySelectorAll('#lay button').forEach((x) => x.classList.toggle('on', x === b));
+  buildWall();
+});
+
+/* ---------- Alarms ---------- */
+function renderAlarms() {
+  $('#aSub').textContent = alarms.length ? alarms.filter((a) => !a.ack).length + ' open' : '';
+  $('#alarms').innerHTML = alarms.length ? alarms.map((a) => `
+    <div class="al ${a.ack ? 'ack' : ''}" data-a="${a.id}"><b>SOS from ${tagOf(a.cameraId)}</b>
+    <small>${new Date(a.ts).toLocaleTimeString()}</small></div>`).join('')
+    : '<div class="none">No alarms. An SOS held on a body camera shows up here instantly.</div>';
+  stats();
+}
+$('#alarms').addEventListener('click', (e) => {
+  const row = e.target.closest('.al'); if (!row) return;
+  const a = alarms.find((x) => x.id === +row.dataset.a); if (!a) return;
+  socket.emit('ack_alarm', a.id);
+  select(a.cameraId, true); watch(a.cameraId);
+});
+function beep() {
+  try {
+    const a = new (window.AudioContext || webkitAudioContext)();
+    [0, 0.25, 0.5].forEach((t) => {
+      const o = a.createOscillator(), g = a.createGain();
+      o.frequency.value = 880; g.gain.value = 0.15;
+      o.connect(g); g.connect(a.destination);
+      o.start(a.currentTime + t); o.stop(a.currentTime + t + 0.15);
+    });
+  } catch (e) { /* audio blocked until the page has been clicked once */ }
+}
+
+/* ---------- Live data ---------- */
+function pttChanged(c) {
+  const id = c.cameraId;
+  if (c.ptt) { clearTimeout(pttHold.get(id)); pttHold.delete(id); watch(id); } // appears on the wall by itself
+  else pttHold.set(id, setTimeout(() => { pttHold.delete(id); applySoundFor(id); }, 3000));
+  applySoundFor(id);
+}
+function upsert(c) {
+  const prev = cams.get(c.cameraId);
+  const wasRec = !!prev?.recording, wasPtt = !!prev?.ptt;
+  cams.set(c.cameraId, c);
+  syncMarker(c);
+  if (c.recording && !wasRec) {
+    if (slots.includes(c.cameraId)) {
+      // The old stream ended: open a fresh connection (short delay lets the server register the publisher).
+      slots.forEach((id, i) => {
+        if (id === c.cameraId) setTimeout(() => { if (slots[i] === id && cams.get(id)?.recording) renderTile(i); }, 600);
+      });
+    } else watch(c.cameraId); // a newly live camera appears on the wall by itself
+  }
+  if (!c.recording && wasRec) slots.forEach((id, i) => { if (id === c.cameraId) stopTile(i, waitMsg(id)); });
+  if (!!c.ptt !== wasPtt) pttChanged(c);
+  if (follow && selected === c.cameraId && c.lat != null) map.easeTo({ center: [c.lng, c.lat] });
+  if (selected === c.cameraId) renderInfo();
+  renderList();
+}
+const socket = io();
+socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; renderAlarms(); });
+socket.on('dashboard_cam', upsert);
+socket.on('dashboard_alarm_ack', ({ id }) => { const a = alarms.find((x) => x.id === id); if (a) { a.ack = true; renderAlarms(); } });
+socket.on('dashboard_cam_removed', ({ cameraId }) => {
+  cams.delete(cameraId);
+  markers.get(cameraId)?.remove(); markers.delete(cameraId);
+  slots.forEach((id, i) => { if (id === cameraId) { slots[i] = null; renderTile(i); } });
+  if (selected === cameraId) { selected = null; renderInfo(); }
+  renderList();
+});
+socket.on('connect_error', (e) => { if (e.message === 'unauthorized') location.href = '/login.html'; });
+socket.on('dashboard_sos', (a) => {
+  alarms.unshift(a); renderAlarms(); beep();
+  const h = $('#top'); h.classList.remove('flash'); void h.offsetWidth; h.classList.add('flash');
+  select(a.cameraId, true); watch(a.cameraId);
+});
+
+setInterval(() => {
+  $('#clock').textContent = new Date().toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.querySelectorAll('[data-ts]').forEach((el) => { el.textContent = ago(+el.dataset.ts); });
+}, 1000);
+
+fetch('/api/me').then((r) => (r.ok ? r.json() : Promise.reject()))
+  .then((u) => { me = u; $('#who').textContent = u.name; renderInfo(); })
+  .catch(() => { location.href = '/login.html'; });
+$('#out').onclick = () => fetch('/api/logout', { method: 'POST' }).then(() => { location.href = '/login.html'; });
+
+// Browsers only play unmuted audio after the first click on the page.
+const unlockAudio = () => { const b = $('#snd'); if (b) b.remove(); };
+if (navigator.userActivation?.hasBeenActive) unlockAudio();
+else { addEventListener('pointerdown', unlockAudio, { once: true, capture: true }); addEventListener('keydown', unlockAudio, { once: true, capture: true }); }
+
+buildWall(); renderList(); renderAlarms();
+</script>
+</body>
+</html>

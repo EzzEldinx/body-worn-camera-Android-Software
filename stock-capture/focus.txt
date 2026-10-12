@@ -1,0 +1,1 @@
+﻿  mCurrentFocus=Window{d897859 u0 com.unionbroad.app/com.unionbroad.app.activity.CameraMonitorActivity}

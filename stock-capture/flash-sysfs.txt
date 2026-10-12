@@ -1,0 +1,17 @@
+﻿ls: /sys/class/flashlight/mt-flash-led1//uevent: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//strobe_timeout: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//torch_brightness: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//mode: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//color_temperature: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//type: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//strobe_max_brightness: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//strobe_brightness: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//strobe_delay: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//name: Permission denied
+ls: /sys/class/flashlight/mt-flash-led1//torch_max_brightness: Permission denied
+total 0
+drwxr-xr-x 3 root root 0 2026-10-11 10:04 .
+drwxr-xr-x 3 root root 0 2026-10-11 10:04 ..
+lrwxrwxrwx 1 root root 0 2026-10-11 14:37 device -> ../../../rt-flash-led.0
+drwxr-xr-x 2 root root 0 2026-10-11 10:04 power
+lrwxrwxrwx 1 root root 0 2026-10-11 14:37 subsystem -> ../../../../../../../../../../class/flashlight
