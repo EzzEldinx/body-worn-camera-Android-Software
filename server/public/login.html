@@ -3,30 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in - Vision Guard - Digital Evidence Management System</title>
+<title>Sign in - Smart Way Group</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <style>
-:root{--bg:#0f1828;--panel:#162238;--line:#2a3b5a;--text:#e8eef7;--mut:#8a9bb5;--sel:#ffc857;--rec:#ff5d73;
-font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif}
+:root{--bg:#eef2f7;--panel:#fff;--raise:#f4f7fb;--line:#d6dee9;--text:#142033;--mut:#5d6f87;--sel:#f2b50a;--sel-ink:#1a1405;--rec:#e5384f;
+--shadow-md:0 10px 30px rgba(20,32,51,.12);font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;color-scheme:light}
+:root[data-theme="dark"]{--bg:#0f1828;--panel:#162238;--raise:#1d2c47;--line:#2a3b5a;--text:#e8eef7;--mut:#8a9bb5;--sel:#ffc857;--rec:#ff5d73;--shadow-md:0 10px 30px rgba(0,0,0,.4);color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--text)}
-form{width:min(360px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:32px 28px}
-.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:600;margin-bottom:6px}
-.brand svg{width:28px;height:28px}
-p{margin:0 0 10px;color:var(--mut);font-size:14px}
+form{width:min(400px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:32px 30px;box-shadow:var(--shadow-md)}
+.logo{display:block;width:240px;max-width:80%;height:auto;margin:0 auto 18px;border-radius:8px}
+:root[data-theme="dark"] .logo{background:#fff;padding:8px 12px}
+h1{margin:0 0 4px;font-size:20px;text-align:center}
+p{margin:0 0 10px;color:var(--mut);font-size:14px;text-align:center}
 label{display:block;font-size:14px;margin:16px 0 6px}
-input{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
+input{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit}
+input:focus{background:var(--panel)}
 input:focus-visible,button:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
-button{width:100%;margin-top:22px;padding:12px;border:0;border-radius:8px;background:var(--sel);color:#1a1405;font:inherit;font-weight:600;cursor:pointer}
+button{width:100%;margin-top:22px;padding:12px;border:0;border-radius:8px;background:var(--sel);color:var(--sel-ink);font:inherit;font-weight:600;cursor:pointer}
 button:disabled{opacity:.6;cursor:default}
-#err{min-height:20px;margin-top:14px;color:var(--rec);font-size:14px}
+#err{min-height:20px;margin-top:14px;color:var(--rec);font-size:14px;text-align:center}
 </style>
 </head>
 <body>
 <form id="f">
-  <div class="brand">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#ffc857" stroke-width="1.8"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><circle cx="12" cy="11" r="2.6"/></svg>
-    Vision Guard - Digital Evidence Management System
-  </div>
+  <img class="logo" src="/logo.png" alt="Smart Way">
+  <h1>VisionGuard</h1>
   <p>Sign in with your dispatcher account.</p>
   <label for="u">Username</label>
   <input id="u" autocomplete="username" required autofocus>

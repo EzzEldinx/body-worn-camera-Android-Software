@@ -63,7 +63,7 @@ const recentAlarms = () => db.prepare(
 // ---------- HTTP: login, API, pages ----------
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, { maxHttpBufferSize: 15e6 }); // voice notes travel as Base64 (default cap is 1 MB)
 app.use(express.json());
 
 const needUser = (req, res, next) => {
