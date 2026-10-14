@@ -3,41 +3,197 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in - Smart Way Group</title>
+<title>Sign in - VisionGuard | Smart Way Group</title>
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <style>
-:root{--bg:#eef2f7;--panel:#fff;--raise:#f4f7fb;--line:#d6dee9;--text:#142033;--mut:#5d6f87;--sel:#f2b50a;--sel-ink:#1a1405;--rec:#e5384f;
---shadow-md:0 10px 30px rgba(20,32,51,.12);font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;color-scheme:light}
-:root[data-theme="dark"]{--bg:#0f1828;--panel:#162238;--raise:#1d2c47;--line:#2a3b5a;--text:#e8eef7;--mut:#8a9bb5;--sel:#ffc857;--rec:#ff5d73;--shadow-md:0 10px 30px rgba(0,0,0,.4);color-scheme:dark}
+:root{--bg:#EEF2F8;--panel:#fff;--raise:#F2F5FA;--line:#DAE2EC;--text:#0F1B2D;--mut:#62738C;--brand:#5E4A9E;--sel:#FFB300;--sel-ink:#1A1405;--rec:#E5384F;--ok:#00B87C;
+--glow:0 0 0 1px rgba(255,179,0,.55),0 4px 18px rgba(255,179,0,.38);
+font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;color-scheme:light}
+:root[data-theme="dark"]{--bg:#0B1322;--panel:#131E33;--raise:#1A2842;--line:#273A5B;--text:#E8EEF7;--mut:#8A9BB5;--brand:#9B86E0;--sel:#FFC857;--rec:#FF5D77;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--text)}
-form{width:min(400px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:32px 30px;box-shadow:var(--shadow-md)}
-.logo{display:block;width:240px;max-width:80%;height:auto;margin:0 auto 18px;border-radius:8px}
-:root[data-theme="dark"] .logo{background:#fff;padding:8px 12px}
-h1{margin:0 0 4px;font-size:20px;text-align:center}
-p{margin:0 0 10px;color:var(--mut);font-size:14px;text-align:center}
-label{display:block;font-size:14px;margin:16px 0 6px}
-input{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit}
-input:focus{background:var(--panel)}
-input:focus-visible,button:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
-button{width:100%;margin-top:22px;padding:12px;border:0;border-radius:8px;background:var(--sel);color:var(--sel-ink);font:inherit;font-weight:600;cursor:pointer}
-button:disabled{opacity:.6;cursor:default}
+html,body{height:100%}
+body{margin:0;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(420px,.85fr);background:var(--bg);color:var(--text);overflow:hidden}
+
+/* ================= HERO (left, full height) ================= */
+.hero{position:relative;overflow:hidden;color:#fff;display:flex;flex-direction:column;justify-content:space-between;gap:20px;padding:40px 56px;
+  background:
+   radial-gradient(900px 600px at 15% 10%,rgba(124,92,255,.55),transparent 60%),
+   radial-gradient(800px 600px at 90% 90%,rgba(47,123,255,.45),transparent 60%),
+   linear-gradient(160deg,#1B1442 0%,#0E1B45 55%,#07122B 100%)}
+.hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(ellipse at 40% 45%,#000 20%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse at 40% 45%,#000 20%,transparent 75%)}
+.hero>*{position:relative;z-index:1}
+.logo-chip{align-self:flex-start;background:#fff;border-radius:14px;padding:10px 18px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.logo-chip img{height:40px;width:auto;display:block}
+.hero-main{max-width:620px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:99px;font-size:12px;font-weight:700;letter-spacing:1.6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(8px)}
+.eyebrow i{width:8px;height:8px;border-radius:50%;background:#2EE6A6;box-shadow:0 0 0 0 rgba(46,230,166,.7);animation:pulse 1.6s infinite}
+h2{margin:22px 0 14px;font-size:clamp(34px,4.2vw,58px);line-height:1.04;font-weight:800;letter-spacing:-.5px}
+h2 span{background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{margin:0;font-size:clamp(15px,1.25vw,18px);line-height:1.6;color:rgba(232,238,247,.82);max-width:520px}
+.features{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:26px;max-width:560px}
+.feat{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(10px)}
+.feat svg{width:34px;height:34px;padding:8px;border-radius:10px;flex:none;fill:none;stroke:#FFC857;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;background:rgba(255,200,87,.14);box-shadow:0 0 18px rgba(255,200,87,.3)}
+.feat b{display:block;font-size:13.5px}
+.feat small{color:rgba(232,238,247,.7);font-size:11.5px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:22px;max-width:560px}
+.kpis div{padding:12px 10px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);text-align:center}
+.kpis b{display:block;font-size:24px;font-weight:800;background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-clip:text;background-clip:text;color:transparent}
+.kpis span{font-size:11px;color:rgba(232,238,247,.72);letter-spacing:.3px}
+.certs{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;max-width:560px}
+.certs span{padding:5px 12px;border-radius:99px;font-size:11.5px;font-weight:700;letter-spacing:.6px;color:#CFE0FF;background:rgba(47,123,255,.16);border:1px solid rgba(120,170,255,.4)}
+.hero-foot{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:rgba(232,238,247,.65)}
+
+/* floating live cards */
+.float{position:absolute;z-index:1;padding:12px 16px;border-radius:16px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(14px) saturate(160%);box-shadow:0 18px 40px rgba(0,0,0,.35);font-size:12.5px;animation:bob 7s ease-in-out infinite}
+.float b{display:block;font-size:13.5px;margin-top:2px}
+.float .tag{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:1px;color:#FFB3C0}
+.float .tag::before{content:"";width:7px;height:7px;border-radius:50%;background:#FF3355;animation:pulseRec 1.4s infinite}
+.f1{top:16%;right:7%}
+.f2{bottom:7%;right:6%;animation-delay:-3s}
+.f2 .tag{color:#9AF0CF}.f2 .tag::before{background:#2EE6A6;animation:none}
+.radar{position:absolute;right:-120px;top:50%;width:520px;height:520px;margin-top:-260px;border-radius:50%;border:1px solid rgba(255,255,255,.12);z-index:0}
+.radar::before,.radar::after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.1);inset:80px}
+.radar::after{inset:160px}
+.radar i{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(124,92,255,.0) 0deg,rgba(124,92,255,.35) 60deg,transparent 61deg);animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes bob{50%{transform:translateY(-12px)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,230,166,.7)}100%{box-shadow:0 0 0 10px rgba(46,230,166,0)}}
+@keyframes pulseRec{0%{box-shadow:0 0 0 0 rgba(255,51,85,.7)}100%{box-shadow:0 0 0 9px rgba(255,51,85,0)}}
+
+/* ================= LOGIN (right) ================= */
+.side{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;background:var(--bg)}
+.tools{position:absolute;top:20px;right:24px;display:flex;gap:8px}
+.tools button{height:36px;min-width:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.tools button:hover{color:var(--text);box-shadow:var(--glow)}
+form{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:38px 34px 30px;box-shadow:0 24px 60px rgba(15,27,45,.14)}
+.mlogo{display:none;height:34px;margin:0 auto 18px}
+form h1{margin:0 0 6px;font-size:28px;font-weight:800;letter-spacing:-.3px}
+form p.sub{margin:0 0 8px;color:var(--mut);font-size:14px}
+label{display:block;font-size:13px;font-weight:600;margin:20px 0 7px}
+.field{position:relative}
+.field svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;fill:none;stroke:var(--mut);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+input{width:100%;padding:13px 14px 13px 44px;border-radius:12px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit;font-size:15px;transition:.15s}
+input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-shadow:var(--glow)}
+.eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--mut);cursor:pointer;padding:6px;border-radius:8px;display:flex}
+.eye svg{position:static;transform:none}
+.eye:hover{color:var(--text)}
+#p{padding-right:44px}
+#b{width:100%;margin-top:26px;padding:14px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--sel),#FF9D00);color:var(--sel-ink);font:inherit;font-size:15.5px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(255,179,0,.42);transition:.15s}
+#b:hover{transform:translateY(-1px);filter:brightness(1.04)}
+#b:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+#b:disabled{opacity:.6;cursor:default;transform:none}
 #err{min-height:20px;margin-top:14px;color:var(--rec);font-size:14px;text-align:center}
+.secure{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;color:var(--mut);font-size:12px}
+.secure svg{width:14px;height:14px;fill:none;stroke:var(--ok);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.copy{position:absolute;bottom:18px;color:var(--mut);font-size:12px}
+
+[dir="rtl"] .field svg{left:auto;right:14px}
+[dir="rtl"] input{padding:13px 44px 13px 14px}
+[dir="rtl"] #p{padding-left:44px}
+[dir="rtl"] .eye{right:auto;left:8px}
+[dir="rtl"] .tools{right:auto;left:24px}
+
+@media (max-height:760px),(max-width:1300px){.float{display:none}}
+@media (max-width:980px){
+  body{grid-template-columns:1fr;overflow:auto}
+  .hero{display:none}
+  .mlogo{display:block}
+  .side{min-height:100vh}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
 <body>
-<form id="f">
-  <img class="logo" src="/logo.png" alt="Smart Way">
-  <h1>VisionGuard</h1>
-  <p>Sign in with your dispatcher account.</p>
-  <label for="u">Username</label>
-  <input id="u" autocomplete="username" required autofocus>
-  <label for="p">Password</label>
-  <input id="p" type="password" autocomplete="current-password" required>
-  <button id="b">Sign in</button>
-  <div id="err" role="alert"></div>
-</form>
+
+<section class="hero" aria-hidden="true">
+  <div class="radar"><i></i></div>
+  <div class="logo-chip"><img src="/logo.png" alt="Smart Way"></div>
+
+  <div class="hero-main">
+    <span class="eyebrow"><i></i><span data-i="eyebrow">VISIONGUARD &middot; BODY WORN CAMERA</span></span>
+    <h2><span data-i="h1a">See every moment.</span><br><span data-i="h1b" style="background:none;-webkit-background-clip:initial;color:#fff">Secure every evidence.</span></h2>
+    <p class="lead" data-i="lead">VisionGuard connects your body-worn cameras to one secure control room: live video, GPS tracking, instant SOS alerts and two-way voice, all in real time.</p>
+    <div class="features">
+      <div class="feat"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/></svg><div><b data-i="f1">Live streaming + GPS</b><small data-i="f1s">2K HD video, real-time fleet map</small></div></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg><div><b data-i="f2">SOS &amp; group PTT</b><small data-i="f2s">One-click alarm, real-time voice</small></div></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><div><b data-i="f3">AES-256 encryption</b><small data-i="f3s">Secure evidence and storage</small></div></div>
+      <div class="feat"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h16M9 5v14"/></svg><div><b data-i="f4">Centralized evidence</b><small data-i="f4s">Search, policies, audit logs</small></div></div>
+    </div>
+    <div class="kpis">
+      <div><b>45K+</b><span data-i="k1">Installed machines</span></div>
+      <div><b>400+</b><span data-i="k2">Active users</span></div>
+      <div><b>13</b><span data-i="k3">Technical centers</span></div>
+      <div><b>2010</b><span data-i="k4">Founded</span></div>
+    </div>
+    <div class="certs"><span>ISO 9001</span><span>ISO 14001</span><span>ISO 27001</span><span>ISO 45001</span><span>CCC+</span></div>
+  </div>
+
+  <div class="hero-foot"><span data-i="brand">Smart Way Group &middot; Solution for Secure Future</span><span data-i="foot">Proudly under Saudi Tech</span></div>
+
+  <div class="float f1"><span class="tag">REC</span><b>BWC-04 &middot; Riyadh</b></div>
+  <div class="float f2"><span class="tag">SECURED</span><b>AES-256 evidence</b></div>
+</section>
+
+<section class="side">
+  <div class="tools">
+    <button id="lang" type="button" aria-label="Language">عربي</button>
+    <button id="theme" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+
+  <form id="f">
+    <img class="mlogo" src="/logo.png" alt="Smart Way">
+    <h1 data-i="title">Welcome back</h1>
+    <p class="sub" data-i="sub">Sign in to your VisionGuard account.</p>
+
+    <label for="u" data-i="user">Username</label>
+    <div class="field">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <input id="u" autocomplete="username" required autofocus>
+    </div>
+
+    <label for="p" data-i="pass">Password</label>
+    <div class="field">
+      <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+      <input id="p" type="password" autocomplete="current-password" required>
+      <button class="eye" type="button" id="eye" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+
+    <button id="b" data-i="signin">Sign in</button>
+    <div id="err" role="alert"></div>
+    <div class="secure"><svg viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><path d="M9 12l2 2 4-4"/></svg><span data-i="secure">Encrypted, authorized access only</span></div>
+  </form>
+
+  <div class="copy">&copy; 2026 Smart Way Group</div>
+</section>
+
 <script>
+const T = {
+  en: { eyebrow:'VISIONGUARD · BODY WORN CAMERA', h1a:'See every moment.', h1b:'Secure every evidence.',
+    lead:'VisionGuard connects your Smart Way body-worn cameras to one secure control room: live video, GPS tracking, instant SOS alerts and real-time voice.',
+    f1:'Live streaming + GPS', f1s:'2K HD video, real-time fleet map', f2:'SOS & group PTT', f2s:'One-click alarm, real-time voice', f3:'AES-256 encryption', f3s:'Secure evidence and storage', f4:'Centralized evidence', f4s:'Search, policies, audit logs',
+    k1:'Installed machines', k2:'Active users', k3:'Technical centers', k4:'Founded', brand:'Smart Way Group · Solution for Secure Future', foot:'Proudly under Saudi Tech', title:'Welcome back', sub:'Sign in to your VisionGuard account.', user:'Username', pass:'Password',
+    signin:'Sign in', secure:'Encrypted, authorized access only', fail:'Sign in failed.', net:'Cannot reach the server. Check your connection.' },
+  ar: { eyebrow:'VISIONGUARD · كاميرا الجسم', h1a:'شاهد كل لحظة.', h1b:'أمّن كل دليل.',
+    lead:'يربط VisionGuard كاميرات الجسم من سمارت واي بغرفة تحكم واحدة آمنة: بث مباشر، تتبع GPS، تنبيهات SOS فورية واتصال صوتي فوري.',
+    f1:'بث مباشر + GPS', f1s:'فيديو 2K HD وخريطة مباشرة', f2:'SOS واتصال جماعي PTT', f2s:'إنذار بضغطة واحدة وصوت فوري', f3:'تشفير AES-256', f3s:'أدلة وتخزين آمن', f4:'إدارة مركزية للأدلة', f4s:'بحث وسياسات وسجلات تدقيق',
+    k1:'جهاز مُركَّب', k2:'مستخدم نشط', k3:'مركز فني', k4:'تأسست', brand:'مجموعة سمارت واي · حلول لمستقبل آمن', foot:'بفخر تحت مظلة التقنية السعودية', title:'مرحباً بعودتك', sub:'سجّل الدخول إلى حسابك في VisionGuard.', user:'اسم المستخدم', pass:'كلمة المرور',
+    signin:'تسجيل الدخول', secure:'دخول مشفّر ومصرّح به فقط', fail:'فشل تسجيل الدخول.', net:'تعذّر الوصول إلى الخادم. تحقق من الاتصال.' }
+};
+let L = 'en';
+try { L = localStorage.getItem('bwc-lang') || 'en'; } catch (e) {}
+function apply() {
+  document.documentElement.lang = L; document.documentElement.dir = L === 'ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-i]').forEach((el) => { el.textContent = T[L][el.dataset.i]; });
+  document.getElementById('lang').textContent = L === 'ar' ? 'EN' : 'عربي';
+}
+apply();
+document.getElementById('lang').onclick = () => { L = L === 'ar' ? 'en' : 'ar'; try { localStorage.setItem('bwc-lang', L); } catch (e) {} apply(); };
+document.getElementById('theme').onclick = () => {
+  const n = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = n; try { localStorage.setItem('bwc-theme', n); } catch (e) {}
+};
+document.getElementById('eye').onclick = () => { const p = document.getElementById('p'); p.type = p.type === 'password' ? 'text' : 'password'; };
+
 document.getElementById('f').addEventListener('submit', async (e) => {
   e.preventDefault();
   const b = document.getElementById('b'), err = document.getElementById('err');
@@ -46,8 +202,8 @@ document.getElementById('f').addEventListener('submit', async (e) => {
     const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) });
     if (r.ok) return (location.href = '/');
-    err.textContent = (await r.json()).error || 'Sign in failed.';
-  } catch (x) { err.textContent = 'Cannot reach the server. Check your connection.'; }
+    err.textContent = (await r.json()).error || T[L].fail;
+  } catch (x) { err.textContent = T[L].net; }
   b.disabled = false;
 });
 </script>
