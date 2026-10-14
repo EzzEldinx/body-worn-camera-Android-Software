@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,6 @@
 <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
 
 <script>
-  // Plugin da el-masool 3an tashbeek w t-rteeb el-horoof el-arabic (RTL)
   maplibregl.setRTLTextPlugin(
     'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js',
     null,
@@ -20,7 +19,7 @@
 <script src="https://cdn.bootcdn.net/ajax/libs/flv.js/1.6.2/flv.min.js"></script>
 <style>
 :root{--bg:#0f1828;--panel:#162238;--raise:#1d2c47;--line:#2a3b5a;--text:#e8eef7;--mut:#8a9bb5;
---ok:#3ddc97;--rec:#ff5d73;--off:#5b6b86;--sel:#ffc857;
+--ok:#3ddc97;--rec:#ff5d73;--off:#5b6b86;--sel:#ffc857;--blue:#5aa9ff;
 font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
 *{box-sizing:border-box}
 body{margin:0;height:100vh;background:var(--bg);color:var(--text);display:grid;grid-template-rows:56px 1fr;overflow:hidden}
@@ -33,7 +32,7 @@ header{display:flex;align-items:center;gap:28px;padding:0 20px;background:var(--
 .stats b{color:var(--text);font-size:18px;margin-right:5px}
 .stats .alert b{color:var(--rec)}
 .clock{margin-left:auto;font-size:15px;color:var(--mut)}
-main{display:grid;grid-template-columns:300px 1fr minmax(400px,36vw);min-height:0}
+main{display:grid;grid-template-columns:300px 1fr minmax(420px,38vw);min-height:0}
 aside,#right{background:var(--panel);display:flex;flex-direction:column;min-height:0}
 aside{border-right:1px solid var(--line)}
 #right{border-left:1px solid var(--line)}
@@ -55,13 +54,28 @@ aside{border-right:1px solid var(--line)}
 .cam button{width:30px;height:30px;border-radius:6px;border:1px solid var(--line);background:none}
 .cam button:hover{background:var(--sel);color:#1a1405;border-color:var(--sel)}
 .none{padding:24px 14px;color:var(--mut);font-size:14px;line-height:1.5}
-#mapwrap{position:relative;min-height:0}
+#mapwrap{position:relative;min-height:0;direction:ltr;}
 #map{position:absolute;inset:0}
-.mk{width:20px;height:20px;border-radius:50%;background:var(--off);border:3px solid var(--bg);box-shadow:0 0 0 1px rgba(255,255,255,.25);cursor:pointer}
-.mk.online{background:var(--ok)}
-.mk.rec{background:var(--rec);animation:pulse 1.5s infinite}
+
+.mk {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--off);
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.25);
+  cursor: pointer;
+  position: absolute;
+  z-index: 9999 !important;
+  transform: translate(-50%, -50%);
+}
+
+.mk.online{background:var(--ok);animation:pulseOnline 1.5s infinite}
+.mk.rec{background:var(--rec);animation:pulseRec 1.5s infinite}
+.mk.off{background:var(--off)}
 .mk.sel{box-shadow:0 0 0 3px var(--sel)}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,93,115,.7)}100%{box-shadow:0 0 0 16px rgba(255,93,115,0)}}
+@keyframes pulseRec{0%{box-shadow:0 0 0 0 rgba(255,93,115,.7)}100%{box-shadow:0 0 0 16px rgba(255,93,115,0)}}
+@keyframes pulseOnline{0%{box-shadow:0 0 0 0 rgba(61,220,151,.7)}100%{box-shadow:0 0 0 16px rgba(61,220,151,0)}}
 #info{position:absolute;left:16px;bottom:16px;width:280px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:none}
 #info h3{margin:0 0 4px;font-size:18px}
 #info p{margin:2px 0;color:var(--mut);font-size:13px}
@@ -83,11 +97,47 @@ aside{border-right:1px solid var(--line)}
 .wait,.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--mut);font-size:14px;text-align:center;padding:12px}
 .empty small{font-size:12px}
 .tile.live .wait{display:none}
-#alarms{height:210px;overflow:auto;border-top:1px solid var(--line);padding:0 8px 10px}
+#alarms{height:130px;overflow:auto;border-top:1px solid var(--line);padding:0 8px 8px}
 .al{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;cursor:pointer;border-left:3px solid var(--rec);margin-bottom:4px;background:rgba(255,93,115,.12)}
 .al.ack{border-left-color:var(--off);background:none;color:var(--mut)}
 .al b{flex:1}
 .al small{color:var(--mut)}
+
+/* Multi-Tab Chat */
+#chat-section{height:270px;display:flex;flex-direction:column;border-top:1px solid var(--line);background:var(--raise)}
+.chat-tabs{display:flex;gap:6px;padding:12px 10px 8px 10px;background:var(--panel);border-bottom:1px solid var(--line);align-items:center;overflow-x:auto;overflow-y:visible;white-space:nowrap}
+.chat-tab{padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:none;font-size:12px;color:var(--mut);position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;flex:none;margin-top:6px}
+.chat-tab.active{background:var(--sel);color:#1a1405;border-color:var(--sel);font-weight:600}
+.chat-tab .close-tab{font-size:11px;opacity:0.7;border:none;background:none;padding:0 2px;color:inherit}
+.chat-tab .close-tab:hover{opacity:1;color:var(--rec)}
+.chat-badge {
+  position: absolute;
+  top: -9px;
+  right: -6px;
+  background: var(--rec);
+  color: #fff;
+  border-radius: 50%;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+  border: 2px solid var(--panel);
+  z-index: 10;
+}
+#chat-msgs{flex:1;overflow:auto;padding:8px 12px;display:flex;flex-direction:column;gap:6px}
+.chat-msg{font-size:13px;padding:6px 10px;border-radius:8px;max-width:85%}
+.chat-msg.mine{background:rgba(90,169,255,0.25);align-self:flex-end}
+.chat-msg.other{background:var(--panel);align-self:flex-start}
+.chat-msg b{color:var(--sel);font-size:11px;display:block;margin-bottom:2px}
+.chat-composer{display:flex;padding:8px 10px;gap:6px;border-top:1px solid var(--line);background:var(--panel)}
+.chat-composer input{flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;font-size:13px}
+.chat-composer button{padding:6px 14px;border-radius:6px;border:none;background:var(--sel);color:#1a1405;font-weight:600;font-size:13px}
+
 header.flash{animation:fl 1s 3}
 @keyframes fl{50%{background:#5a2030}}
 .user{display:flex;align-items:center;gap:12px;color:var(--mut);font-size:14px}
@@ -98,7 +148,6 @@ header.flash{animation:fl 1s 3}
 .tag button[data-s],.tag button[data-f]{width:auto;padding:0 10px;font-size:12px}
 #snd{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:50;background:var(--sel);color:#1a1405;font-size:14px;font-weight:600;padding:6px 16px;border-radius:0 0 8px 8px}
 
-/* Custom Flag Switcher Design */
 .lang-switch {
   display: flex;
   align-items: center;
@@ -138,7 +187,7 @@ header.flash{animation:fl 1s 3}
 @media (prefers-reduced-motion:reduce){.mk.rec,header.flash{animation:none}}
 </style>
 </head>
-<body dir="rtl">
+<body dir="ltr">
 <div id="snd">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
 <header id="top">
   <div class="brand">
@@ -146,16 +195,15 @@ header.flash{animation:fl 1s 3}
     Vision Guard - Digital Evidence Management System
   </div>
   <div class="stats">
-    <span><b id="sOn">0</b><span id="txtOnline">متصل</span></span>
-    <span><b id="sRec">0</b><span id="txtRec">جاري التسجيل</span></span>
-    <span><b id="sAll">0</b><span id="txtReg">مسجل</span></span>
-    <span class="alert"><b id="sAl">0</b><span id="txtAlarms">إنذارات مفتوحة</span></span>
+    <span><b id="sOn">0</b><span id="txtOnline">online</span></span>
+    <span><b id="sRec">0</b><span id="txtRec">recording</span></span>
+    <span><b id="sAll">0</b><span id="txtReg">registered</span></span>
+    <span class="alert"><b id="sAl">0</b><span id="txtAlarms">open alarms</span></span>
   </div>
   <div class="clock" id="clock"></div>
 
-  <!-- Sleek Custom Flag Segmented Switcher -->
   <div class="lang-switch" id="langToggle">
-    <button class="lang-btn active" data-l="ar">
+    <button class="lang-btn" data-l="ar">
       <svg viewBox="0 0 900 600">
         <rect width="900" height="600" fill="#006C35"/>
         <path fill="#FFF" d="M220 280h460v40H220z"/>
@@ -163,7 +211,7 @@ header.flash{animation:fl 1s 3}
       </svg>
       عربي
     </button>
-    <button class="lang-btn" data-l="en">
+    <button class="lang-btn active" data-l="en">
       <svg viewBox="0 0 60 30">
         <clipPath id="s"><path d="M0 0v30h60V0z"/></clipPath>
         <clipPath id="t"><path d="M30 15h30v15zM0 15h30V0zM30 15H0v15zM60 15H30V0z"/></clipPath>
@@ -183,28 +231,44 @@ header.flash{animation:fl 1s 3}
 </header>
 <main>
   <aside>
-    <div class="sec"><span id="secCameras">الكاميرات</span> <small id="cnt"></small></div>
-    <input id="q" type="search" placeholder="بحث بالاسم، المجموعة أو المعرف" aria-label="Search cameras">
+    <div class="sec"><span id="secCameras">Cameras</span> <small id="cnt"></small></div>
+    <input id="q" type="search" placeholder="Search by name, group or ID" aria-label="Search cameras">
     <div class="chips" id="chips">
-      <button class="chip on" data-f="all" id="chipAll">الكل</button>
-      <button class="chip" data-f="online" id="chipOnline">متصل</button>
-      <button class="chip" data-f="rec" id="chipRec">تسجيل</button>
+      <button class="chip on" data-f="all" id="chipAll">All</button>
+      <button class="chip" data-f="online" id="chipOnline">Online</button>
+      <button class="chip" data-f="rec" id="chipRec">Recording</button>
     </div>
     <div id="list"></div>
   </aside>
-  <section id="mapwrap">
+  <section id="mapwrap" dir="ltr">
     <div id="map"></div>
     <div id="info"></div>
   </section>
+  
   <section id="right">
-    <div class="sec"><span id="secWall">حائط البث المباشر</span>
+    <div class="sec"><span id="secWall">Live wall</span>
       <div class="lay" id="lay">
         <button data-n="1">1</button><button data-n="4" class="on">2×2</button><button data-n="9">3×3</button>
       </div>
     </div>
     <div id="wall"></div>
-    <div class="sec" style="border-top:1px solid var(--line)"><span id="secAlarmTitle">الإنذارات</span> <small id="aSub"></small></div>
+    <div class="sec" style="border-top:1px solid var(--line)"><span id="secAlarmTitle">Alarms</span> <small id="aSub"></small></div>
     <div id="alarms"></div>
+
+    <!-- Multi-Tab Chat Panel -->
+    <div id="chat-section">
+      <div class="chat-tabs" id="chatTabs">
+        <div class="chat-tab active" data-type="PUBLIC" data-target="ALL" id="tabPublic">
+          <span>Public Chat</span>
+          <span class="chat-badge" id="badge-PUBLIC" style="display:none;">0</span>
+        </div>
+      </div>
+      <div id="chat-msgs"></div>
+      <div class="chat-composer">
+        <input type="text" id="chatInput" placeholder="Type a message..." />
+        <button id="chatSend">Send</button>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -232,7 +296,12 @@ const lang = {
     sosFrom: "SOS from",
     noAlarms: "No alarms. An SOS held on a body camera shows up here instantly.",
     signOut: "Sign out",
-    adminRole: "Administrator"
+    adminRole: "Administrator",
+    publicChat: "Public Chat",
+    privateWith: "Private: ",
+    chatPlaceholder: "Type a message...",
+    send: "Send",
+    selectCameraFirst: "Please select a camera from the fleet list for private chat."
   },
   ar: {
     online: "متصل",
@@ -256,11 +325,16 @@ const lang = {
     sosFrom: "إغاثة SOS من",
     noAlarms: "لا توجد إنذارات. أي إغاثة SOS من كاميرا الجسم ستظهر هنا فوراً.",
     signOut: "تسجيل الخروج",
-    adminRole: "مدير النظام"
+    adminRole: "مدير النظام",
+    publicChat: "العام (Public)",
+    privateWith: "خاص: ",
+    chatPlaceholder: "اكتب رسالة...",
+    send: "إرسال",
+    selectCameraFirst: "الرجاء اختيار كاميرا من القائمة أولاً للمحادثة الخاصة."
   }
 };
 
-let currentLang = 'ar';
+let currentLang = 'en';
 const t = (key) => lang[currentLang][key] || key;
 
 const $ = (s) => document.querySelector(s);
@@ -272,8 +346,40 @@ let layout = 4, slots = [null, null, null, null];
 
 const stateOf = (c) => (c.recording ? 'rec' : c.online ? 'online' : 'off');
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-const nm = (c) => c.name || c.cameraId;
-const tagOf = (id) => esc(nm(cams.get(id) || { cameraId: id }));
+
+// 👈 دالة حاسمة ومحدثة 100% لمطابقة الـ IDs ومنع كلمة UNKNOWN تماماً
+function resolveCameraId(id) {
+  if (!id || id === 'admin' || id === 'ALL' || id === 'all' || id === 'ADMIN' || id === 'undefined' || id === 'UNKNOWN' || id === 'null') return id;
+  if (cams.has(id)) return id;
+  
+  const cleanId = String(id).trim().toLowerCase();
+  for (let [camKey, c] of cams.entries()) {
+    const k = camKey.toLowerCase();
+    const name = (c.name || '').toLowerCase();
+    if (k === cleanId || k.startsWith(cleanId) || cleanId.startsWith(k) || (name && name === cleanId)) {
+      return camKey;
+    }
+  }
+  return id;
+}
+
+function getOfficerLabel(camId) {
+  if (!camId || camId === 'admin' || camId === 'ALL' || camId === 'all' || camId === 'ADMIN' || camId === 'undefined' || camId === 'UNKNOWN' || camId === 'null') {
+    return 'Control Room';
+  }
+  const resolvedId = resolveCameraId(camId);
+  const c = cams.get(resolvedId);
+  if (c) {
+    if (c.name && c.name !== resolvedId) {
+      return `${resolvedId} (${c.name})`;
+    }
+    return resolvedId;
+  }
+  return camId;
+}
+
+const tagOf = (id) => esc(getOfficerLabel(id));
+
 const ago = (ts) => {
   if (!ts) return currentLang === 'ar' ? 'لا توجد إشارة بعد' : 'no signal yet';
   const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -291,22 +397,26 @@ const map = new maplibregl.Map({
 });
 
 function syncMarker(c) {
-  if (c.lat == null) return;
+  if (c.lat == null || c.lng == null) return;
+  const lat = Number(c.lat);
+  const lng = Number(c.lng);
+  if (isNaN(lat) || isNaN(lng)) return;
+
   let m = markers.get(c.cameraId);
   if (!m) {
     const el = document.createElement('div');
     el.addEventListener('click', (e) => { e.stopPropagation(); select(c.cameraId, false); });
-    m = new maplibregl.Marker({ element: el }).setLngLat([c.lng, c.lat]).addTo(map);
+    m = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
     markers.set(c.cameraId, m);
   }
-  m.setLngLat([c.lng, c.lat]);
+  m.setLngLat([lng, lat]);
   m.getElement().className = 'mk ' + stateOf(c) + (selected === c.cameraId ? ' sel' : '');
 }
 
 /* ---------- Fleet list ---------- */
 function visible() {
   return [...cams.values()]
-    .filter((c) => (nm(c) + ' ' + (c.grp || '') + ' ' + c.cameraId).toLowerCase().includes(term))
+    .filter((c) => (getOfficerLabel(c.cameraId) + ' ' + (c.grp || '') + ' ' + c.cameraId).toLowerCase().includes(term))
     .filter((c) => filter === 'all' || (filter === 'online' ? c.online : c.recording))
     .sort((a, b) => ({ rec: 0, online: 1, off: 2 }[stateOf(a)] - { rec: 0, online: 1, off: 2 }[stateOf(b)]) || a.cameraId.localeCompare(b.cameraId));
 }
@@ -330,15 +440,23 @@ function renderList() {
     $('#txtReg').textContent = t('registered');
     $('#txtAlarms').textContent = t('openAlarms');
 
-    $('#list').innerHTML = rows.length ? rows.map((c) => `
+    const pubTabSpan = $('#tabPublic span');
+    if (pubTabSpan) pubTabSpan.textContent = t('publicChat');
+
+    $('#list').innerHTML = rows.length ? rows.map((c) => {
+      const resolved = resolveCameraId(c.cameraId);
+      const unreadCount = unreadChats[c.cameraId] || unreadChats[resolved] || 0;
+      return `
       <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''}" data-id="${c.cameraId}" tabindex="0">
         <span class="dot"></span>
-        <div class="meta"><b>${esc(nm(c))}</b>
+        <div class="meta"><b>${esc(getOfficerLabel(c.cameraId))}</b>
           <small>${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
+        ${unreadCount > 0 ? `<span class="badge" style="background:var(--rec); margin-right:4px;">${unreadCount}</span>` : ''}
         ${c.recording ? '<span class="badge">REC</span>' : ''}
         ${c.ptt ? '<span class="badge talk">TALK</span>' : ''}
         <button data-w="${c.cameraId}" title="${t('watchLive')}" aria-label="${t('watchLive')}">▶</button>
-      </div>`).join('')
+      </div>`;
+    }).join('')
       : `<div class="none">${t('noCamerasMatch')}</div>`;
     stats();
   });
@@ -367,14 +485,116 @@ $('#chips').addEventListener('click', (e) => {
   renderList();
 });
 
-/* ---------- Selection and info card ---------- */
+/* ---------- Selection & Multi-Tab Management ---------- */
 function select(id, fly) {
-  selected = id; follow = false; editing = false;
-  const c = cams.get(id);
-  markers.forEach((m, k) => m.getElement().classList.toggle('sel', k === id));
-  if (fly && c && c.lat != null) map.flyTo({ center: [c.lng, c.lat], zoom: Math.max(map.getZoom(), 15) });
+  const resolvedId = resolveCameraId(id);
+  selected = resolvedId; follow = false; editing = false;
+  const c = cams.get(resolvedId);
+  if (c) syncMarker(c);
+  markers.forEach((m, k) => m.getElement().classList.toggle('sel', k === resolvedId));
+  if (fly && c && c.lat != null) {
+    const lat = Number(c.lat), lng = Number(c.lng);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 15) });
+    }
+  }
+
+  openPrivateTab(resolvedId, true);
   renderList(); renderInfo();
 }
+
+function openPrivateTab(rawCamId, autoActivate = false) {
+  const camId = resolveCameraId(rawCamId);
+  if (!camId || camId === 'admin' || camId === 'ALL' || camId === 'all' || camId === 'ADMIN' || camId === 'UNKNOWN' || camId === 'undefined' || camId === 'null') return;
+
+  const tabsContainer = $('#chatTabs');
+  let tabEl = tabsContainer.querySelector(`.chat-tab[data-target="${camId}"]`);
+
+  if (!tabEl) {
+    tabEl = document.createElement('div');
+    tabEl.className = 'chat-tab';
+    tabEl.dataset.type = 'PRIVATE';
+    tabEl.dataset.target = camId;
+    tabEl.innerHTML = `
+      <span>${t('privateWith')}${esc(getOfficerLabel(camId))}</span>
+      <span class="chat-badge" id="badge-${camId}" style="display:none;">0</span>
+      <button class="close-tab" title="Close">✕</button>
+    `;
+
+    tabEl.addEventListener('click', (e) => {
+      if (e.target.classList.contains('close-tab')) {
+        e.stopPropagation();
+        closeTab(camId);
+        return;
+      }
+      activateTab(tabEl);
+    });
+
+    tabsContainer.appendChild(tabEl);
+  } else {
+    const span = tabEl.querySelector('span');
+    if (span) span.textContent = t('privateWith') + getOfficerLabel(camId);
+  }
+
+  // 👈 Bas lo autoActivate === true (zay lma t-dos enta b-eedaq 3ala el-cam men el-list) y3mel switch
+  if (autoActivate) {
+    activateTab(tabEl);
+  }
+}
+
+function activateTab(tabEl) {
+  document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  activeChatType = tabEl.dataset.type;
+  activeChatTarget = tabEl.dataset.target;
+
+  if (activeChatTarget) unreadChats[activeChatTarget] = 0;
+  if (activeChatType === 'PUBLIC') unreadChats['PUBLIC'] = 0;
+
+  updateTabBadges();
+  renderList();
+  renderChatMessages();
+}
+
+function closeTab(camId) {
+  const tabsContainer = $('#chatTabs');
+  const tabEl = tabsContainer.querySelector(`.chat-tab[data-target="${camId}"]`);
+  if (tabEl) {
+    const wasActive = tabEl.classList.contains('active');
+    tabEl.remove();
+    if (wasActive) {
+      activateTab($('#tabPublic'));
+    }
+  }
+}
+
+function updateTabBadges() {
+  const pubUnread = unreadChats['PUBLIC'] || unreadChats['ALL'] || 0;
+  const pubBadge = $('#badge-PUBLIC');
+  if (pubBadge) {
+    if (pubUnread > 0 && activeChatType !== 'PUBLIC') {
+      pubBadge.textContent = pubUnread;
+      pubBadge.style.display = 'inline-flex';
+    } else {
+      pubBadge.style.display = 'none';
+    }
+  }
+
+  Object.keys(unreadChats).forEach(targetKey => {
+    if (targetKey === 'PUBLIC' || targetKey === 'ALL') return;
+    const count = unreadChats[targetKey] || 0;
+    const badgeEl = $(`#badge-${targetKey}`);
+    if (badgeEl) {
+      if (count > 0 && activeChatTarget !== targetKey) {
+        badgeEl.textContent = count;
+        badgeEl.style.display = 'inline-flex';
+      } else {
+        badgeEl.style.display = 'none';
+      }
+    }
+  });
+}
+
 function renderInfo() {
   const c = cams.get(selected), box = $('#info');
   if (!c) { box.style.display = 'none'; return; }
@@ -392,7 +612,7 @@ function renderInfo() {
     $('#eD').onclick = () => { if (confirm('Remove ' + nm(c) + '?')) call('DELETE'); };
     return;
   }
-  box.innerHTML = `<h3>${esc(nm(c))}</h3>
+  box.innerHTML = `<h3>${esc(getOfficerLabel(c.cameraId))}</h3>
     <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
@@ -538,6 +758,87 @@ function beep() {
   } catch (e) { }
 }
 
+function playMessageBeep() {
+  try {
+    const ctx = new (window.AudioContext || webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 650; g.gain.value = 0.1;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.12);
+  } catch(e) {}
+}
+
+/* ---------- Chat System Logic ---------- */
+let activeChatType = 'PUBLIC';
+let activeChatTarget = 'ALL';
+const chatMessagesHistory = [];
+const unreadChats = { PUBLIC: 0 };
+
+$('#tabPublic').onclick = () => {
+  activateTab($('#tabPublic'));
+};
+
+function renderChatMessages() {
+  const container = $('#chat-msgs');
+  const filtered = chatMessagesHistory.filter(m => {
+    if (activeChatType === 'PUBLIC') return m.chatType === 'PUBLIC';
+    if (activeChatType === 'PRIVATE') {
+      const target = resolveCameraId(activeChatTarget);
+      const matchTarget = (id) => {
+        const resId = resolveCameraId(id);
+        return resId === target || resId.startsWith(target) || target.startsWith(resId);
+      };
+      return m.chatType === 'PRIVATE' && (matchTarget(m.targetId) || matchTarget(m.senderId));
+    }
+    return true;
+  });
+
+  container.innerHTML = filtered.map(m => `
+    <div class="chat-msg ${m.mine ? 'mine' : 'other'}">
+      <b>${esc(m.senderName)}</b>
+      ${esc(m.message)}
+    </div>
+  `).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+$('#chatSend').onclick = () => {
+  const input = $('#chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const target = activeChatType === 'PUBLIC' ? 'ALL' : resolveCameraId(activeChatTarget);
+
+  if (activeChatType === 'PRIVATE' && (!target || target === 'ALL')) {
+    alert(t('selectCameraFirst'));
+    return;
+  }
+
+  socket.emit('send_message', {
+    chatType: activeChatType,
+    targetId: target,
+    message: text
+  });
+
+  // 👈 إضافة محلية صريحة للرسالة من الأدمن بدون تشغيل صوت الإشعار
+  chatMessagesHistory.push({
+    chatType: activeChatType,
+    targetId: target,
+    senderId: 'admin',
+    senderName: currentLang === 'ar' ? 'غرفة التحكم (أنت)' : 'Control Room (You)',
+    message: text,
+    timestamp: Date.now(),
+    mine: true
+  });
+
+  input.value = '';
+  renderChatMessages();
+};
+
+$('#chatInput').onkeydown = (e) => {
+  if (e.key === 'Enter') $('#chatSend').click();
+};
+
 /* ---------- Live data ---------- */
 function pttChanged(c) {
   const id = c.cameraId;
@@ -563,7 +864,13 @@ function upsert(c) {
   if (selected === c.cameraId) renderInfo();
   renderList();
 }
+
 const socket = io();
+
+socket.on('connect', () => {
+  socket.emit('register', { id: 'admin', type: 'admin' });
+});
+
 socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; renderAlarms(); });
 socket.on('dashboard_cam', upsert);
 socket.on('dashboard_alarm_ack', ({ id }) => { const a = alarms.find((x) => x.id === id); if (a) { a.ack = true; renderAlarms(); } });
@@ -579,6 +886,60 @@ socket.on('dashboard_sos', (a) => {
   alarms.unshift(a); renderAlarms(); beep();
   const h = $('#top'); h.classList.remove('flash'); void h.offsetWidth; h.classList.add('flash');
   select(a.cameraId, true); watch(a.cameraId);
+});
+
+// 👈 استقبال الرسائل مع معالجة حاسمة وتوجيه البادجات والصوت بدقة
+socket.on('receive_message', (d) => {
+  const senderRaw = String(d.senderId || d.senderName || d.targetId || '');
+  const isOurMessage = (
+    senderRaw === 'admin' || 
+    senderRaw === socket.id || 
+    senderRaw === 'ADMIN' || 
+    senderRaw.includes('Control Room') || 
+    d.mine === true
+  );
+
+  if (isOurMessage) return;
+
+  const isPublic = (d.chatType === 'PUBLIC');
+  let rawCamId = isPublic ? d.senderId : (d.senderId === 'admin' ? d.targetId : d.senderId);
+  let resolvedCamId = resolveCameraId(rawCamId);
+
+  if (!resolvedCamId || resolvedCamId === 'admin' || resolvedCamId === 'ADMIN' || resolvedCamId === 'UNKNOWN') {
+    resolvedCamId = resolveCameraId(d.targetId);
+  }
+
+  const officerName = getOfficerLabel(resolvedCamId);
+
+  chatMessagesHistory.push({
+    chatType: d.chatType || 'PUBLIC',
+    targetId: isPublic ? 'ALL' : resolvedCamId,
+    senderId: resolvedCamId,
+    senderName: officerName,
+    message: d.message,
+    timestamp: d.timestamp || Date.now(),
+    mine: false
+  });
+
+  // 👈 Sound Alert
+  playMessageBeep();
+
+  // 👈 Efta7 el-tab f el-background من غير ما يعمل Auto Switch!
+  if (!isPublic && resolvedCamId && resolvedCamId !== 'UNKNOWN' && resolvedCamId !== 'admin') {
+    openPrivateTab(resolvedCamId, false);
+  }
+
+  const targetKey = isPublic ? 'PUBLIC' : resolvedCamId;
+  const isActive = (isPublic && activeChatType === 'PUBLIC') || (!isPublic && activeChatType === 'PRIVATE' && resolveCameraId(activeChatTarget) === resolvedCamId);
+
+  // 👈 Zwd counter el-unseen messages w zhr el-badge 
+  if (!isActive && targetKey && targetKey !== 'UNKNOWN') {
+    unreadChats[targetKey] = (unreadChats[targetKey] || 0) + 1;
+  }
+
+  updateTabBadges();
+  renderList();
+  renderChatMessages();
 });
 
 setInterval(() => {
@@ -610,7 +971,6 @@ else { addEventListener('pointerdown', unlockAudio, { once: true, capture: true 
 
 buildWall(); renderList(); renderAlarms();
 
-// Segmented Flag Switcher Event Listener
 $('#langToggle').addEventListener('click', (e) => {
   const btn = e.target.closest('.lang-btn');
   if (!btn || btn.classList.contains('active')) return;

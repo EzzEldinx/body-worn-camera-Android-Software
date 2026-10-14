@@ -133,6 +133,51 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
     console.log(`${socket.data.role} connected:`, socket.id);
 
+
+    // --- ضيف السطور دي في بداية io.on('connection') ---
+    socket.join('room:public');
+    if (socket.data.role === 'dashboard') {
+        socket.join('room:admin');
+    }
+
+    // --- أحداث الـ Chat الجديدة ---
+    socket.on('create_group', (data) => {
+        if (socket.data.role !== 'dashboard') return;
+        const { groupId, cameraIds } = data;
+        if (!groupId || !Array.isArray(cameraIds)) return;
+        
+        cameraIds.forEach((camId) => {
+            const socketId = live.get(camId);
+            if (socketId) {
+                const targetSocket = io.sockets.sockets.get(socketId);
+                if (targetSocket) {
+                    targetSocket.join(`room:group_${groupId}`);
+                }
+            }
+        });
+        socket.join(`room:group_${groupId}`);
+        console.log(`Group chat created: ${groupId} with cameras:`, cameraIds);
+    });
+
+    socket.on('send_message', (payload) => {
+        if (!payload || !payload.chatType) return;
+        const senderId = socket.data.role === 'dashboard' ? 'ADMIN' : (socket.data.cameraId || 'UNKNOWN');
+        const senderName = socket.data.role === 'dashboard' ? (socket.data.user?.name || 'Admin') : senderId;
+        const enrichedPayload = { ...payload, senderId, senderName, timestamp: Date.now() };
+
+        if (payload.chatType === 'PUBLIC') {
+            io.to('room:public').emit('receive_message', enrichedPayload);
+        } else if (payload.chatType === 'PRIVATE') {
+            io.to(`room:camera_${payload.targetId}`).emit('receive_message', enrichedPayload);
+            io.to('room:admin').emit('receive_message', enrichedPayload);
+        } else if (payload.chatType === 'GROUP') {
+            io.to(`room:group_${payload.targetId}`).emit('receive_message', enrichedPayload);
+        }
+    });
+
+
+
+
     if (socket.data.role === 'dashboard') {
         socket.emit('dashboard_snapshot', { cams: [...cams.values()], alarms: recentAlarms() });
         socket.on('ack_alarm', (id) => {
@@ -145,7 +190,12 @@ io.on('connection', (socket) => {
         return;
     }
 
-    const bind = (id) => { socket.data.cameraId = id; live.set(id, socket.id); };
+    const bind = (id) => { 
+        socket.data.cameraId = id; 
+        live.set(id, socket.id); 
+        socket.join(`room:camera_${id}`); // 👈 ضيف السطر ده هنا
+    };
+
 
     socket.on('camera_gps_update', (d) => {
         const id = str(d?.cameraId);

@@ -12,3 +12,17 @@ flutter run --android-skip-build-dependency-validation
 ## run command  : ##
 
 flutter run -d KS16255032500240 "--dart-define=BWC_SERVER=http://192.168.100.75:3000" "--dart-define=BWC_ID=BWC-01" "--dart-define=BWC_TOKEN=yoursecret"
+
+ 
+
+flutter run -d KS16255032500468 "--dart-define=BWC_SERVER=http://192.168.100.75:3000" "--dart-define=BWC_ID=BWC-01" "--dart-define=BWC_TOKEN=yoursecret"
+
+
+
+ 
+flutter run -d KS16255032500212 "--dart-define=BWC_SERVER=http://192.168.100.75:3000" "--dart-define=BWC_ID=BWC-02-RIY" "--dart-define=BWC_TOKEN=yoursecret"
+
+
+ 
+
+flutter run -d KS16255032500221 "--dart-define=BWC_SERVER=http://192.168.100.75:3000" "--dart-define=BWC_ID=BWC-04-RIY" "--dart-define=BWC_TOKEN=yoursecret"
