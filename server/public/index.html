@@ -103,7 +103,7 @@ aside{border-right:1px solid var(--line)}
 .al b{flex:1}
 .al small{color:var(--mut)}
 
-/* Multi-Tab Chat */
+/* Multi-Tab Chat & WhatsApp Voice Note UI */
 #chat-section{height:270px;display:flex;flex-direction:column;border-top:1px solid var(--line);background:var(--raise)}
 .chat-tabs{display:flex;gap:6px;padding:12px 10px 8px 10px;background:var(--panel);border-bottom:1px solid var(--line);align-items:center;overflow-x:auto;overflow-y:visible;white-space:nowrap}
 .chat-tab{padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:none;font-size:12px;color:var(--mut);position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;flex:none;margin-top:6px}
@@ -134,9 +134,19 @@ aside{border-right:1px solid var(--line)}
 .chat-msg.mine{background:rgba(90,169,255,0.25);align-self:flex-end}
 .chat-msg.other{background:var(--panel);align-self:flex-start}
 .chat-msg b{color:var(--sel);font-size:11px;display:block;margin-bottom:2px}
-.chat-composer{display:flex;padding:8px 10px;gap:6px;border-top:1px solid var(--line);background:var(--panel)}
+.chat-composer{display:flex;align-items:center;padding:8px 10px;gap:6px;border-top:1px solid var(--line);background:var(--panel)}
+.mic-btn { background: none; border: none; color: var(--mut); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+.mic-btn:hover { color: var(--sel); background: var(--raise); }
+.mic-btn.recording { color: var(--rec); animation: pulseRec 1s infinite; }
+
+.voice-msg { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.voice-play-btn { width: 32px; height: 32px; border-radius: 50%; background: var(--sel); border: none; color: #1a1405; display: flex; align-items: center; justify-content: center; font-weight: bold; flex: none; cursor: pointer; }
+.voice-wave { flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; position: relative; overflow: hidden; }
+.voice-wave-progress { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--sel); }
+.voice-duration { font-size: 11px; color: var(--mut); flex: none; }
+
 .chat-composer input{flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;font-size:13px}
-.chat-composer button{padding:6px 14px;border-radius:6px;border:none;background:var(--sel);color:#1a1405;font-weight:600;font-size:13px}
+.chat-composer button.send-btn{padding:6px 14px;border-radius:6px;border:none;background:var(--sel);color:#1a1405;font-weight:600;font-size:13px}
 
 header.flash{animation:fl 1s 3}
 @keyframes fl{50%{background:#5a2030}}
@@ -265,8 +275,11 @@ header.flash{animation:fl 1s 3}
       </div>
       <div id="chat-msgs"></div>
       <div class="chat-composer">
+        <button id="micBtn" class="mic-btn" title="Record Voice Note">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.39-.9.89 0 2.79-2.25 5.04-5.04 5.04s-5.04-2.25-5.04-5.04c0-.5-.41-.89-.9-.89s-.9.39-.9.89c0 3.18 2.45 5.82 5.5 6.25V21h2v-2.86c3.05-.43 5.5-3.07 5.5-6.25 0-.5-.4-.89-.89-.89z"/></svg>
+        </button>
         <input type="text" id="chatInput" placeholder="Type a message..." />
-        <button id="chatSend">Send</button>
+        <button id="chatSend" class="send-btn">Send</button>
       </div>
     </div>
   </section>
@@ -347,7 +360,6 @@ let layout = 4, slots = [null, null, null, null];
 const stateOf = (c) => (c.recording ? 'rec' : c.online ? 'online' : 'off');
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
-// 👈 دالة حاسمة ومحدثة 100% لمطابقة الـ IDs ومنع كلمة UNKNOWN تماماً
 function resolveCameraId(id) {
   if (!id || id === 'admin' || id === 'ALL' || id === 'all' || id === 'ADMIN' || id === 'undefined' || id === 'UNKNOWN' || id === 'null') return id;
   if (cams.has(id)) return id;
@@ -536,7 +548,6 @@ function openPrivateTab(rawCamId, autoActivate = false) {
     if (span) span.textContent = t('privateWith') + getOfficerLabel(camId);
   }
 
-  // 👈 Bas lo autoActivate === true (zay lma t-dos enta b-eedaq 3ala el-cam men el-list) y3mel switch
   if (autoActivate) {
     activateTab(tabEl);
   }
@@ -793,12 +804,24 @@ function renderChatMessages() {
     return true;
   });
 
-  container.innerHTML = filtered.map(m => `
-    <div class="chat-msg ${m.mine ? 'mine' : 'other'}">
-      <b>${esc(m.senderName)}</b>
-      ${esc(m.message)}
-    </div>
-  `).join('');
+  container.innerHTML = filtered.map(m => {
+    let contentHtml = esc(m.message);
+    if (m.audio) {
+      contentHtml = `
+        <div class="voice-msg">
+          <button class="voice-play-btn" onclick="playVoiceNote(this, '${m.audio}')">▶</button>
+          <div class="voice-wave"><div class="voice-wave-progress"></div></div>
+          <span class="voice-duration">Audio</span>
+        </div>
+      `;
+    }
+    return `
+      <div class="chat-msg ${m.mine ? 'mine' : 'other'}">
+        <b>${esc(m.senderName)}</b>
+        ${contentHtml}
+      </div>
+    `;
+  }).join('');
   container.scrollTop = container.scrollHeight;
 }
 
@@ -820,7 +843,6 @@ $('#chatSend').onclick = () => {
     message: text
   });
 
-  // 👈 إضافة محلية صريحة للرسالة من الأدمن بدون تشغيل صوت الإشعار
   chatMessagesHistory.push({
     chatType: activeChatType,
     targetId: target,
@@ -838,6 +860,78 @@ $('#chatSend').onclick = () => {
 $('#chatInput').onkeydown = (e) => {
   if (e.key === 'Enter') $('#chatSend').click();
 };
+
+/* ---------- Voice Recording Logic (Dashboard) ---------- */
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const micBtn = $('#micBtn');
+  if (micBtn) {
+    micBtn.onclick = async () => {
+      if (!isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) audioChunks.push(event.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => {
+              const base64Audio = reader.result;
+              
+              const target = activeChatType === 'PUBLIC' ? 'ALL' : resolveCameraId(activeChatTarget);
+              if (activeChatType === 'PRIVATE' && (!target || target === 'ALL')) {
+                alert(t('selectCameraFirst'));
+                return;
+              }
+
+              socket.emit('send_message', {
+                chatType: activeChatType,
+                targetId: target,
+                message: '[Voice Note]',
+                audio: base64Audio
+              });
+
+              chatMessagesHistory.push({
+                chatType: activeChatType,
+                targetId: target,
+                senderId: 'admin',
+                senderName: currentLang === 'ar' ? 'غرفة التحكم (أنت)' : 'Control Room (You)',
+                message: '[Voice Note]',
+                audio: base64Audio,
+                timestamp: Date.now(),
+                mine: true
+              });
+              renderChatMessages();
+            };
+
+            stream.getTracks().forEach(track => track.stop());
+          };
+
+          mediaRecorder.start();
+          isRecording = true;
+          micBtn.classList.add('recording');
+        } catch (err) {
+          alert('Microphone access denied or not supported.');
+        }
+      } else {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+        isRecording = false;
+        micBtn.classList.remove('recording');
+      }
+    };
+  }
+});
 
 /* ---------- Live data ---------- */
 function pttChanged(c) {
@@ -888,7 +982,6 @@ socket.on('dashboard_sos', (a) => {
   select(a.cameraId, true); watch(a.cameraId);
 });
 
-// 👈 استقبال الرسائل مع معالجة حاسمة وتوجيه البادجات والصوت بدقة
 socket.on('receive_message', (d) => {
   const senderRaw = String(d.senderId || d.senderName || d.targetId || '');
   const isOurMessage = (
@@ -917,14 +1010,13 @@ socket.on('receive_message', (d) => {
     senderId: resolvedCamId,
     senderName: officerName,
     message: d.message,
+    audio: d.audio, // تم إضافة حفظ الصوت القادم من الكاميرا هنا بنجاح!
     timestamp: d.timestamp || Date.now(),
     mine: false
   });
 
-  // 👈 Sound Alert
   playMessageBeep();
 
-  // 👈 Efta7 el-tab f el-background من غير ما يعمل Auto Switch!
   if (!isPublic && resolvedCamId && resolvedCamId !== 'UNKNOWN' && resolvedCamId !== 'admin') {
     openPrivateTab(resolvedCamId, false);
   }
@@ -932,7 +1024,6 @@ socket.on('receive_message', (d) => {
   const targetKey = isPublic ? 'PUBLIC' : resolvedCamId;
   const isActive = (isPublic && activeChatType === 'PUBLIC') || (!isPublic && activeChatType === 'PRIVATE' && resolveCameraId(activeChatTarget) === resolvedCamId);
 
-  // 👈 Zwd counter el-unseen messages w zhr el-badge 
   if (!isActive && targetKey && targetKey !== 'UNKNOWN') {
     unreadChats[targetKey] = (unreadChats[targetKey] || 0) + 1;
   }
@@ -985,6 +1076,13 @@ $('#langToggle').addEventListener('click', (e) => {
   buildWall();
   updateUserDisplay();
 });
+
+window.playVoiceNote = function(btn, audioBase64) {
+  const audio = new Audio(audioBase64);
+  audio.play();
+  btn.textContent = '⏸';
+  audio.onended = () => { btn.textContent = '▶'; };
+};
 </script>
 </body>
 </html>
