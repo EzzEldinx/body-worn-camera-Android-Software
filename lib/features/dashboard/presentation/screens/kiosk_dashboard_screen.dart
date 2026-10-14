@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:rtmp_broadcaster/rtmp_broadcaster.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'chat_screen.dart';
 import '../widgets/status_overlay.dart';
 import '../widgets/hidden_admin_door.dart';
 import '../../../../hardware/hardware_key_listener.dart';
@@ -43,6 +43,8 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   DateTime _lastPhotoAt = DateTime(2000);
   DateTime _lastStopAt = DateTime(2000);
   final GlobalKey _frameKey = GlobalKey();
+  bool _switching = false;
+  DateTime _switchStartedAt = DateTime(2000);
 
   // Colour palette (same family as the control-room dashboard).
   static const Color _bgTop = Color(0xFF0F1828);
@@ -75,6 +77,102 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
   static const MethodChannel _kioskChannel = MethodChannel('com.swg.bwc/kiosk');
 
+  void _showChatDialog() {
+  final TextEditingController msgController = TextEditingController();
+  String selectedChatType = 'PUBLIC'; // 'PUBLIC' or 'PRIVATE'
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1D2C47),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Control Room Chat', style: TextStyle(color: Colors.white, fontSize: 16)),
+                DropdownButton<String>(
+                  value: selectedChatType,
+                  dropdownColor: const Color(0xFF0F1828),
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  items: const [
+                    DropdownMenuItem(value: 'PUBLIC', child: Text('Public Chat')),
+                    DropdownMenuItem(value: 'PRIVATE', child: Text('To Admin (Private)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selectedChatType = val);
+                  },
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 300,
+              height: 350,
+              child: Column(
+                children: [
+                  // مكان عرض الرسائل (هنا ممكن تربطه بـ Stream أو List عندك)
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F1828),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'No messages yet.\nMessages from Control Room will appear here.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white54, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // حقل كتابة الرسالة وزر الإرسال
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: msgController,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          decoration: const InputDecoration(
+                            hintText: 'Type a message...',
+                            hintStyle: TextStyle(color: Colors.white38),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.send, color: Color(0xFFFFC857)),
+                        onPressed: () {
+                          final text = msgController.text.trim();
+                          if (text.isEmpty) return;
+
+                          // إرسال الرسالة عبر الـ CentralLink
+                          ref.read(centralLinkProvider).sendChatMessage(
+                            chatType: selectedChatType,
+                            targetId: selectedChatType == 'PUBLIC' ? 'ALL' : 'ADMIN',
+                            message: text,
+                          );
+
+                          msgController.clear();
+                          _toast('Message sent');
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +188,9 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       HapticFeedback.mediumImpact();
       _toast(m);
     });
+
+    ref.read(centralLinkProvider).sendStatus(recording: false);
+
   }
 
   void _initHardwareKeys() {
@@ -146,16 +247,24 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
   Future<void> _initCamera() async {
     try {
-      _cameras ??= await availableCameras();
-      if (_cameras != null && _cameras!.isNotEmpty) {
+      if (_cameras == null) {
+        _cameras = await availableCameras();
+        debugPrint('CAMERAS: ${_cameras!.map((c) => '${c.name}/${c.lensDirection}').toList()}');
+        // Start on the rear camera whatever order the device lists them in.
+        final back = _cameras!.indexWhere((c) => c.lensDirection == CameraLensDirection.back);
+        if (back >= 0) _selectedCameraIndex = back;
+      }
+      final list = _cameras;
+      if (list != null && list.isNotEmpty) {
+        // This camera really delivers 640x480. Asking for 1280x720 only stretched the picture.
         _controller = CameraController(
-          _cameras![_selectedCameraIndex],
-          ResolutionPreset.high,
-          streamingPreset: ResolutionPreset.high,
+          list[_selectedCameraIndex],
+          ResolutionPreset.medium,
+          streamingPreset: ResolutionPreset.medium,
           enableAudio: true,
         );
 
-        await _controller!.initialize();
+        await _controller!.initialize().timeout(const Duration(seconds: 10));
 
         // Zoom is digital (screen only): this plugin has no native zoom.
         _minZoomLevel = 1.0;
@@ -166,42 +275,82 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       }
     } catch (e) {
       _report('CAMERA INIT FAILED: $e');
+      try {
+        await _controller?.dispose(); // free the hardware so the next try can open it
+      } catch (_) {}
+      _controller = null;
+      if (mounted) setState(() => _isCameraInitialized = false);
     }
   }
 
   Future<void> _switchCamera() async {
     final list = _cameras;
+    debugPrint('SWITCH pressed: cameras=${list?.length} switching=$_switching recording=$isRecording');
     if (list == null || list.length < 2) {
-      _toast('This device has only one camera');
+      _toast('The camera list has ${list?.length ?? 0} camera(s), cannot switch', error: true);
       return;
     }
     if (isRecording) {
       _toast('Stop recording before switching cameras', error: true);
       return;
     }
+    if (_switching) {
+      if (DateTime.now().difference(_switchStartedAt).inSeconds > 20) {
+        _switching = false; // a previous switch hung, start over
+      } else {
+        _toast('Still switching, please wait');
+        return;
+      }
+    }
+    _switching = true;
+    _switchStartedAt = DateTime.now();
+    _toast('Switching camera...');
     final previous = _selectedCameraIndex;
     final wantFront = list[previous].lensDirection != CameraLensDirection.front;
     final want = wantFront ? CameraLensDirection.front : CameraLensDirection.back;
     final found = list.indexWhere((c) => c.lensDirection == want);
     final next = found >= 0 ? found : (previous + 1) % list.length;
+    final name = wantFront ? 'front' : 'rear';
 
-    // Release the current camera first: two controllers cannot share the hardware.
-    setState(() => _isCameraInitialized = false);
+    try {
+      if (mounted) setState(() => _isCameraInitialized = false);
+      await _releaseCamera();
+      debugPrint('SWITCH released, opening camera index $next');
+      _selectedCameraIndex = next;
+      await _initCamera();
+      if (!_isCameraInitialized) {
+        await Future.delayed(const Duration(seconds: 1)); // one more try, the hardware can be slow
+        await _initCamera();
+      }
+      if (_isCameraInitialized) {
+        _toast('${wantFront ? 'Front' : 'Rear'} camera');
+      } else {
+        _toast('Could not open the $name camera, going back', error: true);
+        _selectedCameraIndex = previous;
+        await _initCamera();
+      }
+    } finally {
+      _switching = false;
+    }
+  }
+
+  // Two cameras cannot be open together. Order matters: take the preview off the
+  // screen first (so the native view closes the camera), wait, then release the
+  // controller, then give the hardware a moment before opening the other camera.
+  Future<void> _releaseCamera() async {
     final old = _controller;
     _controller = null;
+    if (mounted) setState(() => _isCameraInitialized = false);
+    await WidgetsBinding.instance.endOfFrame;
+    await Future.delayed(const Duration(milliseconds: 800));
+    debugPrint('SWITCH preview removed, releasing the old camera');
     try {
-      await old?.dispose();
-    } catch (_) {}
-
-    _selectedCameraIndex = next;
-    await _initCamera();
-    if (!_isCameraInitialized) {
-      _toast('Could not open the ${wantFront ? 'front' : 'rear'} camera, going back', error: true);
-      _selectedCameraIndex = previous;
-      await _initCamera();
-    } else {
-      _toast(wantFront ? 'Front camera' : 'Rear camera');
+      await old?.dispose().timeout(const Duration(seconds: 4));
+      debugPrint('SWITCH old camera released');
+    } catch (e) {
+      debugPrint('SWITCH dispose problem: $e');
     }
+    await Future.delayed(const Duration(milliseconds: 1500));
   }
 
   // ---- Storage / feedback helpers -------------------------------------
@@ -335,7 +484,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         await c.startVideoRecordingAndStreaming(
           path,
           CentralConfig.rtmpUrl,
-          bitrate: 2000 * 1024,
+          bitrate: 1500 * 1024,
         );
       } catch (e) {
         // Evidence must never depend on the network: fall back to local only.
@@ -683,13 +832,42 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
                           ),
                         const SizedBox(height: 6),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          // 👈 Chat button with unread red dot badge
+                          ValueListenableBuilder<Map<String, int>>(
+                            valueListenable: ref.read(centralLinkProvider).unreadByChat,
+                            builder: (context, unreadMap, _) {
+                              final totalUnread = unreadMap.values.fold(0, (sum, count) => sum + count);
+                              return Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  _miniBtn(Icons.chat, _blue, () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => ChatScreen()),
+                                    );
+                                  }),
+                                  if (totalUnread > 0)
+                                    Positioned(
+                                      right: 2,
+                                      top: 2,
+                                      child: Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ), 
                             _miniBtn(_wide ? Icons.crop_portrait : Icons.crop_16_9, _blue, _toggleView),
-                            _miniBtn(Icons.volume_up, _green, _cycleVolume),
                             _miniBtn(Icons.flash_on, _amber, _toggleFlashLight, active: _isFlashOn),
                             _miniBtn(Icons.nightlight_round, _violet, _toggleNightMode, active: _isNightModeOn),
-                            _miniBtn(Icons.flare, _red, _toggleLaserBtn, active: _isLaserOn),
                             _miniBtn(Icons.flip_camera_ios, _blue, _switchCamera),
                           ],
                         ),
@@ -767,7 +945,10 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
             key: _frameKey,
             child: RotatedBox(
               quarterTurns: isFront ? 2 : 0,
-              child: _controller!.buildPreview(),
+              child: KeyedSubtree(
+                key: ObjectKey(_controller),
+                child: _controller!.buildPreview(),
+              ),
             ),
           ),
         ),

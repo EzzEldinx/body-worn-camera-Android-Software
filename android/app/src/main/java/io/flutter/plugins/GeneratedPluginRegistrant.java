@@ -16,6 +16,11 @@ public final class GeneratedPluginRegistrant {
   private static final String TAG = "GeneratedPluginRegistrant";
   public static void registerWith(@NonNull FlutterEngine flutterEngine) {
     try {
+      flutterEngine.getPlugins().add(new xyz.luan.audioplayers.AudioplayersPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin audioplayers_android, xyz.luan.audioplayers.AudioplayersPlugin", e);
+    }
+    try {
       flutterEngine.getPlugins().add(new com.baseflow.geolocator.GeolocatorPlugin());
     } catch (Exception e) {
       Log.e(TAG, "Error registering plugin geolocator_android, com.baseflow.geolocator.GeolocatorPlugin", e);
@@ -34,6 +39,11 @@ public final class GeneratedPluginRegistrant {
       flutterEngine.getPlugins().add(new dev.fluttercommunity.plus.packageinfo.PackageInfoPlugin());
     } catch (Exception e) {
       Log.e(TAG, "Error registering plugin package_info_plus, dev.fluttercommunity.plus.packageinfo.PackageInfoPlugin", e);
+    }
+    try {
+      flutterEngine.getPlugins().add(new com.llfbandit.record.RecordPlugin());
+    } catch (Exception e) {
+      Log.e(TAG, "Error registering plugin record_android, com.llfbandit.record.RecordPlugin", e);
     }
     try {
       flutterEngine.getPlugins().add(new com.app.rtmp_publisher.RtmppublisherPlugin());
