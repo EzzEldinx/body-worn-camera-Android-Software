@@ -19,10 +19,36 @@ import java.util.*
 /** Provides various utilities for camera.  */
 object CameraUtils {
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-    fun computeBestPreviewSize(cameraName: String, presetArg: ResolutionPreset): Size {
-        // Preview size == encoder size, so the stream is really captured at the chosen quality (no upscaling).
-        val profile = getBestAvailableCamcorderProfileForResolutionPreset(cameraName, presetArg)
-        return Size(profile.videoFrameWidth, profile.videoFrameHeight)
+    fun computeBestPreviewSize(cameraName: String, presetArg: ResolutionPreset): Size = cameraCaptureSize(cameraName)
+
+    /**
+     * The camera ALWAYS captures at its best real 16:9 size. On this device the camera hardware returns only a
+     * 640x480 picture (a 4:3 crop of the scene) for any smaller request, which was then stretched to the chosen
+     * quality: soft, cropped and distorted. Only the 4K request gives real pixels and the full field of view.
+     */
+    fun cameraCaptureSize(cameraName: String): Size {
+        val id = cameraName.toInt()
+        return when {
+            CamcorderProfile.hasProfile(id, CamcorderProfile.QUALITY_2160P) -> Size(3840, 2160)
+            CamcorderProfile.hasProfile(id, CamcorderProfile.QUALITY_1080P) -> Size(1920, 1080)
+            else -> Size(1280, 720)
+        }
+    }
+
+    /**
+     * Size the stream/recording is encoded at for a quality. Always 16:9 like the camera frame (so nothing is
+     * stretched) and never above what the camera captures; smaller sizes are scaled down from the real 4K frame.
+     */
+    fun encoderSize(cameraName: String, preset: ResolutionPreset): Size {
+        val cam = cameraCaptureSize(cameraName)
+        val want = when (preset) {
+            ResolutionPreset.low -> Size(426, 240)
+            ResolutionPreset.medium -> Size(854, 480)
+            ResolutionPreset.high -> Size(1280, 720)
+            ResolutionPreset.veryHigh -> Size(1920, 1080)
+            else -> Size(3840, 2160)
+        }
+        return if (want.width > cam.width) cam else want
     }
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)

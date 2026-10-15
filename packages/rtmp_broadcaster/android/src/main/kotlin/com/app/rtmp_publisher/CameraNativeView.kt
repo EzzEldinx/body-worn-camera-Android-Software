@@ -157,6 +157,7 @@ class CameraNativeView(
 
 
         val streamingSize = CameraUtils.getBestAvailableCamcorderProfileForResolutionPreset(cameraName, preset)
+        val enc = CameraUtils.encoderSize(cameraName, preset)
         /*if (rtmpCamera.isRecording || rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
                 streamingSize.videoFrameWidth,
                 streamingSize.videoFrameHeight,
@@ -165,8 +166,8 @@ class CameraNativeView(
 
         if (!rtmpCamera.isStreaming()) {
             if (rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
-                    streamingSize.videoFrameWidth,
-                    streamingSize.videoFrameHeight,
+                    enc.width,
+                    enc.height,
                     30,
                     targetBitrate ?: streamingSize.videoBitRate,
                     1, // keyframe every second: a viewer joins (and recovers from loss) within a second
@@ -191,9 +192,10 @@ class CameraNativeView(
         try {
             if (!rtmpCamera.isStreaming) {
                 val streamingSize = CameraUtils.getBestAvailableCamcorderProfileForResolutionPreset(cameraName, preset)
+                val enc = CameraUtils.encoderSize(cameraName, preset)
                 if (rtmpCamera.isRecording || rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
-                        streamingSize.videoFrameWidth,
-                        streamingSize.videoFrameHeight,
+                        enc.width,
+                        enc.height,
                         30,
                         bitrate ?: streamingSize.videoBitRate,
                         1,
