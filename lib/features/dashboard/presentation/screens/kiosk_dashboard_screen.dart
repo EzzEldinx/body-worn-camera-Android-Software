@@ -8,10 +8,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:rtmp_broadcaster/rtmp_broadcaster.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'chat_screen.dart';
-import '../widgets/status_overlay.dart';
+import '../widgets/hud.dart';
+import '../../../../core/theme/bwc_tokens.dart';
 import '../widgets/hidden_admin_door.dart';
 import '../../../../hardware/hardware_key_listener.dart';
-import '../../../../core/services/central_link.dart'; 
+import '../../../../core/services/central_link.dart';
+import '../../../../core/services/video_quality.dart'; 
 
 class KioskDashboardScreen extends ConsumerStatefulWidget {
   const KioskDashboardScreen({Key? key}) : super(key: key);
@@ -36,8 +38,8 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   String? _toastMsg;
   bool _toastErr = false;
   bool _zoomHinted = false;
-  bool _wide = true; // true: 16:9 window with black bars, false: full portrait view
-  static const bool _showKeyCodes = true; // shows the last hardware key code; set false when done
+  bool _wide = false; // false: full-screen picture with the controls on top; true: 16:9 window
+  static const bool _showKeyCodes = false; // shows the last hardware key code; set false when done
   String _lastKey = '-';
   DateTime _lastZoomKey = DateTime(2000);
   DateTime _lastPhotoAt = DateTime(2000);
@@ -45,19 +47,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   final GlobalKey _frameKey = GlobalKey();
   bool _switching = false;
   DateTime _switchStartedAt = DateTime(2000);
-
-  // Colour palette (same family as the control-room dashboard).
-  static const Color _bgTop = Color(0xFF0F1828);
-  static const Color _bgBottom = Color(0xFF1B2D4A);
-  static const Color _panel = Color(0xFF1D2C47);
-  static const Color _amber = Color(0xFFFFC857);
-  static const Color _green = Color(0xFF3DDC97);
-  static const Color _red = Color(0xFFFF5D73);
-  static const Color _blue = Color(0xFF5AA9FF);
-  static const Color _violet = Color(0xFF9B8CFF);
   final Map<String, DateTime> _lastFire = {};
   StreamSubscription<String>? _linkSub;
   StreamSubscription<String>? _remoteSub;
+  StreamSubscription<String>? _qualitySub;
+  VideoQuality _quality = VideoQuality.defaultQuality;
+  bool _qualityLoaded = false;
   bool _remoteStarted = false; // the control room started this recording, so only it may stop it remotely
   bool _sosFired = false;
   String? _currentFile;
@@ -201,7 +196,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       }
     });
 
-    ref.read(centralLinkProvider).sendStatus(recording: false);
+    _qualitySub = ref.read(centralLinkProvider).qualityCommands.listen((id) {
+      final q = VideoQuality.fromId(id);
+      if (q != null) _applyQuality(q);
+    });
+
+    ref.read(centralLinkProvider).sendStatus(recording: false, quality: _quality.id);
 
   }
 
@@ -259,6 +259,10 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
   Future<void> _initCamera() async {
     try {
+      if (!_qualityLoaded) {
+        _quality = await VideoQuality.load();
+        _qualityLoaded = true;
+      }
       if (_cameras == null) {
         _cameras = await availableCameras();
         debugPrint('CAMERAS: ${_cameras!.map((c) => '${c.name}/${c.lensDirection}').toList()}');
@@ -268,11 +272,11 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       }
       final list = _cameras;
       if (list != null && list.isNotEmpty) {
-        // This camera really delivers 640x480. Asking for 1280x720 only stretched the picture.
+        // Quality comes from the saved/remote setting (the camera supports 720p, 1080p and 4K at 30 fps).
         _controller = CameraController(
           list[_selectedCameraIndex],
-          ResolutionPreset.medium,
-          streamingPreset: ResolutionPreset.medium,
+          _quality.preset,
+          streamingPreset: _quality.preset,
           enableAudio: true,
         );
 
@@ -292,6 +296,31 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       } catch (_) {}
       _controller = null;
       if (mounted) setState(() => _isCameraInitialized = false);
+    }
+  }
+
+  /// The control room changed the quality (e.g. weak network). A running recording is stopped and
+  /// restarted at the new quality, so there is a short gap while the camera is reopened.
+  Future<void> _applyQuality(VideoQuality q) async {
+    if (q == _quality || _switching) return;
+    final wasRecording = isRecording;
+    final remote = _remoteStarted;
+    _switching = true;
+    try {
+      if (wasRecording) await _toggleRecording(silent: true);
+      _quality = q;
+      await q.save();
+      await _releaseCamera();
+      await _initCamera();
+      if (wasRecording && _isCameraInitialized) {
+        _switching = false;
+        _remoteStarted = remote; // the restarted recording keeps its origin (remote or officer)
+        await _toggleRecording(silent: true);
+      } else {
+        ref.read(centralLinkProvider).sendStatus(recording: false, quality: _quality.id);
+      }
+    } finally {
+      _switching = false;
     }
   }
 
@@ -478,7 +507,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       }
       _remoteStarted = false;
       if (mounted) setState(() => isRecording = false);
-      link.sendStatus(recording: false);
+      link.sendStatus(recording: false, quality: _quality.id);
       return;
     }
 
@@ -497,7 +526,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         await c.startVideoRecordingAndStreaming(
           path,
           CentralConfig.rtmpUrl,
-          bitrate: 1500 * 1024,
+          bitrate: _quality.bitrate,
         );
       } catch (e) {
         // Evidence must never depend on the network: fall back to local only.
@@ -515,7 +544,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
           _recordDurationInSeconds = 0;
         });
       }
-      link.sendStatus(recording: true);
+      link.sendStatus(recording: true, quality: _quality.id, remote: _remoteStarted);
       if (!silent) {
         HapticFeedback.mediumImpact();
         _toast(streamed ? 'Recording and streaming live' : 'Recording locally, stream is offline', error: !streamed);
@@ -652,15 +681,27 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     } catch (_) {}
   }
 
+  // Night vision = three things together: the IR-cut filter moves out of the way, the infrared LEDs
+  // light the scene, and the picture switches to black and white.
   Future<void> _toggleNightMode() async {
     final next = !_isNightModeOn;
-    final ok = await _prize('com.lxy.bw.sensormode', sensormode: next ? '1' : '0');
+    var ok = true;
+    if (next) {
+      ok = await _prize('lolaage.ircut.switch', open: 1) && ok;
+      await Future.delayed(const Duration(milliseconds: 500)); // let the filter motor finish
+      ok = await _prize('lolaage.ir.led', open: 1) && ok;
+      ok = await _prize('com.lxy.bw.sensormode', sensormode: '1') && ok;
+    } else {
+      ok = await _prize('com.lxy.bw.sensormode', sensormode: '0') && ok;
+      ok = await _prize('lolaage.ir.led', open: 0) && ok;
+      ok = await _prize('lolaage.ircut.switch', open: 0) && ok;
+    }
     if (!ok) {
-      _toast('Night mode failed', error: true);
+      _toast('Night vision failed', error: true);
       return;
     }
     if (mounted) setState(() => _isNightModeOn = next);
-    _toast(next ? 'Night mode on (black and white)' : 'Night mode off (colour)');
+    _toast(next ? 'Night vision on (infrared)' : 'Night vision off (colour)');
   }
 
   Future<void> _toggleLaserBtn() async {
@@ -790,6 +831,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
   @override
   void dispose() {
+    if (_isNightModeOn) {
+      // never leave the infrared LEDs on when the screen goes away
+      _prize('com.lxy.bw.sensormode', sensormode: '0');
+      _prize('lolaage.ir.led', open: 0);
+      _prize('lolaage.ircut.switch', open: 0);
+    }
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -802,6 +849,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     _toastTimer?.cancel();
     _linkSub?.cancel();
     _remoteSub?.cancel();
+    _qualitySub?.cancel();
     _controller?.dispose();
     super.dispose();
   }
@@ -812,105 +860,65 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     final isFront = cams != null &&
         cams.isNotEmpty &&
         cams[_selectedCameraIndex].lensDirection == CameraLensDirection.front;
+    final link = ref.read(centralLinkProvider);
 
     return Scaffold(
-      backgroundColor: _bgTop,
+      backgroundColor: Colors.black,
       body: HiddenAdminDoor(
         onUnlocked: () => _showAdminPinDialog(),
         child: Stack(
           children: [
-            const Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [_bgTop, _bgBottom],
+            Positioned.fill(child: _previewLayer(isFront)),
+            if (_showPhotoFlash)
+              Positioned.fill(child: Container(color: Colors.white.withValues(alpha: 0.8))),
+            // Darkening at the top and bottom keeps the controls readable on any picture.
+            const Positioned(
+              top: 0, left: 0, right: 0, height: 170,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xDD050B16), Color(0x00050B16)]),
                   ),
                 ),
               ),
             ),
-            Positioned.fill(child: _previewLayer(isFront)),
-            if (_showPhotoFlash)
-              Positioned.fill(child: Container(color: Colors.white.withValues(alpha: 0.8))),
+            const Positioned(
+              bottom: 0, left: 0, right: 0, height: 260,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: [Color(0xEE050B16), Color(0x00050B16)]),
+                  ),
+                ),
+              ),
+            ),
             SafeArea(
-              child: Column(
+              child: Stack(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  Positioned(top: 8, left: 14, right: 14, child: _topBar(link, isFront)),
+                  Positioned(
+                    left: 14, right: 14, bottom: 14,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const StatusOverlay(),
-                        if (_showKeyCodes)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text('Last key: $_lastKey', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                          ),
-                        const SizedBox(height: 6),
-                        Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          // 👈 Chat button with unread red dot badge
-                          ValueListenableBuilder<Map<String, int>>(
-                            valueListenable: ref.read(centralLinkProvider).unreadByChat,
-                            builder: (context, unreadMap, _) {
-                              final totalUnread = unreadMap.values.fold(0, (sum, count) => sum + count);
-                              return Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  _miniBtn(Icons.chat, _blue, () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => ChatScreen()),
-                                    );
-                                  }),
-                                  if (totalUnread > 0)
-                                    Positioned(
-                                      right: 2,
-                                      top: 2,
-                                      child: Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              );
-                            },
-                          ), 
-                            _miniBtn(_wide ? Icons.crop_portrait : Icons.crop_16_9, _blue, _toggleView),
-                            _miniBtn(Icons.flash_on, _amber, _toggleFlashLight, active: _isFlashOn),
-                            _miniBtn(Icons.nightlight_round, _violet, _toggleNightMode, active: _isNightModeOn),
-                            _miniBtn(Icons.flip_camera_ios, _blue, _switchCamera),
-                          ],
-                        ),
+                        _rail(link),
+                        const SizedBox(height: 12),
+                        if (_isCameraInitialized) _zoomPill(),
+                        const SizedBox(height: 14),
+                        _controls(),
                       ],
                     ),
-                  ),
-                  const Spacer(),
-                  if (_isCameraInitialized) _zoomRow(),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 14),
-                    child: _actions(),
                   ),
                 ],
               ),
             ),
             if (_toastMsg != null)
               Align(
-                alignment: const Alignment(0, 0.38),
+                alignment: const Alignment(0, 0.3),
                 child: IgnorePointer(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _toastErr ? const Color(0xFFB3263E) : _panel,
-                      borderRadius: BorderRadius.circular(22),
-                    ),
+                  child: HudGlass(
+                    tint: _toastErr ? const Color(0xE6B3263E) : const Color(0xCC131E33),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                     child: Text(
                       _toastMsg!,
                       textAlign: TextAlign.center,
@@ -919,6 +927,221 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
                   ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---- HUD pieces ---------------------------------------------------------
+  Widget _topBar(CentralLink link, bool isFront) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Image.asset('assets/images/logo_white.png', height: 22, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+            const Spacer(),
+            ValueListenableBuilder<bool>(
+              valueListenable: link.connected,
+              builder: (_, on, __) => HudChip(on ? 'LINK' : 'OFFLINE', dot: on ? Bwc.ok : Bwc.rec),
+            ),
+            const SizedBox(width: 6),
+            ValueListenableBuilder<bool>(
+              valueListenable: link.gpsFix,
+              builder: (_, fix, __) => HudChip(fix ? 'GPS' : 'GPS...', dot: fix ? Bwc.ok : Bwc.amber),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            HudChip(CentralConfig.cameraId),
+            const SizedBox(width: 6),
+            HudChip(isFront ? 'FRONT' : 'REAR', color: Bwc.blue),
+            const SizedBox(width: 6),
+            HudChip(_quality.id.toUpperCase(), color: Bwc.amber),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const HudClock(),
+            const Spacer(),
+            if (_showKeyCodes) Text('key: $_lastKey', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+          ],
+        ),
+        if (isRecording)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Center(
+              child: HudGlass(
+                tint: const Color(0xB3FF2D4F),
+                borderColor: Colors.white30,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.fiber_manual_record, color: Colors.white, size: 14),
+                    const SizedBox(width: 8),
+                    Text('REC  ${_formatDuration(_recordDurationInSeconds)}',
+                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _rail(CentralLink link) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ValueListenableBuilder<Map<String, int>>(
+          valueListenable: link.unreadByChat,
+          builder: (context, unreadMap, _) {
+            final unread = unreadMap.values.fold(0, (sum, count) => sum + count);
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                HudIconButton(
+                  icon: Icons.chat_bubble_rounded,
+                  color: Bwc.blue,
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen())),
+                ),
+                if (unread > 0)
+                  Positioned(
+                    right: -2, top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(color: Bwc.rec, borderRadius: BorderRadius.circular(10), boxShadow: [BoxShadow(color: Bwc.rec.withValues(alpha: 0.7), blurRadius: 8)]),
+                      child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        HudIconButton(icon: _wide ? Icons.crop_portrait : Icons.crop_16_9, color: Bwc.text, onTap: _toggleView),
+        HudIconButton(icon: Icons.flashlight_on_rounded, color: Bwc.amber, active: _isFlashOn, onTap: _toggleFlashLight),
+        HudIconButton(icon: Icons.nightlight_round, color: Bwc.brand, active: _isNightModeOn, onTap: _toggleNightMode),
+        HudIconButton(icon: Icons.flip_camera_android_rounded, color: Bwc.blue, onTap: _switchCamera),
+      ],
+    );
+  }
+
+  Widget _zoomPill() {
+    return HudGlass(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      child: Row(
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.remove, color: Bwc.amber, size: 20),
+            onPressed: () => _setZoomDirect(_currentZoomLevel - 0.5),
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(trackHeight: 3, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7), overlayShape: SliderComponentShape.noOverlay),
+              child: Slider(
+                value: _currentZoomLevel,
+                min: _minZoomLevel,
+                max: _maxZoomLevel,
+                activeColor: Bwc.amber,
+                inactiveColor: Colors.white24,
+                onChanged: _setZoomDirect,
+              ),
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add, color: Bwc.amber, size: 20),
+            onPressed: () => _setZoomDirect(_currentZoomLevel + 0.5),
+          ),
+          SizedBox(
+            width: 38,
+            child: Text('${_currentZoomLevel.toStringAsFixed(1)}x',
+                style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _controls() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        HudIconButton(icon: Icons.photo_camera_rounded, color: Bwc.text, size: 56, onTap: _takePhoto),
+        // Record: white ring, red core (square while recording).
+        GestureDetector(
+          onTap: _toggleRecording,
+          child: Container(
+            width: 88,
+            height: 88,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 4),
+              boxShadow: [BoxShadow(color: Bwc.rec.withValues(alpha: isRecording ? 0.6 : 0.25), blurRadius: 20)],
+            ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              decoration: BoxDecoration(
+                color: Bwc.rec,
+                borderRadius: BorderRadius.circular(isRecording ? 16 : 44),
+              ),
+              margin: EdgeInsets.all(isRecording ? 14 : 0),
+            ),
+          ),
+        ),
+        _holdBtn(label: 'SOS', color: Bwc.rec, active: _sosActive, progress: _sosProgress, onDown: _sosDown, onUp: _sosUp),
+        _holdBtn(label: 'PTT', color: Bwc.ok, active: _isPttActive, onDown: () => _setPtt(true), onUp: () => _setPtt(false)),
+      ],
+    );
+  }
+
+  // Press-and-hold button (SOS, PTT). Listener avoids gesture-arena delays.
+  Widget _holdBtn({
+    required String label,
+    required Color color,
+    required bool active,
+    double progress = 0,
+    required VoidCallback onDown,
+    required VoidCallback onUp,
+  }) {
+    return Listener(
+      onPointerDown: (_) => onDown(),
+      onPointerUp: (_) => onUp(),
+      onPointerCancel: (_) => onUp(),
+      child: SizedBox(
+        width: 66,
+        height: 66,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (progress > 0)
+              SizedBox(
+                width: 66,
+                height: 66,
+                child: CircularProgressIndicator(value: progress, strokeWidth: 4, color: Colors.white, backgroundColor: Colors.white24),
+              ),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: color.withValues(alpha: active ? 0.8 : 0.35), blurRadius: active ? 18 : 10)],
+              ),
+              child: HudGlass(
+                tint: active ? color.withValues(alpha: 0.85) : color.withValues(alpha: 0.32),
+                borderColor: color,
+                child: Center(child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.5))),
+              ),
+            ),
           ],
         ),
       ),
@@ -973,7 +1196,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     );
 
     if (!_wide) {
-      return Center(child: FittedBox(fit: BoxFit.contain, child: frame));
+      return SizedBox.expand(child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge, child: frame));
     }
     return LayoutBuilder(
       builder: (context, box) => Center(
@@ -984,149 +1207,6 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
             borderRadius: BorderRadius.circular(12),
             child: FittedBox(fit: BoxFit.cover, child: frame),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _miniBtn(IconData icon, Color color, VoidCallback onTap, {bool active = false}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        margin: const EdgeInsets.only(left: 8),
-        decoration: BoxDecoration(
-          color: active ? color.withValues(alpha: 0.28) : _panel,
-          shape: BoxShape.circle,
-          border: Border.all(color: active ? color : color.withValues(alpha: 0.45), width: active ? 2 : 1),
-        ),
-        child: Icon(icon, color: color, size: 22),
-      ),
-    );
-  }
-
-  Widget _zoomRow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.remove, color: _amber),
-            onPressed: () => _setZoomDirect(_currentZoomLevel - 0.5),
-          ),
-          Expanded(
-            child: Slider(
-              value: _currentZoomLevel,
-              min: _minZoomLevel,
-              max: _maxZoomLevel,
-              activeColor: _amber,
-              inactiveColor: Colors.white24,
-              onChanged: _setZoomDirect,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add, color: _amber),
-            onPressed: () => _setZoomDirect(_currentZoomLevel + 0.5),
-          ),
-          SizedBox(
-            width: 40,
-            child: Text('${_currentZoomLevel.toStringAsFixed(1)}x',
-                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _actions() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (isRecording)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.circle, color: Colors.red, size: 12),
-                const SizedBox(width: 8),
-                Text(_formatDuration(_recordDurationInSeconds),
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
-              ],
-            ),
-          ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            GestureDetector(
-              onTap: _takePhoto,
-              child: Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(color: _panel, shape: BoxShape.circle, border: Border.all(color: _blue, width: 2)),
-                child: const Icon(Icons.photo_camera, color: _blue, size: 26),
-              ),
-            ),
-            GestureDetector(
-              onTap: _toggleRecording,
-              child: Container(
-                width: 76,
-                height: 76,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isRecording ? Colors.red : Colors.red.withValues(alpha: 0.55),
-                  border: Border.all(color: Colors.white54, width: 3),
-                ),
-                child: Icon(isRecording ? Icons.stop : Icons.videocam, size: 38, color: Colors.white),
-              ),
-            ),
-            _holdBtn(label: 'SOS', color: Colors.red, active: _sosActive, progress: _sosProgress, onDown: _sosDown, onUp: _sosUp),
-            _holdBtn(label: 'PTT', color: Colors.green, active: _isPttActive, onDown: () => _setPtt(true), onUp: () => _setPtt(false)),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // Press-and-hold button (SOS, PTT). Listener avoids gesture-arena delays.
-  Widget _holdBtn({
-    required String label,
-    required Color color,
-    required bool active,
-    double progress = 0,
-    required VoidCallback onDown,
-    required VoidCallback onUp,
-  }) {
-    return Listener(
-      onPointerDown: (_) => onDown(),
-      onPointerUp: (_) => onUp(),
-      onPointerCancel: (_) => onUp(),
-      child: SizedBox(
-        width: 62,
-        height: 62,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (progress > 0)
-              SizedBox(
-                width: 62,
-                height: 62,
-                child: CircularProgressIndicator(value: progress, strokeWidth: 4, color: Colors.white, backgroundColor: Colors.white24),
-              ),
-            Container(
-              width: 52,
-              height: 52,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active ? color : color.withValues(alpha: 0.55),
-                border: Border.all(color: Colors.white54, width: 2),
-              ),
-              child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
-            ),
-          ],
         ),
       ),
     );

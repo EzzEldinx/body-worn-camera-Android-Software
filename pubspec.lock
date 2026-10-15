@@ -579,10 +579,9 @@ packages:
   rtmp_broadcaster:
     dependency: "direct main"
     description:
-      name: rtmp_broadcaster
-      sha256: a246cacef3e02b75c8f84d2e5d11b1d10155e228a872343c894a90618f145632
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/rtmp_broadcaster"
+      relative: true
+    source: path
     version: "3.1.1"
   sky_engine:
     dependency: transitive

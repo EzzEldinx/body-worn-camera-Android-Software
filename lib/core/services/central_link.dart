@@ -55,9 +55,15 @@ class CentralLink {
   /// Commands from the control room that the officer does not have to act on ('start' / 'stop' live stream).
   final _remote = StreamController<String>.broadcast();
   Stream<String> get remoteCommands => _remote.stream;
+
+  /// Quality changes requested by the control room ('240p' | '480p' | '720p' | '1080p' | '4k').
+  final _quality = StreamController<String>.broadcast();
+  Stream<String> get qualityCommands => _quality.stream;
   bool _pendingSos = false;
   int? _myAlarm;
 
+  final ValueNotifier<bool> connected = ValueNotifier(false); // link to the control room
+  final ValueNotifier<bool> gpsFix = ValueNotifier(false);
   final ValueNotifier<List<ChatMessage>> chatMessages = ValueNotifier([]);
   final ValueNotifier<List<ChatGroup>> chatGroups = ValueNotifier([]);
   final ValueNotifier<Map<String, int>> unreadByChat = ValueNotifier({});
@@ -119,6 +125,7 @@ class CentralLink {
 
     _socket!
       ..onConnect((_) {
+        connected.value = true;
         debugPrint('Connected to central server');
         _socket!.emit('register', {
           'id': CentralConfig.cameraId,
@@ -126,7 +133,10 @@ class CentralLink {
         });
         if (_pendingSos) _sendSos();
       })
-      ..onDisconnect((_) => debugPrint('Disconnected from central server'))
+      ..onDisconnect((_) {
+        connected.value = false;
+        debugPrint('Disconnected from central server');
+      })
 
       ..on('receive_message', (d) {
         if (d is Map) {
@@ -173,6 +183,10 @@ class CentralLink {
         }
       })
       
+      ..on('set_quality', (d) {
+        final q = d is Map ? d['quality'] : null;
+        if (q is String) _quality.add(q);
+      })
       ..on('remote_stream', (d) {
         final a = d is Map ? d['action'] : null;
         if (a == 'start' || a == 'stop') _remote.add(a as String);
@@ -205,6 +219,7 @@ class CentralLink {
   bool get _online => _socket?.connected == true;
 
   void _sendGps(Position p) {
+    gpsFix.value = true;
     if (!_online) return;
     _socket!.emit('camera_gps_update', {
       'cameraId': CentralConfig.cameraId,
@@ -242,10 +257,14 @@ class CentralLink {
     });
   }
 
-  void sendStatus({required bool recording}) {
+  void sendStatus({required bool recording, String? quality, bool? remote}) {
     if (!_online) return;
-    _socket!.emit('camera_status',
-        {'cameraId': CentralConfig.cameraId, 'recording': recording});
+    _socket!.emit('camera_status', {
+      'cameraId': CentralConfig.cameraId,
+      'recording': recording,
+      if (quality != null) 'quality': quality,
+      if (remote != null) 'remote': remote,
+    });
   }
 
   bool emitSos() {
@@ -275,6 +294,7 @@ class CentralLink {
     _socket?.dispose();
     _msgs.close();
     _remote.close();
+    _quality.close();
     chatMessages.dispose();
     chatGroups.dispose();
     unreadByChat.dispose();

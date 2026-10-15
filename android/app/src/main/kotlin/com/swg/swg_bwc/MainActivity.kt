@@ -89,24 +89,29 @@ class MainActivity : FlutterActivity() {
                         if (action == null || action !in allowed) {
                             result.error("prize", "action not allowed", null)
                         } else {
-                            try {
-                                val i = Intent(action)
-                                i.setClassName("com.pri.factorytest", "com.pri.factorytest.PrizeReceiver")
-                                call.argument<Int>("open")?.let { i.putExtra("open", it) }
-                                call.argument<Int>("value")?.let { i.putExtra("value", it) }
-                                call.argument<String>("sensormode")?.let { i.putExtra("sensormode", it) }
-                                val found = packageManager.queryBroadcastReceivers(i, 0).size
-                                Log.i("BWC", "prize action=$action receivers=$found")
-                                if (found == 0) {
-                                    result.error("prize", "system receiver not found", null)
-                                } else {
-                                    sendBroadcast(i)
-                                    Log.i("BWC", "prize sent: $action")
-                                    result.success(null)
+                            // A plain sendBroadcast() from the app never reaches the system receiver on this device,
+                            // while "am broadcast" run as the app's own user does. Run it off the UI thread.
+                            Thread {
+                                try {
+                                    val cmd = mutableListOf(
+                                        "am", "broadcast", "--user", "0",
+                                        "-a", action,
+                                        "-n", "com.pri.factorytest/com.pri.factorytest.PrizeReceiver"
+                                    )
+                                    call.argument<Int>("open")?.let { cmd += listOf("--ei", "open", it.toString()) }
+                                    call.argument<Int>("value")?.let { cmd += listOf("--ei", "value", it.toString()) }
+                                    call.argument<String>("sensormode")?.let { cmd += listOf("--es", "sensormode", it) }
+                                    val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
+                                    val out = proc.inputStream.bufferedReader().readText()
+                                    val code = proc.waitFor()
+                                    Log.i("BWC", "prize $action exit=$code ${out.trim().take(120)}")
+                                    runOnUiThread {
+                                        if (code == 0) result.success(null) else result.error("prize", "am exit $code", null)
+                                    }
+                                } catch (e: Exception) {
+                                    runOnUiThread { result.error("prize", e.message, null) }
                                 }
-                            } catch (e: Exception) {
-                                result.error("prize", e.message, null)
-                            }
+                            }.start()
                         }
                     }
                     "getBwMode" -> {
