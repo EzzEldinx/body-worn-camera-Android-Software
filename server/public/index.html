@@ -890,7 +890,7 @@ setInterval(() => {
     if (live && lastT.get(i) === v.currentTime) { lastT.delete(i); return renderTile(i); }
     lastT.set(i, v.currentTime);
   });
-}, 4000);
+}, 2500);
 
 function watch(id) {
   if (slots.includes(id)) return;
@@ -1181,6 +1181,14 @@ socket.on('connect', () => {
 
 socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; renderAlarms(); });
 socket.on('dashboard_cam', upsert);
+socket.on('stream_up', ({ cameraId }) => {
+  // the publisher restarted: rebuild any open tile for it (after a moment so the server has the first frames)
+  slots.forEach((id, i) => { if (id === cameraId) setTimeout(() => { if (slots[i] === id) { const t = document.querySelector(`.tile[data-i="${i}"]`); const keep = t && ['port', 'expanded'].some((c) => t.classList.contains(c)); renderTile(i); if (keep) syncTileLabel(i); } }, 700); });
+});
+function syncTileLabel(i) {
+  const t = document.querySelector(`.tile[data-i="${i}"]`); const l = t && t.querySelector('[data-f] .lbl');
+  if (l) l.textContent = t.classList.contains('port') ? (currentLang === 'ar' ? 'عرضي' : 'Landscape') : (currentLang === 'ar' ? 'طولي' : 'Portrait');
+}
 socket.on('dashboard_alarm_ack', ({ id }) => { const a = alarms.find((x) => x.id === id); if (a) { a.ack = true; renderAlarms(); } });
 socket.on('dashboard_cam_removed', ({ cameraId }) => {
   cams.delete(cameraId);

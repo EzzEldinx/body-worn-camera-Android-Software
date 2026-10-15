@@ -592,8 +592,15 @@ server.listen(PORT, () => console.log(`Central Dashboard is running on: http://l
 
 // RTMP media server. Stream key = cameraId, e.g. rtmp://HOST:1935/live/BWC-01
 // Playing needs a signed URL from /api/stream/:id (publishing stays open for the cameras).
-new NodeMediaServer({
+const nms = new NodeMediaServer({
     rtmp: { port: Number(process.env.RTMP_PORT) || 1935, chunk_size: 60000, gop_cache: true, ping: 10, ping_timeout: 20 },
     http: { port: Number(process.env.FLV_PORT) || 8000, allow_origin: '*' },
     auth: { play: true, publish: false, secret: STREAM_SECRET },
-}).run();
+});
+// When a camera (re)starts its stream (quality / camera switch / restart) tell the dashboards, so an open
+// live tile reconnects by itself instead of staying frozen until it is closed and opened again.
+nms.on('postPublish', (sid, streamPath) => {
+    const id = String(streamPath || '').split('/').pop();
+    if (id) toCam(id, 'stream_up', { cameraId: id, ts: Date.now() });
+});
+nms.run();
