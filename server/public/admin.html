@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Companies - VisionGuard</title>
+<link rel="stylesheet" href="/portal.css">
+<style>
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+.newco{display:flex;gap:10px;flex-wrap:wrap}
+.newco input{flex:1;min-width:200px}
+.co{margin-top:16px;padding:18px 20px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.co-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.co-head .logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--blue));box-shadow:0 4px 14px rgba(94,74,158,.4);flex:none}
+.co-head h2{margin:0;font-size:18px}
+.co-head .meta{color:var(--mut);font-size:12.5px}
+.co-head .sp{margin-left:auto}
+.sub{margin:16px 0 8px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--mut)}
+.users{display:grid;gap:8px}
+.user{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:11px;background:var(--raise);border:1px solid var(--line-soft)}
+.user .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--sel),#ff8a00);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--sel-ink);flex:none}
+.user b{font-size:14px}.user small{color:var(--mut);display:block;font-size:12px}
+.user .sp{margin-left:auto;display:flex;gap:6px}
+.adduser{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:8px;margin-top:10px}
+.adduser .pw{display:flex;gap:6px}.adduser .pw input{flex:1;min-width:0}
+@media (max-width:760px){.adduser{grid-template-columns:1fr}}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.cam{padding:5px 12px;border-radius:99px;font-size:12.5px;font-weight:600;background:color-mix(in srgb,var(--blue) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--blue) 35%,var(--line))}
+.cred{margin-top:12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ok) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line));font-size:13.5px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cred code{font-family:Consolas,monospace;font-size:13.5px;background:var(--panel);padding:3px 8px;border-radius:7px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse}
+td{padding:10px 6px;border-bottom:1px solid var(--line-soft);font-size:14px}
+tr:last-child td{border-bottom:0}
+td select{width:100%}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;background:var(--off)}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.empty{color:var(--mut);font-size:13.5px;padding:14px 0}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <div class="layout">
+    <section class="card">
+      <h3>Companies</h3>
+      <div class="newco">
+        <input id="coName" placeholder="New company name, e.g. Al Rajhi Security" maxlength="60">
+        <button class="btn pri" id="coAdd">Add company</button>
+      </div>
+      <div id="companies"></div>
+    </section>
+
+    <section class="card">
+      <h3>Camera assignment</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:13px">Choose which company owns each camera. That company's users see only their cameras.</p>
+      <table><tbody id="cams"></tbody></table>
+    </section>
+  </div>
+</main>
+
+<script src="/portal.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let data = { companies: [], cameras: [] };
+const lastCred = {};   // companyId -> { username, password } shown once after creating a user
+
+const api = (method, url, body) => fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
+  .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; });
+const load = () => api('GET', '/api/admin/companies').then((d) => { data = d; render(); });
+const fail = (e) => toast(e.message);
+const genPw = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (x) => c[x % c.length]).join(''); };
+
+function render() {
+  const byCo = (id) => data.cameras.filter((c) => c.companyId === id);
+  $('#companies').innerHTML = data.companies.length ? data.companies.map((co) => `
+    <div class="co" data-id="${co.id}">
+      <div class="co-head">
+        <div class="logo">${esc(co.name[0].toUpperCase())}</div>
+        <div><h2>${esc(co.name)}</h2><div class="meta">${co.users.length} user${co.users.length === 1 ? '' : 's'} · ${byCo(co.id).length} camera${byCo(co.id).length === 1 ? '' : 's'}</div></div>
+        <button class="btn sm danger sp" data-act="delco">Delete company</button>
+      </div>
+
+      <div class="sub">Assigned cameras</div>
+      <div class="chips">${byCo(co.id).map((c) => `<span class="cam">${esc(c.id)}</span>`).join('') || '<span class="muted" style="font-size:13px">None yet. Assign cameras from the list on the right.</span>'}</div>
+
+      <div class="sub">Users</div>
+      <div class="users">${co.users.map((u) => `
+        <div class="user" data-uid="${u.id}"><div class="av">${esc(u.username[0].toUpperCase())}</div>
+          <div><b>${esc(u.username)}</b><small>${esc(u.name)}</small></div>
+          <div class="sp"><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>`).join('') || '<div class="empty">No users yet.</div>'}</div>
+      ${lastCred[co.id] ? `<div class="cred">Login to give to the customer: <code>${esc(lastCred[co.id].username)}</code> <code>${esc(lastCred[co.id].password)}</code>
+        <button class="btn sm" data-act="copy">Copy</button><span class="muted" style="font-size:12px">Shown only now. Save it.</span></div>` : ''}
+      <div class="adduser">
+        <input class="nu" placeholder="Username" maxlength="32" autocomplete="off">
+        <input class="nn" placeholder="Display name (optional)" maxlength="60">
+        <div class="pw"><input class="np" placeholder="Password (8+)" autocomplete="new-password"><button class="btn sm" data-act="gen" type="button">Generate</button></div>
+        <button class="btn pri" data-act="adduser">Add user</button>
+      </div>
+    </div>`).join('') : '<div class="empty">No companies yet. Add your first customer above.</div>';
+
+  $('#cams').innerHTML = data.cameras.length ? data.cameras.map((c) => `
+    <tr data-cam="${esc(c.id)}"><td style="width:46%"><span class="dot ${c.online ? 'on' : ''}"></span><b>${esc(c.id)}</b>${c.name && c.name !== c.id ? `<div class="muted" style="font-size:12px;margin-left:17px">${esc(c.name)}</div>` : ''}</td>
+      <td><select>${'<option value="">Unassigned</option>' + data.companies.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select></td></tr>`).join('')
+    : '<tr><td class="empty">No cameras have connected yet. They appear here as soon as one connects.</td></tr>';
+}
+
+$('#coAdd').onclick = () => {
+  const name = $('#coName').value.trim();
+  if (!name) return;
+  api('POST', '/api/admin/companies', { name }).then(() => { $('#coName').value = ''; toast('Company added'); return load(); }).catch(fail);
+};
+$('#coName').onkeydown = (e) => { if (e.key === 'Enter') $('#coAdd').click(); };
+
+$('#companies').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const co = b.closest('.co'), id = Number(co.dataset.id), act = b.dataset.act;
+  if (act === 'gen') { co.querySelector('.np').value = genPw(); return; }
+  if (act === 'copy') { const c = lastCred[id]; navigator.clipboard?.writeText(`Username: ${c.username}\nPassword: ${c.password}`).then(() => toast('Copied')); return; }
+  if (act === 'adduser') {
+    const username = co.querySelector('.nu').value.trim(), password = co.querySelector('.np').value, name = co.querySelector('.nn').value.trim();
+    api('POST', `/api/admin/companies/${id}/users`, { username, password, name })
+      .then(() => { lastCred[id] = { username, password }; toast('User created'); return load(); }).catch(fail);
+  } else if (act === 'deluser') {
+    if (confirm('Remove this user? They will be signed out immediately.')) api('DELETE', `/api/admin/users/${b.closest('.user').dataset.uid}`).then(load).catch(fail);
+  } else if (act === 'pw') {
+    const pw = prompt('New password (8+ characters):', genPw());
+    if (pw) api('POST', `/api/admin/users/${b.closest('.user').dataset.uid}/password`, { password: pw })
+      .then(() => { toast('Password changed. Share it with the customer.'); }).catch(fail);
+  } else if (act === 'delco') {
+    if (confirm('Delete this company and all of its users? Its cameras become unassigned.')) api('DELETE', `/api/admin/companies/${id}`).then(() => { delete lastCred[id]; return load(); }).catch(fail);
+  }
+});
+
+$('#cams').addEventListener('change', (e) => {
+  const sel = e.target.closest('select'); if (!sel) return;
+  api('PUT', `/api/admin/cameras/${encodeURIComponent(sel.closest('tr').dataset.cam)}/company`, { companyId: sel.value === '' ? null : Number(sel.value) })
+    .then(() => { toast('Camera assignment saved'); return load(); }).catch((err) => { fail(err); load(); });
+});
+
+portalReady.then(load);
+</script>
+</body>
+</html>

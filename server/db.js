@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const dir = path.join(__dirname, 'data');
+const dir = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(dir, { recursive: true });
 const db = new DatabaseSync(path.join(dir, 'bwc.db'));
 
@@ -16,7 +16,17 @@ CREATE TABLE IF NOT EXISTS cameras(id TEXT PRIMARY KEY, name TEXT, grp TEXT, cre
 CREATE TABLE IF NOT EXISTS alarms(id INTEGER PRIMARY KEY AUTOINCREMENT, camera_id TEXT NOT NULL, lat REAL, lng REAL, ts INTEGER NOT NULL, ack_by TEXT, ack_ts INTEGER);
 CREATE TABLE IF NOT EXISTS positions(id INTEGER PRIMARY KEY AUTOINCREMENT, camera_id TEXT NOT NULL, lat REAL NOT NULL, lng REAL NOT NULL, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS pos_cam_ts ON positions(camera_id, ts);
+CREATE TABLE IF NOT EXISTS companies(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, created INTEGER NOT NULL);
 `);
+
+// Multi-company: users and cameras may belong to a company (NULL = Smart Way staff / unassigned).
+function addColumn(table, col, ddl) {
+    if (!db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col)) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`);
+    }
+}
+addColumn('users', 'company_id', 'INTEGER');
+addColumn('cameras', 'company_id', 'INTEGER');
 
 function hashPassword(pw) {
     const salt = crypto.randomBytes(16).toString('hex');

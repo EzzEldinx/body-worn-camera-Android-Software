@@ -9,6 +9,8 @@ const { db, hashPassword, verifyPassword } = require('./db');
 // Cameras present this shared token for now (per-device tokens come later).
 const CAMERA_TOKEN = process.env.BWC_TOKEN || 'change-me';
 if (CAMERA_TOKEN === 'change-me') console.warn('WARNING: BWC_TOKEN is not set. Using the insecure default.');
+// Live-stream play URLs are signed per request; the secret only lives in memory.
+const STREAM_SECRET = process.env.STREAM_SECRET || crypto.randomBytes(24).toString('hex');
 const DAY = 86400000;
 
 // ---------- First run: create the admin account ----------
@@ -30,9 +32,13 @@ const parseCookie = (h = '') => Object.fromEntries(
 const userFromCookie = (header) => {
     const t = parseCookie(header).sid;
     if (!t) return null;
-    return db.prepare(`SELECT u.id,u.username,u.name,u.role FROM sessions s
-        JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.exp > ?`).get(t, Date.now()) || null;
+    return db.prepare(`SELECT u.id,u.username,u.name,u.role,u.company_id AS companyId,c.name AS company
+        FROM sessions s JOIN users u ON u.id = s.user_id LEFT JOIN companies c ON c.id = u.company_id
+        WHERE s.token = ? AND s.exp > ?`).get(t, Date.now()) || null;
 };
+// Smart Way staff have no company and see every camera; company users only see their own.
+const isStaff = (u) => !u.companyId;
+const isSuper = (u) => u.role === 'admin' && !u.companyId;
 
 // ---------- Camera registry (database + live state) ----------
 const cams = new Map();  // cameraId -> state sent to dashboards
@@ -42,23 +48,46 @@ for (const r of db.prepare('SELECT * FROM cameras').all()) {
     const p = db.prepare('SELECT lat,lng,ts FROM positions WHERE camera_id=? ORDER BY ts DESC LIMIT 1').get(r.id);
     cams.set(r.id, {
         cameraId: r.id, name: r.name || r.id, grp: r.grp || '', online: false, recording: false,
-        lat: p ? p.lat : null, lng: p ? p.lng : null, ts: p ? p.ts : 0,
+        lat: p ? p.lat : null, lng: p ? p.lng : null, ts: p ? p.ts : 0, companyId: r.company_id || null,
     });
 }
+const canSee = (u, camId) => isStaff(u) || cams.get(camId)?.companyId === u.companyId;
+const visibleCams = (u) => [...cams.values()].filter((c) => isStaff(u) || c.companyId === u.companyId);
+
+// Dashboards of Smart Way staff join room:admin; company dashboards join room:company_<id>.
+const roomsFor = (id) => {
+    const cid = cams.get(id)?.companyId;
+    return cid ? ['room:admin', `room:company_${cid}`] : ['room:admin'];
+};
+const toCam = (id, event, data) => io.to(roomsFor(id)).emit(event, data);
+
 function publish(id, patch) {
     if (!cams.has(id)) {
         db.prepare('INSERT OR IGNORE INTO cameras(id,name,grp,created) VALUES(?,?,?,?)').run(id, id, '', Date.now());
     }
     const state = {
-        cameraId: id, name: id, grp: '', online: false, recording: false, lat: null, lng: null, ts: 0,
+        cameraId: id, name: id, grp: '', online: false, recording: false, lat: null, lng: null, ts: 0, companyId: null,
         ...cams.get(id), ...patch,
     };
     cams.set(id, state);
-    io.emit('dashboard_cam', state);
+    toCam(id, 'dashboard_cam', state);
 }
-const recentAlarms = () => db.prepare(
-    'SELECT id,camera_id,lat,lng,ts,ack_ts FROM alarms ORDER BY id DESC LIMIT 100').all()
-    .map((r) => ({ id: r.id, cameraId: r.camera_id, lat: r.lat, lng: r.lng, ts: r.ts, ack: r.ack_ts != null }));
+const alarmRow = (r) => ({ id: r.id, cameraId: r.camera_id, lat: r.lat, lng: r.lng, ts: r.ts, ack: r.ack_ts != null });
+const recentAlarms = (u) => (isStaff(u)
+    ? db.prepare('SELECT id,camera_id,lat,lng,ts,ack_ts FROM alarms ORDER BY id DESC LIMIT 100').all()
+    : db.prepare(`SELECT a.id,a.camera_id,a.lat,a.lng,a.ts,a.ack_ts FROM alarms a
+        JOIN cameras c ON c.id = a.camera_id WHERE c.company_id = ? ORDER BY a.id DESC LIMIT 100`).all(u.companyId)
+).map(alarmRow);
+
+// Move a camera to a company (or back to unassigned) and keep every live view consistent.
+function assignCamera(id, companyId) {
+    const old = cams.get(id)?.companyId || null;
+    db.prepare('UPDATE cameras SET company_id = ? WHERE id = ?').run(companyId, id);
+    if (old && old !== companyId) io.to(`room:company_${old}`).emit('dashboard_cam_removed', { cameraId: id });
+    publish(id, { companyId });
+    const s = live.get(id) && io.sockets.sockets.get(live.get(id));
+    if (s) { s.leave(`room:public_${old || 0}`); s.join(`room:public_${companyId || 0}`); }
+}
 
 // ---------- HTTP: login, API, pages ----------
 const app = express();
@@ -73,7 +102,7 @@ const needUser = (req, res, next) => {
     res.redirect('/login.html');
 };
 const needAdmin = (req, res, next) =>
-    req.user.role === 'admin' ? next() : res.status(403).json({ error: 'Admins only.' });
+    isSuper(req.user) ? next() : res.status(403).json({ error: 'Admins only.' });
 
 const fails = new Map();
 app.post('/api/login', (req, res) => {
@@ -98,7 +127,7 @@ app.post('/api/logout', (req, res) => {
     res.setHeader('Set-Cookie', 'sid=; Max-Age=0; Path=/');
     res.json({ ok: true });
 });
-app.get('/api/me', needUser, (req, res) => res.json(req.user));
+app.get('/api/me', needUser, (req, res) => res.json({ ...req.user, staff: isStaff(req.user), super: isSuper(req.user) }));
 
 app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     const id = str(req.params.id);
@@ -112,14 +141,145 @@ app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {
 app.delete('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     const id = str(req.params.id);
     if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
+    const rooms = roomsFor(id);
     db.prepare('DELETE FROM cameras WHERE id = ?').run(id);
     cams.delete(id); live.delete(id);
-    io.emit('dashboard_cam_removed', { cameraId: id });
+    io.to(rooms).emit('dashboard_cam_removed', { cameraId: id });
     res.json({ ok: true });
 });
 
-app.get(['/', '/index.html'], needUser, (req, res) =>
-    res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// Signed play URL: only users allowed to see a camera can obtain a stream signature for it.
+app.get('/api/stream/:id', needUser, (req, res) => {
+    const id = str(req.params.id);
+    if (!id || !cams.has(id) || !canSee(req.user, id)) return res.status(404).json({ error: 'Camera not found.' });
+    const exp = Math.floor(Date.now() / 1000) + 6 * 3600;
+    const hash = crypto.createHash('md5').update(`/live/${id}-${exp}-${STREAM_SECRET}`).digest('hex');
+    res.json({ sign: `${exp}-${hash}` });
+});
+
+// ---------- Analytics (scoped to the signed-in user) ----------
+app.get('/api/analytics', needUser, (req, res) => {
+    const u = req.user, now = Date.now();
+    const list = visibleCams(u);
+    const ids = new Set(list.map((c) => c.cameraId));
+    const alarms = (isStaff(u)
+        ? db.prepare('SELECT camera_id,ts,ack_ts FROM alarms WHERE ts > ?').all(now - 30 * DAY)
+        : db.prepare(`SELECT a.camera_id,a.ts,a.ack_ts FROM alarms a JOIN cameras c ON c.id=a.camera_id
+            WHERE c.company_id = ? AND a.ts > ?`).all(u.companyId, now - 30 * DAY));
+    const acked = alarms.filter((a) => a.ack_ts != null);
+    const avgResponse = acked.length ? Math.round(acked.reduce((s, a) => s + (a.ack_ts - a.ts), 0) / acked.length / 1000) : null;
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(now - i * DAY); d.setHours(0, 0, 0, 0);
+        const from = d.getTime();
+        days.push({ day: d.toLocaleDateString('en', { weekday: 'short' }), count: alarms.filter((a) => a.ts >= from && a.ts < from + DAY).length });
+    }
+    const groups = {};
+    list.forEach((c) => { const g = c.grp || '-'; groups[g] = (groups[g] || 0) + 1; });
+    const gps = [...ids].length
+        ? db.prepare('SELECT camera_id FROM positions WHERE ts > ?').all(now - DAY).filter((p) => ids.has(p.camera_id)).length : 0;
+    const out = {
+        scope: { staff: isStaff(u), company: u.company || null },
+        fleet: {
+            total: list.length, online: list.filter((c) => c.online).length, recording: list.filter((c) => c.recording).length,
+            offline: list.filter((c) => !c.online).length,
+        },
+        alarms: { total: alarms.length, open: alarms.filter((a) => a.ack_ts == null).length, acked: acked.length, avgResponseSec: avgResponse, days },
+        groups: Object.entries(groups).map(([name, count]) => ({ name, count })),
+        gpsPoints24h: gps,
+    };
+    if (isStaff(u)) {
+        const names = new Map(db.prepare('SELECT id,name FROM companies').all().map((c) => [c.id, c.name]));
+        const per = {};
+        list.forEach((c) => { const n = c.companyId ? names.get(c.companyId) : 'Unassigned'; per[n || 'Unassigned'] = (per[n || 'Unassigned'] || 0) + 1; });
+        out.companies = Object.entries(per).map(([name, count]) => ({ name, count }));
+        out.totals = { companies: names.size, users: db.prepare('SELECT COUNT(*) n FROM users').get().n };
+    }
+    res.json(out);
+});
+
+// ---------- Company management (Smart Way administrators only) ----------
+const adminOnly = [needUser, needAdmin];
+app.get('/api/admin/companies', adminOnly, (req, res) => {
+    const companies = db.prepare('SELECT id,name FROM companies ORDER BY name').all().map((c) => ({
+        ...c,
+        users: db.prepare('SELECT id,username,name FROM users WHERE company_id = ? ORDER BY username').all(c.id),
+    }));
+    const cameras = [...cams.values()].map((c) => ({ id: c.cameraId, name: c.name, companyId: c.companyId, online: c.online }));
+    res.json({ companies, cameras });
+});
+app.post('/api/admin/companies', adminOnly, (req, res) => {
+    const name = String(req.body?.name ?? '').trim().slice(0, 60);
+    if (name.length < 2) return res.status(400).json({ error: 'Company name is too short.' });
+    try {
+        const r = db.prepare('INSERT INTO companies(name,created) VALUES(?,?)').run(name, Date.now());
+        res.json({ ok: true, id: Number(r.lastInsertRowid) });
+    } catch (e) { res.status(409).json({ error: 'A company with this name already exists.' }); }
+});
+function kickUsers(userIds) {
+    for (const s of io.sockets.sockets.values()) if (userIds.includes(s.data.user?.id)) s.disconnect(true);
+}
+app.delete('/api/admin/companies/:id', adminOnly, (req, res) => {
+    const id = Number(req.params.id);
+    if (!db.prepare('SELECT 1 FROM companies WHERE id = ?').get(id)) return res.status(404).json({ error: 'Company not found.' });
+    for (const c of cams.values()) if (c.companyId === id) assignCamera(c.cameraId, null);
+    const uids = db.prepare('SELECT id FROM users WHERE company_id = ?').all(id).map((r) => r.id);
+    uids.forEach((uid) => db.prepare('DELETE FROM sessions WHERE user_id = ?').run(uid));
+    db.prepare('DELETE FROM users WHERE company_id = ?').run(id);
+    db.prepare('DELETE FROM companies WHERE id = ?').run(id);
+    kickUsers(uids);
+    res.json({ ok: true });
+});
+app.post('/api/admin/companies/:id/users', adminOnly, (req, res) => {
+    const id = Number(req.params.id);
+    if (!db.prepare('SELECT 1 FROM companies WHERE id = ?').get(id)) return res.status(404).json({ error: 'Company not found.' });
+    const username = String(req.body?.username ?? '').trim();
+    const password = String(req.body?.password ?? '');
+    const name = String(req.body?.name ?? '').trim().slice(0, 60) || username;
+    if (!/^[\w.-]{3,32}$/.test(username)) return res.status(400).json({ error: 'Username: 3-32 letters, numbers, . _ -' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    try {
+        db.prepare('INSERT INTO users(username,name,pass,role,company_id) VALUES(?,?,?,?,?)')
+            .run(username, name, hashPassword(password), 'client', id);
+        res.json({ ok: true });
+    } catch (e) { res.status(409).json({ error: 'This username is already taken.' }); }
+});
+const clientUser = (id) => db.prepare("SELECT id FROM users WHERE id = ? AND company_id IS NOT NULL").get(Number(id));
+app.delete('/api/admin/users/:id', adminOnly, (req, res) => {
+    const u = clientUser(req.params.id);
+    if (!u) return res.status(404).json({ error: 'User not found.' });
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(u.id);
+    kickUsers([u.id]);
+    res.json({ ok: true });
+});
+app.post('/api/admin/users/:id/password', adminOnly, (req, res) => {
+    const u = clientUser(req.params.id);
+    const password = String(req.body?.password ?? '');
+    if (!u) return res.status(404).json({ error: 'User not found.' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    db.prepare('UPDATE users SET pass = ? WHERE id = ?').run(hashPassword(password), u.id);
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id);
+    kickUsers([u.id]);
+    res.json({ ok: true });
+});
+app.put('/api/admin/cameras/:id/company', adminOnly, (req, res) => {
+    const id = str(req.params.id);
+    if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
+    const raw = req.body?.companyId;
+    const companyId = raw === null || raw === '' || raw === undefined ? null : Number(raw);
+    if (companyId !== null && !db.prepare('SELECT 1 FROM companies WHERE id = ?').get(companyId)) {
+        return res.status(404).json({ error: 'Company not found.' });
+    }
+    assignCamera(id, companyId);
+    res.json({ ok: true });
+});
+
+// ---------- Pages ----------
+const page = (file) => (req, res) => res.sendFile(path.join(__dirname, 'public', file));
+app.get(['/', '/index.html'], needUser, page('index.html'));
+app.get('/analytics.html', needUser, page('analytics.html'));
+app.get('/admin.html', needUser, (req, res, next) => (isSuper(req.user) ? page('admin.html')(req, res) : res.redirect('/analytics.html')));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ---------- Sockets ----------
@@ -133,69 +293,75 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
     console.log(`${socket.data.role} connected:`, socket.id);
 
-
-    // --- ضيف السطور دي في بداية io.on('connection') ---
-    socket.join('room:public');
-    if (socket.data.role === 'dashboard') {
-        socket.join('room:admin');
+    const isDash = socket.data.role === 'dashboard';
+    const user = socket.data.user;
+    socket.join('room:public'); // staff broadcasts reach everyone
+    if (isDash) {
+        if (isStaff(user)) { socket.join('room:admin'); socket.join('room:public_0'); }
+        else { socket.join(`room:company_${user.companyId}`); socket.join(`room:public_${user.companyId}`); }
     }
 
-    // --- أحداث الـ Chat الجديدة ---
+    // --- Chat ---
     socket.on('create_group', (data) => {
-        if (socket.data.role !== 'dashboard') return;
-        const { groupId, cameraIds } = data;
-        if (!groupId || !Array.isArray(cameraIds)) return;
-        
-        cameraIds.forEach((camId) => {
-            const socketId = live.get(camId);
-            if (socketId) {
-                const targetSocket = io.sockets.sockets.get(socketId);
-                if (targetSocket) {
-                    targetSocket.join(`room:group_${groupId}`);
-                }
-            }
+        if (!isDash) return;
+        const { groupId, cameraIds } = data || {};
+        if (!str(groupId) || !Array.isArray(cameraIds)) return;
+        cameraIds.filter((camId) => str(camId) && canSee(user, camId)).forEach((camId) => {
+            const sid = live.get(camId);
+            const target = sid && io.sockets.sockets.get(sid);
+            if (target) target.join(`room:group_${groupId}`);
         });
         socket.join(`room:group_${groupId}`);
-        console.log(`Group chat created: ${groupId} with cameras:`, cameraIds);
     });
 
     socket.on('send_message', (payload) => {
-        if (!payload || !payload.chatType) return;
-        const senderId = socket.data.role === 'dashboard' ? 'ADMIN' : (socket.data.cameraId || 'UNKNOWN');
-        const senderName = socket.data.role === 'dashboard' ? (socket.data.user?.name || 'Admin') : senderId;
-        const enrichedPayload = { ...payload, senderId, senderName, timestamp: Date.now() };
+        if (!payload || !['PUBLIC', 'PRIVATE', 'GROUP'].includes(payload.chatType)) return;
+        const senderId = isDash ? 'ADMIN' : (socket.data.cameraId || 'UNKNOWN');
+        const senderName = isDash ? (user.name || 'Admin') : senderId;
+        const msg = {
+            chatType: payload.chatType,
+            targetId: String(payload.targetId ?? '').slice(0, 64),
+            message: String(payload.message ?? '').slice(0, 2000),
+            senderId, senderName, timestamp: Date.now(),
+        };
+        if (typeof payload.audio === 'string' && payload.audio.startsWith('data:audio/') && payload.audio.length < 12e6) msg.audio = payload.audio;
 
-        if (payload.chatType === 'PUBLIC') {
-            io.to('room:public').emit('receive_message', enrichedPayload);
-        } else if (payload.chatType === 'PRIVATE') {
-            io.to(`room:camera_${payload.targetId}`).emit('receive_message', enrichedPayload);
-            io.to('room:admin').emit('receive_message', enrichedPayload);
-        } else if (payload.chatType === 'GROUP') {
-            io.to(`room:group_${payload.targetId}`).emit('receive_message', enrichedPayload);
+        // company of the sender: dashboard user's company or the camera's assigned company (0 = Smart Way / none)
+        const scope = isDash ? (user.companyId || 0) : (cams.get(socket.data.cameraId)?.companyId || 0);
+        if (msg.chatType === 'PUBLIC') {
+            if (isDash && isStaff(user)) io.to('room:public').emit('receive_message', msg);
+            else io.to(['room:admin', `room:public_${scope}`]).emit('receive_message', msg);
+        } else if (msg.chatType === 'PRIVATE') {
+            const camId = isDash ? msg.targetId : (socket.data.cameraId || str(payload.targetId)); // a camera can only talk in its own thread
+            if (!camId || !cams.has(camId) || (isDash && !canSee(user, camId))) return;
+            if (!isDash && !socket.data.cameraId) { bind(camId); msg.senderId = msg.senderName = camId; }
+            msg.targetId = camId;
+            io.to([`room:camera_${camId}`, ...roomsFor(camId)]).emit('receive_message', msg);
+        } else if (socket.rooms.has(`room:group_${msg.targetId}`)) {
+            io.to(`room:group_${msg.targetId}`).emit('receive_message', msg);
         }
     });
 
-
-
-
-    if (socket.data.role === 'dashboard') {
-        socket.emit('dashboard_snapshot', { cams: [...cams.values()], alarms: recentAlarms() });
+    if (isDash) {
+        socket.emit('dashboard_snapshot', { cams: visibleCams(user), alarms: recentAlarms(user) });
         socket.on('ack_alarm', (id) => {
             id = Number(id);
             if (!Number.isInteger(id)) return;
+            const a = db.prepare('SELECT camera_id FROM alarms WHERE id = ?').get(id);
+            if (!a || !canSee(user, a.camera_id)) return;
             db.prepare('UPDATE alarms SET ack_by=?, ack_ts=? WHERE id=? AND ack_ts IS NULL')
-                .run(socket.data.user.username, Date.now(), id);
-            io.emit('dashboard_alarm_ack', { id });
+                .run(user.username, Date.now(), id);
+            toCam(a.camera_id, 'dashboard_alarm_ack', { id });
         });
         return;
     }
 
-    const bind = (id) => { 
-        socket.data.cameraId = id; 
-        live.set(id, socket.id); 
-        socket.join(`room:camera_${id}`); // 👈 ضيف السطر ده هنا
+    const bind = (id) => {
+        socket.data.cameraId = id;
+        live.set(id, socket.id);
+        socket.join(`room:camera_${id}`);
+        socket.join(`room:public_${cams.get(id)?.companyId || 0}`);
     };
-
 
     socket.on('camera_gps_update', (d) => {
         const id = str(d?.cameraId);
@@ -229,9 +395,10 @@ io.on('connection', (socket) => {
         const id = str(d?.cameraId);
         if (!id) return;
         bind(id);
+        if (!cams.has(id)) publish(id, { online: true });
         const lat = num(d.lat, -90, 90), lng = num(d.lng, -180, 180), ts = Date.now();
         const r = db.prepare('INSERT INTO alarms(camera_id,lat,lng,ts) VALUES(?,?,?,?)').run(id, lat, lng, ts);
-        io.emit('dashboard_sos', { id: Number(r.lastInsertRowid), cameraId: id, lat, lng, ts, ack: false });
+        toCam(id, 'dashboard_sos', { id: Number(r.lastInsertRowid), cameraId: id, lat, lng, ts, ack: false });
     });
 
     socket.on('disconnect', () => {
@@ -243,10 +410,13 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(3000, () => console.log('Central Dashboard is running on: http://localhost:3000'));
+const PORT = Number(process.env.PORT) || 3000;
+server.listen(PORT, () => console.log(`Central Dashboard is running on: http://localhost:${PORT}`));
 
 // RTMP media server. Stream key = cameraId, e.g. rtmp://HOST:1935/live/BWC-01
+// Playing needs a signed URL from /api/stream/:id (publishing stays open for the cameras).
 new NodeMediaServer({
-    rtmp: { port: 1935, chunk_size: 60000, gop_cache: true, ping: 10, ping_timeout: 20 },
-    http: { port: 8000, allow_origin: '*' },
+    rtmp: { port: Number(process.env.RTMP_PORT) || 1935, chunk_size: 60000, gop_cache: true, ping: 10, ping_timeout: 20 },
+    http: { port: Number(process.env.FLV_PORT) || 8000, allow_origin: '*' },
+    auth: { play: true, publish: false, secret: STREAM_SECRET },
 }).run();

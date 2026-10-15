@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analytics - VisionGuard</title>
+<link rel="stylesheet" href="/portal.css">
+<style>
+.hero{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:26px 30px;border:0;color:#fff;position:relative;overflow:hidden;
+  background:radial-gradient(700px 300px at 90% 0,rgba(47,123,255,.5),transparent 65%),radial-gradient(600px 300px at 0 100%,rgba(124,92,255,.55),transparent 65%),linear-gradient(135deg,#1B1442,#0E1B45)}
+.hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(90deg,transparent,#000 70%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 70%)}
+.hero>*{position:relative}
+.hero h1{margin:0 0 6px;font-size:clamp(24px,3vw,34px);font-weight:800;letter-spacing:-.3px}
+.hero h1 span{background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin:0;color:rgba(232,238,247,.8);font-size:14.5px}
+.live{display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:rgba(232,238,247,.75)}
+.live i{width:8px;height:8px;border-radius:50%;background:#2EE6A6;animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,230,166,.7)}100%{box-shadow:0 0 0 10px rgba(46,230,166,0)}}
+
+/* gauge */
+.gauge{display:flex;align-items:center;gap:18px}
+.gauge svg{width:112px;height:112px;flex:none}
+.gauge .track{stroke:var(--line-soft)}
+.gauge .val{transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 6px var(--c))}
+.gauge b{font-size:34px;line-height:1;display:block}
+.gauge small{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.8px}
+.gauge .sub{margin-top:6px;color:var(--mut);font-size:12.5px}
+.gauge .pct{font-size:15px;font-weight:700}
+/* donut */
+.donutwrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.donutwrap svg{width:150px;height:150px;flex:none}
+.donutwrap .c1{font-size:26px;font-weight:800;fill:var(--text)}
+.donutwrap .c2{font-size:10px;fill:var(--mut);letter-spacing:.8px;text-transform:uppercase}
+.legend{display:grid;gap:9px;min-width:130px;flex:1}
+.legend div{display:flex;align-items:center;gap:9px;font-size:13.5px}
+.legend i{width:11px;height:11px;border-radius:4px;flex:none}
+.legend b{margin-left:auto;font-size:15px}
+.empty{color:var(--mut);font-size:13px;padding:18px 0}
+/* bars */
+.bars{display:flex;align-items:flex-end;gap:12px;height:190px;padding-top:10px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px;height:100%}
+.bar i{width:100%;max-width:46px;border-radius:9px 9px 3px 3px;background:linear-gradient(180deg,var(--sel),#ff8a00);box-shadow:0 4px 14px rgba(255,179,0,.35);min-height:4px;transition:height .9s cubic-bezier(.2,.8,.2,1)}
+.bar b{font-size:13px}
+.bar span{font-size:11.5px;color:var(--mut)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stat{padding:14px;border-radius:14px;background:var(--raise);border:1px solid var(--line-soft)}
+.stat b{display:block;font-size:26px}
+.stat span{font-size:11.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.7px}
+/* flow */
+.flow{width:100%;height:auto;display:block}
+.flow .node rect{fill:var(--panel);stroke:var(--line);stroke-width:1.5;filter:drop-shadow(0 4px 10px rgba(15,27,45,.12))}
+.flow .node.core rect{fill:url(#coreGrad);stroke:none}
+.flow .node text{fill:var(--text);font-family:inherit}
+.flow .node.core text{fill:#fff}
+.flow .t{font-size:14px;font-weight:700}
+.flow .v{font-size:22px;font-weight:800}
+.flow .s{font-size:11.5px;fill:var(--mut)!important}
+.flow .node.core .s{fill:rgba(255,255,255,.78)!important}
+.flow .ico{fill:none;stroke:var(--accent-text);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.flow .node.core .ico{stroke:#FFC857}
+.flow .path{fill:none;stroke:var(--blue);stroke-width:2.2;stroke-dasharray:5 7;opacity:.75;animation:flowdash 1.1s linear infinite}
+@keyframes flowdash{to{stroke-dashoffset:-12}}
+.flow .dotp{fill:var(--sel);filter:drop-shadow(0 0 5px var(--sel))}
+@media (prefers-reduced-motion:reduce){.flow .path,.live i{animation:none}}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <section class="card hero">
+    <div>
+      <h1 id="hello">Welcome</h1>
+      <p id="scope">Loading your fleet…</p>
+      <div class="live"><i></i><span id="upd">Live data</span></div>
+    </div>
+    <a class="btn pri" href="/" style="font-size:16px;padding:14px 26px">Open Live Dashboard
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </section>
+
+  <section class="grid g4" id="gauges"></section>
+
+  <section class="grid g3">
+    <div class="card"><h3>Fleet status</h3><div id="dFleet"></div></div>
+    <div class="card"><h3>Alarm status (30 days)</h3><div id="dAlarm"></div></div>
+    <div class="card"><h3 id="dThirdTitle">Cameras by group</h3><div id="dThird"></div></div>
+  </section>
+
+  <section class="grid g2">
+    <div class="card"><h3>SOS alarms · last 7 days</h3><div class="bars" id="bars"></div></div>
+    <div class="card"><h3>Overview</h3><div class="stats" id="stats"></div></div>
+  </section>
+
+  <section class="card">
+    <h3>Evidence &amp; alert flow</h3>
+    <svg class="flow" viewBox="0 0 1080 330" id="flow" role="img" aria-label="System flow"></svg>
+  </section>
+</main>
+
+<script src="/portal.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const C_OK = 'var(--ok)', C_REC = 'var(--rec)', C_OFF = 'var(--off)', C_BLUE = 'var(--blue)', C_SEL = 'var(--sel)', C_BR = 'var(--brand)';
+let first = true;
+
+const arcLen = (R) => 2 * Math.PI * R;
+function gauge(label, value, pct, color, sub) {
+  const R = 46, C = arcLen(R), off = C * (1 - Math.min(1, Math.max(0, pct)));
+  return `<div class="card gauge" style="--c:${color}">
+    <svg viewBox="0 0 112 112"><circle class="track" cx="56" cy="56" r="${R}" fill="none" stroke-width="11"/>
+      <circle class="val" cx="56" cy="56" r="${R}" fill="none" style="stroke:${color}" stroke-width="11" stroke-linecap="round"
+        stroke-dasharray="${C}" stroke-dashoffset="${first ? C : off}" data-off="${off}" transform="rotate(-90 56 56)"/></svg>
+    <div><small>${label}</small><b>${value}</b><div class="sub">${sub}</div></div></div>`;
+}
+function donut(segs, centerVal, centerLbl) {
+  const R = 54, C = arcLen(R), total = segs.reduce((s, x) => s + x.v, 0);
+  if (!total) return '<div class="empty">No data yet.</div>';
+  let off = 0;
+  const arcs = segs.filter((s) => s.v > 0).map((s) => {
+    const len = s.v / total * C, el = `<circle cx="70" cy="70" r="${R}" fill="none" style="stroke:${s.c}" stroke-width="17" stroke-dasharray="${Math.max(0, len - 2)} ${C - len + 2}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;
+    off += len; return el;
+  }).join('');
+  return `<div class="donutwrap"><svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="${R}" fill="none" stroke="var(--line-soft)" stroke-width="17"/>${arcs}
+    <text class="c1" x="70" y="72" text-anchor="middle">${centerVal}</text><text class="c2" x="70" y="88" text-anchor="middle">${centerLbl}</text></svg>
+    <div class="legend">${segs.map((s) => `<div><i style="background:${s.c}"></i>${s.n}<b>${s.v}</b></div>`).join('')}</div></div>`;
+}
+const fmtSec = (s) => (s == null ? '–' : s < 60 ? s + 's' : s < 3600 ? Math.round(s / 60) + 'm' : (s / 3600).toFixed(1) + 'h');
+const pctOf = (a, b) => (b ? a / b : 0);
+
+function flow(d) {
+  const f = d.fleet, node = (x, y, w, h, t, v, s, icon, core) => `
+    <g class="node ${core ? 'core' : ''}" transform="translate(${x} ${y})"><rect width="${w}" height="${h}" rx="18"/>
+      <g class="ico" transform="translate(16 ${h / 2 - 12})">${icon}</g>
+      <text class="t" x="52" y="${h / 2 - (v !== '' ? 12 : 3)}">${t}</text>
+      ${v !== '' ? `<text class="v" x="52" y="${h / 2 + 14}">${v}</text>` : ''}
+      <text class="s" x="52" y="${h / 2 + (v !== '' ? 30 : 15)}">${s}</text></g>`;
+  const I = {
+    cam: '<rect x="1" y="5" width="15" height="14" rx="3"/><path d="M16 10l7-4v12l-7-4"/>',
+    net: '<path d="M2 9a14 14 0 0120 0M6 13a8 8 0 0112 0M10 17a3 3 0 014 0"/><circle cx="12" cy="21" r="1" fill="currentColor"/>',
+    srv: '<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/>',
+    live: '<circle cx="12" cy="12" r="3"/><path d="M6 6a8 8 0 000 12M18 6a8 8 0 010 12"/>',
+    gps: '<path d="M12 22s-7-6-7-12a7 7 0 0114 0c0 6-7 12-7 12z"/><circle cx="12" cy="10" r="2.5"/>',
+    sos: '<path d="M6 17v-6a6 6 0 0112 0v6l2 2H4zM10 21a2 2 0 004 0"/>',
+    cc: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  };
+  const paths = [
+    ['p1', 'M170 165 L205 165'], ['p2', 'M365 165 L400 165'],
+    ['p3', 'M570 165 C610 165 600 60 640 60'], ['p4', 'M570 165 L640 165'], ['p5', 'M570 165 C610 165 600 270 640 270'],
+    ['p6', 'M800 60 C840 60 840 165 880 165'], ['p7', 'M800 165 L880 165'], ['p8', 'M800 270 C840 270 840 165 880 165'],
+  ];
+  const dots = paths.map(([id], k) => `<circle class="dotp" r="4"><animateMotion dur="${2.2 + (k % 3) * .4}s" begin="${(k * .3).toFixed(1)}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`).join('');
+  $('#flow').innerHTML = `<defs><linearGradient id="coreGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5E4A9E"/><stop offset="1" stop-color="#2F5BD6"/></linearGradient></defs>
+    ${paths.map(([id, p]) => `<path id="${id}" class="path" d="${p}"/>`).join('')}${dots}
+    ${node(10, 120, 160, 90, 'Body cameras', f.total, f.online + ' online', I.cam)}
+    ${node(205, 120, 160, 90, '4G / Docking', '', 'Secure uplink', I.net)}
+    ${node(400, 105, 170, 120, 'VisionGuard', '', 'Server &amp; storage', I.srv, true)}
+    ${node(640, 15, 160, 90, 'Live streams', f.recording, 'recording now', I.live)}
+    ${node(640, 120, 160, 90, 'GPS tracking', d.gpsPoints24h, 'points · 24h', I.gps)}
+    ${node(640, 225, 160, 90, 'SOS &amp; PTT', d.alarms.open, 'open alarms', I.sos)}
+    ${node(880, 120, 190, 90, 'Control room', '', d.scope.staff ? 'All companies' : (d.scope.company || ''), I.cc)}`;
+}
+
+function render(d, me) {
+  const f = d.fleet, a = d.alarms, h = new Date().getHours();
+  $('#hello').innerHTML = `${h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}, <span>${me.name.replace(/[<>&]/g, '')}</span>`;
+  $('#scope').textContent = d.scope.staff
+    ? `Smart Way Group · ${d.totals ? d.totals.companies + ' companies · ' + d.totals.users + ' users · ' : ''}${f.total} cameras`
+    : `${d.scope.company} · ${f.total} assigned camera${f.total === 1 ? '' : 's'}`;
+  $('#upd').textContent = 'Live data · updated ' + new Date().toLocaleTimeString();
+
+  $('#gauges').innerHTML =
+    gauge('Cameras online', f.online + '<span class="muted" style="font-size:18px"> / ' + f.total + '</span>', pctOf(f.online, f.total), C_OK, `<span class="pct">${Math.round(pctOf(f.online, f.total) * 100)}%</span> of the fleet`) +
+    gauge('Recording', f.recording, pctOf(f.recording, f.total), C_REC, `<span class="pct">${Math.round(pctOf(f.recording, f.total) * 100)}%</span> streaming evidence`) +
+    gauge('Open alarms', a.open, pctOf(a.open, a.total), C_SEL, `${a.total} SOS in 30 days`) +
+    gauge('Avg response', fmtSec(a.avgResponseSec), a.avgResponseSec == null ? 0 : Math.max(0.05, 1 - Math.min(a.avgResponseSec, 300) / 300), C_BLUE, 'time to acknowledge');
+
+  $('#dFleet').innerHTML = donut([
+    { n: 'Recording', v: f.recording, c: C_REC }, { n: 'Online (idle)', v: Math.max(0, f.online - f.recording), c: C_OK }, { n: 'Offline', v: f.offline, c: C_OFF }], f.total, 'cameras');
+  $('#dAlarm').innerHTML = donut([{ n: 'Open', v: a.open, c: C_REC }, { n: 'Acknowledged', v: a.acked, c: C_OK }], a.total, 'alarms');
+  const pal = [C_BR, C_BLUE, C_SEL, C_OK, C_REC, C_OFF];
+  const third = d.scope.staff ? (d.companies || []) : d.groups;
+  $('#dThirdTitle').textContent = d.scope.staff ? 'Cameras by company' : 'Cameras by group';
+  $('#dThird').innerHTML = donut(third.map((x, i) => ({ n: x.name, v: x.count, c: pal[i % pal.length] })), f.total, 'cameras');
+
+  const max = Math.max(1, ...a.days.map((x) => x.count));
+  $('#bars').innerHTML = a.days.map((x) => `<div class="bar"><b>${x.count}</b><i style="height:${first ? 4 : Math.max(4, x.count / max * 140)}px" data-h="${Math.max(4, x.count / max * 140)}"></i><span>${x.day}</span></div>`).join('');
+  $('#stats').innerHTML = [
+    [f.total, 'Cameras'], [d.gpsPoints24h, 'GPS points · 24h'], [a.total, 'SOS · 30 days'], [fmtSec(a.avgResponseSec), 'Avg response'],
+    ...(d.totals ? [[d.totals.companies, 'Companies'], [d.totals.users, 'Users']] : []),
+  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  flow(d);
+
+  if (first) requestAnimationFrame(() => setTimeout(() => {
+    document.querySelectorAll('.gauge .val').forEach((c) => { c.style.strokeDashoffset = c.dataset.off; });
+    document.querySelectorAll('.bar i').forEach((b) => { b.style.height = b.dataset.h + 'px'; });
+  }, 60));
+  first = false;
+}
+
+portalReady.then((me) => {
+  const load = () => fetch('/api/analytics').then((r) => r.json()).then((d) => render(d, me)).catch(() => { });
+  load(); setInterval(load, 10000);
+});
+</script>
+</body>
+</html>
