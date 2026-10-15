@@ -553,7 +553,7 @@ function stats() {
 }
 $('#list').addEventListener('click', (e) => {
   const w = e.target.closest('[data-w]');
-  if (w) return watch(w.dataset.w);
+  if (w) return openLive(w.dataset.w);
   const row = e.target.closest('.cam');
   if (row) select(row.dataset.id, true);
 });
@@ -700,10 +700,8 @@ function renderInfo() {
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
     <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
-    ${c.online && !c.recording ? `<div class="row"><button class="btn" id="bS">${currentLang === 'ar' ? 'بدء البث المباشر عن بُعد' : 'Start live view'}</button></div>` : ''}
     ${c.remote ? `<div class="row"><button class="btn" id="bX">${currentLang === 'ar' ? 'إيقاف البث عن بُعد' : 'Stop remote stream'}</button></div>` : ''}`;
-  $('#bW').onclick = () => watch(c.cameraId);
-  if ($('#bS')) $('#bS').onclick = () => requestStream(c.cameraId, 'start');
+  $('#bW').onclick = () => openLive(c.cameraId);
   if ($('#bX')) $('#bX').onclick = () => requestStream(c.cameraId, 'stop');
   if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };
   $('#bF').onclick = () => { follow = !follow; renderInfo(); if (follow && c.lat != null) map.easeTo({ center: [c.lng, c.lat] }); };
@@ -715,6 +713,11 @@ map.on('click', () => { selected = null; markers.forEach((m) => m.getElement().c
 function flash(msg) {
   const d = document.createElement('div'); d.className = 'flash-toast'; d.textContent = msg;
   document.body.appendChild(d); setTimeout(() => d.remove(), 3200);
+}
+// Opening a camera's live view starts its stream if it is online but not recording (the officer does nothing).
+function openLive(id) {
+  const c = cams.get(id);
+  if (c?.online && !c.recording) requestStream(id, 'start'); else watch(id);
 }
 function requestStream(id, action) {
   socket.emit('remote_stream', { cameraId: id, action });
