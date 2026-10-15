@@ -344,6 +344,18 @@ io.on('connection', (socket) => {
 
     if (isDash) {
         socket.emit('dashboard_snapshot', { cams: visibleCams(user), alarms: recentAlarms(user) });
+        // Control room starts/stops a camera's live stream without the officer doing anything (like PTT, but remote).
+        socket.on('remote_stream', (d) => {
+            const id = str(d?.cameraId), action = d?.action;
+            if (!id || !['start', 'stop'].includes(action) || !canSee(user, id)) return;
+            const c = cams.get(id);
+            if (!c?.online) return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'offline' });
+            if (action === 'stop' && !c.remote) return; // never cut a recording the officer started
+            db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user.username, `remote_stream_${action}`, id);
+            io.to(`room:camera_${id}`).emit('remote_stream', { action });
+            if (action === 'start') publish(id, { remote: true });
+            socket.emit('remote_stream_result', { cameraId: id, ok: true, action });
+        });
         socket.on('ack_alarm', (id) => {
             id = Number(id);
             if (!Number.isInteger(id)) return;
@@ -381,7 +393,7 @@ io.on('connection', (socket) => {
         const id = str(d?.cameraId);
         if (!id) return;
         bind(id);
-        publish(id, { recording: !!d.recording, online: true });
+        publish(id, { recording: !!d.recording, online: true, ...(d.recording ? {} : { remote: false }) });
     });
 
     socket.on('camera_ptt', (d) => {

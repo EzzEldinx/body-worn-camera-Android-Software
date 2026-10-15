@@ -11,7 +11,7 @@
     const here = location.pathname;
     const link = (href, label) => `<a href="${href}" class="${here === href ? 'on' : ''}">${label}</a>`;
     document.getElementById('top').innerHTML = `
-      <a class="brand" href="/analytics.html"><img src="/logo.png" alt="Smart Way"><strong>VisionGuard</strong></a>
+      <a class="brand" href="/analytics.html"><img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"><strong>VisionGuard</strong></a>
       <nav>
         ${link('/analytics.html', 'Analytics')}
         ${link('/', 'Live Dashboard')}

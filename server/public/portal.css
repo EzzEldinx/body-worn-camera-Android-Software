@@ -26,7 +26,9 @@ header{height:var(--header-h);display:flex;align-items:center;gap:18px;padding:0
 header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--brand),var(--blue) 45%,var(--sel))}
 .brand{display:flex;align-items:center;gap:14px;text-decoration:none}
 .brand img{height:34px;display:block}
-:root[data-theme="dark"] .brand img{background:#fff;padding:5px 9px;height:40px;border-radius:8px}
+.logo-dark{display:none!important}
+:root[data-theme="dark"] .logo-light{display:none!important}
+:root[data-theme="dark"] .logo-dark{display:block!important}
 .brand strong{font-size:17px;letter-spacing:.4px}
 nav{display:flex;gap:6px;margin-left:18px}
 nav a{padding:8px 16px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;color:var(--mut);transition:.15s}

@@ -73,7 +73,9 @@ header{display:flex;align-items:center;gap:18px;padding:0 20px;margin:0;backgrou
 header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--brand),var(--blue) 45%,var(--sel));opacity:.9}
 .brand{display:flex;align-items:center;gap:14px;flex:none}
 .brand img{height:38px;width:auto;display:block}
-:root[data-theme="dark"] .brand img{background:#fff;padding:6px 10px;height:44px;border-radius:8px}
+.logo-dark{display:none!important}
+:root[data-theme="dark"] .logo-light{display:none!important}
+:root[data-theme="dark"] .logo-dark{display:block!important}
 .brand-sep{width:1px;height:38px;background:var(--line)}
 .brand-text{display:flex;flex-direction:column;line-height:1.2}
 .brand-text strong{font-size:17px;font-weight:700;letter-spacing:.4px}
@@ -189,6 +191,8 @@ body[dir="rtl"] .tag .pill+button{margin-left:0;margin-right:auto}
 @container (max-width:240px){.tag .pill{display:none}}
 .wait,.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#8FA2BF;font-size:13px;text-align:center;padding:12px}
 .wait{padding-top:44px}
+.reqbtn{pointer-events:auto;margin-top:6px;padding:7px 16px;border-radius:99px;border:0;font-weight:700;font-size:12.5px;color:var(--sel-ink);background:linear-gradient(135deg,var(--sel),#ff9d00);box-shadow:0 4px 14px rgba(255,179,0,.45)}
+.flash-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:30000;padding:11px 20px;border-radius:12px;background:var(--text);color:var(--bg);font-weight:600;box-shadow:var(--shadow-md)}
 .wait::before{content:"";width:24px;height:24px;border-radius:50%;border:2px solid rgba(143,162,191,.3);border-top-color:var(--sel);animation:spin 1s linear infinite}
 .empty{inset:8px;border:1.5px dashed rgba(143,162,191,.35);border-radius:10px}
 .empty small{font-size:11.5px;opacity:.8}
@@ -254,7 +258,7 @@ header.flash{animation:fl 1s 3}
 <div id="snd">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
 <header id="top">
   <div class="brand">
-    <img src="/logo.png" alt="Smart Way Group">
+    <img class="logo-light" src="/logo-light.png" alt="Smart Way Group"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way Group">
     <span class="brand-sep"></span>
     <div class="brand-text"><strong>VisionGuard</strong><small>Central Management System</small></div>
   </div>
@@ -695,14 +699,27 @@ function renderInfo() {
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
-    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>`;
+    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
+    ${c.online && !c.recording ? `<div class="row"><button class="btn" id="bS">${currentLang === 'ar' ? 'بدء البث المباشر عن بُعد' : 'Start live view'}</button></div>` : ''}
+    ${c.remote ? `<div class="row"><button class="btn" id="bX">${currentLang === 'ar' ? 'إيقاف البث عن بُعد' : 'Stop remote stream'}</button></div>` : ''}`;
   $('#bW').onclick = () => watch(c.cameraId);
+  if ($('#bS')) $('#bS').onclick = () => requestStream(c.cameraId, 'start');
+  if ($('#bX')) $('#bX').onclick = () => requestStream(c.cameraId, 'stop');
   if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };
   $('#bF').onclick = () => { follow = !follow; renderInfo(); if (follow && c.lat != null) map.easeTo({ center: [c.lng, c.lat] }); };
 }
 map.on('click', () => { selected = null; markers.forEach((m) => m.getElement().classList.remove('sel')); renderList(); renderInfo(); });
 
 /* ---------- Video wall ---------- */
+/* ---------- Remote live view (control room starts a camera's stream, the officer does nothing) ---------- */
+function flash(msg) {
+  const d = document.createElement('div'); d.className = 'flash-toast'; d.textContent = msg;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 3200);
+}
+function requestStream(id, action) {
+  socket.emit('remote_stream', { cameraId: id, action });
+  if (action === 'start') watch(id);
+}
 function buildWall() {
   const w = $('#wall'), cols = Math.sqrt(layout);
   w.style.gridTemplateColumns = `repeat(${cols},1fr)`;
@@ -718,7 +735,7 @@ function renderTile(i) {
   if (!id) { t.innerHTML = `<div class="empty">${currentLang === 'ar' ? 'خانة فارغة' : 'Empty slot'}<small>${currentLang === 'ar' ? 'اضغط ▶ بجوار الكاميرا لعرضها هنا' : 'Press ▶ next to a camera to show it here'}</small></div>`; return; }
   t.innerHTML = `<video muted autoplay playsinline></video>
     <div class="tag"><span class="nm">${tagOf(id)}</span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'احتواء' : 'Fit'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}</div>`;
+    <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}<button class="reqbtn" data-r="${id}">${currentLang === 'ar' ? 'بدء البث عن بُعد' : 'Start live view'}</button></div>`;
   start(i, id, t.querySelector('video'));
   applySound(i);
 }
@@ -803,6 +820,8 @@ $('#wall').addEventListener('click', (e) => {
     applySound(+t.dataset.i);
     return;
   }
+  const rb = e.target.closest('[data-r]');
+  if (rb) { requestStream(rb.dataset.r, 'start'); rb.textContent = currentLang === 'ar' ? 'جارٍ الطلب…' : 'Requesting…'; return; }
   const eb = e.target.closest('[data-e]');
   if (eb) { toggleTheater(eb.closest('.tile')); return; }
   const fb = e.target.closest('[data-f]');
@@ -1071,6 +1090,9 @@ socket.on('dashboard_cam_removed', ({ cameraId }) => {
   slots.forEach((id, i) => { if (id === cameraId) { slots[i] = null; renderTile(i); } });
   if (selected === cameraId) { selected = null; renderInfo(); }
   renderList();
+});
+socket.on('remote_stream_result', (r) => {
+  if (!r.ok) flash(currentLang === 'ar' ? 'الكاميرا غير متصلة' : 'Camera is offline');
 });
 socket.on('connect_error', (e) => { if (e.message === 'unauthorized') location.href = '/login.html'; });
 socket.on('dashboard_sos', (a) => {
