@@ -496,6 +496,11 @@ io.on('connection', (socket) => {
         const id = str(d?.cameraId);
         if (!id) return;
         bind(id);
+        // the camera is back after an update and reports the latest build: the update is finished
+        const upd = cams.get(id)?.update;
+        if (upd && ['installing', 'queued', 'waiting'].includes(upd.state) && typeof d.build === 'string' && d.build === readMeta()?.build) {
+            publish(id, { update: { state: 'done', ts: Date.now() } });
+        }
         publish(id, { recording: !!d.recording, online: true, ...(typeof d.build === 'string' && /^[0-9a-f]{64}$/.test(d.build) ? { appBuild: d.build } : {}), ...(['240p', '480p', '720p', '1080p', '4k'].includes(d.quality) ? { quality: d.quality } : {}), ...(d.recording ? (typeof d.remote === 'boolean' ? { remote: d.remote } : {}) : { remote: false }) });
     });
 

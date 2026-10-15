@@ -17,6 +17,7 @@
   -Provision makes the app the device owner of the camera (adb "dpm set-device-owner"). After that, updates sent
   from the dashboard (Updates page) install silently. Android only allows this on a camera without accounts.
   Without it, a remote update still works but the camera shows an "Install" confirmation to tap.
+  -Unprovision undoes it (device owner + Home app) on the connected camera.
 
   Cameras over Wi-Fi: "adb connect <ip>:5555" first; they are listed like USB ones.
 #>
@@ -24,6 +25,7 @@ param(
     [switch]$SkipBuild,
     [switch]$Provision,
     [switch]$List,
+    [switch]$Unprovision,
     [string]$Id,
     [string]$Serial,
     [int]$Parallel = 10,
@@ -56,6 +58,15 @@ if ($List) {
     return
 }
 if ($devices.Count -eq 0) { throw 'No camera connected (check the USB cable / dock and that USB debugging is on).' }
+
+# -Unprovision: undo -Provision (device owner + Home app) on the connected camera(s); nothing is installed
+if ($Unprovision) {
+    foreach ($d in $devices) {
+        $o = (& $adb -s $d shell content call --uri content://com.swg.swg_bwc.control --method unprovision 2>&1 | Out-String)
+        Write-Host ("{0}: {1}" -f $d, ($o -replace '\s+', ' ').Trim())
+    }
+    return
+}
 
 # ---- settings -------------------------------------------------------------
 if (-not (Test-Path $Config)) {
@@ -124,10 +135,20 @@ $work = {
         Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 
         if ($provision) {
+            # Android refuses a device owner while a second user exists. An empty "Guest" user is removed for that.
+            $users = (& $adb -s $d shell pm list users 2>&1 | Out-String)
+            foreach ($m in [regex]::Matches($users, 'UserInfo\{(\d+):Guest:')) {
+                & $adb -s $d shell pm remove-user $m.Groups[1].Value 2>&1 | Out-Null
+                $note += 'removed the unused Guest user. '
+            }
+            # the stock launcher must not sit under the app, or Android resumes it instead of restarting us after an update
+            & $adb -s $d shell am force-stop com.android.launcher3 2>&1 | Out-Null
+            # the camera's background-app limiter (MediaTek DuraSpeed) must not suppress the app
+            & $adb -s $d shell dumpsys duraspeed addwhitelist $pkg 2>&1 | Out-Null
             $o = (& $adb -s $d shell dpm set-device-owner "$pkg/.BwcAdminReceiver" 2>&1 | Out-String)
-            if ($o -match 'Success') { $note += 'silent updates enabled. ' }
-            elseif ($o -match 'already') { $note += 'silent updates already enabled. ' }
-            else { $note += 'silent updates NOT enabled: ' + ($o.Trim() -replace '\s+', ' ') + ' ' }
+            $dump = (& $adb -s $d shell dumpsys device_policy 2>&1 | Out-String)
+            if ($dump -match 'Device Owner:[\s\S]{0,200}com\.swg\.swg_bwc') { $note += 'silent updates enabled (the app is now this camera''s Home app). ' }
+            else { $note += 'silent updates NOT enabled: ' + ((($o -split "`n")[0]).Trim()) + ' ' }
         }
 
         & $adb -s $d shell am force-stop $pkg 2>&1 | Out-Null
