@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Updates - VisionGuard</title>
+<link rel="stylesheet" href="/portal.css">
+<style>
+.top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px}
+@media (max-width:1000px){.top{grid-template-columns:1fr}}
+.build{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.build code{font-family:Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:1px;padding:6px 14px;border-radius:10px;background:var(--raise);border:1px solid var(--line)}
+.build .meta{color:var(--mut);font-size:13px;line-height:1.5}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:18px;text-align:center;color:var(--mut);transition:.15s;cursor:pointer}
+.drop.over{border-color:var(--sel);background:color-mix(in srgb,var(--sel) 8%,transparent);color:var(--text)}
+.drop b{color:var(--text)}
+.bar{height:8px;border-radius:6px;background:var(--line-soft);overflow:hidden;margin-top:12px;display:none}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--sel),#ff9d00);transition:width .2s}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.tools .sp{margin-left:auto;color:var(--mut);font-size:13px}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mut)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);padding:8px 8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line-soft);font-size:14px}
+tr:last-child td{border-bottom:0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;background:var(--off)}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}
+.pill.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.pill.old{background:color-mix(in srgb,var(--sel) 20%,transparent);color:var(--accent-text)}
+.pill.busy{background:color-mix(in srgb,var(--blue) 16%,transparent);color:var(--blue)}
+.pill.bad{background:color-mix(in srgb,var(--rec) 16%,transparent);color:var(--rec)}
+.pill.na{background:var(--raise);color:var(--mut)}
+.prog{display:inline-block;width:70px;height:6px;border-radius:4px;background:var(--line-soft);vertical-align:middle;margin-left:8px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--blue)}
+.muted{color:var(--mut)}
+.hint{font-size:12.5px;color:var(--mut);margin-top:10px;line-height:1.5}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <section class="top">
+    <div class="card">
+      <h3>Latest build on the server</h3>
+      <div class="build" id="latest"><span class="muted">No build uploaded yet.</span></div>
+      <div class="hint">Cameras compare their installed app with this build. After every <code>flutter build apk --release</code>, upload the new file here.</div>
+    </div>
+    <div class="card">
+      <h3>Upload a new build</h3>
+      <div class="drop" id="drop"><b>Drop app-release.apk here</b> or click to choose it<br><span style="font-size:12px">app\build\app\outputs\flutter-apk\app-release.apk</span></div>
+      <input type="file" id="file" accept=".apk" hidden>
+      <div class="bar" id="bar"><i></i></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Cameras</h3>
+    <div class="tools">
+      <select id="fRegion"><option value="">All regions</option></select>
+      <select id="fCompany"><option value="">All companies</option></select>
+      <label class="chk"><input type="checkbox" id="fOnline" checked> Online only</label>
+      <label class="chk"><input type="checkbox" id="fForce"> Update even while recording</label>
+      <span class="sp" id="count"></span>
+      <button class="btn" id="bOld">Update all outdated</button>
+      <button class="btn pri" id="bSel">Update selected</button>
+    </div>
+    <table>
+      <thead><tr><th style="width:34px"><input type="checkbox" id="all"></th><th>Camera</th><th>Region</th><th>Company</th><th>Build</th><th>Status</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="hint">A camera that is recording waits until it stops (unless you tick "even while recording"), downloads the APK from this server, checks it, installs it and restarts. Offline cameras are skipped.</div>
+  </section>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/portal.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let data = { latest: null, cameras: [] }; const picked = new Set();
+
+const ago = (ts) => { const s = Math.floor((Date.now() - ts) / 1000); return s < 60 ? 'just now' : s < 3600 ? Math.floor(s / 60) + ' min ago' : s < 86400 ? Math.floor(s / 3600) + ' h ago' : Math.floor(s / 86400) + ' d ago'; };
+const load = () => fetch('/api/admin/update').then((r) => r.json()).then((d) => { data = d; render(); });
+
+function status(c) {
+  const u = c.update;
+  if (c.current && !(u && ['downloading', 'installing', 'queued', 'waiting'].includes(u.state))) return '<span class="pill ok">Up to date</span>';
+  if (u && u.state === 'downloading') return `<span class="pill busy">Downloading ${u.pct || 0}%</span><span class="prog"><i style="width:${u.pct || 0}%"></i></span>`;
+  if (u && u.state === 'installing') return '<span class="pill busy">Installing…</span>';
+  if (u && u.state === 'waiting') return '<span class="pill busy">Waiting (recording)</span>';
+  if (u && u.state === 'queued') return '<span class="pill busy">Queued</span>';
+  if (u && u.state === 'failed') return `<span class="pill bad" title="${esc(u.error)}">Failed: ${esc(u.error || '')}</span>`;
+  if (!c.build) return '<span class="pill na">Unknown build</span>';
+  return '<span class="pill old">Outdated</span>';
+}
+
+function render() {
+  const l = data.latest;
+  $('#latest').innerHTML = l ? `<code>${esc(l.short)}</code><div class="meta">${(l.size / 1048576).toFixed(1)} MB<br>uploaded ${ago(l.uploaded)} by ${esc(l.by)}</div>` : '<span class="muted">No build uploaded yet.</span>';
+  const regs = [...new Set(data.cameras.map((c) => c.region).filter(Boolean))].sort();
+  const cos = [...new Set(data.cameras.map((c) => c.company).filter(Boolean))].sort();
+  const keep = (id, vals, label) => { const cur = $(id).value; $(id).innerHTML = `<option value="">${label}</option>` + vals.map((v) => `<option ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join(''); };
+  keep('#fRegion', regs, 'All regions'); keep('#fCompany', cos, 'All companies');
+  const rows = shown();
+  $('#rows').innerHTML = rows.map((c) => `<tr data-id="${esc(c.id)}">
+      <td><input type="checkbox" class="pk" ${picked.has(c.id) ? 'checked' : ''} ${c.online ? '' : 'disabled'}></td>
+      <td><span class="dot ${c.online ? 'on' : ''}"></span><b>${esc(c.id)}</b>${c.recording ? ' <span class="pill bad">REC</span>' : ''}</td>
+      <td>${esc(c.region || '—')}</td><td>${esc(c.company || '—')}</td>
+      <td><code>${esc(c.build || '—')}</code></td><td>${status(c)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted" style="padding:20px">No cameras match.</td></tr>';
+  const outdated = rows.filter((c) => c.online && !c.current).length;
+  $('#count').textContent = `${rows.length} cameras · ${rows.filter((c) => c.online).length} online · ${outdated} outdated`;
+  $('#bOld').textContent = `Update all outdated (${outdated})`;
+  $('#bSel').textContent = `Update selected (${[...picked].filter((id) => rows.some((c) => c.id === id)).length})`;
+}
+function shown() {
+  const r = $('#fRegion').value, co = $('#fCompany').value, on = $('#fOnline').checked;
+  return data.cameras.filter((c) => (!r || c.region === r) && (!co || c.company === co) && (!on || c.online))
+    .sort((a, b) => (b.online - a.online) || a.id.localeCompare(b.id));
+}
+
+['#fRegion', '#fCompany', '#fOnline'].forEach((s) => $(s).addEventListener('change', render));
+$('#all').addEventListener('change', (e) => { shown().filter((c) => c.online).forEach((c) => (e.target.checked ? picked.add(c.id) : picked.delete(c.id))); render(); });
+$('#rows').addEventListener('change', (e) => { const cb = e.target.closest('.pk'); if (!cb) return; const id = cb.closest('tr').dataset.id; cb.checked ? picked.add(id) : picked.delete(id); render(); });
+
+let socket;
+function send(ids) {
+  if (!data.latest) return toast('Upload a build first.');
+  if (!ids.length) return toast('Nothing to update.');
+  socket.emit('update_cameras', { cameraIds: ids, force: $('#fForce').checked });
+}
+$('#bSel').onclick = () => send([...picked].filter((id) => shown().some((c) => c.id === id)));
+$('#bOld').onclick = () => send(shown().filter((c) => c.online && !c.current).map((c) => c.id));
+
+// upload
+const bar = $('#bar'), fill = bar.querySelector('i');
+function upload(file) {
+  if (!file) return;
+  bar.style.display = 'block'; fill.style.width = '0';
+  const xhr = new XMLHttpRequest();
+  xhr.open('PUT', '/api/admin/update/apk');
+  xhr.upload.onprogress = (e) => { if (e.lengthComputable) fill.style.width = (e.loaded / e.total * 100) + '%'; };
+  xhr.onload = () => { bar.style.display = 'none'; let j = {}; try { j = JSON.parse(xhr.responseText); } catch (e) { } if (xhr.status === 200) { toast('Build uploaded'); load(); } else toast(j.error || 'Upload failed'); };
+  xhr.onerror = () => { bar.style.display = 'none'; toast('Upload failed'); };
+  xhr.send(file);
+}
+$('#drop').onclick = () => $('#file').click();
+$('#file').onchange = (e) => upload(e.target.files[0]);
+['dragover', 'dragenter'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.remove('over'); }));
+$('#drop').addEventListener('drop', (e) => upload(e.dataTransfer.files[0]));
+
+portalReady.then(() => {
+  load();
+  socket = io();
+  socket.on('update_result', (r) => toast(r.sent ? `Update sent to ${r.sent} camera${r.sent === 1 ? '' : 's'}` : 'No online camera to update.'));
+  let t; socket.on('dashboard_cam', () => { clearTimeout(t); t = setTimeout(load, 400); }); // live progress
+  setInterval(load, 15000);
+});
+</script>
+</body>
+</html>

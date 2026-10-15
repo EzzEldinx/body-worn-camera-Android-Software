@@ -30,3 +30,6 @@ app.*.map.json
 
 # per-site camera list (holds the camera token)
 cameras.json
+
+# uploaded camera APKs
+server/data/updates/

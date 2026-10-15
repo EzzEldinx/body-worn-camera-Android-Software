@@ -1,24 +1,32 @@
 <#
 .SYNOPSIS
-  Builds the camera app once and installs it on every camera plugged in over USB.
+  Builds the camera app once and installs it on every camera plugged in (USB, docking station or Wi-Fi), in parallel.
 
 .DESCRIPTION
   Each camera gets its own id / server / token from cameras.json (written to the app as config.json),
   so ONE build serves every camera. Run it from the project root:
 
-      .\tools\update-cameras.ps1                       # build + update every connected camera
+      .\tools\update-cameras.ps1                       # build + update every connected camera at once
       .\tools\update-cameras.ps1 -SkipBuild            # reuse the last build (faster)
       .\tools\update-cameras.ps1 -Id BWC-06-RIY        # a camera not in cameras.json yet (one camera plugged in);
                                                        # it is added to cameras.json for next time
       .\tools\update-cameras.ps1 -Serial KS1625...     # only that camera
+      .\tools\update-cameras.ps1 -Provision            # one-time per camera: allow SILENT remote updates (see below)
+      .\tools\update-cameras.ps1 -List                 # just list what is connected
 
-  Cameras can also be updated over Wi-Fi: connect them first with "adb connect <ip>:5555" and
-  they are listed here like USB ones.
+  -Provision makes the app the device owner of the camera (adb "dpm set-device-owner"). After that, updates sent
+  from the dashboard (Updates page) install silently. Android only allows this on a camera without accounts.
+  Without it, a remote update still works but the camera shows an "Install" confirmation to tap.
+
+  Cameras over Wi-Fi: "adb connect <ip>:5555" first; they are listed like USB ones.
 #>
 param(
     [switch]$SkipBuild,
+    [switch]$Provision,
+    [switch]$List,
     [string]$Id,
     [string]$Serial,
+    [int]$Parallel = 10,
     [string]$Config = (Join-Path $PSScriptRoot '..\cameras.json')
 )
 
@@ -37,6 +45,18 @@ foreach ($c in @("$env:ANDROID_HOME\platform-tools\adb.exe", "$env:LOCALAPPDATA\
 if (-not $adb) { $cmd = Get-Command adb -ErrorAction SilentlyContinue; if ($cmd) { $adb = $cmd.Source } }
 if (-not $adb) { throw 'adb not found. Install the Android SDK platform-tools.' }
 
+# ---- devices --------------------------------------------------------------
+$devices = @(& $adb devices | Select-Object -Skip 1 | ForEach-Object {
+        if ($_ -match '^(\S+)\s+device$') { $Matches[1] }
+    })
+if ($Serial) { $devices = @($devices | Where-Object { $_ -eq $Serial }) }
+if ($List) {
+    Write-Host ("{0} camera(s) connected:" -f $devices.Count)
+    $devices | ForEach-Object { Write-Host "  $_" }
+    return
+}
+if ($devices.Count -eq 0) { throw 'No camera connected (check the USB cable / dock and that USB debugging is on).' }
+
 # ---- settings -------------------------------------------------------------
 if (-not (Test-Path $Config)) {
     throw "cameras.json not found at $Config. Copy cameras.example.json to cameras.json and edit it."
@@ -54,20 +74,10 @@ if (-not $SkipBuild) {
     } finally { Pop-Location }
 }
 if (-not (Test-Path $apk)) { throw "APK not found: $apk (run without -SkipBuild)" }
-Write-Host ("APK: {0:N1} MB" -f ((Get-Item $apk).Length / 1MB))
+Write-Host ("APK: {0:N1} MB, {1} camera(s)" -f ((Get-Item $apk).Length / 1MB), $devices.Count)
 
-# ---- devices --------------------------------------------------------------
-$devices = @(& $adb devices | Select-Object -Skip 1 | ForEach-Object {
-        if ($_ -match '^(\S+)\s+device$') { $Matches[1] }
-    })
-if ($Serial) { $devices = @($devices | Where-Object { $_ -eq $Serial }) }
-if ($devices.Count -eq 0) { throw 'No camera connected (check the USB cable and that USB debugging is on).' }
-
-$perms = @('android.permission.CAMERA', 'android.permission.RECORD_AUDIO',
-    'android.permission.ACCESS_FINE_LOCATION', 'android.permission.ACCESS_COARSE_LOCATION',
-    'android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE',
-    'android.permission.POST_NOTIFICATIONS')
-
+# ---- which camera gets which id ------------------------------------------
+$jobsToRun = @()
 $results = @()
 foreach ($d in $devices) {
     $camId = $null
@@ -79,44 +89,85 @@ foreach ($d in $devices) {
     }
     if (-not $camId) {
         Write-Host "!! $d is not in cameras.json. Run: .\tools\update-cameras.ps1 -Id <BWC-xx-RIY> -Serial $d" -ForegroundColor Yellow
-        $results += [pscustomobject]@{ Serial = $d; Camera = '-'; Result = 'SKIPPED (unknown camera)' }
+        $results += [pscustomobject]@{ Serial = $d; Camera = '-'; Result = 'SKIPPED (not in cameras.json)' }
         continue
     }
+    $jobsToRun += [pscustomobject]@{ Serial = $d; CamId = $camId }
+}
 
-    Write-Host "== $camId ($d)" -ForegroundColor Cyan
+# ---- the work for one camera (runs in a background job) -------------------
+$work = {
+    param($adb, $d, $camId, $apk, $pkg, $server, $token, $provision)
+    $perms = @('android.permission.CAMERA', 'android.permission.RECORD_AUDIO',
+        'android.permission.ACCESS_FINE_LOCATION', 'android.permission.ACCESS_COARSE_LOCATION',
+        'android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE',
+        'android.permission.POST_NOTIFICATIONS')
+    $note = ''
     try {
         $out = (& $adb -s $d install -r $apk 2>&1 | Out-String)
         if ($out -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match') {
-            Write-Host '   different signing key: reinstalling (the camera keeps its server settings)' -ForegroundColor Yellow
-            & $adb -s $d uninstall $pkg | Out-Null
+            & $adb -s $d uninstall $pkg 2>&1 | Out-Null
             $out = (& $adb -s $d install $apk 2>&1 | Out-String)
+            $note += 'reinstalled (different signing key). '
         }
         if ($out -notmatch 'Success') { throw "install failed: $($out.Trim())" }
 
         foreach ($p in $perms) { & $adb -s $d shell pm grant $pkg $p 2>&1 | Out-Null }
+        & $adb -s $d shell appops set $pkg REQUEST_INSTALL_PACKAGES allow 2>&1 | Out-Null
 
-        # per-camera settings the app reads at start
-        $json = @{ id = $camId; server = $cfg.server; token = $cfg.token } | ConvertTo-Json -Compress
+        $json = @{ id = $camId; server = $server; token = $token } | ConvertTo-Json -Compress
         $tmp = Join-Path $env:TEMP "bwc-config-$d.json"
         [System.IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding($false)))
         $dir = "/sdcard/Android/data/$pkg/files"
-        & $adb -s $d shell mkdir -p $dir | Out-Null
+        & $adb -s $d shell mkdir -p $dir 2>&1 | Out-Null
         & $adb -s $d push $tmp "$dir/config.json" 2>&1 | Out-Null
-        Remove-Item $tmp -Force
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 
-        & $adb -s $d shell am force-stop $pkg | Out-Null
-        & $adb -s $d shell am start -n "$pkg/.MainActivity" | Out-Null
-        $ver = ((& $adb -s $d shell dumpsys package $pkg | Select-String 'versionName=') | Select-Object -First 1).ToString().Trim()
-        Write-Host "   updated, started. $ver" -ForegroundColor Green
-        $results += [pscustomobject]@{ Serial = $d; Camera = $camId; Result = 'UPDATED' }
+        if ($provision) {
+            $o = (& $adb -s $d shell dpm set-device-owner "$pkg/.BwcAdminReceiver" 2>&1 | Out-String)
+            if ($o -match 'Success') { $note += 'silent updates enabled. ' }
+            elseif ($o -match 'already') { $note += 'silent updates already enabled. ' }
+            else { $note += 'silent updates NOT enabled: ' + ($o.Trim() -replace '\s+', ' ') + ' ' }
+        }
+
+        & $adb -s $d shell am force-stop $pkg 2>&1 | Out-Null
+        & $adb -s $d shell am start -n "$pkg/.MainActivity" 2>&1 | Out-Null
+        return [pscustomobject]@{ Serial = $d; Camera = $camId; Result = ('UPDATED ' + $note).Trim() }
     } catch {
-        Write-Host "   FAILED: $_" -ForegroundColor Red
-        $results += [pscustomobject]@{ Serial = $d; Camera = $camId; Result = "FAILED: $_" }
+        return [pscustomobject]@{ Serial = $d; Camera = $camId; Result = "FAILED: $_" }
     }
+}
+
+# ---- run them in parallel (up to $Parallel at a time) ----------------------
+$running = @()
+$queue = [System.Collections.Queue]::new($jobsToRun)
+$total = $jobsToRun.Count
+$finished = 0
+while ($queue.Count -gt 0 -or $running.Count -gt 0) {
+    while ($queue.Count -gt 0 -and $running.Count -lt $Parallel) {
+        $j = $queue.Dequeue()
+        $running += Start-Job -ScriptBlock $work -ArgumentList $adb, $j.Serial, $j.CamId, $apk, $pkg, $cfg.server, $cfg.token, [bool]$Provision
+    }
+    $done = @($running | Where-Object { $_.State -ne 'Running' })
+    foreach ($job in $done) {
+        $r = Receive-Job $job | Select-Object -Last 1
+        Remove-Job $job -Force
+        $running = @($running | Where-Object { $_.Id -ne $job.Id })
+        $finished++
+        if ($r) {
+            $results += $r
+            $color = 'Red'
+            if ($r.Result -like 'UPDATED*') { $color = 'Green' }
+            Write-Host ("[{0}/{1}] {2} ({3}): {4}" -f $finished, $total, $r.Camera, $r.Serial, $r.Result) -ForegroundColor $color
+        }
+    }
+    Start-Sleep -Milliseconds 400
 }
 
 # remember cameras added with -Id
 $cfg | ConvertTo-Json -Depth 5 | Set-Content -Path $Config -Encoding UTF8
 
 Write-Host ''
+$ok = @($results | Where-Object { $_.Result -like 'UPDATED*' }).Count
+Write-Host ("{0} of {1} camera(s) updated." -f $ok, $devices.Count) -ForegroundColor Cyan
 $results | Format-Table -AutoSize

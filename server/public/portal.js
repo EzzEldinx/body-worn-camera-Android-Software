@@ -15,7 +15,7 @@
       <nav>
         ${link('/analytics.html', 'Analytics')}
         ${link('/', 'Live Dashboard')}
-        ${me.super ? link('/admin.html', 'Companies') : ''}
+        ${me.super ? link('/admin.html', 'Companies') + link('/updates.html', 'Updates') : ''}
       </nav>
       <div class="hdr-right">
         ${me.company ? `<span class="chip">${me.company.replace(/[<>&]/g, '')}</span>` : '<span class="chip">Smart Way Group</span>'}

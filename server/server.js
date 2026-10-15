@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
@@ -312,10 +313,52 @@ app.put('/api/admin/cameras/:id/company', adminOnly, (req, res) => {
     res.json({ ok: true });
 });
 
+// ---------- Remote app updates (OTA) ----------
+// The latest camera APK lives on the server; cameras are told to download and install it.
+// A build is identified by the SHA-256 of the APK file, which the camera computes from its own installed APK.
+const UPD_DIR = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'updates');
+const UPD_APK = path.join(UPD_DIR, 'app.apk');
+const UPD_META = path.join(UPD_DIR, 'meta.json');
+const readMeta = () => { try { return JSON.parse(fs.readFileSync(UPD_META, 'utf8')); } catch (e) { return null; } };
+
+app.put('/api/admin/update/apk', needUser, needAdmin, express.raw({ type: () => true, limit: '200mb' }), (req, res) => {
+    const buf = req.body;
+    if (!Buffer.isBuffer(buf) || buf.length < 1e6 || buf.readUInt32LE(0) !== 0x04034b50 || !buf.includes('AndroidManifest.xml')) {
+        return res.status(400).json({ error: 'This does not look like an Android APK.' });
+    }
+    fs.mkdirSync(UPD_DIR, { recursive: true });
+    const build = crypto.createHash('sha256').update(buf).digest('hex');
+    fs.writeFileSync(UPD_APK + '.tmp', buf);
+    fs.renameSync(UPD_APK + '.tmp', UPD_APK);
+    const meta = { build, size: buf.length, uploaded: Date.now(), by: req.user.username };
+    fs.writeFileSync(UPD_META, JSON.stringify(meta));
+    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), req.user.username, `update_upload_${build.slice(0, 12)}`, null);
+    res.json({ ok: true, ...meta });
+});
+app.get('/api/admin/update', adminOnly, (req, res) => {
+    const meta = readMeta();
+    res.json({
+        latest: meta ? { ...meta, short: meta.build.slice(0, 12) } : null,
+        cameras: [...cams.values()].map((c) => ({
+            id: c.cameraId, name: c.name, region: c.region || null, company: companyName(c.companyId), online: !!c.online,
+            recording: !!c.recording, build: c.appBuild ? c.appBuild.slice(0, 12) : null,
+            current: !!(meta && c.appBuild && c.appBuild === meta.build), update: c.update || null,
+        })),
+    });
+});
+// Cameras download with their shared token (header or query); Range requests are supported so a weak link can resume.
+app.get('/api/update/apk', (req, res) => {
+    const tok = req.headers['x-bwc-token'] || req.query.token;
+    if (tok !== CAMERA_TOKEN) return res.status(401).end();
+    if (!fs.existsSync(UPD_APK)) return res.status(404).end();
+    res.type('application/vnd.android.package-archive').sendFile(UPD_APK);
+});
+
 // ---------- Pages ----------
 const page = (file) => (req, res) => res.sendFile(path.join(__dirname, 'public', file));
 app.get(['/', '/index.html'], needUser, page('index.html'));
 app.get('/analytics.html', needUser, page('analytics.html'));
+app.get('/updates.html', needUser, (req, res) => (isSuper(req.user) ? page('updates.html')(req, res) : res.redirect('/analytics.html')));
 app.get('/admin.html', needUser, (req, res, next) => (isSuper(req.user) ? page('admin.html')(req, res) : res.redirect('/analytics.html')));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
@@ -393,6 +436,22 @@ io.on('connection', (socket) => {
             if (action === 'start') publish(id, { remote: true });
             socket.emit('remote_stream_result', { cameraId: id, ok: true, action });
         });
+        // Super admin tells cameras to download and install the latest APK.
+        socket.on('update_cameras', (d) => {
+            if (!isSuper(user)) return;
+            const meta = readMeta();
+            if (!meta || !Array.isArray(d?.cameraIds)) return;
+            let sent = 0;
+            for (const id of d.cameraIds.slice(0, 500)) {
+                const c = str(id) && cams.get(id);
+                if (!c || !c.online) continue;
+                db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user.username, `update_app_${meta.build.slice(0, 12)}`, id);
+                io.to(`room:camera_${id}`).emit('update_app', { build: meta.build, size: meta.size, force: !!d.force });
+                publish(id, { update: { state: 'queued', ts: Date.now() } });
+                sent++;
+            }
+            socket.emit('update_result', { sent });
+        });
         // Control room changes a camera's video quality (e.g. weak network -> 480p).
         socket.on('set_quality', (d) => {
             const id = str(d?.cameraId), quality = d?.quality;
@@ -437,7 +496,15 @@ io.on('connection', (socket) => {
         const id = str(d?.cameraId);
         if (!id) return;
         bind(id);
-        publish(id, { recording: !!d.recording, online: true, ...(['240p', '480p', '720p', '1080p', '4k'].includes(d.quality) ? { quality: d.quality } : {}), ...(d.recording ? (typeof d.remote === 'boolean' ? { remote: d.remote } : {}) : { remote: false }) });
+        publish(id, { recording: !!d.recording, online: true, ...(typeof d.build === 'string' && /^[0-9a-f]{64}$/.test(d.build) ? { appBuild: d.build } : {}), ...(['240p', '480p', '720p', '1080p', '4k'].includes(d.quality) ? { quality: d.quality } : {}), ...(d.recording ? (typeof d.remote === 'boolean' ? { remote: d.remote } : {}) : { remote: false }) });
+    });
+
+    // Progress of a remote update: queued / downloading (pct) / installing / failed (error) / done
+    socket.on('camera_update', (d) => {
+        const id = str(d?.cameraId);
+        if (!id || !['downloading', 'installing', 'waiting', 'failed', 'done'].includes(d.state)) return;
+        bind(id);
+        publish(id, { update: { state: d.state, pct: Math.min(100, Math.max(0, Number(d.pct) || 0)), error: d.error ? String(d.error).slice(0, 160) : undefined, ts: Date.now() } });
     });
 
     socket.on('camera_ptt', (d) => {
