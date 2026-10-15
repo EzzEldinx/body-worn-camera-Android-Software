@@ -1196,7 +1196,9 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
           child: RepaintBoundary(
             key: _frameKey,
             child: RotatedBox(
-              quarterTurns: isFront ? 2 : 0,
+              // The stream (and the dashboard) shows the front camera upright; the on-camera preview must too.
+              // (It used to be turned 180 degrees here, which showed the front camera upside down.)
+              quarterTurns: 0,
               child: KeyedSubtree(
                 key: ObjectKey(_controller),
                 child: _controller!.buildPreview(),
