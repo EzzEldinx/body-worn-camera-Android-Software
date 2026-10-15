@@ -180,7 +180,7 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .tile{position:relative;container-type:inline-size;background:radial-gradient(120% 100% at 50% 0,#16233a,#0A111D);border-radius:14px;overflow:hidden;border:1px solid rgba(120,140,175,.28);min-height:0;aspect-ratio:16/9;box-shadow:var(--shadow-sm);color:#EAF0FA;transition:box-shadow .2s,border-color .2s}
 .tile:hover{border-color:rgba(255,179,0,.55);box-shadow:0 6px 22px rgba(15,27,45,.28)}
 .tile video{width:100%;height:100%;object-fit:contain;display:block;background:#0A111D}
-.tile.fit video{object-fit:cover}
+.tile.port{aspect-ratio:9/16}
 .tile.talking{border-color:var(--ok);box-shadow:var(--glow-ok)}
 .tag{position:absolute;top:8px;left:8px;right:8px;display:flex;align-items:center;gap:6px;padding:5px;border-radius:12px;pointer-events:none;z-index:2;color:#fff;font-size:12.5px;background:var(--glass);backdrop-filter:blur(12px) saturate(150%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .tag .nm{font-weight:700;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -818,7 +818,7 @@ function renderTile(i) {
   t.classList.remove('live');
   if (!id) { t.innerHTML = `<div class="empty">${currentLang === 'ar' ? 'خانة فارغة' : 'Empty slot'}<small>${currentLang === 'ar' ? 'اضغط ▶ بجوار الكاميرا لعرضها هنا' : 'Press ▶ next to a camera to show it here'}</small></div>`; return; }
   t.innerHTML = `<video muted autoplay playsinline></video>
-    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'ملء' : 'Fill'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'طولي' : 'Portrait'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}<button class="reqbtn" data-r="${id}">${currentLang === 'ar' ? 'بدء البث عن بُعد' : 'Start live view'}</button></div>`;
   start(i, id, t.querySelector('video'));
   applySound(i);
@@ -911,7 +911,14 @@ $('#wall').addEventListener('click', (e) => {
   const fb = e.target.closest('[data-f]');
   if (fb) {
     const t = fb.closest('.tile');
-    t.classList.toggle('fit'); fb.querySelector('.lbl').textContent = t.classList.contains('fit') ? (currentLang === 'ar' ? 'احتواء' : 'Fit') : (currentLang === 'ar' ? 'ملء' : 'Fill');
+    // switch the tile between landscape (16:9) and portrait (9:16); the picture is never cropped or stretched
+    t.classList.toggle('port');
+    if (t.classList.contains('expanded')) {
+      const ar = t.classList.contains('port') ? 9 / 16 : 16 / 9;
+      t.style.aspectRatio = String(ar); t.style.height = 'auto';
+      t.style.width = `min(92vw, calc(86vh * ${ar}))`;
+    } else { t.style.aspectRatio = ''; t.style.width = ''; }
+    fb.querySelector('.lbl').textContent = t.classList.contains('port') ? (currentLang === 'ar' ? 'عرضي' : 'Landscape') : (currentLang === 'ar' ? 'طولي' : 'Portrait');
     return;
   }
   const x = e.target.closest('[data-x]'); if (!x) return;
