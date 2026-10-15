@@ -191,6 +191,8 @@ body[dir="rtl"] .tag .pill+button{margin-left:0;margin-right:auto}
 @container (max-width:240px){.tag .pill{display:none}}
 .wait,.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#8FA2BF;font-size:13px;text-align:center;padding:12px}
 .wait{padding-top:44px}
+.qrow{align-items:center;justify-content:space-between;font-size:13px;color:var(--mut)}
+.qrow select{padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--raise);font:inherit;color:var(--text)}
 .reqbtn{pointer-events:auto;margin-top:6px;padding:7px 16px;border-radius:99px;border:0;font-weight:700;font-size:12.5px;color:var(--sel-ink);background:linear-gradient(135deg,var(--sel),#ff9d00);box-shadow:0 4px 14px rgba(255,179,0,.45)}
 .flash-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:30000;padding:11px 20px;border-radius:12px;background:var(--text);color:var(--bg);font-weight:600;box-shadow:var(--shadow-md)}
 .wait::before{content:"";width:24px;height:24px;border-radius:50%;border:2px solid rgba(143,162,191,.3);border-top-color:var(--sel);animation:spin 1s linear infinite}
@@ -700,8 +702,10 @@ function renderInfo() {
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
     <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
+    ${c.online ? `<div class="row qrow"><span>${currentLang === 'ar' ? 'جودة الفيديو' : 'Video quality'}</span><select id="qSel">${['240p', '480p', '720p', '1080p', '4k'].map((q) => `<option value="${q}" ${c.quality === q ? 'selected' : ''}>${q === '4k' ? '4K' : q}</option>`).join('')}</select></div>` : ''}
     ${c.remote ? `<div class="row"><button class="btn" id="bX">${currentLang === 'ar' ? 'إيقاف البث عن بُعد' : 'Stop remote stream'}</button></div>` : ''}`;
   $('#bW').onclick = () => openLive(c.cameraId);
+  if ($('#qSel')) $('#qSel').onchange = (e) => { socket.emit('set_quality', { cameraId: c.cameraId, quality: e.target.value }); flash(currentLang === 'ar' ? 'تم إرسال تغيير الجودة' : 'Quality change sent'); };
   if ($('#bX')) $('#bX').onclick = () => requestStream(c.cameraId, 'stop');
   if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };
   $('#bF').onclick = () => { follow = !follow; renderInfo(); if (follow && c.lat != null) map.easeTo({ center: [c.lng, c.lat] }); };

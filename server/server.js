@@ -356,6 +356,13 @@ io.on('connection', (socket) => {
             if (action === 'start') publish(id, { remote: true });
             socket.emit('remote_stream_result', { cameraId: id, ok: true, action });
         });
+        // Control room changes a camera's video quality (e.g. weak network -> 480p).
+        socket.on('set_quality', (d) => {
+            const id = str(d?.cameraId), quality = d?.quality;
+            if (!id || !['240p', '480p', '720p', '1080p', '4k'].includes(quality) || !canSee(user, id) || !cams.get(id)?.online) return;
+            db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user.username, `set_quality_${quality}`, id);
+            io.to(`room:camera_${id}`).emit('set_quality', { quality });
+        });
         socket.on('ack_alarm', (id) => {
             id = Number(id);
             if (!Number.isInteger(id)) return;
@@ -393,7 +400,7 @@ io.on('connection', (socket) => {
         const id = str(d?.cameraId);
         if (!id) return;
         bind(id);
-        publish(id, { recording: !!d.recording, online: true, ...(d.recording ? {} : { remote: false }) });
+        publish(id, { recording: !!d.recording, online: true, ...(['240p', '480p', '720p', '1080p', '4k'].includes(d.quality) ? { quality: d.quality } : {}), ...(d.recording ? (typeof d.remote === 'boolean' ? { remote: d.remote } : {}) : { remote: false }) });
     });
 
     socket.on('camera_ptt', (d) => {
