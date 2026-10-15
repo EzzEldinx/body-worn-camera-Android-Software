@@ -27,3 +27,6 @@ app.*.map.json
 /macos/
 /web/
 /windows/
+
+# per-site camera list (holds the camera token)
+cameras.json

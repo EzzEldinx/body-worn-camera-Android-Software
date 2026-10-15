@@ -1,0 +1,7 @@
+{
+  "server": "http://192.168.100.75:3000",
+  "token": "yoursecret",
+  "cameras": {
+    "KS16255032500221": "BWC-04-RIY"
+  }
+}
