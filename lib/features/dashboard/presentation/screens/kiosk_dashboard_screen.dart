@@ -954,12 +954,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
           ],
         ),
         const SizedBox(height: 10),
-        Row(
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
           children: [
             HudChip(CentralConfig.cameraId),
-            const SizedBox(width: 6),
             HudChip(isFront ? 'FRONT' : 'REAR', color: Bwc.blue),
-            const SizedBox(width: 6),
             HudChip(_quality.id.toUpperCase(), color: Bwc.amber),
           ],
         ),

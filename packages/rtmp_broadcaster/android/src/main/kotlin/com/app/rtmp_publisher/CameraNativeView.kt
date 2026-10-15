@@ -40,6 +40,10 @@ class CameraNativeView(
     private var isSurfaceCreated = false
     private var fps = 0
 
+    // Bitrate requested from Dart. The stock plugin ignored it whenever recording and streaming were
+    // started together and used the camcorder profile's bitrate (~18 Mbps at 1080p), which floods Wi-Fi.
+    private var targetBitrate: Int? = null
+
     init {
         glView.setAspectRatioMode(AspectRatioMode.Adjust)
         glView.holder.addCallback(this)
@@ -163,7 +167,10 @@ class CameraNativeView(
             if (rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
                     streamingSize.videoFrameWidth,
                     streamingSize.videoFrameHeight,
-                    streamingSize.videoBitRate
+                    30,
+                    targetBitrate ?: streamingSize.videoBitRate,
+                    1, // keyframe every second: a viewer joins (and recovers from loss) within a second
+                    com.pedro.encoder.input.video.CameraHelper.getCameraOrientation(glView.context)
                 )
             ) {
                 rtmpCamera.startRecord(filePath)
@@ -187,7 +194,10 @@ class CameraNativeView(
                 if (rtmpCamera.isRecording || rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
                         streamingSize.videoFrameWidth,
                         streamingSize.videoFrameHeight,
-                        bitrate ?: streamingSize.videoBitRate
+                        30,
+                        bitrate ?: streamingSize.videoBitRate,
+                        1,
+                        com.pedro.encoder.input.video.CameraHelper.getCameraOrientation(glView.context)
                     )
                 ) {
                     // ready to start streaming
@@ -221,6 +231,7 @@ class CameraNativeView(
             return
         }
         try {
+            targetBitrate = bitrate
             startVideoRecording(filePath, result)
             startVideoStreaming(url, bitrate, result)
         } catch (e: CameraAccessException) {

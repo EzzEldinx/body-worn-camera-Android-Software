@@ -126,6 +126,7 @@ class CentralLink {
     _socket!
       ..onConnect((_) {
         connected.value = true;
+        _emitStatus();
         debugPrint('Connected to central server');
         _socket!.emit('register', {
           'id': CentralConfig.cameraId,
@@ -257,13 +258,26 @@ class CentralLink {
     });
   }
 
+  // Last known status, re-sent on every (re)connect so the dashboard sees the camera as online
+  // immediately, not only after the first GPS fix.
+  bool _statusRecording = false;
+  String? _statusQuality;
+  bool? _statusRemote;
+
   void sendStatus({required bool recording, String? quality, bool? remote}) {
+    _statusRecording = recording;
+    _statusQuality = quality ?? _statusQuality;
+    _statusRemote = remote;
+    _emitStatus();
+  }
+
+  void _emitStatus() {
     if (!_online) return;
     _socket!.emit('camera_status', {
       'cameraId': CentralConfig.cameraId,
-      'recording': recording,
-      if (quality != null) 'quality': quality,
-      if (remote != null) 'remote': remote,
+      'recording': _statusRecording,
+      if (_statusQuality != null) 'quality': _statusQuality,
+      if (_statusRemote != null) 'remote': _statusRemote,
     });
   }
 
