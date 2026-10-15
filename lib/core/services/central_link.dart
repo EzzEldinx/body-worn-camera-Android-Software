@@ -51,6 +51,10 @@ class CentralLink {
 
   final _msgs = StreamController<String>.broadcast();
   Stream<String> get messages => _msgs.stream;
+
+  /// Commands from the control room that the officer does not have to act on ('start' / 'stop' live stream).
+  final _remote = StreamController<String>.broadcast();
+  Stream<String> get remoteCommands => _remote.stream;
   bool _pendingSos = false;
   int? _myAlarm;
 
@@ -169,6 +173,10 @@ class CentralLink {
         }
       })
       
+      ..on('remote_stream', (d) {
+        final a = d is Map ? d['action'] : null;
+        if (a == 'start' || a == 'stop') _remote.add(a as String);
+      })
       ..on('join_group', (d) {
         if (d is Map && d['groupId'] != null) {
           final gId = d['groupId'].toString();
@@ -266,6 +274,7 @@ class CentralLink {
     _gpsSub?.cancel();
     _socket?.dispose();
     _msgs.close();
+    _remote.close();
     chatMessages.dispose();
     chatGroups.dispose();
     unreadByChat.dispose();

@@ -57,6 +57,8 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   static const Color _violet = Color(0xFF9B8CFF);
   final Map<String, DateTime> _lastFire = {};
   StreamSubscription<String>? _linkSub;
+  StreamSubscription<String>? _remoteSub;
+  bool _remoteStarted = false; // the control room started this recording, so only it may stop it remotely
   bool _sosFired = false;
   String? _currentFile;
 
@@ -187,6 +189,16 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     _linkSub = ref.read(centralLinkProvider).messages.listen((m) {
       HapticFeedback.mediumImpact();
       _toast(m);
+    });
+
+    // Control room starts/stops the live stream remotely: no toast, no vibration.
+    _remoteSub = ref.read(centralLinkProvider).remoteCommands.listen((a) {
+      if (a == 'start' && !isRecording) {
+        _remoteStarted = true;
+        _toggleRecording(silent: true);
+      } else if (a == 'stop' && isRecording && _remoteStarted) {
+        _toggleRecording(silent: true);
+      }
     });
 
     ref.read(centralLinkProvider).sendStatus(recording: false);
@@ -450,7 +462,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   }
 
   // ---- Record + live stream ---------------------------------------------
-  Future<void> _toggleRecording() async {
+  Future<void> _toggleRecording({bool silent = false}) async {
     final c = _controller;
     if (c == null || c.value.isInitialized != true) return;
     final link = ref.read(centralLinkProvider);
@@ -464,6 +476,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       } catch (e) {
         _report('STOP FAILED: $e');
       }
+      _remoteStarted = false;
       if (mounted) setState(() => isRecording = false);
       link.sendStatus(recording: false);
       return;
@@ -503,12 +516,15 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         });
       }
       link.sendStatus(recording: true);
-      HapticFeedback.mediumImpact();
-      _toast(streamed ? 'Recording and streaming live' : 'Recording locally, stream is offline', error: !streamed);
+      if (!silent) {
+        HapticFeedback.mediumImpact();
+        _toast(streamed ? 'Recording and streaming live' : 'Recording locally, stream is offline', error: !streamed);
+      }
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (mounted) setState(() => _recordDurationInSeconds++);
       });
     } catch (e) {
+      _remoteStarted = false;
       _report('REC FAILED: $e');
     }
   }
@@ -785,6 +801,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     _sosTick?.cancel();
     _toastTimer?.cancel();
     _linkSub?.cancel();
+    _remoteSub?.cancel();
     _controller?.dispose();
     super.dispose();
   }
