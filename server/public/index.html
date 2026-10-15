@@ -118,6 +118,17 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 #alarmCard{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 
 /* ---------- fleet sidebar ---------- */
+.regions{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto;flex:none}
+.reg{flex:none;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:12.5px;font-weight:700;color:var(--mut);transition:.15s;white-space:nowrap}
+.reg:hover{background:var(--hover);color:var(--text)}
+.reg.on{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink);box-shadow:0 3px 12px rgba(255,179,0,.4)}
+.reg small{font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:99px;background:color-mix(in srgb,currentColor 14%,transparent)}
+.cohead{display:flex;align-items:center;gap:8px;padding:10px 6px 6px;font-size:11.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--mut);cursor:pointer;user-select:none}
+.cohead:hover{color:var(--text)}
+.cohead i{font-style:normal;display:inline-block;transition:transform .15s;font-size:10px}
+.cohead.shut i{transform:rotate(-90deg)}
+.cohead .cnt{margin-left:auto;font-size:10.5px;padding:2px 8px;border-radius:99px;background:var(--raise);border:1px solid var(--line-soft);letter-spacing:0;text-transform:none;color:var(--text)}
+.cohead .cnt b{color:var(--ok)}
 .search{position:relative;margin:0 14px 10px}
 .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--mut);width:15px;height:15px}
 #q{width:100%;padding:10px 12px 10px 34px;border-radius:12px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit;font-size:14px}
@@ -308,6 +319,7 @@ header.flash{animation:fl 1s 3}
 <main>
   <aside>
     <div class="sec"><span id="secCameras">Cameras</span> <small id="cnt"></small></div>
+    <div class="regions" id="regions"></div>
     <div class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search by name, group or ID" aria-label="Search cameras"></div>
     <div class="chips" id="chips">
       <button class="chip on" data-f="all" id="chipAll">All</button>
@@ -425,6 +437,9 @@ const $ = (s) => document.querySelector(s);
 const host = location.hostname;
 const cams = new Map(), markers = new Map(), players = new Map();
 let alarms = [], selected = null, filter = 'all', term = '', follow = false;
+let region = 'all', regionList = [], companyList = [];
+let shut = new Set(JSON.parse((() => { try { return localStorage.getItem('bwc-shut') || '[]'; } catch (e) { return '[]'; } })()));
+const saveShut = () => { try { localStorage.setItem('bwc-shut', JSON.stringify([...shut])); } catch (e) { } };
 let me = { role: 'viewer' }, editing = false, currentUser = null;
 let layout = 4, slots = [null, null, null, null];
 
@@ -501,6 +516,7 @@ function visible() {
   return [...cams.values()]
     .filter((c) => (getOfficerLabel(c.cameraId) + ' ' + (c.grp || '') + ' ' + c.cameraId).toLowerCase().includes(term))
     .filter((c) => filter === 'all' || (filter === 'online' ? c.online : c.recording))
+    .filter((c) => region === 'all' || (region === '_none' ? !c.region : c.region === region))
     .sort((a, b) => ({ rec: 0, online: 1, off: 2 }[stateOf(a)] - { rec: 0, online: 1, off: 2 }[stateOf(b)]) || a.cameraId.localeCompare(b.cameraId));
 }
 let queued = false;
@@ -526,21 +542,43 @@ function renderList() {
     const pubTabSpan = $('#tabPublic span');
     if (pubTabSpan) pubTabSpan.textContent = t('publicChat');
 
-    $('#list').innerHTML = rows.length ? rows.map((c) => {
+    // Region tabs: super admin sees every configured region; a company only the regions of its cameras.
+    const all = [...cams.values()];
+    const names = me.staff ? regionList : [...new Set(all.map((c) => c.region).filter(Boolean))];
+    const hasNone = all.some((c) => !c.region);
+    const tab = (key, label) => {
+      const set = all.filter((c) => key === 'all' || (key === '_none' ? !c.region : c.region === key));
+      return `<button class="reg ${region === key ? 'on' : ''}" data-r="${esc(key)}">${esc(label)} <small>${set.filter((c) => c.online).length}/${set.length}</small></button>`;
+    };
+    $('#regions').innerHTML = tab('all', t('all')) + names.map((n) => tab(n, n)).join('') + (hasNone && names.length ? tab('_none', currentLang === 'ar' ? 'بدون منطقة' : 'No region') : '');
+
+    const card = (c) => {
       const resolved = resolveCameraId(c.cameraId);
       const unreadCount = unreadChats[c.cameraId] || unreadChats[resolved] || 0;
       return `
       <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''}" data-id="${c.cameraId}" tabindex="0">
         <span class="dot"></span>
         <div class="meta"><b>${esc(getOfficerLabel(c.cameraId))}</b>
-          <small>${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
+          <small>${c.region ? esc(c.region) + ', ' : ''}${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
         ${unreadCount > 0 ? `<span class="badge" style="background:var(--rec); margin-right:4px;">${unreadCount}</span>` : ''}
         ${c.recording ? '<span class="badge">REC</span>' : ''}
         ${c.ptt ? '<span class="badge talk">TALK</span>' : ''}
         <button data-w="${c.cameraId}" title="${t('watchLive')}" aria-label="${t('watchLive')}">▶</button>
       </div>`;
-    }).join('')
-      : `<div class="none">${t('noCamerasMatch')}</div>`;
+    };
+    if (!rows.length) {
+      $('#list').innerHTML = `<div class="none">${t('noCamerasMatch')}</div>`;
+    } else {
+      // Group by company (collapsible). A single group (a company user) needs no header.
+      const noCo = currentLang === 'ar' ? 'بدون شركة' : 'No company';
+      const groups = new Map();
+      rows.forEach((c) => { const k = c.company || noCo; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); });
+      const keys = [...groups.keys()].sort((x, y) => (x === noCo) - (y === noCo) || x.localeCompare(y));
+      $('#list').innerHTML = keys.length === 1 && !me.staff ? rows.map(card).join('') : keys.map((k) => {
+        const list = groups.get(k), closed = shut.has(k);
+        return `<div class="cohead ${closed ? 'shut' : ''}" data-co="${esc(k)}"><i>▼</i>${esc(k)}<span class="cnt"><b>${list.filter((c) => c.online).length}</b>/${list.length}</span></div>${closed ? '' : list.map(card).join('')}`;
+      }).join('');
+    }
     stats();
   });
 }
@@ -553,7 +591,13 @@ function stats() {
   $('#sAl').textContent = open;
   $('#sAl').closest('.stat').classList.toggle('hot', open > 0);
 }
+$('#regions').addEventListener('click', (e) => {
+  const b = e.target.closest('.reg'); if (!b) return;
+  region = b.dataset.r; renderList();
+});
 $('#list').addEventListener('click', (e) => {
+  const h = e.target.closest('.cohead');
+  if (h) { const k = h.dataset.co; if (shut.has(k)) shut.delete(k); else shut.add(k); saveShut(); return renderList(); }
   const w = e.target.closest('[data-w]');
   if (w) return openLive(w.dataset.w);
   const row = e.target.closest('.cam');
@@ -688,16 +732,27 @@ function renderInfo() {
     box.innerHTML = `<h3>Edit ${c.cameraId}</h3>
       <input class="in" id="eN" maxlength="40" placeholder="Display name" value="${esc(c.name || '')}" aria-label="Display name">
       <input class="in" id="eG" maxlength="40" placeholder="Group" value="${esc(c.grp || '')}" aria-label="Group">
+      <select class="in" id="eR" aria-label="Region"><option value="">No region</option>${regionList.map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
+      ${me.super ? `<select class="in" id="eC2" aria-label="Company"><option value="">No company</option>${companyList.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select>` : ''}
       <div class="row"><button class="btn pri" id="eS">Save changes</button><button class="btn" id="eC">Cancel</button></div>
       <div class="row"><button class="btn" id="eD">Remove camera</button></div>`;
     const call = (method, body) => fetch('/api/cameras/' + c.cameraId, { method, headers: { 'Content-Type': 'application/json' }, body });
-    $('#eS').onclick = () => call('PATCH', JSON.stringify({ name: $('#eN').value, grp: $('#eG').value })).then(() => { editing = false; renderInfo(); });
+    $('#eS').onclick = async () => {
+      // read every field first: the panel re-renders as soon as the first save comes back
+      const v = { name: $('#eN').value, grp: $('#eG').value, region: $('#eR').value, company: $('#eC2') ? $('#eC2').value : null };
+      if (v.company !== null && String(v.company) !== String(c.companyId || '')) {
+        await fetch('/api/admin/cameras/' + encodeURIComponent(c.cameraId) + '/company', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyId: v.company === '' ? null : Number(v.company) }) });
+      }
+      await call('PATCH', JSON.stringify({ name: v.name, grp: v.grp, region: v.region }));
+      editing = false; renderInfo();
+    };
     $('#eC').onclick = () => { editing = false; renderInfo(); };
     $('#eD').onclick = () => { if (confirm('Remove ' + nm(c) + '?')) call('DELETE'); };
     return;
   }
   box.innerHTML = `<h3>${esc(getOfficerLabel(c.cameraId))}</h3>
     <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
+    <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || (currentLang === 'ar' ? 'غير معيّنة' : 'Unassigned')}</p>
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
@@ -1178,11 +1233,16 @@ function updateUserDisplay() {
   $('#adminLink').style.display = currentUser.super ? '' : 'none';
 }
 
+function loadDirectory() {
+  fetch('/api/regions').then((r) => r.json()).then((l) => { regionList = l; renderList(); }).catch(() => { });
+  if (me.super) fetch('/api/admin/companies').then((r) => r.json()).then((d) => { companyList = d.companies; }).catch(() => { });
+}
 fetch('/api/me').then((r) => (r.ok ? r.json() : Promise.reject()))
   .then((u) => { 
     me = u; 
     currentUser = u;
     updateUserDisplay();
+    loadDirectory();
     renderInfo(); 
   })
   .catch(() => { location.href = '/login.html'; });

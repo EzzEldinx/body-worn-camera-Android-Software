@@ -48,11 +48,14 @@ for (const r of db.prepare('SELECT * FROM cameras').all()) {
     const p = db.prepare('SELECT lat,lng,ts FROM positions WHERE camera_id=? ORDER BY ts DESC LIMIT 1').get(r.id);
     cams.set(r.id, {
         cameraId: r.id, name: r.name || r.id, grp: r.grp || '', online: false, recording: false,
-        lat: p ? p.lat : null, lng: p ? p.lng : null, ts: p ? p.ts : 0, companyId: r.company_id || null,
+        lat: p ? p.lat : null, lng: p ? p.lng : null, ts: p ? p.ts : 0, companyId: r.company_id || null, region: r.region || null,
     });
 }
+const companyName = (id) => (id ? db.prepare('SELECT name FROM companies WHERE id = ?').get(id)?.name || null : null);
+// What dashboards receive: the camera state plus its company's name (for grouping in the list).
+const decorate = (c) => ({ ...c, company: companyName(c.companyId) });
 const canSee = (u, camId) => isStaff(u) || cams.get(camId)?.companyId === u.companyId;
-const visibleCams = (u) => [...cams.values()].filter((c) => isStaff(u) || c.companyId === u.companyId);
+const visibleCams = (u) => [...cams.values()].filter((c) => isStaff(u) || c.companyId === u.companyId).map(decorate);
 
 // Dashboards of Smart Way staff join room:admin; company dashboards join room:company_<id>.
 const roomsFor = (id) => {
@@ -70,7 +73,7 @@ function publish(id, patch) {
         ...cams.get(id), ...patch,
     };
     cams.set(id, state);
-    toCam(id, 'dashboard_cam', state);
+    toCam(id, 'dashboard_cam', decorate(state));
 }
 const alarmRow = (r) => ({ id: r.id, cameraId: r.camera_id, lat: r.lat, lng: r.lng, ts: r.ts, ack: r.ack_ts != null });
 const recentAlarms = (u) => (isStaff(u)
@@ -134,8 +137,14 @@ app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
     const name = String(req.body?.name ?? '').trim().slice(0, 40) || id;
     const grp = String(req.body?.grp ?? '').trim().slice(0, 40);
-    db.prepare('UPDATE cameras SET name = ?, grp = ? WHERE id = ?').run(name, grp, id);
-    publish(id, { name, grp });
+    let region = cams.get(id).region || null;
+    if (req.body && 'region' in req.body) {
+        const r = req.body.region;
+        region = r === null || r === '' ? null : String(r);
+        if (region && !db.prepare('SELECT 1 FROM regions WHERE name = ?').get(region)) return res.status(400).json({ error: 'Unknown region.' });
+    }
+    db.prepare('UPDATE cameras SET name = ?, grp = ?, region = ? WHERE id = ?').run(name, grp, region, id);
+    publish(id, { name, grp, region });
     res.json({ ok: true });
 });
 app.delete('/api/cameras/:id', needUser, needAdmin, (req, res) => {
@@ -156,6 +165,9 @@ app.get('/api/stream/:id', needUser, (req, res) => {
     const hash = crypto.createHash('md5').update(`/live/${id}-${exp}-${STREAM_SECRET}`).digest('hex');
     res.json({ sign: `${exp}-${hash}` });
 });
+
+// ---------- Regions (Riyadh, Jeddah, Dammam ...) ----------
+app.get('/api/regions', needUser, (req, res) => res.json(db.prepare('SELECT name FROM regions ORDER BY created').all().map((r) => r.name)));
 
 // ---------- Analytics (scoped to the signed-in user) ----------
 app.get('/api/analytics', needUser, (req, res) => {
@@ -205,8 +217,33 @@ app.get('/api/admin/companies', adminOnly, (req, res) => {
         ...c,
         users: db.prepare('SELECT id,username,name FROM users WHERE company_id = ? ORDER BY username').all(c.id),
     }));
-    const cameras = [...cams.values()].map((c) => ({ id: c.cameraId, name: c.name, companyId: c.companyId, online: c.online }));
-    res.json({ companies, cameras });
+    const cameras = [...cams.values()].map((c) => ({ id: c.cameraId, name: c.name, companyId: c.companyId, region: c.region || null, online: c.online }));
+    const regions = db.prepare('SELECT name FROM regions ORDER BY created').all().map((r) => r.name);
+    res.json({ companies, cameras, regions });
+});
+app.post('/api/admin/regions', adminOnly, (req, res) => {
+    const name = String(req.body?.name ?? '').trim().slice(0, 40);
+    if (name.length < 2) return res.status(400).json({ error: 'Region name is too short.' });
+    try { db.prepare('INSERT INTO regions(name,created) VALUES(?,?)').run(name, Date.now()); res.json({ ok: true }); }
+    catch (e) { res.status(409).json({ error: 'This region already exists.' }); }
+});
+app.delete('/api/admin/regions/:name', adminOnly, (req, res) => {
+    const name = String(req.params.name);
+    if (!db.prepare('SELECT 1 FROM regions WHERE name = ?').get(name)) return res.status(404).json({ error: 'Region not found.' });
+    db.prepare('UPDATE cameras SET region = NULL WHERE region = ?').run(name);
+    db.prepare('DELETE FROM regions WHERE name = ?').run(name);
+    for (const c of cams.values()) if (c.region === name) publish(c.cameraId, { region: null });
+    res.json({ ok: true });
+});
+app.put('/api/admin/cameras/:id/region', adminOnly, (req, res) => {
+    const id = str(req.params.id);
+    if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
+    const raw = req.body?.region;
+    const region = raw === null || raw === '' || raw === undefined ? null : String(raw);
+    if (region && !db.prepare('SELECT 1 FROM regions WHERE name = ?').get(region)) return res.status(404).json({ error: 'Region not found.' });
+    db.prepare('UPDATE cameras SET region = ? WHERE id = ?').run(region, id);
+    publish(id, { region });
+    res.json({ ok: true });
 });
 app.post('/api/admin/companies', adminOnly, (req, res) => {
     const name = String(req.body?.name ?? '').trim().slice(0, 60);

@@ -8,6 +8,10 @@
 <style>
 .layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
 @media (max-width:1000px){.layout{grid-template-columns:1fr}}
+.stack{display:grid;gap:18px}
+.rgchip{display:inline-flex;align-items:center;gap:8px;padding:5px 6px 5px 13px;border-radius:99px;font-size:13px;font-weight:600;background:var(--raise);border:1px solid var(--line)}
+.rgchip button{border:0;background:none;color:var(--mut);cursor:pointer;width:22px;height:22px;border-radius:50%}
+.rgchip button:hover{background:var(--rec);color:#fff}
 .newco{display:flex;gap:10px;flex-wrap:wrap}
 .newco input{flex:1;min-width:200px}
 .co{margin-top:16px;padding:18px 20px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
@@ -51,11 +55,22 @@ td select{width:100%}
       <div id="companies"></div>
     </section>
 
+    <div class="stack">
+    <section class="card">
+      <h3>Regions</h3>
+      <div class="newco">
+        <input id="rgName" placeholder="New region, e.g. Medina" maxlength="40">
+        <button class="btn pri" id="rgAdd">Add</button>
+      </div>
+      <div class="chips" id="regions" style="margin-top:12px"></div>
+    </section>
+
     <section class="card">
       <h3>Camera assignment</h3>
       <p class="muted" style="margin:0 0 10px;font-size:13px">Choose which company owns each camera. That company's users see only their cameras.</p>
       <table><tbody id="cams"></tbody></table>
     </section>
+    </div>
   </div>
 </main>
 
@@ -100,9 +115,11 @@ function render() {
       </div>
     </div>`).join('') : '<div class="empty">No companies yet. Add your first customer above.</div>';
 
+  $('#regions').innerHTML = (data.regions || []).map((r) => `<span class="rgchip">${esc(r)}<button data-rg="${esc(r)}" title="Delete region" aria-label="Delete ${esc(r)}">✕</button></span>`).join('') || '<span class="muted" style="font-size:13px">No regions yet.</span>';
   $('#cams').innerHTML = data.cameras.length ? data.cameras.map((c) => `
     <tr data-cam="${esc(c.id)}"><td style="width:46%"><span class="dot ${c.online ? 'on' : ''}"></span><b>${esc(c.id)}</b>${c.name && c.name !== c.id ? `<div class="muted" style="font-size:12px;margin-left:17px">${esc(c.name)}</div>` : ''}</td>
-      <td><select>${'<option value="">Unassigned</option>' + data.companies.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select></td></tr>`).join('')
+      <td><select data-k="company">${'<option value="">No company</option>' + data.companies.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select></td>
+      <td><select data-k="region">${'<option value="">No region</option>' + (data.regions || []).map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></td></tr>`).join('')
     : '<tr><td class="empty">No cameras have connected yet. They appear here as soon as one connects.</td></tr>';
 }
 
@@ -135,8 +152,20 @@ $('#companies').addEventListener('click', (e) => {
 
 $('#cams').addEventListener('change', (e) => {
   const sel = e.target.closest('select'); if (!sel) return;
-  api('PUT', `/api/admin/cameras/${encodeURIComponent(sel.closest('tr').dataset.cam)}/company`, { companyId: sel.value === '' ? null : Number(sel.value) })
-    .then(() => { toast('Camera assignment saved'); return load(); }).catch((err) => { fail(err); load(); });
+  const id = encodeURIComponent(sel.closest('tr').dataset.cam);
+  const req = sel.dataset.k === 'region'
+    ? api('PUT', `/api/admin/cameras/${id}/region`, { region: sel.value === '' ? null : sel.value })
+    : api('PUT', `/api/admin/cameras/${id}/company`, { companyId: sel.value === '' ? null : Number(sel.value) });
+  req.then(() => { toast('Saved'); return load(); }).catch((err) => { fail(err); load(); });
+});
+$('#rgAdd').onclick = () => {
+  const name = $('#rgName').value.trim(); if (!name) return;
+  api('POST', '/api/admin/regions', { name }).then(() => { $('#rgName').value = ''; toast('Region added'); return load(); }).catch(fail);
+};
+$('#rgName').onkeydown = (e) => { if (e.key === 'Enter') $('#rgAdd').click(); };
+$('#regions').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rg]'); if (!b) return;
+  if (confirm(`Delete the region "${b.dataset.rg}"? Its cameras become "No region".`)) api('DELETE', `/api/admin/regions/${encodeURIComponent(b.dataset.rg)}`).then(load).catch(fail);
 });
 
 portalReady.then(load);

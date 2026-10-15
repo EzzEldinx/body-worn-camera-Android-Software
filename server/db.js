@@ -28,6 +28,11 @@ function addColumn(table, col, ddl) {
 }
 addColumn('users', 'company_id', 'INTEGER');
 addColumn('cameras', 'company_id', 'INTEGER');
+addColumn('cameras', 'region', 'TEXT');
+db.exec('CREATE TABLE IF NOT EXISTS regions(name TEXT PRIMARY KEY, created INTEGER NOT NULL)');
+if (!db.prepare('SELECT 1 FROM regions LIMIT 1').get()) {
+    ['Riyadh', 'Jeddah', 'Dammam'].forEach((n, i) => db.prepare('INSERT INTO regions(name,created) VALUES(?,?)').run(n, Date.now() + i));
+}
 
 function hashPassword(pw) {
     const salt = crypto.randomBytes(16).toString('hex');
