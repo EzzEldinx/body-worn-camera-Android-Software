@@ -14,6 +14,6 @@ class Bwc {
   static const Color ok = Color(0xFF2EE6A6);
   static const Color rec = Color(0xFFFF4D6A);
   static const Color blue = Color(0xFF5AA9FF);
-  static const Color glass = Color(0x8C0A101C); // translucent dark panel over the video
+  static const Color glass = Color(0xB30A101C); // translucent dark panel over the video
   static const Color glassLine = Color(0x2EFFFFFF);
 }

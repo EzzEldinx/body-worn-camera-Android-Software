@@ -30,7 +30,9 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   int _selectedCameraIndex = 0;
 
   bool isRecording = false;
-  int _recordDurationInSeconds = 0;
+  // Seconds of the current recording: a notifier so the timer repaints only itself, not the whole screen.
+  final ValueNotifier<int> _recSecs = ValueNotifier<int>(0);
+  double _framePixelRatio = 1.0;
   Timer? _timer;
   Timer? _sosTick;
   double _sosProgress = 0;
@@ -550,10 +552,8 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       }
 
       if (mounted) {
-        setState(() {
-          isRecording = true;
-          _recordDurationInSeconds = 0;
-        });
+        _recSecs.value = 0;
+        setState(() => isRecording = true);
       }
       link.sendStatus(recording: true, quality: _quality.id, remote: _remoteStarted);
       if (!silent) {
@@ -561,7 +561,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         _toast(streamed ? 'Recording and streaming live' : 'Recording locally, stream is offline', error: !streamed);
       }
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (mounted) setState(() => _recordDurationInSeconds++);
+        _recSecs.value++;
       });
     } catch (e) {
       _remoteStarted = false;
@@ -996,8 +996,11 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
                   children: [
                     const Icon(Icons.fiber_manual_record, color: Colors.white, size: 14),
                     const SizedBox(width: 8),
-                    Text('REC  ${_formatDuration(_recordDurationInSeconds)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _recSecs,
+                      builder: (_, secs, __) => Text('REC  ${_formatDuration(secs)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                    ),
                   ],
                 ),
               ),
@@ -1163,7 +1166,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   Future<void> _grabFrame(String path) async {
     final boundary = _frameKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) throw 'preview not ready';
-    final img = await boundary.toImage(pixelRatio: 1.0); // full preview size, without digital zoom
+    final img = await boundary.toImage(pixelRatio: _framePixelRatio); // full preview size, without digital zoom
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
     if (data == null) throw 'could not read the frame';
     await File(path).writeAsBytes(data.buffer.asUint8List());
@@ -1184,45 +1187,59 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     final size = _controller!.value.previewSize;
     final a = size?.width ?? 1280.0;
     final b = size?.height ?? 720.0;
-    final pw = a < b ? a : b; // upright (portrait) frame
+    final pw = a < b ? a : b; // upright (portrait) frame, in camera pixels
     final ph = a < b ? b : a;
+    final ar = pw / ph;
 
-    final frame = SizedBox(
-      width: pw,
-      height: ph,
-      child: ClipRect(
+    // The native preview is laid out at the size it is DISPLAYED, never at the camera's pixel size.
+    // Laying out a 1080x1920 (or 4K) view and scaling it down made the GPU copy a huge surface every frame,
+    // which is what made the picture on the camera itself lag while the stream stayed smooth.
+    Widget frameOf(double w, double h) {
+      _framePixelRatio = pw / w;
+      return SizedBox(
+        width: w,
+        height: h,
         child: Transform.scale(
           scale: _currentZoomLevel,
           child: RepaintBoundary(
             key: _frameKey,
-            child: RotatedBox(
-              // The stream (and the dashboard) shows the front camera upright; the on-camera preview must too.
-              // (It used to be turned 180 degrees here, which showed the front camera upside down.)
-              quarterTurns: 0,
-              child: KeyedSubtree(
-                key: ObjectKey(_controller),
-                child: _controller!.buildPreview(),
-              ),
+            // The stream (and the dashboard) shows the front camera upright; so must this preview.
+            child: KeyedSubtree(
+              key: ObjectKey(_controller),
+              child: _controller!.buildPreview(),
             ),
           ),
         ),
-      ),
-    );
-
-    if (!_wide) {
-      return SizedBox.expand(child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge, child: frame));
+      );
     }
+
     return LayoutBuilder(
-      builder: (context, box) => Center(
-        child: SizedBox(
-          width: box.maxWidth - 16,
-          height: (box.maxWidth - 16) * 9 / 16,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: FittedBox(fit: BoxFit.cover, child: frame),
+      builder: (context, box) {
+        if (!_wide) {
+          var w = box.maxWidth;
+          var h = w / ar;
+          if (h < box.maxHeight) {
+            h = box.maxHeight;
+            w = h * ar;
+          }
+          return ClipRect(
+            child: OverflowBox(minWidth: w, maxWidth: w, minHeight: h, maxHeight: h, child: frameOf(w, h)),
+          );
+        }
+        final ww = box.maxWidth - 16;
+        final wh = ww * 9 / 16;
+        final fh = ww / ar;
+        return Center(
+          child: SizedBox(
+            width: ww,
+            height: wh,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: OverflowBox(minWidth: ww, maxWidth: ww, minHeight: fh, maxHeight: fh, child: frameOf(ww, fh)),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

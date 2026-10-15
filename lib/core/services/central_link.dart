@@ -266,13 +266,42 @@ class CentralLink {
 
   bool get _online => _socket?.connected == true;
 
-  void _sendGps(Position p) {
+  // A position is only reported when it is a REAL, recent, accurate fix. Before, the last value was re-sent
+  // every 10 s forever (even a stale one the GPS chip remembered from another city), which put cameras
+  // kilometres away from where they really were.
+  static const double _maxAccuracyM = 50;
+  static const Duration _maxFixAge = Duration(seconds: 20);
+  DateTime? _lastFixAt;
+  final ValueNotifier<double?> gpsAccuracy = ValueNotifier(null); // metres of the last accepted fix
+
+  void _onFix(Position p) {
+    final now = DateTime.now();
+    final fixTime = p.timestamp;
+    final age = now.difference(fixTime);
+    final bad = p.isMocked || age > _maxFixAge || p.accuracy <= 0 || p.accuracy > _maxAccuracyM ||
+        (p.latitude == 0 && p.longitude == 0);
+    if (bad) {
+      // keep the last good fix for the heartbeat, but do not let a poor one replace it
+      gpsAccuracy.value = p.accuracy > 0 ? p.accuracy : null;
+      if (_lastFixAt == null || now.difference(_lastFixAt!) > const Duration(seconds: 45)) gpsFix.value = false;
+      return;
+    }
+    _last = p;
+    _lastFixAt = now;
     gpsFix.value = true;
+    gpsAccuracy.value = p.accuracy;
+    _sendGps(p);
+  }
+
+  void _sendGps(Position p) {
     if (!_online) return;
     _socket!.emit('camera_gps_update', {
       'cameraId': CentralConfig.cameraId,
       'lat': p.latitude,
       'lng': p.longitude,
+      'acc': p.accuracy,
+      'fixTs': (_lastFixAt ?? DateTime.now()).millisecondsSinceEpoch,
+      if (p.speed.isFinite && p.speed >= 0) 'speed': p.speed,
     });
   }
 
@@ -287,21 +316,24 @@ class CentralLink {
 
     await _gpsSub?.cancel();
     _gpsSub = Geolocator.getPositionStream(
-      locationSettings: AndroidSettings( // 👈 شلنا كلمة const هنا
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 2,
-        intervalDuration: const Duration(seconds: 5),
+      locationSettings: AndroidSettings(
+        accuracy: LocationAccuracy.best, // GPS + BeiDou/GLONASS, not network guesses
+        distanceFilter: 0,
+        intervalDuration: const Duration(seconds: 2),
         forceLocationManager: true,
       ),
-    ).listen((p) {
-      _last = p;
-      _sendGps(p);
-    });
+    ).listen(_onFix);
 
     _heartbeat?.cancel();
     _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) {
-      final p = _last;
-      if (p != null) _sendGps(p);
+      // repeat the last GOOD fix only while it is still recent; after that the camera says nothing about
+      // position and the dashboard shows "no GPS fix" instead of a stale point
+      final p = _last, at = _lastFixAt;
+      if (p != null && at != null && DateTime.now().difference(at) < const Duration(seconds: 45)) {
+        _sendGps(p);
+      } else {
+        gpsFix.value = false;
+      }
     });
   }
 

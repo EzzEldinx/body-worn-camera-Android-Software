@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/bwc_tokens.dart';
 
-/// Frosted-glass container used for every control drawn over the live camera picture.
+/// Translucent container used for every control drawn over the live camera picture.
 class HudGlass extends StatelessWidget {
   const HudGlass({super.key, required this.child, this.padding = EdgeInsets.zero, this.radius = 999, this.tint, this.borderColor});
 
@@ -17,20 +17,16 @@ class HudGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: tint ?? Bwc.glass,
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: borderColor ?? Bwc.glassLine),
-          ),
-          child: child,
-        ),
+    // No blur: a BackdropFilter over the live camera surface made every frame very expensive on this device.
+    // A darker translucent fill gives the same readability for free.
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: tint ?? Bwc.glass,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: borderColor ?? Bwc.glassLine),
       ),
+      child: child,
     );
   }
 }
