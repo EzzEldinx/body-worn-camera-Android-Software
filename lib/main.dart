@@ -11,6 +11,7 @@ import 'features/dashboard/presentation/screens/kiosk_dashboard_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await CentralConfig.load(); // per-camera id/server/token written by tools/update-cameras.ps1
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   // Portrait: the camera is worn vertically; the video is shown in a 16:9 window.

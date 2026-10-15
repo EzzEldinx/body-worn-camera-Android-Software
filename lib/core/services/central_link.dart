@@ -1,17 +1,40 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class CentralConfig {
-  static const serverUrl = String.fromEnvironment('BWC_SERVER',
+  // Build-time defaults (--dart-define) ...
+  static String serverUrl = const String.fromEnvironment('BWC_SERVER',
       defaultValue: 'http://192.168.100.75:3000');
-  static const cameraId =
-      String.fromEnvironment('BWC_ID', defaultValue: 'BWC-01');
-  static const token =
-      String.fromEnvironment('BWC_TOKEN', defaultValue: 'change-me');
+  static String cameraId =
+      const String.fromEnvironment('BWC_ID', defaultValue: 'BWC-01');
+  static String token =
+      const String.fromEnvironment('BWC_TOKEN', defaultValue: 'change-me');
+
+  /// ... overridden per camera by config.json in the app's files folder, which
+  /// tools/update-cameras.ps1 writes: {"id": "BWC-05-RIY", "server": "http://...:3000", "token": "..."}.
+  /// One APK therefore serves every camera.
+  static Future<void> load() async {
+    try {
+      final dir = await getExternalStorageDirectory();
+      if (dir == null) return;
+      final f = File('${dir.path}/config.json');
+      if (!await f.exists()) return;
+      final j = jsonDecode(await f.readAsString());
+      if (j is! Map) return;
+      if (j['id'] is String && (j['id'] as String).isNotEmpty) cameraId = j['id'] as String;
+      if (j['server'] is String && (j['server'] as String).isNotEmpty) serverUrl = j['server'] as String;
+      if (j['token'] is String && (j['token'] as String).isNotEmpty) token = j['token'] as String;
+    } catch (e) {
+      debugPrint('config.json ignored: $e');
+    }
+  }
 
   static String get rtmpUrl =>
       'rtmp://${Uri.parse(serverUrl).host}:1935/live/$cameraId';
