@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -98,8 +97,9 @@ class AppUpdater {
       await sink.close();
       client.close();
 
-      final digest = await sha256.bind(file.openRead()).first;
-      if (expected.isNotEmpty && digest.toString() != expected) throw 'download is corrupt (checksum differs)';
+      // hashed natively: the pure-Dart hash took ~30 s for a 53 MB file
+      final digest = await _ch.invokeMethod<String>('sha256', {'path': file.path});
+      if (expected.isNotEmpty && digest != expected) throw 'download is corrupt (checksum differs)';
 
       link.sendUpdate('installing');
       await _ch.invokeMethod('installApk', {'path': file.path});

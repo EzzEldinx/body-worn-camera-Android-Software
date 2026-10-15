@@ -49,6 +49,25 @@
             </intent-filter>
         </activity>
         
+        <!-- Home entry: disabled until the camera is provisioned (device owner); see Kiosk.kt -->
+        <activity-alias
+            android:name=".HomeAlias"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- adb-only control (unprovision / status) -->
+        <provider
+            android:name=".ControlProvider"
+            android:authorities="com.swg.swg_bwc.control"
+            android:exported="true" />
+
         <receiver android:name=".InstallResultReceiver" android:exported="false" />
         <receiver android:name=".PackageReplacedReceiver" android:exported="true">
             <intent-filter>

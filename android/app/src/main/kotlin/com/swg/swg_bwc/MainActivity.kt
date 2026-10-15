@@ -82,6 +82,26 @@ class MainActivity : FlutterActivity() {
                     }
                 }.start()
                 "isDeviceOwner" -> result.success(AppInstaller.isDeviceOwner(this))
+                "sha256" -> {
+                    val path = call.argument<String>("path")
+                    Thread {
+                        try {
+                            val md = java.security.MessageDigest.getInstance("SHA-256")
+                            java.io.File(path!!).inputStream().use { input ->
+                                val buf = ByteArray(1 shl 16)
+                                while (true) {
+                                    val n = input.read(buf)
+                                    if (n < 0) break
+                                    md.update(buf, 0, n)
+                                }
+                            }
+                            val hex = md.digest().joinToString("") { "%02x".format(it) }
+                            runOnUiThread { result.success(hex) }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("sha256", e.message, null) }
+                        }
+                    }.start()
+                }
                 "installApk" -> {
                     val path = call.argument<String>("path")
                     if (path == null) {
@@ -236,6 +256,7 @@ class MainActivity : FlutterActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
 
         registerLolaageReceiver()
+        Kiosk.applyHome(this) // provisioned cameras: become the Home app so Android restarts us after updates
     }
 
     private fun registerLolaageReceiver() {
