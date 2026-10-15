@@ -524,13 +524,18 @@ io.on('connection', (socket) => {
         const lng = num(d?.lng, -180, 180);
         if (!id || lat === null || lng === null) return;
         if (deleted.has(id)) return; // removed from the dashboard: stays hidden until it records / SOS / PTT
+        if (lat === 0 && lng === 0) return;
         bind(id);
         const now = Date.now();
+        // accuracy (metres) and the time of the fix: a poor or old fix never replaces the camera's position
+        const acc = Number.isFinite(d?.acc) && d.acc > 0 && d.acc < 100000 ? Math.round(d.acc * 10) / 10 : null;
+        const fixTs = Number.isFinite(d?.fixTs) && d.fixTs > now - 3600000 && d.fixTs <= now + 60000 ? d.fixTs : now;
+        if (acc !== null && acc > 100) { publish(id, { online: true }); return; }
         if (now - (lastPos.get(id) || 0) >= 5000) { // keep a trail, one point per 5 s
-            db.prepare('INSERT INTO positions(camera_id,lat,lng,ts) VALUES(?,?,?,?)').run(id, lat, lng, now);
+            db.prepare('INSERT INTO positions(camera_id,lat,lng,ts,acc) VALUES(?,?,?,?,?)').run(id, lat, lng, now, acc);
             lastPos.set(id, now);
         }
-        publish(id, { lat, lng, online: true, ts: now });
+        publish(id, { lat, lng, acc, fixTs, online: true, ts: now });
     });
 
     socket.on('camera_status', (d) => {

@@ -159,6 +159,7 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .mk.rec{background:var(--rec);animation:pulseRec 1.5s infinite}
 .mk.off{background:var(--off)}
 .mk.sel{box-shadow:0 0 0 4px var(--sel),0 0 18px var(--sel)}
+.mk.stale{opacity:.5;filter:grayscale(.7);animation:none!important;border-style:dashed}
 @keyframes pulseRec{0%{box-shadow:0 0 0 0 rgba(255,51,85,.65)}100%{box-shadow:0 0 0 16px rgba(255,51,85,0)}}
 @keyframes pulseOnline{0%{box-shadow:0 0 0 0 rgba(0,184,124,.6)}100%{box-shadow:0 0 0 16px rgba(0,184,124,0)}}
 #info{position:absolute;left:14px;bottom:14px;width:300px;background:color-mix(in srgb,var(--panel) 84%,transparent);backdrop-filter:blur(14px) saturate(150%);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:none;box-shadow:var(--shadow-md);z-index:3}
@@ -508,8 +509,28 @@ function syncMarker(c) {
     markers.set(c.cameraId, m);
   }
   m.setLngLat([lng, lat]);
-  m.getElement().className = 'mk ' + stateOf(c) + (selected === c.cameraId ? ' sel' : '');
+  m.getElement().className = 'mk ' + stateOf(c) + (selected === c.cameraId ? ' sel' : '') + (gpsStale(c) ? ' stale' : '');
 }
+// A position is only "live" if the camera reported a fresh fix in the last 2 minutes; otherwise it is the last known place.
+const gpsStale = (c) => !c.fixTs || Date.now() - c.fixTs > 120000;
+const agoShort = (ts) => { const s = Math.floor((Date.now() - ts) / 1000); return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + ' min' : s < 86400 ? Math.floor(s / 3600) + ' h' : Math.floor(s / 86400) + ' d'; };
+function circlePoly(lng, lat, r) {
+  const pts = [];
+  for (let i = 0; i <= 64; i++) { const a = i / 64 * 2 * Math.PI; pts.push([lng + (r * Math.cos(a)) / (111320 * Math.cos(lat * Math.PI / 180)), lat + (r * Math.sin(a)) / 111320]); }
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Polygon', coordinates: [pts] } }] };
+}
+// accuracy circle around the selected camera
+function drawAcc() {
+  const src = map.getSource && map.getSource('acc'); if (!src) return;
+  const c = cams.get(selected);
+  src.setData(c && c.acc && c.lat != null && !gpsStale(c) ? circlePoly(Number(c.lng), Number(c.lat), Math.max(c.acc, 3)) : { type: 'FeatureCollection', features: [] });
+}
+map.on('load', () => {
+  map.addSource('acc', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'acc-fill', type: 'fill', source: 'acc', paint: { 'fill-color': '#2F7BFF', 'fill-opacity': 0.14 } });
+  map.addLayer({ id: 'acc-line', type: 'line', source: 'acc', paint: { 'line-color': '#2F7BFF', 'line-width': 1.5, 'line-opacity': 0.7 } });
+  drawAcc();
+});
 
 /* ---------- Fleet list ---------- */
 function visible() {
@@ -629,7 +650,7 @@ function select(id, fly) {
   }
 
   openPrivateTab(resolvedId, true);
-  renderList(); renderInfo();
+  renderList(); renderInfo(); drawAcc();
 }
 
 function openPrivateTab(rawCamId, autoActivate = false) {
@@ -754,6 +775,7 @@ function renderInfo() {
     <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
     <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || (currentLang === 'ar' ? 'غير معيّنة' : 'Unassigned')}</p>
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
+    ${c.lat == null ? '' : gpsStale(c) ? `<p style="color:var(--sel)">${currentLang === 'ar' ? 'لا يوجد تحديد موقع حي. آخر موقع معروف' + (c.ts ? ' منذ ' + agoShort(c.ts) : '') : 'No live GPS fix. Last known position' + (c.ts ? ', ' + agoShort(c.ts) + ' ago' : '')}</p>` : `<p style="color:var(--ok)">${currentLang === 'ar' ? 'GPS دقيق' : 'GPS fix'} ${c.acc ? '±' + Math.round(c.acc) + ' m' : ''} · ${agoShort(c.fixTs)} ${currentLang === 'ar' ? '' : 'ago'}</p>`}
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
     <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
@@ -1139,7 +1161,7 @@ function upsert(c) {
   if (!c.recording && wasRec) slots.forEach((id, i) => { if (id === c.cameraId) stopTile(i, waitMsg(id)); });
   if (!!c.ptt !== wasPtt) pttChanged(c);
   if (follow && selected === c.cameraId && c.lat != null) map.easeTo({ center: [c.lng, c.lat] });
-  if (selected === c.cameraId) renderInfo();
+  if (selected === c.cameraId) { renderInfo(); drawAcc(); }
   renderList();
 }
 
