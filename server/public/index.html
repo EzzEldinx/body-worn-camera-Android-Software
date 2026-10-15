@@ -747,7 +747,7 @@ function renderInfo() {
       editing = false; renderInfo();
     };
     $('#eC').onclick = () => { editing = false; renderInfo(); };
-    $('#eD').onclick = () => { if (confirm('Remove ' + nm(c) + '?')) call('DELETE'); };
+    $('#eD').onclick = () => { if (confirm((currentLang === 'ar' ? 'حذف ' : 'Remove ') + getOfficerLabel(c.cameraId) + (currentLang === 'ar' ? '؟ ستظهر من جديد عندما تبدأ الكاميرا تسجيلاً.' : '? It reappears if the camera starts recording again.'))) call('DELETE').then(() => { editing = false; }); };
     return;
   }
   box.innerHTML = `<h3>${esc(getOfficerLabel(c.cameraId))}</h3>

@@ -55,6 +55,13 @@ for (const r of db.prepare('SELECT * FROM cameras').all()) {
 const companyName = (id) => (id ? db.prepare('SELECT name FROM companies WHERE id = ?').get(id)?.name || null : null);
 // What dashboards receive: the camera state plus its company's name (for grouping in the list).
 const decorate = (c) => ({ ...c, company: companyName(c.companyId) });
+// Cameras the admin removed stay hidden until the camera is really used again (recording, SOS or PTT).
+const deleted = new Set(db.prepare('SELECT id FROM deleted_cameras').all().map((r) => r.id));
+const revive = (id) => {
+    if (!deleted.has(id)) return;
+    deleted.delete(id);
+    db.prepare('DELETE FROM deleted_cameras WHERE id = ?').run(id);
+};
 const canSee = (u, camId) => isStaff(u) || cams.get(camId)?.companyId === u.companyId;
 const visibleCams = (u) => [...cams.values()].filter((c) => isStaff(u) || c.companyId === u.companyId).map(decorate);
 
@@ -153,6 +160,8 @@ app.delete('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
     const rooms = roomsFor(id);
     db.prepare('DELETE FROM cameras WHERE id = ?').run(id);
+    db.prepare('INSERT OR REPLACE INTO deleted_cameras(id,ts) VALUES(?,?)').run(id, Date.now());
+    deleted.add(id);
     cams.delete(id); live.delete(id);
     io.to(rooms).emit('dashboard_cam_removed', { cameraId: id });
     res.json({ ok: true });
@@ -483,6 +492,7 @@ io.on('connection', (socket) => {
         const lat = num(d?.lat, -90, 90);
         const lng = num(d?.lng, -180, 180);
         if (!id || lat === null || lng === null) return;
+        if (deleted.has(id)) return; // removed from the dashboard: stays hidden until it records / SOS / PTT
         bind(id);
         const now = Date.now();
         if (now - (lastPos.get(id) || 0) >= 5000) { // keep a trail, one point per 5 s
@@ -495,6 +505,7 @@ io.on('connection', (socket) => {
     socket.on('camera_status', (d) => {
         const id = str(d?.cameraId);
         if (!id) return;
+        if (deleted.has(id)) { if (!d.recording) return; revive(id); } // starting a recording brings it back
         bind(id);
         // the camera is back after an update and reports the latest build: the update is finished
         const upd = cams.get(id)?.update;
@@ -507,7 +518,7 @@ io.on('connection', (socket) => {
     // Progress of a remote update: queued / downloading (pct) / installing / failed (error) / done
     socket.on('camera_update', (d) => {
         const id = str(d?.cameraId);
-        if (!id || !['downloading', 'installing', 'waiting', 'failed', 'done'].includes(d.state)) return;
+        if (!id || deleted.has(id) || !['downloading', 'installing', 'waiting', 'failed', 'done'].includes(d.state)) return;
         bind(id);
         publish(id, { update: { state: d.state, pct: Math.min(100, Math.max(0, Number(d.pct) || 0)), error: d.error ? String(d.error).slice(0, 160) : undefined, ts: Date.now() } });
     });
@@ -515,6 +526,7 @@ io.on('connection', (socket) => {
     socket.on('camera_ptt', (d) => {
         const id = str(d?.cameraId);
         if (!id) return;
+        if (deleted.has(id)) { if (!d.active) return; revive(id); }
         bind(id);
         publish(id, { ptt: !!d.active, online: true });
     });
@@ -522,6 +534,7 @@ io.on('connection', (socket) => {
     socket.on('camera_sos', (d) => {
         const id = str(d?.cameraId);
         if (!id) return;
+        revive(id); // an SOS always brings the camera back
         bind(id);
         if (!cams.has(id)) publish(id, { online: true });
         const lat = num(d.lat, -90, 90), lng = num(d.lng, -180, 180), ts = Date.now();

@@ -68,6 +68,7 @@ td select{width:100%}
     <section class="card">
       <h3>Camera assignment</h3>
       <p class="muted" style="margin:0 0 10px;font-size:13px">Choose which company owns each camera. That company's users see only their cameras.</p>
+      <div style="margin-bottom:10px"><button class="btn sm danger" id="rmOffline">Remove all offline cameras</button></div>
       <table><tbody id="cams"></tbody></table>
     </section>
     </div>
@@ -119,7 +120,8 @@ function render() {
   $('#cams').innerHTML = data.cameras.length ? data.cameras.map((c) => `
     <tr data-cam="${esc(c.id)}"><td style="width:46%"><span class="dot ${c.online ? 'on' : ''}"></span><b>${esc(c.id)}</b>${c.name && c.name !== c.id ? `<div class="muted" style="font-size:12px;margin-left:17px">${esc(c.name)}</div>` : ''}</td>
       <td><select data-k="company">${'<option value="">No company</option>' + data.companies.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select></td>
-      <td><select data-k="region">${'<option value="">No region</option>' + (data.regions || []).map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></td></tr>`).join('')
+      <td><select data-k="region">${'<option value="">No region</option>' + (data.regions || []).map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></td>
+      <td style="width:34px"><button class="btn sm danger" data-delcam="${esc(c.id)}" title="Remove camera" aria-label="Remove ${esc(c.id)}">✕</button></td></tr>`).join('')
     : '<tr><td class="empty">No cameras have connected yet. They appear here as soon as one connects.</td></tr>';
 }
 
@@ -158,6 +160,18 @@ $('#cams').addEventListener('change', (e) => {
     : api('PUT', `/api/admin/cameras/${id}/company`, { companyId: sel.value === '' ? null : Number(sel.value) });
   req.then(() => { toast('Saved'); return load(); }).catch((err) => { fail(err); load(); });
 });
+$('#cams').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-delcam]'); if (!b) return;
+  const id = b.dataset.delcam;
+  if (confirm(`Remove ${id}? It reappears if the camera starts recording again.`)) api('DELETE', `/api/cameras/${encodeURIComponent(id)}`).then(() => { toast('Removed'); return load(); }).catch(fail);
+});
+$('#rmOffline').onclick = async () => {
+  const off = data.cameras.filter((c) => !c.online);
+  if (!off.length) return toast('No offline cameras.');
+  if (!confirm(`Remove ${off.length} offline camera(s)?\n\n${off.map((c) => c.id).join(', ')}\n\nThey reappear if a camera starts recording again.`)) return;
+  for (const c of off) await api('DELETE', `/api/cameras/${encodeURIComponent(c.id)}`).catch(() => { });
+  toast('Removed ' + off.length); load();
+};
 $('#rgAdd').onclick = () => {
   const name = $('#rgName').value.trim(); if (!name) return;
   api('POST', '/api/admin/regions', { name }).then(() => { $('#rgName').value = ''; toast('Region added'); return load(); }).catch(fail);
