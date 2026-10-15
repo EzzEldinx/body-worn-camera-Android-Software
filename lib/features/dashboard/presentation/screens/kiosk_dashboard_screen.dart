@@ -13,7 +13,8 @@ import '../../../../core/theme/bwc_tokens.dart';
 import '../widgets/hidden_admin_door.dart';
 import '../../../../hardware/hardware_key_listener.dart';
 import '../../../../core/services/central_link.dart';
-import '../../../../core/services/video_quality.dart'; 
+import '../../../../core/services/video_quality.dart';
+import '../../../../core/services/app_updater.dart'; 
 
 class KioskDashboardScreen extends ConsumerStatefulWidget {
   const KioskDashboardScreen({Key? key}) : super(key: key);
@@ -51,6 +52,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   StreamSubscription<String>? _linkSub;
   StreamSubscription<String>? _remoteSub;
   StreamSubscription<String>? _qualitySub;
+  AppUpdater? _updater;
   VideoQuality _quality = VideoQuality.defaultQuality;
   bool _qualityLoaded = false;
   bool _remoteStarted = false; // the control room started this recording, so only it may stop it remotely
@@ -196,6 +198,15 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       }
     });
 
+    // Remote updates from the control room; also tell it which build this camera runs.
+    final updLink = ref.read(centralLinkProvider);
+    _updater = AppUpdater(link: updLink, isRecording: () => isRecording)..start();
+    AppUpdater.readBuild().then((b) {
+      if (b != null) {
+        updLink.appBuild = b;
+        updLink.refreshStatus();
+      }
+    });
     _qualitySub = ref.read(centralLinkProvider).qualityCommands.listen((id) {
       final q = VideoQuality.fromId(id);
       if (q != null) _applyQuality(q);
@@ -850,6 +861,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     _linkSub?.cancel();
     _remoteSub?.cancel();
     _qualitySub?.cancel();
+    _updater?.dispose();
     _controller?.dispose();
     super.dispose();
   }

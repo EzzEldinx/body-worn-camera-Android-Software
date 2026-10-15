@@ -79,6 +79,27 @@ class CentralLink {
   final _remote = StreamController<String>.broadcast();
   Stream<String> get remoteCommands => _remote.stream;
 
+  /// 'update_app' commands: {build, size, force}.
+  final _update = StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get updateCommands => _update.stream;
+
+  /// Build id (SHA-256 of the installed APK), reported to the dashboard so it knows who is outdated.
+  String? appBuild;
+
+  /// Progress of a remote update: downloading / installing / waiting / failed / done.
+  void sendUpdate(String state, {int? pct, String? error}) {
+    if (!_online) return;
+    _socket!.emit('camera_update', {
+      'cameraId': CentralConfig.cameraId,
+      'state': state,
+      if (pct != null) 'pct': pct,
+      if (error != null) 'error': error,
+    });
+  }
+
+  /// Re-sends the status (e.g. once the build id has been computed).
+  void refreshStatus() => _emitStatus();
+
   /// Quality changes requested by the control room ('240p' | '480p' | '720p' | '1080p' | '4k').
   final _quality = StreamController<String>.broadcast();
   Stream<String> get qualityCommands => _quality.stream;
@@ -207,6 +228,9 @@ class CentralLink {
         }
       })
       
+      ..on('update_app', (d) {
+        if (d is Map) _update.add(Map<String, dynamic>.from(d));
+      })
       ..on('set_quality', (d) {
         final q = d is Map ? d['quality'] : null;
         if (q is String) _quality.add(q);
@@ -301,6 +325,7 @@ class CentralLink {
       'recording': _statusRecording,
       if (_statusQuality != null) 'quality': _statusQuality,
       if (_statusRemote != null) 'remote': _statusRemote,
+      if (appBuild != null) 'build': appBuild,
     });
   }
 
@@ -332,6 +357,7 @@ class CentralLink {
     _msgs.close();
     _remote.close();
     _quality.close();
+    _update.close();
     chatMessages.dispose();
     chatGroups.dispose();
     unreadByChat.dispose();

@@ -66,6 +66,41 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // Remote app updates: build id, device-owner check, install a downloaded APK.
+        val updateChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.swg.bwc/update")
+        AppInstaller.onResult = { status, msg ->
+            runOnUiThread { updateChannel.invokeMethod("installResult", mapOf("status" to status, "message" to msg)) }
+        }
+        updateChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getAppBuild" -> Thread {
+                    try {
+                        val b = AppInstaller.appBuild(this)
+                        runOnUiThread { result.success(b) }
+                    } catch (e: Exception) {
+                        runOnUiThread { result.error("build", e.message, null) }
+                    }
+                }.start()
+                "isDeviceOwner" -> result.success(AppInstaller.isDeviceOwner(this))
+                "installApk" -> {
+                    val path = call.argument<String>("path")
+                    if (path == null) {
+                        result.error("path", "missing path", null)
+                    } else {
+                        Thread {
+                            try {
+                                AppInstaller.install(this, path)
+                                runOnUiThread { result.success(null) }
+                            } catch (e: Exception) {
+                                runOnUiThread { result.error("install", e.message, null) }
+                            }
+                        }.start()
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, kioskChannelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
