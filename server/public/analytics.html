@@ -13,6 +13,9 @@
 .hero h1{margin:0 0 6px;font-size:clamp(24px,3vw,34px);font-weight:800;letter-spacing:-.3px}
 .hero h1 span{background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero p{margin:0;color:rgba(232,238,247,.8);font-size:14.5px}
+.rep{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.rep h3{margin-bottom:6px}.rep p{margin:0;color:var(--mut);font-size:13.5px;max-width:520px;line-height:1.5}
+.rep-ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .live{display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:rgba(232,238,247,.75)}
 .live i{width:8px;height:8px;border-radius:50%;background:#2EE6A6;animation:pulse 1.6s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,230,166,.7)}100%{box-shadow:0 0 0 10px rgba(46,230,166,0)}}
@@ -75,6 +78,18 @@
     </div>
     <a class="btn pri" href="/" style="font-size:16px;padding:14px 26px">Open Live Dashboard
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </section>
+
+  <section class="card rep">
+    <div class="rep-txt"><h3>Daily report</h3>
+      <p>Everything VisionGuard did for your fleet on a day: alarms, recordings, distance, activity and a timeline, as a PDF.</p></div>
+    <div class="rep-ctl">
+      <select id="repCo" style="display:none"></select>
+      <input type="date" id="repDate">
+      <a class="btn pri" id="repBtn" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>
+        Download PDF</a>
+    </div>
   </section>
 
   <section class="grid g4" id="gauges"></section>
@@ -197,6 +212,19 @@ function render(d, me) {
 }
 
 portalReady.then((me) => {
+  const pad = (n) => String(n).padStart(2, '0'), t = new Date();
+  const today = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+  $('#repDate').value = today; $('#repDate').max = today;
+  if (me.super) fetch('/api/admin/companies').then((r) => r.json()).then((d) => {
+    $('#repCo').innerHTML = '<option value="">All companies</option>' + d.companies.map((c) => `<option value="${c.id}">${c.name.replace(/[<>&]/g, '')}</option>`).join('');
+    $('#repCo').style.display = '';
+  });
+  $('#repBtn').onclick = (e) => {
+    e.preventDefault();
+    const q = new URLSearchParams({ date: $('#repDate').value || today });
+    if ($('#repCo').value) q.set('company', $('#repCo').value);
+    location.href = '/api/report?' + q;
+  };
   const load = () => fetch('/api/analytics').then((r) => r.json()).then((d) => render(d, me)).catch(() => { });
   load(); setInterval(load, 10000);
 });

@@ -115,6 +115,15 @@ El-company beshoof arqamha bas.
 
 ---
 
+### 6.b El-PDF report el-yawmi
+Fe saf7et el-Analytics, kart **Daily report**: e5tar el-yawm (el-default el-nahar-da) > **Download PDF**. (El-Smart Way admin yeqdar ye5tar **company** aw "All companies"; el-company beteshoof bta3tha bas.)
+El-report feeh: banner b-gradient, 4 KPI (cameras active, SOS, recorded time, distance), donut el-cameras, chart el-nashat 3ala el-sa3at, gadwal el-SOS (wa2t el-response), gadwal kol camera (online/recorded/distance/PTT/messages), control-room actions w timeline (kol recording fe sater wa7ed bel-moddah).
+- Endpoint: `/api/report?date=YYYY-MM-DD&company=<id>` (el-company el-user mesh betetghayyar: bey-shoof bta3to bas).
+- El-events (online/offline, recording, PTT, messages) betetsagal **men wa2t el-ta7deeth da** — el-ayyam abl keda feeha SOS + GPS + control-room actions bas.
+- Arabic fe asma2 el-companies/cameras bet-etshal fel-PDF (el-font latin bas): esta5dem asma2 englizi.
+
+---
+
 ## 7. El-camera app (SWG-BWC-04)
 
 **El-shasha**: sora full-screen + HUD: logo, `LINK` (el-ittisal bel-server), `GPS`, esm el-camera, REAR/FRONT, el-gawda (1080P), el-sa3a, **REC timer**.
@@ -199,6 +208,7 @@ El-build identifier = SHA-256 lel-APK. El-camera beteb3at el-build bta3ha lel-se
 | ▶ mafeesh live | el-camera offline | ✓ chip "LINK" 3al-camera; el-dashboard beyeqollak "Camera is offline" |
 | Live beyetla3 lag/3alay | gawda 3alya + shabaka da3eefa | Video quality → 720p/480p |
 | El-sora ma3akoosa/soghayyara | stream tool 9:16 3ala shasha 16:9 | Expand (shasha el-mehwar el-tawel) aw Fit |
+| Front camera maqloob 3ala shashet el-camera nafsaha | (etsala7 fe build 2026-10-15) el-app kan beyla2eeha 180° | e3mel update lel-camera |
 | Switch camera ma-byeshta8alsh | (etsala7) law ranna: restart el-app | `adb shell am force-stop com.swg.swg_bwc` + efta7 |
 | Update: "Failed: checksum" | el-APK atba3at b2a 8eir el-mawgood | e3mel `publish-build.ps1` tany |
 | Update: el-camera mesh betrga3 teshta8al | mesh provisioned | `-Provision` b USB (marra) |

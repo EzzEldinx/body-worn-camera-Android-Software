@@ -30,6 +30,8 @@ addColumn('users', 'company_id', 'INTEGER');
 addColumn('cameras', 'company_id', 'INTEGER');
 addColumn('cameras', 'region', 'TEXT');
 db.exec('CREATE TABLE IF NOT EXISTS deleted_cameras(id TEXT PRIMARY KEY, ts INTEGER NOT NULL)');
+db.exec('CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, camera_id TEXT NOT NULL, type TEXT NOT NULL, info TEXT)');
+db.exec('CREATE INDEX IF NOT EXISTS events_ts ON events(ts)');
 db.exec('CREATE TABLE IF NOT EXISTS regions(name TEXT PRIMARY KEY, created INTEGER NOT NULL)');
 if (!db.prepare('SELECT 1 FROM regions LIMIT 1').get()) {
     ['Riyadh', 'Jeddah', 'Dammam'].forEach((n, i) => db.prepare('INSERT INTO regions(name,created) VALUES(?,?)').run(n, Date.now() + i));

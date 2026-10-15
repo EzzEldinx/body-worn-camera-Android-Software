@@ -1,4 +1,5 @@
 const express = require('express');
+const report = require('./report');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -72,14 +73,20 @@ const roomsFor = (id) => {
 };
 const toCam = (id, event, data) => io.to(roomsFor(id)).emit(event, data);
 
+// Activity log used by the daily report: online/offline, recording, PTT, messages.
+const logEvent = (id, type, info) => db.prepare('INSERT INTO events(ts,camera_id,type,info) VALUES(?,?,?,?)').run(Date.now(), id, type, info || null);
 function publish(id, patch) {
     if (!cams.has(id)) {
         db.prepare('INSERT OR IGNORE INTO cameras(id,name,grp,created) VALUES(?,?,?,?)').run(id, id, '', Date.now());
     }
+    const prev = cams.get(id);
     const state = {
         cameraId: id, name: id, grp: '', online: false, recording: false, lat: null, lng: null, ts: 0, companyId: null,
         ...cams.get(id), ...patch,
     };
+    if (!!prev?.online !== !!state.online) logEvent(id, state.online ? 'online' : 'offline');
+    if (!!prev?.recording !== !!state.recording) logEvent(id, state.recording ? 'rec_start' : 'rec_stop');
+    if (!!prev?.ptt !== !!state.ptt) logEvent(id, state.ptt ? 'ptt_start' : 'ptt_end');
     cams.set(id, state);
     toCam(id, 'dashboard_cam', decorate(state));
 }
@@ -174,6 +181,27 @@ app.get('/api/stream/:id', needUser, (req, res) => {
     const exp = Math.floor(Date.now() / 1000) + 6 * 3600;
     const hash = crypto.createHash('md5').update(`/live/${id}-${exp}-${STREAM_SECRET}`).digest('hex');
     res.json({ sign: `${exp}-${hash}` });
+});
+
+// ---------- Daily PDF report ----------
+// A company downloads its own day; Smart Way staff can pick a company or take every company.
+app.get('/api/report', needUser, (req, res) => {
+    const u = req.user;
+    const companyId = isStaff(u) ? (req.query.company ? Number(req.query.company) : null) : u.companyId;
+    if (companyId && !db.prepare('SELECT 1 FROM companies WHERE id = ?').get(companyId)) return res.status(404).json({ error: 'Company not found.' });
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(req.query.date || ''));
+    const now = new Date();
+    const day = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (Number.isNaN(day.getTime()) || day.getTime() > Date.now()) return res.status(400).json({ error: 'Pick today or an earlier date.' });
+    const cameras = [...cams.values()].filter((c) => (companyId ? c.companyId === companyId : isStaff(u)));
+    const label = companyId ? companyName(companyId) : 'All companies';
+    const stamp = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="VisionGuard-Report-${String(label).replace(/[^\w.-]+/g, '_')}-${stamp}.pdf"`);
+    report.build(db, {
+        title: 'Daily operations report', scopeLabel: label, cameras, from: day.getTime(), to: day.getTime() + 86400000,
+        regionOf: (c) => c?.region, nameOf: (c) => (c && c.name) || c?.cameraId,
+    }, res);
 });
 
 // ---------- Regions (Riyadh, Jeddah, Dammam ...) ----------
@@ -417,6 +445,8 @@ io.on('connection', (socket) => {
 
         // company of the sender: dashboard user's company or the camera's assigned company (0 = Smart Way / none)
         const scope = isDash ? (user.companyId || 0) : (cams.get(socket.data.cameraId)?.companyId || 0);
+        const msgKind = msg.audio ? 'voice' : 'msg';
+        if (!isDash && socket.data.cameraId && cams.has(socket.data.cameraId)) logEvent(socket.data.cameraId, msgKind, msg.chatType);
         if (msg.chatType === 'PUBLIC') {
             if (isDash && isStaff(user)) io.to('room:public').emit('receive_message', msg);
             else io.to(['room:admin', `room:public_${scope}`]).emit('receive_message', msg);
@@ -425,6 +455,7 @@ io.on('connection', (socket) => {
             if (!camId || !cams.has(camId) || (isDash && !canSee(user, camId))) return;
             if (!isDash && !socket.data.cameraId) { bind(camId); msg.senderId = msg.senderName = camId; }
             msg.targetId = camId;
+            if (isDash) logEvent(camId, msgKind, 'PRIVATE');
             io.to([`room:camera_${camId}`, ...roomsFor(camId)]).emit('receive_message', msg);
         } else if (socket.rooms.has(`room:group_${msg.targetId}`)) {
             io.to(`room:group_${msg.targetId}`).emit('receive_message', msg);
