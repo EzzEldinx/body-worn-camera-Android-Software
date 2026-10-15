@@ -93,12 +93,12 @@ Feen: dashboard > el-eyqona fo2 (bena2 mabna) aw `http://192.168.100.75:3000/adm
 | Kalem el-officer | PTT / chat / voice note men el-chat panel |
 
 - Taghyeer el-quality ma3a stream sha8al = restart 3al 7ala ~**3.5 sanya** (fee gap sghayyar).
-- El-camera ba3d 1080p bet-ba3at ~**4.8 Mbps**; law el-shabaka wedeyna: 720p aw 480p.
+- El-camera 3ala 1080p bet-ba3at ~**4.8 Mbps** (it2ees 3ala camera wa7da); law el-shabaka da3eefa: 720p aw 480p.
 - Kol amr remote (start/stop/quality/update) bey-etsagal fe gadwal `audit` (meen, emta, ayya camera).
 
 ### Alarms (SOS)
-- Officer by-doos **SOS 2 sawani** → alarm bey-zhar fel-dashboard + sawt + el-camera betefta7 live.
-- El-admin by-doos 3al alarm = acknowledge (el-wa2t el-mar bet-etsagal fe analytics "Avg response").
+- Officer by-doos **SOS 2 sawani** → alarm bey-zhar fel-dashboard + sawt + el-camera betetrafa3 3al wall (law betsagel). Law mesh betsagel, e3mel ▶ 3alehaa.
+- El-admin by-doos 3al alarm = acknowledge. El-wa2t ben el-SOS wel-acknowledge beyetsagel w beyezhar fe analytics ka "Avg response".
 
 ### Chat wel voice notes
 - Tabs: **Public** (kol el-company), **Private** (el-camera) — zorar mic = voice note (record → send).
@@ -122,7 +122,7 @@ El-company beshoof arqamha bas.
 **Taht**: zoom · photo · **REC** (abyad, el-mo3arra3 ahmar; moraba3 wa2t el-record) · **SOS** (2 sawani) · **PTT** (maskooh).
 
 - **Night vision** (zorar el-hilal): beyeshta8al 3 7agat sawa: motor el-**IR-cut** + **IR LEDs** + sora **abyad w eswed**. Ta7t el-tayyar el-ta2ees: el-sora bet2oll shwaya (el-lens beyshoof el-infrared).
-- **Switch camera**: el-camera 3andaha **kamera wa7da maftoo7a fel-wa2t** (7ardware). Kan el-switch byefsha ba3d marra; et-sala7 wa el-switch dlw2ty yeshtaghal kol marra.
+- **Switch camera**: el-gehaz mesh beyesma7 ghair b-camera **wa7da maftoo7a fel-wa2t**. El-app el-adeem kan beyefsha ba3d awwel switch (el-camera el-adeema kanet batba2a maftoo7a). Etsala7 w ekhtabarto: 4 switches wara ba3d byeshta8alo.
 - **ID el-camera + server + token**: mesh gowwa el-app. Kol camera feha `config.json` (`/sdcard/Android/data/com.swg.swg_bwc/files/config.json`) beyetkatib men `cameras.json` bel-script (khotwa 8).
 - **GPS**: el-chip beyeb2a "GPS..." bel-asfar lama mafeesh fix (3adatan gowwa el-mabna), "GPS" akhdar lama yedhar.
 - **El-recording**: kol video beyetsagel 3ala el-camera nafsaha (`SWG_BWC` folder) + beyetba3at live lel-server. El-gawda nafsaha lel-itnein.
@@ -183,7 +183,7 @@ El-build identifier = SHA-256 lel-APK. El-camera beteb3at el-build bta3ha lel-se
 
 ## 9. Camera gedeeda (BWC gedeed men el-shirka) — step by step
 1. Charge el-camera (el-battery el-wetia beteb2a 8-15% law sebta).
-2. Dos USB debugging on (el-camera ta7ta el-SIM — el-setting el-mo3tad: Developer options).
+2. Ta2akkad en **USB debugging** shaghal 3ala el-camera (el-cameras elly shaghalnaha kolaha kanet shaghala; law camera gedeeda mesh bet-zhar fe `-List` yebqa el-setting dee heyya el-sabab).
 3. `.\tools\update-cameras.ps1 -List` → e3mel serial.
 4. `.\tools\update-cameras.ps1 -Provision -Serial <SERIAL> -Id BWC-xx-RIY`
 5. Efta7 el-dashboard — el-camera betzhar online ba3d sawani. **Companies** page: e5tar el-company + el-region.
@@ -220,7 +220,7 @@ Logs el-server: `%TEMP%\bwc-server.log` law ba3d-et fel-hidden window.
 - Provisioning mesh sahl yet-3ayyar 3akso men 8eir `-Unprovision` (aw factory reset).
 - Mafeesh "company admin" (el-3ameel yedeer el-users bta3to) lessa.
 - El-dock software (bta3 el-sherka el-mosana3a) mesh ma3roof — el-data offload bta3o mesh mowasal bel-app.
-- Rooms: kol el-sho8l el-gedeed e3mel test 3ala server tagrobi (`PORT=3100 DATA_DIR=... node server.js`) abl el-server el-asli.
+- Test: el-sho8l el-gedeed el-mohem etgarrab abl 3ala server tagrobi (`PORT=3100 DATA_DIR=<folder fady> RTMP_PORT=1936 FLV_PORT=8100 node server.js`) 3ashan matetkharbash el-database el-asliya.
 
 ---
 
