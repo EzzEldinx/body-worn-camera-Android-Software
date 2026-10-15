@@ -180,7 +180,8 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .tile{position:relative;container-type:inline-size;background:radial-gradient(120% 100% at 50% 0,#16233a,#0A111D);border-radius:14px;overflow:hidden;border:1px solid rgba(120,140,175,.28);min-height:0;aspect-ratio:16/9;box-shadow:var(--shadow-sm);color:#EAF0FA;transition:box-shadow .2s,border-color .2s}
 .tile:hover{border-color:rgba(255,179,0,.55);box-shadow:0 6px 22px rgba(15,27,45,.28)}
 .tile video{width:100%;height:100%;object-fit:contain;display:block;background:#0A111D}
-.tile.port{aspect-ratio:9/16}
+.tile.port{aspect-ratio:9/16;height:calc(100vh - 230px);max-height:calc(100vh - 230px);width:auto;max-width:100%;justify-self:center}
+.tile.port video{object-fit:contain}
 .tile.talking{border-color:var(--ok);box-shadow:var(--glow-ok)}
 .tag{position:absolute;top:8px;left:8px;right:8px;display:flex;align-items:center;gap:6px;padding:5px;border-radius:12px;pointer-events:none;z-index:2;color:#fff;font-size:12.5px;background:var(--glass);backdrop-filter:blur(12px) saturate(150%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .tag .nm{font-weight:700;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
