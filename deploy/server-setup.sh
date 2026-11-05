@@ -30,7 +30,7 @@ fi
 echo "== 4/5 firewall"
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
   ufw allow 1935/tcp comment 'VisionGuard RTMP'
-  [ "$TEST" = "--test-http" ] && ufw allow 3000/tcp comment 'VisionGuard TEST http'
+  [ "$TEST" = "--test-http" ] && { ufw allow 3000/tcp comment 'VisionGuard TEST http'; ufw allow 8000/tcp comment 'VisionGuard TEST flv'; }
 else
   echo "   ufw is not active: make sure TCP 1935 (and 3000 for the test) is open in the provider firewall"
 fi

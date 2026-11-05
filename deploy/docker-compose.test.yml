@@ -4,3 +4,4 @@ services:
   visionguard:
     ports:
       - "${RTMP_BIND_IP:?set RTMP_BIND_IP}:3000:3000"
+      - "${RTMP_BIND_IP:?set RTMP_BIND_IP}:8000:8000"   # TEST ONLY: dashboard pulls HTTP-FLV directly (prod: nginx /live/)
