@@ -3,7 +3,7 @@
 // For every camera visible over USB (adb) it pulls new recordings, verifies them by SHA-256 on the camera and
 // on the PC, uploads them to the server (which verifies again), and only then (optionally) deletes them from the camera.
 //
-//   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--interval 30] [--only VID_x.mp4]
+//   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--report-only] [--interval 30] [--only VID_x.mp4]
 //
 // Requires: Node 22+, adb in PATH (or ADB=/path/to/adb).
 const { spawn, execFile } = require('child_process');
@@ -23,6 +23,7 @@ const APP_DIR = '/sdcard/Android/data/com.swg.swg_bwc/files';
 const REC_DIR = `${APP_DIR}/SWG_BWC`;
 const STAGING = process.env.DOCK_STAGING || path.join(os.tmpdir(), 'visionguard-dock');
 const DELETE = flag('delete');
+const REPORT_ONLY = flag('report-only');   // show the docks on the dashboard but copy/upload nothing (no files are touched)
 const ONLY = opt('only', null);  // restrict to one file name (useful for tests)
 const MIN_AGE_MS = 60_000; // never touch a file that changed in the last minute (still being recorded)
 const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
@@ -116,7 +117,7 @@ async function cycle() {
     await report(true);   // also when the dock is empty: the page then shows the agent as online with idle bays
     if (!lastInfos.length) { log('', 'no camera on the dock'); return; }
     const stats = { uploaded: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
-    await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
+    if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
     await report(true);
     log('', `cycle done: ${JSON.stringify(stats)}`);
     return stats;
