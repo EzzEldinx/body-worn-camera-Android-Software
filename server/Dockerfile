@@ -4,6 +4,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY . .
 ENV NODE_ENV=production DATA_DIR=/data
+RUN mkdir -p /data && chown node:node /data
 VOLUME /data
 EXPOSE 3000 1935 8000
 USER node
