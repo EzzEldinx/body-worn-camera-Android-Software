@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in - VisionGuard | Smart Way Group</title>
+<title>Sign in - VisionGuard</title>
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <style>
 :root{--bg:#EEF2F8;--panel:#fff;--raise:#F2F5FA;--line:#DAE2EC;--text:#0F1B2D;--mut:#62738C;--brand:#5E4A9E;--sel:#FFB300;--sel-ink:#1A1405;--rec:#E5384F;--ok:#00B87C;
@@ -32,9 +32,12 @@ h2 span{background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-cli
 .tools button{height:36px;min-width:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
 .tools button:hover{color:var(--text);box-shadow:var(--glow)}
 form{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:38px 34px 30px;box-shadow:0 24px 60px rgba(15,27,45,.14)}
-.mlogo{display:none;height:34px;margin:0 auto 18px}
+.vg-lock{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 auto 18px}
+.vg-lock strong{font-size:26px;font-weight:800;letter-spacing:.3px}
+.vg-mark{width:38px;height:38px}
 .logo-dark{display:none!important}
 :root[data-theme="dark"] .logo-light{display:none!important}
+:root[data-theme="dark"] .logo-dark{display:inline-block!important}
 form h1{margin:0 0 6px;font-size:28px;font-weight:800;letter-spacing:-.3px}
 form p.sub{margin:0 0 8px;color:var(--mut);font-size:14px}
 label{display:block;font-size:13px;font-weight:600;margin:20px 0 7px}
@@ -78,7 +81,7 @@ input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-sha
   <div class="hero-main">
     <div class="bar"></div>
     <h2><span data-i="h1a">See every moment.</span><br><span data-i="h1b" style="background:none;-webkit-background-clip:initial;color:#fff">Secure every evidence.</span></h2>
-    <p class="tag" data-i="brand">Smart Way Group &middot; Solution for Secure Future</p>
+    <p class="tag" data-i="brand">Powered by Smart Way Group &middot; Solution for Secure Future</p>
   </div>
 </section>
 
@@ -89,7 +92,7 @@ input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-sha
   </div>
 
   <form id="f">
-    <img class="mlogo logo-light" src="/logo-light.png" alt="Smart Way"><img class="mlogo logo-dark" src="/logo-dark.png" alt="Smart Way">
+    <div class="vg-lock"><svg class="vg-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l11 4v9c0 7-4.6 12.4-11 15C9.6 27.4 5 22 5 15V6z" fill="var(--brand)"/><circle cx="16" cy="15" r="4.2" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16" cy="15" r="1.4" fill="#fff"/></svg><strong>VisionGuard</strong></div>
     <h1 data-i="title">Welcome back</h1>
     <p class="sub" data-i="sub">Sign in to your VisionGuard account.</p>
 
@@ -111,15 +114,15 @@ input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-sha
     <div class="secure"><svg viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><path d="M9 12l2 2 4-4"/></svg><span data-i="secure">Encrypted, authorized access only</span></div>
   </form>
 
-  <div class="copy">&copy; 2026 Smart Way Group</div>
+  <div class="copy">Powered by <img class="logo-light" src="/logo-light.png" alt="Smart Way" style="height:12px;vertical-align:middle"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way" style="height:12px;vertical-align:middle"> &middot; &copy; 2026 Smart Way Group</div>
 </section>
 
 <script>
 const T = {
-  en: { h1a:'See every moment.', h1b:'Secure every evidence.', brand:'Smart Way Group · Solution for Secure Future',
+  en: { h1a:'See every moment.', h1b:'Secure every evidence.', brand:'Powered by Smart Way Group · Solution for Secure Future',
     title:'Welcome back', sub:'Sign in to your VisionGuard account.', user:'Username', pass:'Password',
     signin:'Sign in', secure:'Encrypted, authorized access only', fail:'Sign in failed.', net:'Cannot reach the server. Check your connection.' },
-  ar: { h1a:'شاهد كل لحظة.', h1b:'أمّن كل دليل.', brand:'مجموعة سمارت واي · حلول لمستقبل آمن',
+  ar: { h1a:'شاهد كل لحظة.', h1b:'أمّن كل دليل.', brand:'بدعم من مجموعة سمارت واي · حلول لمستقبل آمن',
     title:'مرحباً بعودتك', sub:'سجّل الدخول إلى حسابك في VisionGuard.', user:'اسم المستخدم', pass:'كلمة المرور',
     signin:'تسجيل الدخول', secure:'دخول مشفّر ومصرّح به فقط', fail:'فشل تسجيل الدخول.', net:'تعذّر الوصول إلى الخادم. تحقق من الاتصال.' }
 };
