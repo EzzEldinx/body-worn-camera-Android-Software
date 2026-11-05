@@ -44,13 +44,13 @@ const str = (v) => (typeof v === 'string' && /^[\w.-]{1,32}$/.test(v) ? v : null
 const num = (v, min, max) => (Number.isFinite(v) && v >= min && v <= max ? v : null);
 const parseCookie = (h = '') => Object.fromEntries(
     h.split(';').map((c) => c.trim().split('=').map(decodeURIComponent)).filter((p) => p[0]));
-const userFromCookie = (header) => {
-    const t = parseCookie(header).sid;
-    if (!t) return null;
-    return db.prepare(`SELECT u.id,u.username,u.name,u.role,u.company_id AS companyId,c.name AS company
+const userBySession = (t) => (!t || typeof t !== 'string' ? null : db.prepare(`SELECT u.id,u.username,u.name,u.role,u.company_id AS companyId,c.name AS company
         FROM sessions s JOIN users u ON u.id = s.user_id LEFT JOIN companies c ON c.id = u.company_id
-        WHERE s.token = ? AND s.exp > ?`).get(t, Date.now()) || null;
-};
+        WHERE s.token = ? AND s.exp > ?`).get(t, Date.now()) || null);
+const userFromCookie = (header) => userBySession(parseCookie(header).sid);
+// Web uses the sid cookie; the mobile apps send the same session as "Authorization: Bearer <token>".
+const bearer = (h = '') => (/^Bearer ([0-9a-f]{64})$/.exec(String(h)) || [])[1] || null;
+const userFromRequest = (req) => userFromCookie(req.headers.cookie) || userBySession(bearer(req.headers.authorization));
 // Smart Way staff have no company and see every camera; company users only see their own.
 const isStaff = (u) => !u.companyId;
 const isSuper = (u) => u.role === 'admin' && !u.companyId;
@@ -132,7 +132,7 @@ const io = new Server(server, { maxHttpBufferSize: 15e6 }); // voice notes trave
 app.use(express.json());
 
 const needUser = (req, res, next) => {
-    req.user = userFromCookie(req.headers.cookie);
+    req.user = userFromRequest(req);
     if (req.user) return next();
     if (req.path.startsWith('/api')) return res.status(401).json({ error: 'Sign in required.' });
     res.redirect('/login.html');
@@ -141,19 +141,29 @@ const needAdmin = (req, res, next) =>
     isSuper(req.user) ? next() : res.status(403).json({ error: 'Admins only.' });
 
 const fails = new Map();
-app.post('/api/login', (req, res) => {
+// Shared by the web login and the mobile login: same accounts, same rate limit.
+function checkLogin(req) {
     const f = fails.get(req.ip) || { n: 0, t: 0 };
     if (Date.now() - f.t >= 5 * 60000) f.n = 0;
-    if (f.n >= 5) return res.status(429).json({ error: 'Too many attempts. Try again in a few minutes.' });
+    if (f.n >= 5) return { status: 429, error: 'Too many attempts. Try again in a few minutes.' };
     const { username = '', password = '' } = req.body || {};
     const u = db.prepare('SELECT * FROM users WHERE username = ?').get(String(username));
     if (!u || !verifyPassword(String(password), u.pass)) {
         fails.set(req.ip, { n: f.n + 1, t: Date.now() });
-        return res.status(401).json({ error: 'Wrong username or password.' });
+        return { status: 401, error: 'Wrong username or password.' };
     }
     fails.delete(req.ip);
+    return { user: u };
+}
+const newSession = (userId, ttl) => {
     const token = crypto.randomBytes(32).toString('hex');
-    db.prepare('INSERT INTO sessions(token,user_id,exp) VALUES(?,?,?)').run(token, u.id, Date.now() + 7 * DAY);
+    db.prepare('INSERT INTO sessions(token,user_id,exp) VALUES(?,?,?)').run(token, userId, Date.now() + ttl);
+    return token;
+};
+app.post('/api/login', (req, res) => {
+    const r = checkLogin(req);
+    if (r.error) return res.status(r.status).json({ error: r.error });
+    const token = newSession(r.user.id, 7 * DAY);
     res.setHeader('Set-Cookie', `sid=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 86400}`);
     res.json({ ok: true });
 });
@@ -161,6 +171,41 @@ app.post('/api/logout', (req, res) => {
     const t = parseCookie(req.headers.cookie).sid;
     if (t) db.prepare('DELETE FROM sessions WHERE token = ?').run(t);
     res.setHeader('Set-Cookie', 'sid=; Max-Age=0; Path=/');
+    res.json({ ok: true });
+});
+
+const push = require('./push').createPush({ db });
+
+// ---------- Mobile apps (iOS / Android) ----------
+// Public: lets the app check it can talk to this server and whether it must be updated (no data is exposed).
+const MOBILE_API = 1;
+app.get('/api/mobile/config', (req, res) => res.json({
+    name: 'VisionGuard', api: MOBILE_API, minAppVersion: process.env.MIN_APP_VERSION || '1.0.0', maintenance: process.env.MAINTENANCE === '1',
+}));
+app.post('/api/mobile/login', (req, res) => {
+    const r = checkLogin(req);
+    if (r.error) return res.status(r.status).json({ error: r.error });
+    const ttl = 30 * DAY, token = newSession(r.user.id, ttl);
+    const u = userBySession(token);
+    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), u.username, 'mobile_login', null);
+    res.json({ token, expiresAt: Date.now() + ttl, user: { ...u, staff: isStaff(u), super: isSuper(u) } });
+});
+app.post('/api/mobile/logout', needUser, (req, res) => {
+    const t = bearer(req.headers.authorization);
+    if (t) { db.prepare('DELETE FROM sessions WHERE token = ?').run(t); db.prepare('DELETE FROM push_devices WHERE session = ?').run(t); }
+    res.json({ ok: true });
+});
+// Push registration: the app hands over its FCM/APNs token so SOS alerts can reach a locked phone (see push.js).
+db.exec('CREATE TABLE IF NOT EXISTS push_devices(token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, platform TEXT NOT NULL, session TEXT, created INTEGER NOT NULL)');
+app.post('/api/mobile/push', needUser, (req, res) => {
+    const token = String(req.body?.token || ''), platform = req.body?.platform;
+    if (!/^[\w:.\-]{20,4096}$/.test(token) || !['ios', 'android'].includes(platform)) return res.status(400).json({ error: 'Bad push token.' });
+    db.prepare('INSERT INTO push_devices(token,user_id,platform,session,created) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id, platform=excluded.platform, session=excluded.session')
+        .run(token, req.user.id, platform, bearer(req.headers.authorization), Date.now());
+    res.json({ ok: true });
+});
+app.delete('/api/mobile/push', needUser, (req, res) => {
+    db.prepare('DELETE FROM push_devices WHERE token = ? AND user_id = ?').run(String(req.body?.token || ''), req.user.id);
     res.json({ ok: true });
 });
 app.get('/api/me', needUser, (req, res) => res.json({ ...req.user, staff: isStaff(req.user), super: isSuper(req.user) }));
@@ -480,7 +525,7 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 io.use((socket, next) => {
     const cam = authCamera(socket.handshake.auth?.token);
     if (cam) { socket.data.role = 'camera'; socket.data.authId = cam.id || null; return next(); }
-    const u = userFromCookie(socket.handshake.headers.cookie);
+    const u = userFromCookie(socket.handshake.headers.cookie) || userBySession(socket.handshake.auth?.session);
     if (u) { socket.data.role = 'dashboard'; socket.data.user = u; return next(); }
     next(new Error('unauthorized'));
 });
@@ -668,7 +713,9 @@ io.on('connection', (socket) => {
         if (!cams.has(id)) publish(id, { online: true });
         const lat = num(d.lat, -90, 90), lng = num(d.lng, -180, 180), ts = Date.now();
         const r = db.prepare('INSERT INTO alarms(camera_id,lat,lng,ts) VALUES(?,?,?,?)').run(id, lat, lng, ts);
-        toCam(id, 'dashboard_sos', { id: Number(r.lastInsertRowid), cameraId: id, lat, lng, ts, ack: false });
+        const alarm = { id: Number(r.lastInsertRowid), cameraId: id, lat, lng, ts, ack: false };
+        toCam(id, 'dashboard_sos', alarm);
+        push.notifyAlarm(alarm, cams.get(id)?.companyId || null); // locked phones: no-op until FCM_SERVICE_ACCOUNT is set
     });
 
     socket.on('disconnect', () => {
