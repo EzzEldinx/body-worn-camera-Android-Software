@@ -105,7 +105,10 @@ function register(app, ctx) {
     app.get('/api/docks', needUser, (req, res) => {
         const now = Date.now();
         const list = [...docks].map(([id, d]) => ({ id, ts: d.ts, online: now - d.ts < 90_000, agent: d.agent, mode: d.mode,
-            cameras: d.cameras.filter((c) => mine(req.user, c.cameraId)).map((c) => ({ ...c, company: c.cameraId && cams.has(c.cameraId) ? companyName(cams.get(c.cameraId).companyId) : null })) }));
+            // A bay holding someone else's camera is shown as occupied, without saying whose or which camera.
+            cameras: d.cameras.map((c) => (mine(req.user, c.cameraId)
+                ? { ...c, company: c.cameraId && cams.has(c.cameraId) ? companyName(cams.get(c.cameraId).companyId) : null }
+                : { slot: c.slot, state: 'other', cameraId: null, serial: '', port: '' })) }));
         const rec = db.prepare('SELECT COUNT(*) n, COALESCE(SUM(size),0) bytes FROM recordings').get();
         const today = new Date(); today.setHours(0, 0, 0, 0);
         const td = db.prepare('SELECT COUNT(*) n, COALESCE(SUM(size),0) bytes FROM recordings WHERE uploaded_ts >= ?').get(today.getTime());

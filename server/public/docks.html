@@ -56,7 +56,7 @@ main#view{display:block;max-width:none;margin:0;padding:22px 24px 90px;display:g
 .bay>*{position:relative}
 .bay.has{cursor:pointer}.bay.has:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .bay.s-connected{--c:var(--c-ready)}.bay.s-offloading{--c:var(--c-busy);box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent),0 10px 34px color-mix(in srgb,var(--c) 28%,transparent)}
-.bay.s-synced{--c:var(--c-done)}.bay.s-error{--c:var(--c-err);box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent),0 10px 34px color-mix(in srgb,var(--c) 26%,transparent)}
+.bay.s-other{--c:var(--mut)}.bay.s-synced{--c:var(--c-done)}.bay.s-error{--c:var(--c-err);box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent),0 10px 34px color-mix(in srgb,var(--c) 26%,transparent)}
 .bhead{align-self:stretch;display:flex;align-items:center;justify-content:space-between}
 .bn{font-size:11px;font-weight:800;letter-spacing:1.4px;color:var(--mut)}
 .st{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
@@ -214,10 +214,13 @@ function ringSvg(pct) {
 }
 function bayHTML(i, c) {
   const s = bayState(c), n = String(i + 1).padStart(2, '0');
-  const label = { idle: 'Idle', connected: 'Ready', offloading: 'Offloading', synced: 'Synced', error: 'Needs attention' }[s];
+  const label = { idle: 'Idle', connected: 'Ready', offloading: 'Offloading', synced: 'Synced', error: 'Needs attention', other: 'In use' }[s];
   if (!c) return `<article class="bay s-idle"><div class="bhead"><span class="bn">BAY ${n}</span><span class="st">${label}</span></div>
     <div class="ring">${ringSvg(0)}<div class="mid idle"><b>Idle</b></div></div><div class="cid">Empty</div><div class="co"></div>
     <div class="hint">Insert a camera into this bay.<br>It is detected and offloaded automatically.</div></article>`;
+  if (s === 'other') return `<article class="bay s-other"><div class="bhead"><span class="bn">BAY ${n}</span><span class="st">${label}</span></div>
+    <div class="ring">${ringSvg(0)}<div class="mid">${ic('plug')}<small>Docked</small></div></div><div class="cid">Another account</div><div class="co"></div>
+    <div class="hint">A camera is docked here but it is not assigned to your company.</div></article>`;
   const p = c.progress, pct = s === 'offloading' && p?.bytesTotal ? p.bytesDone / p.bytesTotal : (s === 'synced' ? 1 : 0);
   const mid = s === 'offloading' ? `<b>${Math.round(pct * 100)}%</b><small>${p ? p.index + ' / ' + p.total : ''}</small>`
     : s === 'synced' ? ic('check') + '<small>Synced</small>' : s === 'error' ? ic('warn') + '<small>Error</small>' : ic('plug') + '<small>Docked</small>';
@@ -242,7 +245,7 @@ function vDocks(v) {
   const cams = d && d.online !== false ? d.cameras : (d ? d.cameras : []);
   const bySlot = new Map(); (cams || []).forEach((c) => { if (c.slot != null) bySlot.set(c.slot, c); });
   const total = Math.max(D.slots, ...[...bySlot.keys()].map((k) => k + 1), 1);
-  const docked = cams?.length || 0, busy = (cams || []).filter((c) => c.state === 'offloading').length;
+  const docked = (cams || []).filter((c) => c.state !== 'other').length, busy = (cams || []).filter((c) => c.state === 'offloading').length;
   const st = D.storage, usedPct = st.totalBytes ? Math.min(100, ((st.totalBytes - st.freeBytes) / st.totalBytes) * 100) : 0;
   v.innerHTML = head('Plug a camera in and VisionGuard copies its recordings, verifies every file, and keeps the evidence safe.') +
     `<div class="kpis">
