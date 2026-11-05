@@ -9,7 +9,7 @@ const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 const MAX_BYTES = 8 * 1024 ** 3;
 
 function register(app, ctx) {
-    const { db, cams, needUser, needAdmin, canSee, isStaff, str } = ctx;
+    const { db, cams, needUser, needAdmin, canSee, isStaff, str, companyName } = ctx;
     const DOCK_TOKEN = process.env.DOCK_TOKEN || '';
     const dir = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'recordings');
     fs.mkdirSync(dir, { recursive: true });
@@ -19,6 +19,17 @@ function register(app, ctx) {
         sha256 TEXT NOT NULL, recorded_ts INTEGER, uploaded_ts INTEGER NOT NULL, dock_id TEXT,
         UNIQUE(camera_id, sha256))`);
     db.exec('CREATE INDEX IF NOT EXISTS rec_cam ON recordings(camera_id, recorded_ts)');
+    // A camera's physical dock port (USB location) always lands in the same bay: first free bay on first sight.
+    db.exec('CREATE TABLE IF NOT EXISTS dock_slots(dock_id TEXT NOT NULL, port TEXT NOT NULL, slot INTEGER NOT NULL, PRIMARY KEY(dock_id, port))');
+    const SLOTS = Math.max(1, Math.min(64, Number(process.env.DOCK_SLOTS) || 8));
+    const slotFor = (dockId, port) => {
+        const hit = db.prepare('SELECT slot FROM dock_slots WHERE dock_id = ? AND port = ?').get(dockId, port);
+        if (hit) return hit.slot;
+        const used = new Set(db.prepare('SELECT slot FROM dock_slots WHERE dock_id = ?').all(dockId).map((r) => r.slot));
+        let n = 0; while (used.has(n)) n++;
+        db.prepare('INSERT INTO dock_slots(dock_id,port,slot) VALUES(?,?,?)').run(dockId, port, n);
+        return n;
+    };
     const docks = new Map(); // dock id -> last report (in memory)
 
     const needDock = (req, res, next) => {
@@ -66,25 +77,58 @@ function register(app, ctx) {
         });
     });
 
-    // Agent reports what it sees on the docks (battery, storage, build).
+    // Agent reports what it sees on the docks (battery, storage, build) and what it is doing with each camera.
+    const STATES = new Set(['connected', 'offloading', 'synced', 'error']);
+    const num = (v) => (Number.isFinite(v) ? v : null);
     app.post('/api/dock/report', needDock, (req, res) => {
         const dockId = String(req.body?.dockId || 'dock').slice(0, 40);
-        const list = Array.isArray(req.body?.cameras) ? req.body.cameras.slice(0, 200).map((c) => ({
-            serial: String(c.serial || '').slice(0, 40), cameraId: str(c.cameraId) || null, battery: Number.isFinite(c.battery) ? c.battery : null,
-            storageFreeMb: Number.isFinite(c.storageFreeMb) ? c.storageFreeMb : null, files: Number.isFinite(c.files) ? c.files : null,
-            pendingMb: Number.isFinite(c.pendingMb) ? c.pendingMb : null,
-        })) : [];
-        docks.set(dockId, { ts: Date.now(), cameras: list });
+        const list = Array.isArray(req.body?.cameras) ? req.body.cameras.slice(0, 200).map((c) => {
+            const port = String(c.port || c.serial || '').slice(0, 60);
+            const pr = c.progress && typeof c.progress === 'object' ? c.progress : null;
+            return {
+                serial: String(c.serial || '').slice(0, 40), port, slot: port ? slotFor(dockId, port) : null, cameraId: str(c.cameraId) || null,
+                battery: num(c.battery), storageFreeMb: num(c.storageFreeMb), files: num(c.files), pendingMb: num(c.pendingMb),
+                state: STATES.has(c.state) ? c.state : 'connected', message: String(c.message || '').slice(0, 160),
+                progress: pr ? { index: num(pr.index), total: num(pr.total), file: String(pr.file || '').slice(0, 60), bytesDone: num(pr.bytesDone), bytesTotal: num(pr.bytesTotal) } : null,
+                synced: num(c.synced), failed: num(c.failed), lastSyncTs: num(c.lastSyncTs),
+            };
+        }) : [];
+        docks.set(dockId, { ts: Date.now(), agent: String(req.body?.agent || '').slice(0, 20), mode: req.body?.deleteAfter ? 'move' : 'copy', cameras: list });
         res.json({ ok: true });
     });
     app.get('/api/admin/docks', needUser, needAdmin, (req, res) => res.json({ docks: [...docks].map(([id, d]) => ({ id, ...d })) }));
 
     const visible = (u, id) => canSee(u, id);
+    const mine = (u, cameraId) => (cameraId && cams.has(cameraId) ? visible(u, cameraId) : isStaff(u));
+
+    // Everything the Docking page needs in one call: bays, registered cameras, server storage. Company users only see their cameras.
+    app.get('/api/docks', needUser, (req, res) => {
+        const now = Date.now();
+        const list = [...docks].map(([id, d]) => ({ id, ts: d.ts, online: now - d.ts < 90_000, agent: d.agent, mode: d.mode,
+            cameras: d.cameras.filter((c) => mine(req.user, c.cameraId)).map((c) => ({ ...c, company: c.cameraId && cams.has(c.cameraId) ? companyName(cams.get(c.cameraId).companyId) : null })) }));
+        const rec = db.prepare('SELECT COUNT(*) n, COALESCE(SUM(size),0) bytes FROM recordings').get();
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const td = db.prepare('SELECT COUNT(*) n, COALESCE(SUM(size),0) bytes FROM recordings WHERE uploaded_ts >= ?').get(today.getTime());
+        let disk = null; try { const f = fs.statfsSync(dir); disk = { totalBytes: f.blocks * f.bsize, freeBytes: f.bavail * f.bsize }; } catch (e) { /* not supported */ }
+        const known = [...cams].filter(([id]) => visible(req.user, id)).map(([id, c]) => ({
+            cameraId: id, company: companyName(c.companyId), region: c.region || null, online: !!c.online, recording: !!c.recording, ts: c.ts || null, quality: c.quality || null,
+            recordings: db.prepare('SELECT COUNT(*) n FROM recordings WHERE camera_id = ?').get(id).n }));
+        res.json({ slots: SLOTS, enabled: !!DOCK_TOKEN, docks: list, cameras: known,
+            storage: { recordings: rec.n, recordingsBytes: rec.bytes, todayCount: td.n, todayBytes: td.bytes, ...(disk || {}) } });
+    });
+
     app.get('/api/recordings', needUser, (req, res) => {
         const cam = req.query.camera ? str(String(req.query.camera)) : null;
+        const from = Number(req.query.from) || null, to = Number(req.query.to) || null;
+        const type = req.query.type === 'video' ? 'mp4' : req.query.type === 'image' ? 'jpg' : null;
+        const where = [], args = [];
+        if (cam) { where.push('camera_id = ?'); args.push(cam); }
+        if (from) { where.push('COALESCE(recorded_ts, uploaded_ts) >= ?'); args.push(from); }
+        if (to) { where.push('COALESCE(recorded_ts, uploaded_ts) < ?'); args.push(to); }
+        if (type) { where.push('filename LIKE ?'); args.push('%.' + type); }
         const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename,size,sha256,recorded_ts AS recordedTs,uploaded_ts AS uploadedTs,dock_id AS dockId
-            FROM recordings ${cam ? 'WHERE camera_id = ?' : ''} ORDER BY COALESCE(recorded_ts, uploaded_ts) DESC LIMIT 500`).all(...(cam ? [cam] : []));
-        res.json({ recordings: rows.filter((r) => cams.has(r.cameraId) ? visible(req.user, r.cameraId) : isStaff(req.user)) });
+            FROM recordings ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY COALESCE(recorded_ts, uploaded_ts) DESC LIMIT 500`).all(...args);
+        res.json({ recordings: rows.filter((r) => mine(req.user, r.cameraId)) });
     });
     app.get('/api/recordings/:id/file', needUser, (req, res) => {
         const r = db.prepare('SELECT * FROM recordings WHERE id = ?').get(Number(req.params.id));

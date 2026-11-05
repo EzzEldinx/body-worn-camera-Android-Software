@@ -27,6 +27,10 @@ const ONLY = opt('only', null);  // restrict to one file name (useful for tests)
 const MIN_AGE_MS = 60_000; // never touch a file that changed in the last minute (still being recorded)
 const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 
+// What the agent is doing per camera right now; sent to the server so the Docking page shows live progress.
+const status = new Map();   // serial -> { state, message, progress, synced, failed, lastSyncTs }
+let lastInfos = [], lastReportAt = 0;
+const AGENT_VERSION = '1.1';
 const log = (dev, ...a) => console.log(new Date().toISOString().slice(11, 19), dev ? `[${dev}]` : '', ...a);
 const run = (args) => new Promise((resolve, reject) => execFile(ADB, args, { maxBuffer: 64 * 1024 * 1024 }, (e, so, se) => (e ? reject(new Error((se || e.message).trim())) : resolve(so))));
 const shell = (serial, cmd) => run(['-s', serial, 'shell', cmd]);
@@ -41,8 +45,9 @@ async function api(method, p, { body, headers } = {}) {
 }
 
 async function devices() {
-    const out = await run(['devices']);
-    return out.split('\n').slice(1).map((l) => l.trim().split(/\s+/)).filter((p) => p[1] === 'device').map((p) => p[0]);
+    const out = await run(['devices', '-l']);
+    return out.split('\n').slice(1).map((l) => l.trim().split(/\s+/)).filter((p) => p[1] === 'device')
+        .map((p) => ({ serial: p[0], port: (p.find((x) => x.startsWith('usb:')) || '').slice(4) || p[0] }));   // usb:<location> = the physical dock port
 }
 
 async function inspect(serial) {
@@ -61,9 +66,14 @@ async function offload(info, stats) {
     const { serial, cameraId } = info; const tag = cameraId || serial;
     if (!cameraId) { log(tag, 'no config.json id on the camera: skipped'); return; }
     const dir = path.join(STAGING, cameraId); fs.mkdirSync(dir, { recursive: true });
+    const st = status.get(serial) || {}; status.set(serial, st);
+    const todo = info.files.filter((f) => f.size > 0 && !(ONLY && f.name !== ONLY) && Date.now() - f.mtimeMs >= MIN_AGE_MS);
+    const bytesTotal = todo.reduce((a, f) => a + f.size, 0); let bytesDone = 0, index = 0, mine = 0;
+    st.synced = 0; st.failed = 0;
     for (const f of info.files) {
         if (f.size === 0 || (ONLY && f.name !== ONLY)) continue;
         if (Date.now() - f.mtimeMs < MIN_AGE_MS) { log(tag, `${f.name} changed <1 min ago, left alone`); stats.skipped++; continue; }
+        index++; Object.assign(st, { state: 'offloading', message: '', progress: { index, total: todo.length, file: f.name, bytesDone, bytesTotal } }); await report(false);
         const remote = `${REC_DIR}/${f.name}`, local = path.join(dir, f.name);
         try {
             const remoteSha = (await shell(serial, `sha256sum "${remote}"`)).trim().split(/\s+/)[0];
@@ -82,20 +92,32 @@ async function offload(info, stats) {
                 stats.uploaded++; stats.bytes += f.size;
             } else { log(tag, `${f.name} already on the server`); stats.known++; }
             if (DELETE) { await shell(serial, `rm "${remote}"`); log(tag, `${f.name} removed from the camera (verified on the server)`); stats.deleted++; }
-        } catch (e) { log(tag, `${f.name} FAILED: ${e.message}`); stats.failed++; }
+            bytesDone += f.size; st.synced++; mine++;
+        } catch (e) { log(tag, `${f.name} FAILED: ${e.message}`); stats.failed++; st.failed++; st.message = e.message.slice(0, 120); }
     }
+    Object.assign(st, { state: st.failed ? 'error' : 'synced', progress: null, lastSyncTs: Date.now() });
+}
+
+async function report(force) {
+    if (!force && Date.now() - lastReportAt < 1500) return;   // progress updates are throttled
+    lastReportAt = Date.now();
+    await api('POST', '/api/dock/report', { body: { dockId: DOCK_ID, agent: AGENT_VERSION, deleteAfter: DELETE, cameras: lastInfos.map((i) => ({
+        serial: i.serial, port: i.port, cameraId: i.cameraId, battery: i.battery, storageFreeMb: i.storageFreeMb, files: i.files.length,
+        pendingMb: Math.round(i.files.reduce((a, f) => a + f.size, 0) / 1e6), ...(status.get(i.serial) || { state: 'connected' }) })) } })
+        .catch((e) => log('', 'report failed:', e.message));
 }
 
 async function cycle() {
-    const serials = await devices();
-    if (!serials.length) { log('', 'no camera on the dock'); return; }
-    const infos = [];
-    for (const s of serials) { try { infos.push(await inspect(s)); } catch (e) { log(s, 'inspect failed:', e.message); } }
-    await api('POST', '/api/dock/report', { body: { dockId: DOCK_ID, cameras: infos.map((i) => ({
-        serial: i.serial, cameraId: i.cameraId, battery: i.battery, storageFreeMb: i.storageFreeMb, files: i.files.length,
-        pendingMb: Math.round(i.files.reduce((a, f) => a + f.size, 0) / 1e6) })) } }).catch((e) => log('', 'report failed:', e.message));
+    const devs = await devices();
+    for (const k of [...status.keys()]) if (!devs.some((d) => d.serial === k)) status.delete(k);   // camera left the dock
+    lastInfos = [];
+    for (const d of devs) { try { lastInfos.push({ ...(await inspect(d.serial)), port: d.port }); } catch (e) { log(d.serial, 'inspect failed:', e.message); } }
+    for (const i of lastInfos) if (!status.has(i.serial)) status.set(i.serial, { state: 'connected', synced: 0, failed: 0 });
+    await report(true);   // also when the dock is empty: the page then shows the agent as online with idle bays
+    if (!lastInfos.length) { log('', 'no camera on the dock'); return; }
     const stats = { uploaded: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
-    await Promise.all(infos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
+    await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
+    await report(true);
     log('', `cycle done: ${JSON.stringify(stats)}`);
     return stats;
 }

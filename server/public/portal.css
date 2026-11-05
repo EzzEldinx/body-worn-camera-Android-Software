@@ -37,11 +37,11 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .pw img{height:11px!important;width:auto}
 .brand .pw img{height:11px}
 nav{display:flex;gap:6px;margin-left:18px}
-nav a{padding:8px 16px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;color:var(--mut);transition:.15s}
+nav a{white-space:nowrap;padding:8px 16px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;color:var(--mut);transition:.15s}
 nav a:hover{background:var(--hover);color:var(--text)}
 nav a.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow-sm),inset 0 -2px 0 var(--sel)}
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px}
-.chip{padding:6px 14px;border-radius:99px;font-size:12.5px;font-weight:700;background:color-mix(in srgb,var(--brand) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--brand) 35%,var(--line));color:var(--text)}
+.chip{white-space:nowrap;padding:6px 14px;border-radius:99px;font-size:12.5px;font-weight:700;background:color-mix(in srgb,var(--brand) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--brand) 35%,var(--line));color:var(--text)}
 .icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);display:flex;align-items:center;justify-content:center;transition:.15s}
 .icon-btn:hover{background:var(--hover);color:var(--text);box-shadow:var(--glow-amber)}
 .icon-btn svg{width:18px;height:18px}
@@ -58,7 +58,7 @@ main{max-width:1500px;margin:0 auto;padding:22px 24px 40px;display:grid;gap:18px
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g2{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
 @media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3,.g2{grid-template-columns:1fr}}
-@media (max-width:640px){.g4{grid-template-columns:1fr}nav{display:none}header{padding:0 14px}}
+@media (max-width:640px){.g4{grid-template-columns:1fr}nav{display:none}header{padding:0 14px;gap:10px}.chip,.who{display:none}}
 
 .btn{padding:10px 18px;border-radius:11px;border:1px solid var(--line);background:var(--panel);font-weight:600;font-size:14px;transition:.15s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .btn:hover{background:var(--hover)}

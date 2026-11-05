@@ -449,7 +449,7 @@ app.get('/api/update/apk', (req, res) => {
 });
 
 // Docking stations: offload recordings from cameras (see dock.js)
-require('./dock').register(app, { db, cams, needUser, needAdmin, canSee, isStaff, str });
+require('./dock').register(app, { db, cams, needUser, needAdmin, canSee, isStaff, str, companyName });
 
 // Live video over the dashboard's own port: the browser asks /live/<camera>.flv?sign=... here and we relay it from the media
 // server's HTTP-FLV port. One port to open, works from phones and behind HTTPS (no mixed content). The media server still
@@ -471,6 +471,7 @@ app.get(/^\/live\/([\w.-]+\.flv)$/, (req, res) => {
 const page = (file) => (req, res) => res.sendFile(path.join(__dirname, 'public', file));
 app.get(['/', '/index.html'], needUser, page('index.html'));
 app.get('/analytics.html', needUser, page('analytics.html'));
+app.get('/docks.html', needUser, page('docks.html'));
 app.get('/updates.html', needUser, (req, res) => (isSuper(req.user) ? page('updates.html')(req, res) : res.redirect('/analytics.html')));
 app.get('/admin.html', needUser, (req, res, next) => (isSuper(req.user) ? page('admin.html')(req, res) : res.redirect('/analytics.html')));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));

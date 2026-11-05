@@ -15,6 +15,7 @@
       <nav>
         ${link('/analytics.html', 'Analytics')}
         ${link('/', 'Live Dashboard')}
+        ${link('/docks.html', 'Docking')}
         ${me.super ? link('/admin.html', 'Companies') + link('/updates.html', 'Updates') : ''}
       </nav>
       <div class="hdr-right">
