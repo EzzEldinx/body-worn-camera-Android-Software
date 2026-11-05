@@ -50,7 +50,7 @@ main#view{display:block;max-width:none;margin:0;padding:22px 24px 90px;display:g
 .pill{padding:6px 14px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:12.5px;font-weight:700;color:var(--mut)}
 .pill.on{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink)}
 .bays{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.bay{--c:var(--c-idle);position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 16px 18px;min-height:318px;border-radius:20px;overflow:hidden;cursor:default;
+.bay{--c:var(--c-idle);position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 16px 18px;min-height:300px;border-radius:20px;overflow:hidden;cursor:default;
   background:linear-gradient(180deg,color-mix(in srgb,var(--c) 7%,var(--panel)),var(--panel) 55%);border:1px solid color-mix(in srgb,var(--c) 28%,var(--line));box-shadow:var(--shadow-sm);transition:border-color .25s,box-shadow .25s,transform .2s}
 .bay::before{content:"";position:absolute;inset:0;background:radial-gradient(260px 160px at 50% 28%,color-mix(in srgb,var(--c) 16%,transparent),transparent 70%);pointer-events:none}
 .bay>*{position:relative}
@@ -215,10 +215,9 @@ function ringSvg(pct) {
 function bayHTML(i, c) {
   const s = bayState(c), n = String(i + 1).padStart(2, '0');
   const label = { idle: 'Idle', connected: 'Ready', offloading: 'Offloading', synced: 'Synced', error: 'Needs attention', other: 'In use' }[s];
-  if (!c) return `<article class="bay s-idle"><div class="bhead"><span class="bn">BAY ${n}</span><span class="st">${label}</span></div>
-    <div class="ring">${ringSvg(0)}<div class="mid idle"><b>Idle</b></div></div><div class="cid">Empty</div><div class="co"></div>
-    <div class="hint">Insert a camera into this bay.<br>It is detected and offloaded automatically.</div></article>`;
-  if (s === 'other') return `<article class="bay s-other"><div class="bhead"><span class="bn">BAY ${n}</span><span class="st">${label}</span></div>
+  if (!c) return `<article class="bay s-idle"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
+    <div class="ring">${ringSvg(0)}<div class="mid idle"><b>Idle</b></div></div></article>`;
+  if (s === 'other') return `<article class="bay s-other"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
     <div class="ring">${ringSvg(0)}<div class="mid">${ic('plug')}<small>Docked</small></div></div><div class="cid">Another account</div><div class="co"></div>
     <div class="hint">A camera is docked here but it is not assigned to your company.</div></article>`;
   const p = c.progress, pct = s === 'offloading' && p?.bytesTotal ? p.bytesDone / p.bytesTotal : (s === 'synced' ? 1 : 0);
@@ -234,7 +233,7 @@ function bayHTML(i, c) {
     : s === 'synced' ? `<div class="bar"><i style="width:100%"></i></div><div class="pf">${c.synced || 0} file${c.synced === 1 ? '' : 's'} verified · ${ago(c.lastSyncTs)}</div>`
     : s === 'error' ? `<div class="pf" style="color:var(--rec);white-space:normal">${esc(c.message || 'A file failed verification')}</div>`
     : `<div class="pf">Waiting for the next sync…</div>`;
-  return `<article class="bay has s-${s}" data-cam="${esc(c.cameraId || '')}"><div class="bhead"><span class="bn">BAY ${n}</span><span class="st">${label}</span></div>
+  return `<article class="bay has s-${s}" data-cam="${esc(c.cameraId || '')}"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
     <div class="ring">${ringSvg(pct)}<div class="mid">${mid}</div></div>
     <div class="cid">${esc(c.cameraId || 'Unregistered')}</div><div class="co">${esc(c.company || (c.cameraId ? '' : 'No config.json on this camera'))}</div>
     <div class="chips">${chips}</div>${foot}</article>`;
@@ -335,7 +334,7 @@ function vSet(v) {
         <dt>Dock ID</dt><dd>${esc(a?.id || '-')}</dd><dt>Agent version</dt><dd>${esc(a?.agent || '-')}</dd>
         <dt>Last report</dt><dd>${a ? ago(a.ts) : '-'}</dd>
         <dt>Mode</dt><dd>${a ? (a.mode === 'move' ? 'Move: verified files are removed from the camera' : 'Copy: nothing is deleted from the camera') : '-'}</dd>
-        <dt>Bays</dt><dd>${D.slots} (set <code>DOCK_SLOTS</code> on the server)</dd>
+        <dt>Slots</dt><dd>${D.slots} (set <code>DOCK_SLOTS</code> on the server)</dd>
         <dt>Server docking</dt><dd>${D.enabled ? 'Enabled' : '<span style="color:var(--rec)">Disabled: set DOCK_TOKEN on the server</span>'}</dd></dl></div>
       <div class="card"><h3>Safety rules</h3><dl class="kv">
         <dt>Integrity</dt><dd>SHA-256 on the camera, on the dock PC and again on the server</dd>
@@ -348,13 +347,13 @@ function vSet(v) {
 function vHelp(v) {
   v.innerHTML = head('Everything an operator needs at the dock.') +
     `<div class="steps">
-      <div class="step"><b>Plug in</b><span>Seat the camera in any free bay. USB debugging must be on (it is, on VisionGuard cameras).</span></div>
-      <div class="step"><b>Wait for the ring</b><span>The bay turns amber and shows progress while files are copied and verified.</span></div>
+      <div class="step"><b>Plug in</b><span>Seat the camera in any free slot marked Idle. USB debugging must be on (it is, on VisionGuard cameras).</span></div>
+      <div class="step"><b>Watch the ring</b><span>The slot turns amber and shows progress while files are copied and verified.</span></div>
       <div class="step"><b>Green means safe</b><span>"Synced" means every file is verified on the server. Only then are files removed from the camera.</span></div>
-      <div class="step"><b>Take it out</b><span>Remove the camera. The bay goes back to Idle.</span></div></div>
+      <div class="step"><b>Take it out</b><span>Remove the camera. The slot goes back to Idle.</span></div></div>
      <div class="card"><h3>Troubleshooting</h3>
-      <details><summary>The bay stays Idle although a camera is inserted</summary><p>The Dock Agent is offline or cannot see the camera. Check that the agent is running on the dock PC (the badge at the top should say online) and that <code>adb devices</code> lists the camera.</p></details>
-      <details><summary>The bay shows "Unregistered"</summary><p>The camera has no <code>config.json</code> with its ID. Configure the camera with its server address and token first; it is then offloaded under its own ID.</p></details>
+      <details><summary>The slot stays Idle although a camera is inserted</summary><p>The Dock Agent is offline or cannot see the camera. Check that the agent is running on the dock PC (the badge at the top should say online) and that <code>adb devices</code> lists the camera.</p></details>
+      <details><summary>The slot shows "Unregistered"</summary><p>The camera has no <code>config.json</code> with its ID. Configure the camera with its server address and token first; it is then offloaded under its own ID.</p></details>
       <details><summary>"Needs attention" appears</summary><p>A file failed verification (USB copy or upload). Nothing was deleted from the camera. The agent retries on its next cycle; re-seat the camera if it keeps failing.</p></details>
       <details><summary>Where do the recordings go?</summary><p>They are stored on the VisionGuard server and listed under Data Query, where you can play or download them.</p></details></div>`;
 }
