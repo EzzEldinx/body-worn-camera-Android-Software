@@ -3,7 +3,7 @@
 // For every camera visible over USB (adb) it pulls new recordings, verifies them by SHA-256 on the camera and
 // on the PC, uploads them to the server (which verifies again), and only then (optionally) deletes them from the camera.
 //
-//   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--report-only] [--interval 30] [--only VID_x.mp4]
+//   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--report-only] [--dry-run] [--interval 30] [--only VID_x.mp4] [--limit N] [--smallest] [--latest N] [--since today|YYYY-MM-DD] [--report-only]
 //
 // Requires: Node 22+, adb in PATH (or ADB=/path/to/adb).
 const { spawn, execFile } = require('child_process');
@@ -24,7 +24,14 @@ const REC_DIR = `${APP_DIR}/SWG_BWC`;
 const STAGING = process.env.DOCK_STAGING || path.join(os.tmpdir(), 'visionguard-dock');
 const DELETE = flag('delete');
 const REPORT_ONLY = flag('report-only');   // show the docks on the dashboard but copy/upload nothing (no files are touched)
-const ONLY = opt('only', null);  // restrict to one file name (useful for tests)
+const LIMIT = Number(opt('limit', 0)) || 0;   // offload at most N files per camera and cycle (handy for a first test)
+const SMALLEST = flag('smallest');             // take the smallest files first
+const LATEST = Number(opt('latest', 0)) || 0;  // only the newest N files per camera
+const SINCE_RAW = opt('since', null);          // 'today' or YYYY-MM-DD: ignore everything recorded before that day
+const SINCE = SINCE_RAW === 'today' ? new Date(new Date().setHours(0, 0, 0, 0)).getTime() : SINCE_RAW ? new Date(SINCE_RAW + 'T00:00:00').getTime() : 0;
+const DRY = flag('dry-run');                   // list what would be offloaded, touch nothing
+const ONLY = opt('only', null);
+if ((ARGV.includes('--only') && !ONLY) || (SINCE_RAW && !Number.isFinite(SINCE)) || (ARGV.includes('--since') && !SINCE_RAW)) { console.error('Bad --only / --since value: refusing to run without a filter.'); process.exit(2); }  // restrict to one file name (useful for tests)
 const MIN_AGE_MS = 60_000; // never touch a file that changed in the last minute (still being recorded)
 const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 
@@ -68,11 +75,17 @@ async function offload(info, stats) {
     if (!cameraId) { log(tag, 'no config.json id on the camera: skipped'); return; }
     const dir = path.join(STAGING, cameraId); fs.mkdirSync(dir, { recursive: true });
     const st = status.get(serial) || {}; status.set(serial, st);
-    const todo = info.files.filter((f) => f.size > 0 && !(ONLY && f.name !== ONLY) && Date.now() - f.mtimeMs >= MIN_AGE_MS);
+    let todo = info.files.filter((f) => f.size > 0 && !(ONLY && f.name !== ONLY) && Date.now() - f.mtimeMs >= MIN_AGE_MS);
+    if (SINCE) todo = todo.filter((f) => f.mtimeMs >= SINCE);
+    if (LATEST) todo = todo.sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, LATEST);
+    if (SMALLEST) todo = todo.sort((a, b) => a.size - b.size);
+    if (LIMIT) todo = todo.slice(0, LIMIT);
+    const wanted = new Set(todo.map((f) => f.name));
+    if (DRY) { todo.forEach((f) => log(tag, `would offload ${f.name}  ${(f.size / 1e6).toFixed(1)} MB  ${new Date(f.mtimeMs).toISOString().slice(0, 16)}`)); return; }
     const bytesTotal = todo.reduce((a, f) => a + f.size, 0); let bytesDone = 0, index = 0, mine = 0;
     st.synced = 0; st.failed = 0;
-    for (const f of info.files) {
-        if (f.size === 0 || (ONLY && f.name !== ONLY)) continue;
+    for (const f of todo) {
+        if (f.size === 0 || (ONLY && f.name !== ONLY) || !wanted.has(f.name)) continue;
         if (Date.now() - f.mtimeMs < MIN_AGE_MS) { log(tag, `${f.name} changed <1 min ago, left alone`); stats.skipped++; continue; }
         index++; Object.assign(st, { state: 'offloading', message: '', progress: { index, total: todo.length, file: f.name, bytesDone, bytesTotal } }); await report(false);
         const remote = `${REC_DIR}/${f.name}`, local = path.join(dir, f.name);
