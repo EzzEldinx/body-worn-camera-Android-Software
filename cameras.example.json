@@ -1,6 +1,9 @@
 {
   "server": "http://192.168.100.75:3000",
-  "token": "yoursecret",
+  "token": "legacy-shared-token-optional",
+  "tokens": {
+    "BWC-04-RIY": "paste the per-camera token issued in the dashboard (Companies page > Issue token)"
+  },
   "cameras": {
     "KS16255032500221": "BWC-04-RIY"
   }

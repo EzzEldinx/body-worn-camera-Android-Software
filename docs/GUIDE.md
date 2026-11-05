@@ -288,3 +288,14 @@ Edef el-gomla dee fi awwel el-prompt law el-session gedeeda: *"Efta7 `docs/GUIDE
 - `Edeeni khalaset el-7ala: eh elly shaghal w eh elly lessa.`
 
 > Nasiha: 2ool leya **el-"definition of done"**: "e3mel test 3ala camera 7a2ee2ya w warreeni screenshot/log" — 3ashan a7aqeq 8eir ma a2ool "tamam".
+
+---
+
+## 14. Per-camera tokens (amn)
+
+- Kol camera 3andaha token khas beha. El-server beyekhzen el-hash bas; el-token byezhar **marra wa7da**.
+- Dashboard > Companies > gadwal el-cameras > zorar **Issue / Rotate**: beyetla3 `{"id":..., "token":...}` — hatto fe `cameras.json` taht `"tokens": {"BWC-04-RIY": "<token>"}` w e3mel `update-cameras.ps1` (beyektebo fe config.json 3ala el-camera).
+- Camera b-token khas **mayenfa3sh te-act ka camera tanya** (el-server beyerfod ay event beyesmy camera tanya).
+- Rotate beyefsel el-camera el-adeem fawran; el-token el-adeem beyetwaqqaf.
+- El-token el-moshtarak el-adeem (`BWC_TOKEN`) lessa byeshta8al le-ghayat ma te2fel el-migration: lama kol el-cameras tekhod token khas, shaghghal el-server b `ALLOW_SHARED_TOKEN=false`.
+- Lessa: el-RTMP publish nafso lessa mesh monta3ad bel-token (follow-up).
