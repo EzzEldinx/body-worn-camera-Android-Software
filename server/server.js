@@ -448,6 +448,9 @@ app.get('/api/update/apk', (req, res) => {
     res.type('application/vnd.android.package-archive').sendFile(UPD_APK);
 });
 
+// Docking stations: offload recordings from cameras (see dock.js)
+require('./dock').register(app, { db, cams, needUser, needAdmin, canSee, isStaff, str });
+
 // ---------- Pages ----------
 const page = (file) => (req, res) => res.sendFile(path.join(__dirname, 'public', file));
 app.get(['/', '/index.html'], needUser, page('index.html'));
