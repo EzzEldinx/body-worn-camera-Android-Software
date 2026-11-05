@@ -178,7 +178,7 @@ function render(d, me) {
   const f = d.fleet, a = d.alarms, h = new Date().getHours();
   $('#hello').innerHTML = `${h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}, <span>${me.name.replace(/[<>&]/g, '')}</span>`;
   $('#scope').textContent = d.scope.staff
-    ? `Smart Way Group · ${d.totals ? d.totals.companies + ' companies · ' + d.totals.users + ' users · ' : ''}${f.total} cameras`
+    ? `Powered by Smart Way Group · ${d.totals ? d.totals.companies + ' companies · ' + d.totals.users + ' users · ' : ''}${f.total} cameras`
     : `${d.scope.company} · ${f.total} assigned camera${f.total === 1 ? '' : 's'}`;
   $('#upd').textContent = 'Live data · updated ' + new Date().toLocaleTimeString();
 

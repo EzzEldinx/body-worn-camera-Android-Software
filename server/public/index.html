@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Way Group - VisionGuard</title>
+<title>VisionGuard</title>
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
@@ -80,6 +80,12 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .brand-text{display:flex;flex-direction:column;line-height:1.2}
 .brand-text strong{font-size:17px;font-weight:700;letter-spacing:.4px}
 .brand-text small{font-size:11px;color:var(--mut);letter-spacing:.8px;text-transform:uppercase}
+.vg-mark{width:34px;height:34px;flex:none}
+.brand-text{display:flex;flex-direction:column;line-height:1.15}
+.brand-text strong{font-size:18px;font-weight:800;letter-spacing:.3px}
+.pw{white-space:nowrap;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut);letter-spacing:.6px;text-transform:uppercase}
+.pw img{height:11px!important;width:auto}
+
 .stats{display:flex;gap:12px;margin-left:10px}
 .stat{display:flex;align-items:center;gap:12px;min-width:150px;padding:8px 16px 8px 10px;background:linear-gradient(135deg,var(--panel),var(--raise));border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);transition:.2s}
 .stat .si{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 38%,transparent)}
@@ -262,7 +268,8 @@ header.flash{animation:fl 1s 3}
 .in{width:100%;margin-top:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit}
 #snd{position:fixed;top:var(--header-h);left:50%;transform:translateX(-50%);z-index:50;background:var(--sel);color:var(--sel-ink);font-size:14px;font-weight:600;padding:6px 16px;border-radius:0 0 10px 10px;box-shadow:var(--shadow-md)}
 
-@media (max-width:1800px){.brand-sep,.brand-text small,.clock{display:none}.stat{min-width:0;padding-right:12px}}
+@media (max-width:1100px){.brand-text small{display:none}}
+@media (max-width:1800px){.brand-sep,.clock{display:none}.stat{min-width:0;padding-right:12px}}
 @media (max-width:1500px){.stat div>span{display:none}}
 @media (max-width:1280px){.stats{display:none}}
 @media (prefers-reduced-motion:reduce){.mk.rec,.mk.online,header.flash,.wait::before,.tile.live .pill::before,.map-chip::before{animation:none}}
@@ -274,9 +281,8 @@ header.flash{animation:fl 1s 3}
 <div id="snd">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
 <header id="top">
   <div class="brand">
-    <img class="logo-light" src="/logo-light.png" alt="Smart Way Group"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way Group">
-    <span class="brand-sep"></span>
-    <div class="brand-text"><strong>VisionGuard</strong><small>Central Management System</small></div>
+    <svg class="vg-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l11 4v9c0 7-4.6 12.4-11 15C9.6 27.4 5 22 5 15V6z" fill="var(--brand)"/><circle cx="16" cy="15" r="4.2" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16" cy="15" r="1.4" fill="#fff"/></svg>
+    <div class="brand-text"><strong>VisionGuard</strong><small class="pw">Powered by <img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"></small></div>
   </div>
   <div class="stats">
     <div class="stat ok"><i class="si"><svg class="i" viewBox="0 0 24 24"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg></i><div><b id="sOn">0</b><span id="txtOnline">online</span></div></div>

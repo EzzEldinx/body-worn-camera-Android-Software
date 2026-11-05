@@ -390,7 +390,7 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf }, r
     for (let i = 0; i < range.count; i++) {
         doc.switchToPage(range.start + i);
         doc.rect(0, H - 34, W, 1.6).fill(grad(doc, 0, 0, W, 0, [[0, C.violet], [0.5, C.blue], [1, C.teal]]));
-        doc.font('Helvetica').fontSize(7.6).fillColor(C.mut).text('VisionGuard  |  Smart Way Group  |  Confidential: for the named company only', M, H - 24, { lineBreak: false });
+        doc.font('Helvetica').fontSize(7.6).fillColor(C.mut).text('VisionGuard  |  Powered by Smart Way Group  |  Confidential: for the named company only', M, H - 24, { lineBreak: false });
         doc.font('Helvetica-Bold').text(`${i + 1} / ${range.count}`, W - M - 60, H - 24, { width: 60, align: 'right', lineBreak: false });
         doc.font('Helvetica').fillColor(C.mut).text(`Generated ${new Date().toLocaleString('en-GB')}`, M, H - 14, { lineBreak: false });
     }
