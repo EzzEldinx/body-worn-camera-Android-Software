@@ -8,10 +8,22 @@ const { Server } = require('socket.io');
 const NodeMediaServer = require('node-media-server');
 const { db, hashPassword, verifyPassword } = require('./db');
 const packages = require('./packages');
+const deviceTokens = require('./tokens');
 
 // Cameras present this shared token for now (per-device tokens come later).
 const CAMERA_TOKEN = process.env.BWC_TOKEN || 'change-me';
 if (CAMERA_TOKEN === 'change-me') console.warn('WARNING: BWC_TOKEN is not set. Using the insecure default.');
+// Cameras should authenticate with their own token. The old shared BWC_TOKEN keeps working until
+// ALLOW_SHARED_TOKEN=false is set, so a fleet can be migrated camera by camera.
+const ALLOW_SHARED_TOKEN = process.env.ALLOW_SHARED_TOKEN !== 'false';
+// -> { id } for a per-camera token, { shared: true } for the legacy shared token, null otherwise.
+function authCamera(token) {
+    if (typeof token !== 'string' || !token) return null;
+    const row = db.prepare('SELECT id FROM cameras WHERE token_hash = ?').get(deviceTokens.hashToken(token));
+    if (row) return { id: row.id };
+    if (ALLOW_SHARED_TOKEN && deviceTokens.safeEqual(token, CAMERA_TOKEN)) return { shared: true };
+    return null;
+}
 // Live-stream play URLs are signed per request; the secret only lives in memory.
 const STREAM_SECRET = process.env.STREAM_SECRET || crypto.randomBytes(24).toString('hex');
 const DAY = 86400000;
@@ -257,11 +269,12 @@ app.get('/api/analytics', needUser, (req, res) => {
 // ---------- Company management (Smart Way administrators only) ----------
 const adminOnly = [needUser, needAdmin];
 app.get('/api/admin/companies', adminOnly, (req, res) => {
+    const tokenIds = new Set(db.prepare('SELECT id FROM cameras WHERE token_hash IS NOT NULL').all().map((r) => r.id));
     const companies = db.prepare('SELECT id,name,max_cameras AS maxCameras,max_live AS maxLive FROM companies ORDER BY name').all().map((c) => ({
         ...c, camerasUsed: cameraCount(c.id), liveNow: liveCount(c.id),
         users: db.prepare('SELECT id,username,name FROM users WHERE company_id = ? ORDER BY username').all(c.id),
     }));
-    const cameras = [...cams.values()].map((c) => ({ id: c.cameraId, name: c.name, companyId: c.companyId, region: c.region || null, online: c.online }));
+    const cameras = [...cams.values()].map((c) => ({ id: c.cameraId, name: c.name, companyId: c.companyId, region: c.region || null, online: c.online, hasToken: tokenIds.has(c.cameraId) }));
     const regions = db.prepare('SELECT name FROM regions ORDER BY created').all().map((r) => r.name);
     res.json({ companies, cameras, regions, packages: packages.PACKAGES });
 });
@@ -359,6 +372,27 @@ app.post('/api/admin/users/:id/password', adminOnly, (req, res) => {
     kickUsers([u.id]);
     res.json({ ok: true });
 });
+// Issue (or rotate) a camera's own device token. The token is returned once; the old one stops working at once.
+app.post('/api/admin/cameras/:id/token', adminOnly, (req, res) => {
+    const id = str(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid camera id.' });
+    if (!cams.has(id)) publish(id, {});   // pre-provision a camera that has not connected yet
+    const token = deviceTokens.issueToken();
+    db.prepare('UPDATE cameras SET token_hash = ? WHERE id = ?').run(deviceTokens.hashToken(token), id);
+    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), req.user.username, 'token_issued', id);
+    // kick the camera's current connection so it must reconnect with the new token
+    for (const s of io.sockets.sockets.values()) if (s.data.role === 'camera' && (s.data.authId === id || s.data.cameraId === id)) s.disconnect(true);
+    res.json({ ok: true, token, config: { id, token } });
+});
+// Revoke a camera's device token (it can no longer connect with it).
+app.delete('/api/admin/cameras/:id/token', adminOnly, (req, res) => {
+    const id = str(req.params.id);
+    if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
+    db.prepare('UPDATE cameras SET token_hash = NULL WHERE id = ?').run(id);
+    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), req.user.username, 'token_revoked', id);
+    for (const s of io.sockets.sockets.values()) if (s.data.role === 'camera' && s.data.authId === id) s.disconnect(true);
+    res.json({ ok: true });
+});
 app.put('/api/admin/cameras/:id/company', adminOnly, (req, res) => {
     const id = str(req.params.id);
     if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
@@ -409,8 +443,7 @@ app.get('/api/admin/update', adminOnly, (req, res) => {
 });
 // Cameras download with their shared token (header or query); Range requests are supported so a weak link can resume.
 app.get('/api/update/apk', (req, res) => {
-    const tok = req.headers['x-bwc-token'] || req.query.token;
-    if (tok !== CAMERA_TOKEN) return res.status(401).end();
+    if (!authCamera(req.headers['x-bwc-token'] || req.query.token)) return res.status(401).end();
     if (!fs.existsSync(UPD_APK)) return res.status(404).end();
     res.type('application/vnd.android.package-archive').sendFile(UPD_APK);
 });
@@ -425,7 +458,8 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ---------- Sockets ----------
 io.use((socket, next) => {
-    if (socket.handshake.auth?.token === CAMERA_TOKEN) { socket.data.role = 'camera'; return next(); }
+    const cam = authCamera(socket.handshake.auth?.token);
+    if (cam) { socket.data.role = 'camera'; socket.data.authId = cam.id || null; return next(); }
     const u = userFromCookie(socket.handshake.headers.cookie);
     if (u) { socket.data.role = 'dashboard'; socket.data.user = u; return next(); }
     next(new Error('unauthorized'));
@@ -435,6 +469,17 @@ io.on('connection', (socket) => {
     console.log(`${socket.data.role} connected:`, socket.id);
 
     const isDash = socket.data.role === 'dashboard';
+    // A camera with its own token may only speak for itself: drop any event naming another camera.
+    if (!isDash && socket.data.authId) {
+        socket.use((packet, next) => {
+            const named = packet[1] && typeof packet[1] === 'object' ? packet[1].cameraId : undefined;
+            if (named !== undefined && named !== socket.data.authId) {
+                console.warn(`camera ${socket.data.authId} tried to act as ${String(named).slice(0, 40)}: dropped`);
+                return next(new Error('forbidden'));
+            }
+            next();
+        });
+    }
     const user = socket.data.user;
     socket.join('room:public'); // staff broadcasts reach everyone
     if (isDash) {

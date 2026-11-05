@@ -127,6 +127,7 @@ function render() {
     <tr data-cam="${esc(c.id)}"><td style="width:46%"><span class="dot ${c.online ? 'on' : ''}"></span><b>${esc(c.id)}</b>${c.name && c.name !== c.id ? `<div class="muted" style="font-size:12px;margin-left:17px">${esc(c.name)}</div>` : ''}</td>
       <td><select data-k="company">${'<option value="">No company</option>' + data.companies.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select></td>
       <td><select data-k="region">${'<option value="">No region</option>' + (data.regions || []).map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></td>
+      <td style="white-space:nowrap"><button class="btn sm" data-tok="${esc(c.id)}" title="${c.hasToken ? 'Rotate device token' : 'Issue device token'}">${c.hasToken ? '🔑 Rotate' : '🔑 Issue'}</button></td>
       <td style="width:34px"><button class="btn sm danger" data-delcam="${esc(c.id)}" title="Remove camera" aria-label="Remove ${esc(c.id)}">✕</button></td></tr>`).join('')
     : '<tr><td class="empty">No cameras have connected yet. They appear here as soon as one connects.</td></tr>';
 }
@@ -174,6 +175,17 @@ $('#cams').addEventListener('change', (e) => {
   req.then(() => { toast('Saved'); return load(); }).catch((err) => { fail(err); load(); });
 });
 $('#cams').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-tok]');
+  if (t) {
+    const id = t.dataset.tok;
+    if (!confirm(`Issue a new device token for ${id}? Any token it already has stops working and the camera disconnects until it is updated.`)) return;
+    api('POST', `/api/admin/cameras/${encodeURIComponent(id)}/token`).then((r) => {
+      const cfg = JSON.stringify({ id, token: r.token });
+      prompt('Device token (shown only once). Copy this config.json content, then press OK:', cfg);
+      toast('Token issued'); return load();
+    }).catch(fail);
+    return;
+  }
   const b = e.target.closest('[data-delcam]'); if (!b) return;
   const id = b.dataset.delcam;
   if (confirm(`Remove ${id}? It reappears if the camera starts recording again.`)) api('DELETE', `/api/cameras/${encodeURIComponent(id)}`).then(() => { toast('Removed'); return load(); }).catch(fail);

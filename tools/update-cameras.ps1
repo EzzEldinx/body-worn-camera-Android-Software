@@ -167,7 +167,7 @@ $finished = 0
 while ($queue.Count -gt 0 -or $running.Count -gt 0) {
     while ($queue.Count -gt 0 -and $running.Count -lt $Parallel) {
         $j = $queue.Dequeue()
-        $running += Start-Job -ScriptBlock $work -ArgumentList $adb, $j.Serial, $j.CamId, $apk, $pkg, $cfg.server, $cfg.token, [bool]$Provision
+        $running += Start-Job -ScriptBlock $work -ArgumentList $adb, $j.Serial, $j.CamId, $apk, $pkg, $cfg.server, $(if ($cfg.tokens -and $cfg.tokens.($j.CamId)) { $cfg.tokens.($j.CamId) } else { $cfg.token }), [bool]$Provision
     }
     $done = @($running | Where-Object { $_.State -ne 'Running' })
     foreach ($job in $done) {
