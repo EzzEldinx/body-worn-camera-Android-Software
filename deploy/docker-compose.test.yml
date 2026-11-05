@@ -1,0 +1,6 @@
+# TEST ONLY: also publish the dashboard over plain HTTP on the dedicated IP (no domain/TLS yet).
+# Remove this file from the command (and close the port) once the domain + TLS are in place.
+services:
+  visionguard:
+    ports:
+      - "${RTMP_BIND_IP:?set RTMP_BIND_IP}:3000:3000"
