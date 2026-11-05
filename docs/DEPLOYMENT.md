@@ -26,3 +26,8 @@ Then set cameras' `server` to `https://visionguard.smartwaygroup.com.sa` (camera
 - Per-camera tokens for every camera, then `ALLOW_SHARED_TOKEN=false` (see GUIDE section 14).
 - RTMP publish authentication (follow-up) because port 1935 is public.
 - Back up `server/data/` daily.
+
+## Docker (recommended on a shared host)
+`deploy/docker-compose.yml` runs VisionGuard as an isolated Compose project (own network, own data volume, ports
+3100/8100 on localhost, RTMP 1935 on a dedicated IP). nginx gets one extra `server { server_name visionguard... }` block
+(see `deploy/nginx-visionguard.conf`); existing sites are not touched. `docker compose -p visionguard up -d --build`.

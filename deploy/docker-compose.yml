@@ -1,0 +1,20 @@
+# VisionGuard in its own Compose project: own network, own volume, unique ports.
+# Safe to run next to other apps on the same host (nothing is shared, nothing binds 80/443).
+#   cp ../.env.example .env   (set BWC_TOKEN, STREAM_SECRET, ADMIN_PASSWORD, DOCK_TOKEN, RTMP_BIND_IP)
+#   docker compose -p visionguard up -d --build
+services:
+  visionguard:
+    build: ../server
+    container_name: visionguard
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - visionguard-data:/data
+    ports:
+      - "127.0.0.1:3100:3000"          # dashboard/API/socket.io (behind nginx + TLS)
+      - "127.0.0.1:8100:8000"          # HTTP-FLV live streams (behind nginx /live/)
+      - "${RTMP_BIND_IP:-0.0.0.0}:1935:1935"   # camera video uplink (bind to the IP you dedicate to VisionGuard)
+volumes:
+  visionguard-data:
