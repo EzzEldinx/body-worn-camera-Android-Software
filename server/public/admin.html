@@ -50,6 +50,7 @@ td select{width:100%}
       <h3>Companies</h3>
       <div class="newco">
         <input id="coName" placeholder="New company name, e.g. Al Rajhi Security" maxlength="60">
+        <select id="coPkg" aria-label="Package"></select>
         <button class="btn pri" id="coAdd">Add company</button>
       </div>
       <div id="companies"></div>
@@ -88,13 +89,18 @@ const load = () => api('GET', '/api/admin/companies').then((d) => { data = d; re
 const fail = (e) => toast(e.message);
 const genPw = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (x) => c[x % c.length]).join(''); };
 
+const pkgOptions = (sel) => '<option value="">Unlimited (legacy)</option>' + (data.packages || []).map((p) =>
+  `<option value="${p.maxCameras}" ${sel === p.maxCameras ? 'selected' : ''}>${p.maxCameras} cameras · ${p.maxLive} live</option>`).join('');
+
 function render() {
+  $('#coPkg').innerHTML = pkgOptions(20).replace('Unlimited (legacy)', 'Unlimited');
   const byCo = (id) => data.cameras.filter((c) => c.companyId === id);
   $('#companies').innerHTML = data.companies.length ? data.companies.map((co) => `
     <div class="co" data-id="${co.id}">
       <div class="co-head">
         <div class="logo">${esc(co.name[0].toUpperCase())}</div>
-        <div><h2>${esc(co.name)}</h2><div class="meta">${co.users.length} user${co.users.length === 1 ? '' : 's'} · ${byCo(co.id).length} camera${byCo(co.id).length === 1 ? '' : 's'}</div></div>
+        <div><h2>${esc(co.name)}</h2><div class="meta">${co.users.length} user${co.users.length === 1 ? '' : 's'} · ${byCo(co.id).length}${co.maxCameras ? ' / ' + co.maxCameras : ''} camera${byCo(co.id).length === 1 ? '' : 's'}${co.maxLive ? ` · live ${co.liveNow} / ${co.maxLive}` : ''}</div></div>
+        <select class="pkg" data-act="pkg" aria-label="Package">${pkgOptions(co.maxCameras)}</select>
         <button class="btn sm danger sp" data-act="delco">Delete company</button>
       </div>
 
@@ -128,7 +134,7 @@ function render() {
 $('#coAdd').onclick = () => {
   const name = $('#coName').value.trim();
   if (!name) return;
-  api('POST', '/api/admin/companies', { name }).then(() => { $('#coName').value = ''; toast('Company added'); return load(); }).catch(fail);
+  api('POST', '/api/admin/companies', { name, maxCameras: $('#coPkg').value === '' ? null : Number($('#coPkg').value) }).then(() => { $('#coName').value = ''; toast('Company added'); return load(); }).catch(fail);
 };
 $('#coName').onkeydown = (e) => { if (e.key === 'Enter') $('#coAdd').click(); };
 
@@ -150,6 +156,13 @@ $('#companies').addEventListener('click', (e) => {
   } else if (act === 'delco') {
     if (confirm('Delete this company and all of its users? Its cameras become unassigned.')) api('DELETE', `/api/admin/companies/${id}`).then(() => { delete lastCred[id]; return load(); }).catch(fail);
   }
+});
+
+$('#companies').addEventListener('change', (e) => {
+  const sel = e.target.closest('select.pkg'); if (!sel) return;
+  const id = Number(sel.closest('.co').dataset.id);
+  api('PUT', `/api/admin/companies/${id}/package`, { maxCameras: sel.value === '' ? null : Number(sel.value) })
+    .then(() => { toast('Package updated'); return load(); }).catch((err) => { fail(err); load(); });
 });
 
 $('#cams').addEventListener('change', (e) => {

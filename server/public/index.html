@@ -1198,7 +1198,9 @@ socket.on('dashboard_cam_removed', ({ cameraId }) => {
   renderList();
 });
 socket.on('remote_stream_result', (r) => {
-  if (!r.ok) flash(currentLang === 'ar' ? 'الكاميرا غير متصلة' : 'Camera is offline');
+  if (!r.ok) flash(r.reason === 'live_limit'
+    ? (currentLang === 'ar' ? 'تم الوصول للحد الأقصى للبث المباشر في باقتك' : 'Live-stream limit of your package reached')
+    : (currentLang === 'ar' ? 'الكاميرا غير متصلة' : 'Camera is offline'));
 });
 socket.on('connect_error', (e) => { if (e.message === 'unauthorized') location.href = '/login.html'; });
 socket.on('dashboard_sos', (a) => {

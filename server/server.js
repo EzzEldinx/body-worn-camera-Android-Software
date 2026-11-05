@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const { Server } = require('socket.io');
 const NodeMediaServer = require('node-media-server');
 const { db, hashPassword, verifyPassword } = require('./db');
+const packages = require('./packages');
 
 // Cameras present this shared token for now (per-device tokens come later).
 const CAMERA_TOKEN = process.env.BWC_TOKEN || 'change-me';
@@ -96,6 +97,11 @@ const recentAlarms = (u) => (isStaff(u)
     : db.prepare(`SELECT a.id,a.camera_id,a.lat,a.lng,a.ts,a.ack_ts FROM alarms a
         JOIN cameras c ON c.id = a.camera_id WHERE c.company_id = ? ORDER BY a.id DESC LIMIT 100`).all(u.companyId)
 ).map(alarmRow);
+
+// Package limits: how many cameras a company owns and how many may stream live at once.
+const companyLimits = (id) => (id ? db.prepare('SELECT max_cameras AS maxCameras, max_live AS maxLive FROM companies WHERE id = ?').get(id) : null);
+const cameraCount = (id) => [...cams.values()].filter((c) => c.companyId === id).length;
+const liveCount = (id) => [...cams.values()].filter((c) => c.companyId === id && c.online && (c.recording || c.remote)).length;
 
 // Move a camera to a company (or back to unassigned) and keep every live view consistent.
 function assignCamera(id, companyId) {
@@ -251,13 +257,13 @@ app.get('/api/analytics', needUser, (req, res) => {
 // ---------- Company management (Smart Way administrators only) ----------
 const adminOnly = [needUser, needAdmin];
 app.get('/api/admin/companies', adminOnly, (req, res) => {
-    const companies = db.prepare('SELECT id,name FROM companies ORDER BY name').all().map((c) => ({
-        ...c,
+    const companies = db.prepare('SELECT id,name,max_cameras AS maxCameras,max_live AS maxLive FROM companies ORDER BY name').all().map((c) => ({
+        ...c, camerasUsed: cameraCount(c.id), liveNow: liveCount(c.id),
         users: db.prepare('SELECT id,username,name FROM users WHERE company_id = ? ORDER BY username').all(c.id),
     }));
     const cameras = [...cams.values()].map((c) => ({ id: c.cameraId, name: c.name, companyId: c.companyId, region: c.region || null, online: c.online }));
     const regions = db.prepare('SELECT name FROM regions ORDER BY created').all().map((r) => r.name);
-    res.json({ companies, cameras, regions });
+    res.json({ companies, cameras, regions, packages: packages.PACKAGES });
 });
 app.post('/api/admin/regions', adminOnly, (req, res) => {
     const name = String(req.body?.name ?? '').trim().slice(0, 40);
@@ -287,9 +293,24 @@ app.post('/api/admin/companies', adminOnly, (req, res) => {
     const name = String(req.body?.name ?? '').trim().slice(0, 60);
     if (name.length < 2) return res.status(400).json({ error: 'Company name is too short.' });
     try {
-        const r = db.prepare('INSERT INTO companies(name,created) VALUES(?,?)').run(name, Date.now());
+        const pkg = packages.parsePackage(req.body?.maxCameras, req.body?.maxLive);
+        if (pkg.error) return res.status(400).json({ error: pkg.error });
+        const r = db.prepare('INSERT INTO companies(name,created,max_cameras,max_live) VALUES(?,?,?,?)').run(name, Date.now(), pkg.maxCameras, pkg.maxLive);
         res.json({ ok: true, id: Number(r.lastInsertRowid) });
     } catch (e) { res.status(409).json({ error: 'A company with this name already exists.' }); }
+});
+// Change a company's package (camera cap) and live-stream cap. Cannot shrink below what it already uses.
+app.put('/api/admin/companies/:id/package', adminOnly, (req, res) => {
+    const id = Number(req.params.id);
+    if (!db.prepare('SELECT 1 FROM companies WHERE id = ?').get(id)) return res.status(404).json({ error: 'Company not found.' });
+    const pkg = packages.parsePackage(req.body?.maxCameras, req.body?.maxLive);
+    if (pkg.error) return res.status(400).json({ error: pkg.error });
+    if (pkg.maxCameras && cameraCount(id) > pkg.maxCameras) {
+        return res.status(409).json({ error: `This company already has ${cameraCount(id)} cameras. Unassign some first or pick a bigger package.` });
+    }
+    db.prepare('UPDATE companies SET max_cameras = ?, max_live = ? WHERE id = ?').run(pkg.maxCameras, pkg.maxLive, id);
+    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), req.user.username, `package_${pkg.maxCameras || 'unlimited'}`, null);
+    res.json({ ok: true });
 });
 function kickUsers(userIds) {
     for (const s of io.sockets.sockets.values()) if (userIds.includes(s.data.user?.id)) s.disconnect(true);
@@ -345,6 +366,9 @@ app.put('/api/admin/cameras/:id/company', adminOnly, (req, res) => {
     const companyId = raw === null || raw === '' || raw === undefined ? null : Number(raw);
     if (companyId !== null && !db.prepare('SELECT 1 FROM companies WHERE id = ?').get(companyId)) {
         return res.status(404).json({ error: 'Company not found.' });
+    }
+    if (companyId !== null && cams.get(id).companyId !== companyId && !packages.canAddCamera(companyLimits(companyId), cameraCount(companyId))) {
+        return res.status(409).json({ error: 'This company reached its package limit. Upgrade its package first.' });
     }
     assignCamera(id, companyId);
     res.json({ ok: true });
@@ -471,6 +495,10 @@ io.on('connection', (socket) => {
             const c = cams.get(id);
             if (!c?.online) return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'offline' });
             if (action === 'stop' && !c.remote) return; // never cut a recording the officer started
+            // Package live cap: refuse a NEW live stream beyond the company's limit (officer-started SOS/recording is never blocked).
+            if (action === 'start' && !c.recording && !c.remote && c.companyId && !packages.canGoLive(companyLimits(c.companyId), liveCount(c.companyId))) {
+                return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'live_limit' });
+            }
             db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user.username, `remote_stream_${action}`, id);
             io.to(`room:camera_${id}`).emit('remote_stream', { action });
             if (action === 'start') publish(id, { remote: true });
