@@ -904,7 +904,7 @@ function renderTile(i) {
   start(i, id, t.querySelector('video'));
   applySound(i);
 }
-const retry = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
+const retry = new Map(), stall = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
 const waitMsg = (id) => currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…';
 
 function stopTile(i, msg) {
@@ -931,8 +931,9 @@ function start(i, id, v) {
 function begin(i, id, v, sign) {
   const p = flvjs.createPlayer(
     { type: 'flv', isLive: true, url: `${location.origin}/live/${encodeURIComponent(id)}.flv?sign=${sign}` },
-    { enableStashBuffer: false, autoCleanupSourceBuffer: true,
-      liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 1.0, liveBufferLatencyMinRemain: 0.2 });
+    // Over the internet (Wi-Fi/SIM) packets arrive in bursts: keep a small cushion instead of chasing zero latency.
+    { enableStashBuffer: true, stashInitialSize: 256 * 1024, autoCleanupSourceBuffer: true,
+      liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 4.0, liveBufferLatencyMinRemain: 1.0 });
   p.attachMediaElement(v);
   const again = () => {
     if (players.get(i) !== p) return;
@@ -966,8 +967,12 @@ setInterval(() => {
     if (!id || !cams.get(id)?.recording || !players.has(i)) return;
     const v = document.querySelector(`.tile[data-i="${i}"] video`); if (!v) return;
     const live = v.parentElement.classList.contains('live');
-    if (!live && Date.now() - (startedAt.get(i) || 0) > 8000) { lastT.delete(i); return renderTile(i); }
-    if (live && lastT.get(i) === v.currentTime) { lastT.delete(i); return renderTile(i); }
+    if (!live && Date.now() - (startedAt.get(i) || 0) > 20000) { lastT.delete(i); stall.delete(i); return renderTile(i); }
+    // restart only after the picture has been frozen for ~10 s (3 checks), not on one slow burst
+    if (live && lastT.get(i) === v.currentTime) {
+      const n = (stall.get(i) || 0) + 1; stall.set(i, n);
+      if (n >= 4) { lastT.delete(i); stall.delete(i); return renderTile(i); }
+    } else stall.delete(i);
     lastT.set(i, v.currentTime);
   });
 }, 2500);
