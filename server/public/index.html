@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VisionGuard</title>
+<link rel="icon" type="image/svg+xml" href="/brand/visionguard-mark.svg">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
@@ -80,7 +81,7 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .brand-text{display:flex;flex-direction:column;line-height:1.2}
 .brand-text strong{font-size:17px;font-weight:700;letter-spacing:.4px}
 .brand-text small{font-size:11px;color:var(--mut);letter-spacing:.8px;text-transform:uppercase}
-.vg-mark{width:34px;height:34px;flex:none}
+.vg-logo{height:30px;width:auto;display:block}
 .brand-text{display:flex;flex-direction:column;line-height:1.15}
 .brand-text strong{font-size:18px;font-weight:800;letter-spacing:.3px}
 .pw{white-space:nowrap;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut);letter-spacing:.6px;text-transform:uppercase}
@@ -281,8 +282,7 @@ header.flash{animation:fl 1s 3}
 <div id="snd">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
 <header id="top">
   <div class="brand">
-    <svg class="vg-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l11 4v9c0 7-4.6 12.4-11 15C9.6 27.4 5 22 5 15V6z" fill="var(--brand)"/><circle cx="16" cy="15" r="4.2" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16" cy="15" r="1.4" fill="#fff"/></svg>
-    <div class="brand-text"><strong>VisionGuard</strong><small class="pw">Powered by <img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"></small></div>
+    <div class="brand-text"><img class="vg-logo logo-light" src="/brand/visionguard-logo.svg" alt="VisionGuard"><img class="vg-logo logo-dark" src="/brand/visionguard-logo-dark.svg" alt="VisionGuard"><small class="pw">Powered by <img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"></small></div>
   </div>
   <div class="stats">
     <div class="stat ok"><i class="si"><svg class="i" viewBox="0 0 24 24"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg></i><div><b id="sOn">0</b><span id="txtOnline">online</span></div></div>

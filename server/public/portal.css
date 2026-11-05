@@ -30,7 +30,7 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 :root[data-theme="dark"] .logo-light{display:none!important}
 :root[data-theme="dark"] .logo-dark{display:block!important}
 .brand strong{font-size:17px;letter-spacing:.4px}
-.vg-mark{width:34px;height:34px;flex:none}
+.vg-logo{height:30px;width:auto;display:block}
 .brand-text{display:flex;flex-direction:column;line-height:1.15}
 .brand-text strong{font-size:18px;font-weight:800;letter-spacing:.3px}
 .pw{white-space:nowrap;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut);letter-spacing:.6px;text-transform:uppercase}
