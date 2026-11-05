@@ -49,3 +49,6 @@ app.*.map.json
 stock-capture/
 stock-capture.zip
 stock-log.txt
+
+# Brand source files (large originals, keep locally; web exports live in server/public/brand/)
+VisionGuard Logo/

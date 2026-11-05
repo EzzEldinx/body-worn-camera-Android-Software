@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign in - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <style>
 :root{--bg:#EEF2F8;--panel:#fff;--raise:#F2F5FA;--line:#DAE2EC;--text:#0F1B2D;--mut:#62738C;--brand:#5E4A9E;--sel:#FFB300;--sel-ink:#1A1405;--rec:#E5384F;--ok:#00B87C;
@@ -34,7 +36,8 @@ h2 span{background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-cli
 form{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:38px 34px 30px;box-shadow:0 24px 60px rgba(15,27,45,.14)}
 .vg-lock{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 auto 18px}
 .vg-lock strong{font-size:26px;font-weight:800;letter-spacing:.3px}
-.vg-mark{width:38px;height:38px}
+.vg-logo.big{height:58px;width:auto;display:block}
+.vg-logo.big.logo-dark{display:none}
 .logo-dark{display:none!important}
 :root[data-theme="dark"] .logo-light{display:none!important}
 :root[data-theme="dark"] .logo-dark{display:inline-block!important}
@@ -92,7 +95,7 @@ input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-sha
   </div>
 
   <form id="f">
-    <div class="vg-lock"><svg class="vg-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l11 4v9c0 7-4.6 12.4-11 15C9.6 27.4 5 22 5 15V6z" fill="var(--brand)"/><circle cx="16" cy="15" r="4.2" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16" cy="15" r="1.4" fill="#fff"/></svg><strong>VisionGuard</strong></div>
+    <div class="vg-lock"><img class="vg-logo big logo-light" src="/brand/visionguard-logo-sm.png" alt="VisionGuard"><img class="vg-logo big logo-dark" src="/brand/visionguard-logo-light.png" alt="VisionGuard"></div>
     <h1 data-i="title">Welcome back</h1>
     <p class="sub" data-i="sub">Sign in to your VisionGuard account.</p>
 
