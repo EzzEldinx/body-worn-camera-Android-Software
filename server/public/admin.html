@@ -72,6 +72,10 @@ td select{width:100%}
       <h3>Camera assignment</h3>
       <p class="muted" style="margin:0 0 10px;font-size:13px">Choose which company owns each camera. That company's users see only their cameras.</p>
       <div style="margin-bottom:10px"><button class="btn sm danger" id="rmOffline">Remove all offline cameras</button></div>
+      <div class="newco" style="margin-bottom:12px">
+        <input id="newCamId" placeholder="New camera ID, e.g. BWC-08-RIY" maxlength="32">
+        <button class="btn pri" id="newCamBtn">Create + issue token</button>
+      </div>
       <table><tbody id="cams"></tbody></table>
     </section>
     </div>
@@ -176,6 +180,14 @@ $('#cams').addEventListener('change', (e) => {
     : api('PUT', `/api/admin/cameras/${id}/company`, { companyId: sel.value === '' ? null : Number(sel.value) });
   req.then(() => { toast('Saved'); return load(); }).catch((err) => { fail(err); load(); });
 });
+$('#newCamBtn').onclick = () => {
+  const id = $('#newCamId').value.trim();
+  if (!/^[\w.-]{1,32}$/.test(id)) return toast('Use letters, numbers, - . _ (max 32)');
+  api('POST', `/api/admin/cameras/${encodeURIComponent(id)}/token`).then((r) => {
+    prompt('Device token (shown only once). Copy this config.json content, then press OK:', JSON.stringify({ id, token: r.token }));
+    $('#newCamId').value = ''; toast('Camera created'); return load();
+  }).catch(fail);
+};
 $('#cams').addEventListener('click', (e) => {
   const t = e.target.closest('[data-tok]');
   if (t) {
