@@ -1,35 +1,51 @@
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# --- Secrets & per-site config (never commit) ---
+.env
+.env.*
+!.env.example
+cameras.json
+android/key.properties
+**/key.properties
+*.jks
+*.keystore
+
+# --- Node ---
+node_modules/
+npm-debug.log*
+
+# --- Server runtime data (database, logs, uploaded builds) ---
+server/data/
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# --- Flutter / Android build output ---
 .dart_tool/
 .packages
 .pub-cache/
 .pub/
 build/
 coverage/
-*.iml
-.idea/
-.vscode/
-android/.gradle/
-android/local.properties
-android/app/debug
-android/app/profile
-android/app/release
-android/key.properties
-*.apk
-*.aab
-*.class
-*.log
 .flutter-plugins
 .flutter-plugins-dependencies
 .metadata
 app.*.symbols
 app.*.map.json
-/ios/
-/linux/
-/macos/
-/web/
-/windows/
+**/android/.gradle/
+**/android/local.properties
+**/GeneratedPluginRegistrant.java
+*.apk
+*.aab
+*.class
 
-# per-site camera list (holds the camera token)
-cameras.json
-
-# uploaded camera APKs
-server/data/updates/
+# --- Hardware investigation dumps (large, local only) ---
+stock-capture/
+stock-capture.zip
+stock-log.txt
