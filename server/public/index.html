@@ -902,6 +902,7 @@ function renderTile(i) {
     <div class="tag"><span class="nm">${tagOf(id)}</span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'طولي' : 'Portrait'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}<button class="reqbtn" data-r="${id}">${currentLang === 'ar' ? 'بدء البث عن بُعد' : 'Start live view'}</button></div>`;
   start(i, id, t.querySelector('video'));
+  if (dbgText.has(i)) dbg(i, dbgText.get(i));
   applySound(i);
 }
 const retry = new Map(), stall = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
@@ -928,6 +929,15 @@ function start(i, id, v) {
       if (slots[i] === id && el && cams.get(id)?.recording) start(i, id, el);
     }, 3000));
 }
+// Small status line under "Waiting..." so a phone that cannot play tells us why (network, codec, status code).
+const dbgText = new Map();
+function dbg(i, txt) {
+  dbgText.set(i, txt);
+  const w = document.querySelector(`.tile[data-i="${i}"] .wait`); if (!w) return;
+  let d = w.querySelector('.dbg');
+  if (!d) { d = document.createElement('small'); d.className = 'dbg'; d.style.cssText = 'opacity:.8;max-width:92%;word-break:break-word;font-size:11px'; w.appendChild(d); }
+  d.textContent = txt;
+}
 function begin(i, id, v, sign) {
   const p = flvjs.createPlayer(
     { type: 'flv', isLive: true, url: `${location.origin}/live/${encodeURIComponent(id)}.flv?sign=${sign}` },
@@ -944,9 +954,12 @@ function begin(i, id, v, sign) {
       if (slots[i] === id && el && cams.get(id)?.recording) start(i, id, el);
     }, Math.min(500 * n, 4000));
   };
-  p.on(flvjs.Events.ERROR, again);
+  p.on(flvjs.Events.ERROR, (t, d, info) => { dbg(i, 'player: ' + t + ' / ' + d + (info && info.code ? ' (' + info.code + ')' : '') + (info && info.msg ? ' ' + info.msg : '')); again(); });
+  p.on(flvjs.Events.METADATA_ARRIVED, () => dbg(i, 'stream connected, waiting for picture…'));
+  p.on(flvjs.Events.STATISTICS_INFO, (si) => { if (!v.parentElement.classList.contains('live')) dbg(i, 'receiving ' + Math.round(si.speed || 0) + ' KB/s'); });
   p.on(flvjs.Events.LOADING_COMPLETE, again);
-  v.addEventListener('playing', () => { v.parentElement.classList.add('live'); retry.set(i, 0); }, { once: true });
+  v.addEventListener('playing', () => { v.parentElement.classList.add('live'); retry.set(i, 0); dbgText.delete(i); }, { once: true });
+  v.addEventListener('error', () => dbg(i, 'video element error ' + (v.error ? v.error.code + ' ' + (v.error.message || '') : '')), { once: true });
   startedAt.set(i, Date.now());
   players.set(i, p); p.load(); Promise.resolve(p.play()).catch(() => {});
 }
