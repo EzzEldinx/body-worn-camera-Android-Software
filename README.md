@@ -23,7 +23,7 @@ cp ../.env.example .env   # then edit values
 BWC_TOKEN=change-me node server.js
 ```
 
-Dashboard: <http://localhost:3000>. On first run an `admin` user is created and its
+Dashboard: <http://localhost:3000> locally, <https://visionguard.smartwaygroup.com.sa> in production (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)). On first run an `admin` user is created and its
 password is printed once (or taken from `ADMIN_PASSWORD`).
 
 Try it without hardware: `BWC_TOKEN=change-me node tools/simulate.js 4`.

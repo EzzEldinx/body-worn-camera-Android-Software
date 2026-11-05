@@ -11,7 +11,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 class CentralConfig {
   // Build-time defaults (--dart-define) ...
   static String serverUrl = const String.fromEnvironment('BWC_SERVER',
-      defaultValue: 'http://192.168.100.75:3000');
+      defaultValue: 'https://visionguard.smartwaygroup.com.sa');
   static String cameraId =
       const String.fromEnvironment('BWC_ID', defaultValue: 'BWC-01');
   static String token =
