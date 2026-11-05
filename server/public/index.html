@@ -942,8 +942,8 @@ function begin(i, id, v, sign) {
   const p = flvjs.createPlayer(
     { type: 'flv', isLive: true, url: `${location.origin}/live/${encodeURIComponent(id)}.flv?sign=${sign}` },
     // Over the internet (Wi-Fi/SIM) packets arrive in bursts: keep a small cushion instead of chasing zero latency.
-    { enableStashBuffer: true, stashInitialSize: 256 * 1024, autoCleanupSourceBuffer: true,
-      liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 4.0, liveBufferLatencyMinRemain: 1.0 });
+    { enableStashBuffer: true, stashInitialSize: 64 * 1024, autoCleanupSourceBuffer: true,
+      liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 2.0, liveBufferLatencyMinRemain: 0.4 });
   p.attachMediaElement(v);
   const again = () => {
     if (players.get(i) !== p) return;
