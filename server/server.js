@@ -451,6 +451,22 @@ app.get('/api/update/apk', (req, res) => {
 // Docking stations: offload recordings from cameras (see dock.js)
 require('./dock').register(app, { db, cams, needUser, needAdmin, canSee, isStaff, str });
 
+// Live video over the dashboard's own port: the browser asks /live/<camera>.flv?sign=... here and we relay it from the media
+// server's HTTP-FLV port. One port to open, works from phones and behind HTTPS (no mixed content). The media server still
+// verifies the signature, so this adds no access. In production nginx can serve /live/ directly and never reaches this.
+app.get(/^\/live\/([\w.-]+\.flv)$/, (req, res) => {
+    const up = http.request({
+        host: '127.0.0.1', port: Number(process.env.FLV_PORT) || 8000,
+        path: req.originalUrl, method: 'GET', headers: { accept: '*/*' },
+    }, (ur) => {
+        res.writeHead(ur.statusCode || 502, { 'content-type': ur.headers['content-type'] || 'video/x-flv', 'cache-control': 'no-store' });
+        ur.pipe(res);
+    });
+    up.on('error', () => { if (!res.headersSent) res.status(502).end(); else res.destroy(); });
+    res.on('close', () => up.destroy());
+    up.end();
+});
+
 // ---------- Pages ----------
 const page = (file) => (req, res) => res.sendFile(path.join(__dirname, 'public', file));
 app.get(['/', '/index.html'], needUser, page('index.html'));

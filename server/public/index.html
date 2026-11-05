@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>VisionGuard</title>
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
@@ -19,7 +19,7 @@
 </script>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="https://cdn.bootcdn.net/ajax/libs/flv.js/1.6.2/flv.min.js"></script>
+<script src="/vendor/flv.min.js"></script>
 <style>
 /* =====================================================================
    VisionGuard - Command Center design system
@@ -275,6 +275,54 @@ header.flash{animation:fl 1s 3}
 @media (max-width:1500px){.stat div>span{display:none}}
 @media (max-width:1280px){.stats{display:none}}
 @media (prefers-reduced-motion:reduce){.mk.rec,.mk.online,header.flash,.wait::before,.tile.live .pill::before,.map-chip::before{animation:none}}
+
+/* ---------- phones: one screen at a time, bottom tab bar ---------- */
+#mnav{display:none}
+@media (max-width:900px){
+  :root{--header-h:54px;--gap:8px}
+  body{height:100vh;height:100dvh;grid-template-rows:var(--header-h) minmax(0,1fr) auto}
+  header{padding:0 10px;gap:8px}
+  .vg-logo{height:22px}
+  a.icon-btn[href="/analytics.html"]{display:none}
+  .lang-switch{padding:2px;gap:2px}
+  .pw{display:none}
+  .stats,.clock,.brand-sep,.user span#who{display:none}
+  .hdr-right{gap:6px}
+  .icon-btn{width:34px;height:34px}
+  .lang-btn{padding:4px 6px;font-size:11px}
+  .lang-btn svg{display:none}
+  .user{padding-left:8px}
+  .user::before{display:none}
+  .user .btn{padding:6px 10px;font-size:12.5px}
+  main{display:block;padding:8px;overflow:hidden}
+  main>*,main>#right,main>#mapwrap{display:none;height:100%}
+  body[data-tab="cams"] main>aside{display:flex}
+  body[data-tab="map"] main>#mapwrap{display:block}
+  body[data-tab="live"] main>#right,body[data-tab="alerts"] main>#right{display:grid;grid-template-rows:minmax(0,1fr)}
+  body[data-tab="live"] .bottom{display:none}
+  body[data-tab="alerts"] #wallCard{display:none}
+  .bottom{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(110px,36%) minmax(0,1fr)}
+  #wall{grid-template-columns:minmax(0,1fr)!important;padding:0 8px 10px}
+  .lay{display:none}
+  #info{left:8px;right:8px;bottom:8px;width:auto;max-height:70%;overflow:auto}
+  #q,.chat-composer input,.in,.qrow select{font-size:16px}
+  .cam{padding:12px}
+  .cam button{width:42px;height:42px;font-size:14px}
+  .chip{padding:9px 8px}
+  .reg{padding:8px 14px}
+  .btn{padding:11px 12px}
+  .tag button{height:32px;min-width:32px}
+  .mic-btn{width:42px;height:42px}
+  .chat-composer button.send-btn{padding:11px 18px}
+  .tile.expanded{width:96vw;max-height:92vh}
+  #snd{display:none!important}
+  #mnav{display:grid;grid-template-columns:repeat(4,1fr);background:linear-gradient(180deg,var(--panel),var(--raise));border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+  #mnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 4px 8px;border:0;background:none;color:var(--mut);font-size:11px;font-weight:700;letter-spacing:.3px;min-height:56px;position:relative}
+  #mnav button svg{width:22px;height:22px}
+  #mnav button.on{color:var(--text)}
+  #mnav button.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,var(--sel),var(--brand))}
+  #mnav .nb{position:absolute;top:5px;left:calc(50% + 8px);min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--rec);color:#fff;font-size:10px;line-height:17px;text-align:center;display:none}
+}
 </style>
 
 
@@ -377,6 +425,13 @@ header.flash{animation:fl 1s 3}
     </div>
   </section>
 </main>
+<nav id="mnav" aria-label="Sections">
+  <button data-t="cams" class="on"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/></svg><span data-en="Cameras" data-ar="الكاميرات">Cameras</span></button>
+  <button data-t="map"><svg class="i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span data-en="Map" data-ar="الخريطة">Map</span></button>
+  <button data-t="live"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg><span data-en="Live" data-ar="مباشر">Live</span></button>
+  <button data-t="alerts"><svg class="i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg><span data-en="Alerts" data-ar="تنبيهات">Alerts</span><i class="nb" id="nbAl"></i></button>
+</nav>
+
 
 <script>
 const lang = {
@@ -619,6 +674,7 @@ function stats() {
   $('#sAll').textContent = all.length;
   const open = alarms.filter((a) => !a.ack).length;
   $('#sAl').textContent = open;
+  { const nb = $('#nbAl'); if (nb) { nb.textContent = open; nb.style.display = open ? 'block' : 'none'; } }
   $('#sAl').closest('.stat').classList.toggle('hot', open > 0);
 }
 $('#regions').addEventListener('click', (e) => {
@@ -805,7 +861,23 @@ function flash(msg) {
   document.body.appendChild(d); setTimeout(() => d.remove(), 3200);
 }
 // Opening a camera's live view starts its stream if it is online but not recording (the officer does nothing).
+/* ---------- phone tabs ---------- */
+const phone = window.matchMedia('(max-width:900px)');
+function setTab(t) {
+  document.body.dataset.tab = t;
+  document.querySelectorAll('#mnav button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+  if (t === 'map') setTimeout(() => { try { map.resize(); } catch (e) { } }, 60);
+}
+function showLive() { if (phone.matches) setTab('live'); }
+$('#mnav').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setTab(b.dataset.t); });
+function phoneInit() {
+  if (!phone.matches) return;
+  if (!document.body.dataset.tab) setTab('cams');
+  if (layout !== 1) { layout = 1; slots = [null]; document.querySelectorAll('#lay button').forEach((x) => x.classList.toggle('on', x.dataset.n === '1')); buildWall(); }
+}
+phone.addEventListener?.('change', () => { if (phone.matches) phoneInit(); else { document.body.removeAttribute('data-tab'); try { map.resize(); } catch (e) { } } });
 function openLive(id) {
+  showLive();
   const c = cams.get(id);
   if (c?.online && !c.recording) requestStream(id, 'start'); else watch(id);
 }
@@ -858,7 +930,7 @@ function start(i, id, v) {
 }
 function begin(i, id, v, sign) {
   const p = flvjs.createPlayer(
-    { type: 'flv', isLive: true, url: `http://${host}:8000/live/${encodeURIComponent(id)}.flv?sign=${sign}` },
+    { type: 'flv', isLive: true, url: `${location.origin}/live/${encodeURIComponent(id)}.flv?sign=${sign}` },
     { enableStashBuffer: false, autoCleanupSourceBuffer: true,
       liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 1.0, liveBufferLatencyMinRemain: 0.2 });
   p.attachMediaElement(v);
@@ -974,7 +1046,7 @@ $('#alarms').addEventListener('click', (e) => {
   const row = e.target.closest('.al'); if (!row) return;
   const a = alarms.find((x) => x.id === +row.dataset.a); if (!a) return;
   socket.emit('ack_alarm', a.id);
-  select(a.cameraId, true); watch(a.cameraId);
+  select(a.cameraId, true); watch(a.cameraId); showLive();
 });
 function beep() {
   try {
@@ -1213,7 +1285,7 @@ socket.on('connect_error', (e) => { if (e.message === 'unauthorized') location.h
 socket.on('dashboard_sos', (a) => {
   alarms.unshift(a); renderAlarms(); beep();
   const h = $('#top'); h.classList.remove('flash'); void h.offsetWidth; h.classList.add('flash');
-  select(a.cameraId, true); watch(a.cameraId);
+  select(a.cameraId, true); watch(a.cameraId); showLive();
 });
 
 socket.on('receive_message', (d) => {
@@ -1300,7 +1372,7 @@ const unlockAudio = () => { const b = $('#snd'); if (b) b.remove(); };
 if (navigator.userActivation?.hasBeenActive) unlockAudio();
 else { addEventListener('pointerdown', unlockAudio, { once: true, capture: true }); addEventListener('keydown', unlockAudio, { once: true, capture: true }); }
 
-buildWall(); renderList(); renderAlarms();
+phoneInit(); buildWall(); renderList(); renderAlarms();
 
 $('#langToggle').addEventListener('click', (e) => {
   const btn = e.target.closest('.lang-btn');
@@ -1309,6 +1381,7 @@ $('#langToggle').addEventListener('click', (e) => {
   currentLang = btn.dataset.l;
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b === btn));
   document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('#mnav [data-en]').forEach((n) => { n.textContent = n.dataset[currentLang]; });
   
   renderList();
   renderAlarms();
