@@ -127,8 +127,8 @@ class Dock {
 }
 
 class DockState {
-  DockState({required this.slots, required this.enabled, required this.docks, required this.recordings, required this.recordingsBytes, required this.todayCount, required this.todayBytes, this.freeBytes, this.totalBytes});
-  final int slots, recordings, recordingsBytes, todayCount, todayBytes;
+  DockState({this.filesAwaiting = 0, required this.slots, required this.enabled, required this.docks, required this.recordings, required this.recordingsBytes, required this.todayCount, required this.todayBytes, this.freeBytes, this.totalBytes});
+  final int slots, recordings, recordingsBytes, todayCount, todayBytes, filesAwaiting;
   final bool enabled;
   final List<Dock> docks;
   final int? freeBytes, totalBytes;
@@ -136,10 +136,46 @@ class DockState {
     final s = j['storage'] is Map ? j['storage'] as Map : const {};
     int n(Object? v) => (v as num?)?.toInt() ?? 0;
     return DockState(
+      filesAwaiting: ((j['fileCounts'] is Map ? (j['fileCounts'] as Map)['awaiting'] : 0) as num?)?.toInt() ?? 0,
       slots: n(j['slots']) == 0 ? 10 : n(j['slots']), enabled: j['enabled'] == true,
       docks: [for (final d in (j['docks'] as List? ?? const [])) Dock.fromJson(d as Map)],
       recordings: n(s['recordings']), recordingsBytes: n(s['recordingsBytes']), todayCount: n(s['todayCount']), todayBytes: n(s['todayBytes']),
       freeBytes: (s['freeBytes'] as num?)?.toInt(), totalBytes: (s['totalBytes'] as num?)?.toInt(),
+    );
+  }
+}
+
+
+/// A video or photo the dock copied from a camera, and what is to be done with it (see server/dock.js: dock_files).
+class DockFile {
+  DockFile({required this.id, required this.cameraId, required this.filename, required this.size, required this.bucket, this.recordedTs, this.addedTs, this.message, this.camDelete = false, this.camDeletedTs, this.auto = false});
+  final int id, size;
+  final String cameraId, filename;
+  final String bucket; // awaiting | queued | local | cloud | failed
+  final int? recordedTs, addedTs, camDeletedTs;
+  final String? message;
+  final bool camDelete, auto;
+  bool get isVideo => filename.toLowerCase().endsWith('.mp4');
+  bool get removed => camDeletedTs != null;
+
+  factory DockFile.fromJson(Map j) => DockFile(
+        id: (j['id'] as num).toInt(), cameraId: '${j['cameraId']}', filename: '${j['filename']}', size: (j['size'] as num?)?.toInt() ?? 0, bucket: '${j['bucket']}',
+        recordedTs: (j['recordedTs'] as num?)?.toInt(), addedTs: (j['addedTs'] as num?)?.toInt(), message: j['message'] as String?,
+        camDelete: (j['camDelete'] as num?) == 1, camDeletedTs: (j['camDeletedTs'] as num?)?.toInt(), auto: j['chosenBy'] == 'auto',
+      );
+}
+
+class DockFiles {
+  DockFiles({required this.mode, required this.counts, required this.files});
+  final String mode; // ask | auto_cloud | auto_local
+  final Map<String, ({int n, int bytes})> counts;
+  final List<DockFile> files;
+  factory DockFiles.fromJson(Map j) {
+    final c = j['counts'] is Map ? j['counts'] as Map : const {};
+    return DockFiles(
+      mode: '${(j['policy'] is Map ? (j['policy'] as Map)['mode'] : null) ?? 'ask'}',
+      counts: {for (final k in const ['awaiting', 'queued', 'local', 'cloud', 'failed']) k: (n: ((c[k] as Map?)?['n'] as num?)?.toInt() ?? 0, bytes: ((c[k] as Map?)?['bytes'] as num?)?.toInt() ?? 0)},
+      files: [for (final f in (j['files'] as List? ?? const [])) DockFile.fromJson(f as Map)],
     );
   }
 }

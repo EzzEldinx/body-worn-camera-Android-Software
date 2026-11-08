@@ -150,3 +150,22 @@ test('dock files: the user decides per file (cloud or dock storage), automation 
     assert.ok((await (await fetch(BASE + '/api/dock/queue?dockId=d', { headers: D })).json()).files.some((f) => f.name === C.name));
     await put('/api/admin/dock/policy', { mode: 'ask' });
 });
+
+test('delete from camera is requested by the user and confirmed by the agent', async () => {
+    const crypto = require('node:crypto');
+    const login = await (await post('/api/mobile/login', { username: 'admin', password: 'mobile-test-pw' })).json();
+    const H = { authorization: `Bearer ${login.token}`, 'content-type': 'application/json' }, D = { 'x-dock-token': 'dt' };
+    const f = { cameraId: 'DF-2', name: 'VID_200000001.mp4', size: 7, sha256: crypto.createHash('sha256').update('del').digest('hex'), recordedTs: 1 };
+    await post('/api/dock/catalog', { dockId: 'd', files: [f] }, D);
+    const id = (await (await fetch(BASE + '/api/dock/files', { headers: H })).json()).files.find((x) => x.filename === f.name).id;
+    assert.strictEqual((await (await fetch(BASE + '/api/dock/deletions', { headers: D })).json()).files.length, 0);   // nothing is deleted unasked
+    assert.strictEqual((await (await post('/api/dock/files/delete-from-camera', { ids: [id] }, H)).json()).requested, 1);
+    const q = (await (await fetch(BASE + '/api/dock/deletions', { headers: D })).json()).files;
+    assert.deepStrictEqual(q.map((x) => x.name), [f.name]);
+    await post('/api/dock/deleted', { cameraId: 'DF-2', sha256: f.sha256 }, D);
+    assert.strictEqual((await (await fetch(BASE + '/api/dock/deletions', { headers: D })).json()).files.length, 0);
+    const row = (await (await fetch(BASE + '/api/dock/files', { headers: H })).json()).files.find((x) => x.id === id);
+    assert.ok(row.camDeletedTs > 0); assert.strictEqual(row.camDelete, 0);
+    // the file record (the verified copy) is still there
+    assert.strictEqual(row.filename, f.name);
+});

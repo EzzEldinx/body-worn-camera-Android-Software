@@ -58,6 +58,21 @@ class _DockingScreenState extends ConsumerState<DockingScreen> {
             Text(context.tr('dock_sub'), style: TextStyle(color: v.mut, height: 1.4)),
             const SizedBox(height: 12),
             _AgentPill(dock: dock, enabled: d.enabled),
+            const SizedBox(height: 12),
+            VgCard(
+              onTap: () => context.push('/dock/files'),
+              border: d.filesAwaiting > 0 ? v.sel : null,
+              child: Row(children: [
+                Icon(Icons.folder_copy_rounded, color: d.filesAwaiting > 0 ? v.sel : v.mut),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(context.tr('dk_files'), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  Text(d.filesAwaiting > 0 ? '${d.filesAwaiting} ${context.tr('dk_waiting_n')}' : context.tr('dk_files_sub'), style: TextStyle(color: v.mut, fontSize: 12.5, height: 1.3)),
+                ])),
+                if (d.filesAwaiting > 0) Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3), decoration: BoxDecoration(color: v.rec, borderRadius: BorderRadius.circular(12)), child: Text('${d.filesAwaiting}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))),
+                const Icon(Icons.chevron_right_rounded),
+              ]),
+            ),
             const SizedBox(height: 14),
             Row(children: [
               Expanded(child: KpiTile(icon: Icons.dock_rounded, value: '${docks.where((x) => x.status == 'online').length}/${docks.length}', label: context.tr('dock_docks_online'), color: v.blue)),

@@ -199,6 +199,36 @@ async function processQueue() {
 }
 
 
+// "Delete from camera": the user asked for it on the dashboard. A file is removed from the camera only when (1) that camera is docked right now,
+// (2) it is not being written, (3) the camera's copy is byte-identical (SHA-256) to the verified copy, and (4) that verified copy exists on the
+// dock's storage or in the cloud. Anything else is left alone and reported.
+let delBusy = false;
+async function processDeletions() {
+    if (delBusy || REPORT_ONLY || DRY || policy.legacy) return;
+    delBusy = true;
+    try {
+        const { files } = await api('GET', '/api/dock/deletions');
+        for (const f of files) {
+            const info = lastInfos.find((i) => i.cameraId === f.cameraId);
+            if (!info) continue;                                   // camera not on the dock: stays queued until it is
+            const tell = (ok, message) => api('POST', '/api/dock/deleted', { body: { cameraId: f.cameraId, sha256: f.sha256, ok, message } }).catch(() => {});
+            try {
+                const cf = info.files.find((x) => x.name === f.name);
+                if (!cf) { await tell(true); continue; }               // already gone from the camera
+                if (Date.now() - cf.mtimeMs < MIN_AGE_MS) continue;    // still being written: try again later
+                const lp = localPath(f.cameraId, f.name);
+                const safe = f.state === 'cloud' || (fs.existsSync(lp) && (await hashFile(lp)) === f.sha256);
+                if (!safe) { await tell(false, 'Not removed: no verified copy on the dock or in the cloud'); continue; }
+                const key = `${info.serial}|${cf.name}|${cf.size}|${cf.mtimeMs}`;
+                const camSha = shaCache.get(key) || (await shell(info.serial, `sha256sum "${REC_DIR}/${f.name}"`)).trim().split(/\s+/)[0];
+                if (camSha !== f.sha256) { await tell(false, 'Not removed: the file on the camera differs from the verified copy'); continue; }
+                await deleteOnCamera(info.serial, f.cameraId, f.name);
+                await tell(true);
+            } catch (e) { log(f.cameraId, `delete ${f.name} failed: ${e.message}`); await tell(false, ('Not removed: ' + e.message).slice(0, 150)); }
+        }
+    } catch (e) { log('', 'deletions:', e.message); } finally { delBusy = false; }
+}
+
 // ---------- camera app updates over the dock ----------
 const PKG = 'com.swg.swg_bwc';
 let latestP = null, latestAt = 0;
@@ -292,7 +322,7 @@ async function cycle() {
     const stats = { copied: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
     if (!REPORT_ONLY && !NO_UPDATE) await Promise.all(lastInfos.map((i) => ensureGps(i).catch((e) => log(i.cameraId || i.serial, 'GPS check failed:', e.message))));
     if (!REPORT_ONLY && !UPDATE_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
-    if (flag('once') && !UPDATE_ONLY) await processQueue();   // the long-running agent does this on its own timer so a big upload never blocks copying
+    if (flag('once') && !UPDATE_ONLY) { await processQueue(); await processDeletions(); }   // the long-running agent does this on its own timer so a big upload never blocks copying
     if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => updateApp(i).catch((e) => log(i.cameraId || i.serial, 'update check failed:', e.message))));   // after the recordings are safe
     await report(true);
     log('', `cycle done: ${JSON.stringify(stats)}`);
@@ -324,7 +354,7 @@ async function heartbeat() {
 (async () => {
     if (!TOKEN) { console.error('Set DOCK_TOKEN (same value as on the server).'); process.exit(2); }
     log('', `Dock Agent ${DOCK_ID} -> ${SERVER} ${DELETE ? '(will delete verified files from cameras)' : '(copy only, nothing is deleted)'}`);
-    if (!flag('once')) { setInterval(heartbeat, 2000); setInterval(() => { if (!UPDATE_ONLY) loadPolicy().then(processQueue).catch(() => {}); }, 10_000); }   // act on the user's choices within seconds, camera docked or not
+    if (!flag('once')) { setInterval(heartbeat, 2000); setInterval(() => { if (!UPDATE_ONLY) loadPolicy().then(() => Promise.all([processQueue(), processDeletions()])).catch(() => {}); }, 10_000); }   // act on the user's choices within seconds, camera docked or not
     do {
         try { await cycle(); } catch (e) { log('', 'cycle error:', e.message); }
         if (flag('once')) break;

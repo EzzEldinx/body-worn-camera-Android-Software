@@ -39,6 +39,7 @@ class Api {
 
   Uri _u(String p, [Map<String, String>? q]) => Uri.parse(server + p).replace(queryParameters: q);
   Future<dynamic> _get(String p, [Map<String, String>? q]) => _send(() => http.get(_u(p, q), headers: headers));
+  Future<dynamic> _put(String p, [Object? body]) => _send(() => http.put(_u(p), headers: headers, body: jsonEncode(body ?? {})));
   Future<dynamic> _post(String p, [Object? body]) => _send(() => http.post(_u(p), headers: headers, body: jsonEncode(body ?? {})));
 
   Future<Map> config() async => (await _get('/api/mobile/config')) as Map;
@@ -81,6 +82,11 @@ class Api {
   String recordingUrl(int id) => '$server/api/recordings/$id/file';
 
   Future<DockState> docks() async => DockState.fromJson((await _get('/api/docks')) as Map);
+
+  Future<DockFiles> dockFiles(String bucket) async => DockFiles.fromJson((await _get('/api/dock/files', {'state': bucket})) as Map);
+  Future<void> chooseDockFiles(List<int> ids, String choice) => _post('/api/dock/files/choose', {'ids': ids, 'choice': choice});
+  Future<void> deleteFromCamera(List<int> ids) => _post('/api/dock/files/delete-from-camera', {'ids': ids});
+  Future<void> setDockPolicy(String mode) => _put('/api/admin/dock/policy', {'mode': mode});
 
   Future<void> registerPush(String pushToken, String platform) => _post('/api/mobile/push', {'token': pushToken, 'platform': platform});
 }

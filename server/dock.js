@@ -26,6 +26,9 @@ function register(app, ctx) {
         id INTEGER PRIMARY KEY AUTOINCREMENT, camera_id TEXT NOT NULL, filename TEXT NOT NULL, size INTEGER NOT NULL, sha256 TEXT NOT NULL,
         recorded_ts INTEGER, dock_id TEXT, state TEXT NOT NULL DEFAULT 'on_dock', choice TEXT, chosen_by TEXT, message TEXT,
         added_ts INTEGER NOT NULL, updated_ts INTEGER NOT NULL, UNIQUE(camera_id, sha256))`);
+    for (const [col, ddl] of [['cam_delete', 'INTEGER NOT NULL DEFAULT 0'], ['cam_deleted_ts', 'INTEGER']]) {   // "delete from the camera": requested by the user, done by the agent
+        if (!db.prepare('PRAGMA table_info(dock_files)').all().some((c) => c.name === col)) db.exec(`ALTER TABLE dock_files ADD COLUMN ${col} ${ddl}`);
+    }
     db.exec('CREATE INDEX IF NOT EXISTS dock_files_state ON dock_files(state, choice)');
     db.exec('CREATE TABLE IF NOT EXISTS dock_settings(key TEXT PRIMARY KEY, value TEXT NOT NULL)');
     // Policy: what happens to files the dock has just copied. ask = the user decides per file (or in bulk); auto_cloud / auto_local = automatic.
@@ -217,7 +220,7 @@ function register(app, ctx) {
     });
     app.get('/api/dock/files', needUser, (req, res) => {
         const state = String(req.query.state || '');
-        const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename,size,sha256,recorded_ts AS recordedTs,dock_id AS dockId,state,choice,chosen_by AS chosenBy,message,added_ts AS addedTs
+        const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename,size,sha256,recorded_ts AS recordedTs,dock_id AS dockId,state,choice,chosen_by AS chosenBy,message,added_ts AS addedTs,cam_delete AS camDelete,cam_deleted_ts AS camDeletedTs
             FROM dock_files ORDER BY added_ts DESC, id DESC LIMIT 3000`).all().filter((r) => mine(req.user, r.cameraId));
         const bucket = (r) => (r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued');
         const counts = { awaiting: { n: 0, bytes: 0 }, local: { n: 0, bytes: 0 }, queued: { n: 0, bytes: 0 }, cloud: { n: 0, bytes: 0 }, failed: { n: 0, bytes: 0 } };
@@ -238,6 +241,27 @@ function register(app, ctx) {
         for (const r of rows) upd.run(choice, req.user.username, now, 'failed', 'on_dock', r.id);
         if (rows.length) audit(req.user.username, `dock_files_${choice}_${rows.length}`, null);
         res.json({ ok: true, changed: rows.length });
+    });
+
+    // "Delete from the camera": the user asks, the agent removes the file from the camera only when it is docked and a verified copy exists
+    // (on the dock's storage or in the cloud). The copy is never touched by this.
+    app.post('/api/dock/files/delete-from-camera', needUser, needAdmin, (req, res) => {
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger).slice(0, 5000) : [];
+        const rows = ids.map((id) => db.prepare('SELECT * FROM dock_files WHERE id = ?').get(id)).filter((r) => r && mine(req.user, r.camera_id) && !r.cam_deleted_ts);
+        const upd = db.prepare('UPDATE dock_files SET cam_delete = 1, message = NULL, updated_ts = ? WHERE id = ?');
+        for (const r of rows) upd.run(Date.now(), r.id);
+        if (rows.length) audit(req.user.username, `dock_files_delete_from_camera_${rows.length}`, null);
+        res.json({ ok: true, requested: rows.length });
+    });
+    app.get('/api/dock/deletions', needDock, (req, res) => {
+        res.json({ files: db.prepare(`SELECT id,camera_id AS cameraId,filename AS name,size,sha256,state FROM dock_files
+            WHERE cam_delete = 1 AND cam_deleted_ts IS NULL ORDER BY updated_ts LIMIT 200`).all() });
+    });
+    app.post('/api/dock/deleted', needDock, (req, res) => {
+        const ok = req.body?.ok !== false, now = Date.now();
+        db.prepare('UPDATE dock_files SET cam_delete = 0, cam_deleted_ts = ?, message = ?, updated_ts = ? WHERE camera_id = ? AND sha256 = ?')
+            .run(ok ? now : null, ok ? null : String(req.body?.message || 'Not removed from the camera').slice(0, 160), now, str(req.body?.cameraId), String(req.body?.sha256 || ''));
+        res.json({ ok: true });
     });
 
     app.get('/api/recordings', needUser, (req, res) => {
