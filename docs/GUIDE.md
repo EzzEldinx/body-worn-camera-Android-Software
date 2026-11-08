@@ -198,6 +198,13 @@ The Dock Agent no longer uploads everything. It **copies** each camera's videos 
 * **Keep on dock storage**: it stays on the dock PC (it can still be pushed to the cloud later).
 Above the list, **What should happen to new files?** sets the automatic behaviour (administrators): *Ask me* (default), *Automatic · Cloud*, *Automatic · Dock storage*. Upload quality is *Original* for now (lower qualities for the cloud copy come later). The *Files* tab shows how many files wait for a choice.
 
+### 8.3d The audit trail (Analytics > Audit trail)
+Every step of every file is recorded by the server: **copied to the dock**, **who decided** cloud or dock storage (or *auto*), **uploaded to the cloud** (verified), **deletion from the camera requested / done / refused**, retention removals, downloads, mode changes, camera edits and token changes. The record is **append-only** (the database itself refuses to edit or delete a line) and **hash-chained** (each line carries the SHA-256 of the line before it), so a removed or changed line breaks the chain and *Verify now* shows where. Filter by camera, user, date or kind, open one file's *History* from Docking > Files, or *Export CSV* (with the seals) for external archiving. Keep a copy of the *latest seal* value somewhere else: it also proves the whole log was not rewritten.
+Limit: someone with full control of the server's disk can still destroy it entirely; the seal copy and the CSV exports are the protection against that.
+
+### 8.3e Analytics insights and the written analysis
+Analytics shows what needs attention (low battery, cameras offline, files waiting, failed uploads, unacknowledged SOS, storage running out, slower alarm response, unusual SOS counts, broken audit trail), the evidence pipeline, trends and a camera-health table. *Written analysis* gives an automatic summary; with `ANTHROPIC_API_KEY` in the server `.env` it becomes an AI-written briefing (numbers and camera names only).
+
 ### 8.4 The docking station updates the cameras by itself (Dock Agent 1.3)
 Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that sits on the dock is checked each cycle (about 30 s):
 * installed app = latest build -> nothing happens;
