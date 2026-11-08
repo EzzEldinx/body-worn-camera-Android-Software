@@ -494,7 +494,7 @@ app.get('/api/update/apk', (req, res) => {
 });
 
 // Docking stations: offload recordings from cameras (see dock.js)
-require('./dock').register(app, { db, cams, needUser, needAdmin, canSee, isStaff, str, companyName });
+require('./dock').register(app, { db, cams, needUser, needAdmin, canSee, isStaff, str, companyName, publish });
 
 // Live video over the dashboard's own port: the browser asks /live/<camera>.flv?sign=... here and we relay it from the media
 // server's HTTP-FLV port. One port to open, works from phones and behind HTTPS (no mixed content). The media server still

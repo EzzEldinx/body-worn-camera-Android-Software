@@ -156,6 +156,8 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .meta b{font-size:14px;line-height:1.25}
 .meta small{color:var(--mut);font-size:11.5px;line-height:1.3}
 .badge{font-size:10.5px;font-weight:800;letter-spacing:.6px;color:#fff;background:var(--rec);border-radius:6px;padding:3px 7px;box-shadow:0 0 10px color-mix(in srgb,var(--rec) 55%,transparent);flex:none}
+.batt{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--raise);border:1px solid var(--line);flex:none;color:var(--mut)}
+.batt.low{color:#fff;background:var(--rec);border-color:transparent}
 .badge.talk{background:var(--ok);color:#042a1d;box-shadow:0 0 10px color-mix(in srgb,var(--ok) 55%,transparent)}
 .cam button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--panel);flex:none;color:var(--blue);font-size:12px;transition:.15s}
 .cam button:hover{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:var(--glow-blue)}
@@ -647,6 +649,7 @@ function renderList() {
         <div class="meta"><b>${esc(getOfficerLabel(c.cameraId))}</b>
           <small>${c.region ? esc(c.region) + ', ' : ''}${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
         ${unreadCount > 0 ? `<span class="badge" style="background:var(--rec); margin-right:4px;">${unreadCount}</span>` : ''}
+        ${c.battery != null ? `<span class="batt ${c.battery < 20 ? 'low' : ''}" title="Battery">${c.battery}%</span>` : ''}
         ${c.recording ? '<span class="badge">REC</span>' : ''}
         ${c.ptt ? '<span class="badge talk">TALK</span>' : ''}
         <button data-w="${c.cameraId}" title="${t('watchLive')}" aria-label="${t('watchLive')}">▶</button>
@@ -842,6 +845,7 @@ function renderInfo() {
     <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || (currentLang === 'ar' ? 'غير معيّنة' : 'Unassigned')}</p>
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
     ${c.lat == null ? '' : gpsStale(c) ? `<p style="color:var(--sel)">${currentLang === 'ar' ? 'لا يوجد تحديد موقع حي. آخر موقع معروف' + (c.ts ? ' منذ ' + agoShort(c.ts) : '') : 'No live GPS fix. Last known position' + (c.ts ? ', ' + agoShort(c.ts) + ' ago' : '')}</p>` : `<p style="color:var(--ok)">${currentLang === 'ar' ? 'GPS دقيق' : 'GPS fix'} ${c.acc ? '±' + Math.round(c.acc) + ' m' : ''} · ${agoShort(c.fixTs)} ${currentLang === 'ar' ? '' : 'ago'}</p>`}
+    ${c.battery != null ? `<p>${currentLang === 'ar' ? 'البطارية' : 'Battery'}: <b${c.battery < 20 ? ' style="color:var(--rec)"' : ''}>${c.battery}%</b> <span style="color:var(--mut)">(${currentLang === 'ar' ? 'قراءة القاعدة منذ ' : 'read on the dock, '}${agoShort(c.batteryTs)}${currentLang === 'ar' ? '' : ' ago'})</span></p>` : ''}
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
     <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>

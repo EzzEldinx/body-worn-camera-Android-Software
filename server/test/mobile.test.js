@@ -13,7 +13,7 @@ let proc, dir;
 test.before(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-mobile-'));
     proc = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), stdio: 'pipe',
-        env: { ...process.env, PORT, FLV_PORT: 8731, RTMP_PORT: 1731, DATA_DIR: dir, ADMIN_PASSWORD: 'mobile-test-pw', BWC_TOKEN: 't', STREAM_SECRET: 's' } });
+        env: { ...process.env, PORT, FLV_PORT: 8731, RTMP_PORT: 1731, DATA_DIR: dir, ADMIN_PASSWORD: 'mobile-test-pw', BWC_TOKEN: 't', STREAM_SECRET: 's', DOCK_TOKEN: 'dt' } });
     await new Promise((res, rej) => { proc.stdout.on('data', (d) => /Dashboard is running/.test(String(d)) && res()); proc.on('exit', () => rej(new Error('server exited'))); setTimeout(() => rej(new Error('server start timeout')), 15000); });
 });
 test.after(() => { proc?.kill(); fs.rmSync(dir, { recursive: true, force: true }); });
@@ -64,4 +64,18 @@ test('push registration validates input and logout kills the token', async () =>
     assert.strictEqual((await post('/api/mobile/push', { token: 'a'.repeat(60), platform: 'ios' }, h)).status, 200);
     assert.strictEqual((await post('/api/mobile/logout', {}, h)).status, 200);
     assert.strictEqual((await fetch(BASE + '/api/me', { headers: h })).status, 401);
+});
+
+test('a docked camera\'s battery reaches the dashboards and the app', async () => {
+    const login = await (await post('/api/mobile/login', { username: 'admin', password: 'mobile-test-pw' })).json();
+    const dash = io(BASE, { auth: { session: login.token }, transports: ['websocket'] });
+    const cam = io(BASE, { auth: { token: 't' }, transports: ['websocket'] });
+    await new Promise((res) => cam.on('connect', res));
+    cam.emit('camera_status', { cameraId: 'BAT-1', recording: false });
+    await new Promise((res) => setTimeout(res, 300));
+    const seen = new Promise((res) => dash.on('dashboard_cam', (c) => c.cameraId === 'BAT-1' && c.battery === 77 && res(c)));
+    await post('/api/dock/report', { dockId: 'd', cameras: [{ serial: 's', port: 'p', cameraId: 'BAT-1', battery: 77, state: 'connected' }] }, { 'x-dock-token': 'dt' });
+    const c = await Promise.race([seen, new Promise((_, rej) => setTimeout(() => rej(new Error('no battery update')), 4000))]);
+    assert.ok(c.batteryTs > Date.now() - 5000);
+    dash.close(); cam.close();
 });

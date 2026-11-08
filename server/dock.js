@@ -9,7 +9,7 @@ const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 const MAX_BYTES = 8 * 1024 ** 3;
 
 function register(app, ctx) {
-    const { db, cams, needUser, needAdmin, canSee, isStaff, str, companyName } = ctx;
+    const { db, cams, needUser, needAdmin, canSee, isStaff, str, companyName, publish } = ctx;
     const DOCK_TOKEN = process.env.DOCK_TOKEN || '';
     const dir = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'recordings');
     fs.mkdirSync(dir, { recursive: true });
@@ -93,6 +93,9 @@ function register(app, ctx) {
                 synced: num(c.synced), failed: num(c.failed), lastSyncTs: num(c.lastSyncTs),
             };
         }) : [];
+        // A docked camera's battery is the only battery reading we have (cameras do not report it themselves yet):
+        // hand it to the fleet state so every dashboard and the mobile app show it, with the time it was read.
+        for (const c of list) if (c.cameraId && c.battery != null && cams.has(c.cameraId)) publish(c.cameraId, { battery: c.battery, batteryTs: Date.now() });
         docks.set(dockId, { ts: Date.now(), agent: String(req.body?.agent || '').slice(0, 20), mode: req.body?.deleteAfter ? 'move' : 'copy', cameras: list });
         res.json({ ok: true });
     });

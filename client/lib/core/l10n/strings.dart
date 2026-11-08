@@ -109,6 +109,8 @@ const _t = <String, List<String>>{
   'recorded': ['Recorded', 'وقت التسجيل'],
   'dock_title': ['Docking station', 'قاعدة الشحن والنقل'],
   'dock_sub': ['Cameras on the dock are checked and their recordings copied to the server.', 'تُفحص الكاميرات على القاعدة وتُنقل تسجيلاتها إلى الخادم.'],
+  'battery': ['Battery', 'البطارية'],
+  'battery_dock': ['read on the dock', 'قراءة القاعدة'],
   'dock_docks_online': ['Docks online', 'قواعد متصلة'],
   'dock_idle': ['Idle', 'فارغ'],
   'dock_ready': ['Ready', 'جاهزة'],
