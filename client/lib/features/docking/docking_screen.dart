@@ -9,7 +9,7 @@ import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../auth/auth_controller.dart';
 
-/// Polls the dock state every 3 s while the screen is open (the Dock Agent reports progress about every 1.5 s).
+/// Polls the dock state every second while the screen is open (the Dock Agent reports progress about every 1.5 s).
 final dockingProvider = StreamProvider.autoDispose<DockState>((ref) async* {
   final s = ref.watch(sessionProvider);
   if (s == null) return;
@@ -21,7 +21,7 @@ final dockingProvider = StreamProvider.autoDispose<DockState>((ref) async* {
     } on ApiError catch (e) {
       if (first || e.unauthorized) rethrow; // after the first good answer a blip just keeps the last picture
     }
-    await Future<void>.delayed(const Duration(seconds: 3));
+    await Future<void>.delayed(const Duration(seconds: 1));
   }
 });
 
@@ -60,7 +60,7 @@ class _DockingScreenState extends ConsumerState<DockingScreen> {
             _AgentPill(dock: dock, enabled: d.enabled),
             const SizedBox(height: 14),
             Row(children: [
-              Expanded(child: KpiTile(icon: Icons.dock_rounded, value: '${docks.where((x) => x.online).length}/${docks.length}', label: context.tr('dock_docks_online'), color: v.blue)),
+              Expanded(child: KpiTile(icon: Icons.dock_rounded, value: '${docks.where((x) => x.status == 'online').length}/${docks.length}', label: context.tr('dock_docks_online'), color: v.blue)),
               const SizedBox(width: 8),
               Expanded(child: KpiTile(icon: Icons.power_rounded, value: '$mine', label: context.tr('dock_docked'), color: v.ok)),
             ]),
@@ -103,12 +103,13 @@ class _AgentPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final v = context.vg;
-    final on = dock?.online ?? false;
-    final label = dock == null ? context.tr('dock_none') : context.tr(on ? 'dock_agent_on' : 'dock_agent_off');
+    final st = dock?.status ?? 'none';
+    final color = st == 'online' ? v.ok : st == 'connecting' ? v.sel : v.off;
+    final label = context.tr(switch (st) { 'online' => 'dock_agent_on', 'connecting' => 'dock_agent_connecting', 'offline' => 'dock_agent_off', _ => 'dock_none' });
     return Align(
       alignment: AlignmentDirectional.centerStart,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        StatusPill(label: dock == null ? label : '$label · ${dock!.id} · ${agoText(context, dock!.ts)}', color: on ? v.ok : v.off, pulse: on),
+        StatusPill(label: dock == null ? label : '$label · ${dock!.id} · ${agoText(context, dock!.ts)}', color: color, pulse: st != 'offline' && st != 'none'),
         if (dock == null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(context.tr('dock_none_sub'), style: TextStyle(color: v.mut, fontSize: 12.5))),
       ]),
     );

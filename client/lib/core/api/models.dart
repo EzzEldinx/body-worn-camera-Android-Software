@@ -110,14 +110,15 @@ class DockCam {
 }
 
 class Dock {
-  Dock({required this.id, required this.ts, required this.online, required this.cameras, this.mode, this.agent});
+  Dock({required this.id, required this.ts, required this.online, required this.cameras, this.mode, this.agent, this.status = 'offline'});
   final String id;
   final int ts;
   final bool online;
+  final String status; // online | connecting | offline
   final String? mode, agent;
   final List<DockCam> cameras;
   factory Dock.fromJson(Map j) => Dock(
-        id: '${j['id']}', ts: (j['ts'] as num?)?.toInt() ?? 0, online: j['online'] == true, mode: j['mode'] as String?, agent: j['agent'] as String?,
+        id: '${j['id']}', ts: (j['ts'] as num?)?.toInt() ?? 0, online: j['online'] == true, status: '${j['status'] ?? (j['online'] == true ? 'online' : 'offline')}', mode: j['mode'] as String?, agent: j['agent'] as String?,
         cameras: [for (final c in (j['cameras'] as List? ?? const [])) DockCam.fromJson(c as Map)],
       );
 }

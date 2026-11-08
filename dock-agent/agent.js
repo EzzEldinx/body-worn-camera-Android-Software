@@ -38,7 +38,7 @@ const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 // What the agent is doing per camera right now; sent to the server so the Docking page shows live progress.
 const status = new Map();   // serial -> { state, message, progress, synced, failed, lastSyncTs }
 let lastInfos = [], lastReportAt = 0;
-const AGENT_VERSION = '1.1';
+const AGENT_VERSION = '1.2';
 const log = (dev, ...a) => console.log(new Date().toISOString().slice(11, 19), dev ? `[${dev}]` : '', ...a);
 const run = (args) => new Promise((resolve, reject) => execFile(ADB, args, { maxBuffer: 64 * 1024 * 1024 }, (e, so, se) => (e ? reject(new Error((se || e.message).trim())) : resolve(so))));
 const shell = (serial, cmd) => run(['-s', serial, 'shell', cmd]);
@@ -124,8 +124,9 @@ async function report(force) {
 async function cycle() {
     const devs = await devices();
     for (const k of [...status.keys()]) if (!devs.some((d) => d.serial === k)) status.delete(k);   // camera left the dock
-    lastInfos = [];
-    for (const d of devs) { try { lastInfos.push({ ...(await inspect(d.serial)), port: d.port }); } catch (e) { log(d.serial, 'inspect failed:', e.message); } }
+    const infos = [];
+    for (const d of devs) { try { infos.push({ ...(await inspect(d.serial)), port: d.port }); } catch (e) { log(d.serial, 'inspect failed:', e.message); } }
+    lastInfos = infos;   // swapped in one go, so the heartbeat never reports a half-built list
     for (const i of lastInfos) if (!status.has(i.serial)) status.set(i.serial, { state: 'connected', synced: 0, failed: 0 });
     await report(true);   // also when the dock is empty: the page then shows the agent as online with idle bays
     if (!lastInfos.length) { log('', 'no camera on the dock'); return; }
@@ -136,9 +137,32 @@ async function cycle() {
     return stats;
 }
 
+// Heartbeat: every 2 s tell the server "I am alive and these cameras are on the dock", without waiting for a (slow) offload cycle.
+// The Docking page turns Online -> Connecting -> Offline from how fresh this is, and a camera appears/disappears within about 2 s.
+let lastKey = null, hbBusy = false;
+async function heartbeat() {
+    if (hbBusy) return;
+    hbBusy = true;
+    try {
+        const devs = await devices();
+        const key = devs.map((d) => d.serial).sort().join(',');
+        if (key !== lastKey) {
+            lastKey = key;
+            lastInfos = lastInfos.filter((i) => devs.some((d) => d.serial === i.serial));
+            for (const k of [...status.keys()]) if (!devs.some((d) => d.serial === k)) status.delete(k);
+            for (const d of devs) {
+                if (lastInfos.some((i) => i.serial === d.serial)) continue;
+                try { lastInfos = [...lastInfos, { ...(await inspect(d.serial)), port: d.port }]; status.set(d.serial, { state: 'connected', synced: 0, failed: 0 }); } catch (e) { log(d.serial, 'inspect failed:', e.message); }
+            }
+        }
+        await report(true);
+    } catch (e) { log('', 'heartbeat:', e.message); } finally { hbBusy = false; }
+}
+
 (async () => {
     if (!TOKEN) { console.error('Set DOCK_TOKEN (same value as on the server).'); process.exit(2); }
     log('', `Dock Agent ${DOCK_ID} -> ${SERVER} ${DELETE ? '(will delete verified files from cameras)' : '(copy only, nothing is deleted)'}`);
+    if (!flag('once')) setInterval(heartbeat, 2000);
     do {
         try { await cycle(); } catch (e) { log('', 'cycle error:', e.message); }
         if (flag('once')) break;

@@ -107,7 +107,9 @@ function register(app, ctx) {
     // Everything the Docking page needs in one call: bays, registered cameras, server storage. Company users only see their cameras.
     app.get('/api/docks', needUser, (req, res) => {
         const now = Date.now();
-        const list = [...docks].map(([id, d]) => ({ id, ts: d.ts, online: now - d.ts < 90_000, agent: d.agent, mode: d.mode,
+        // The agent sends a heartbeat every 2 s: fresh = online, a few missed beats = connecting, long silence = offline.
+        const statusOf = (age) => (age < 8_000 ? 'online' : age < 30_000 ? 'connecting' : 'offline');
+        const list = [...docks].map(([id, d]) => ({ id, ts: d.ts, status: statusOf(now - d.ts), online: now - d.ts < 8_000, agent: d.agent, mode: d.mode,
             // A bay holding someone else's camera is shown as occupied, without saying whose or which camera.
             cameras: d.cameras.map((c) => (mine(req.user, c.cameraId)
                 ? { ...c, company: c.cameraId && cams.has(c.cameraId) ? companyName(cams.get(c.cameraId).companyId) : null }

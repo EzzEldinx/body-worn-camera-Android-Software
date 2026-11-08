@@ -34,8 +34,10 @@ main#view{display:block;max-width:none;margin:0;padding:22px 24px 90px;display:g
 .top p{margin:4px 0 0;color:var(--mut);font-size:14px}
 .agent{display:inline-flex;align-items:center;gap:9px;padding:8px 14px;border-radius:99px;font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow-sm)}
 .agent i{width:9px;height:9px;border-radius:50%;background:var(--off)}
-.agent.on i{background:var(--ok);animation:pulse 1.8s infinite}
-.agent.on{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.agent.online i{background:var(--ok);animation:pulse 1.8s infinite}
+.agent.online{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.agent.connecting i{background:var(--sel);animation:blink 1s infinite}
+.agent.connecting{border-color:color-mix(in srgb,var(--sel) 55%,var(--line))}
 .agent small{color:var(--mut);font-weight:600}
 @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 65%,transparent)}100%{box-shadow:0 0 0 10px transparent}}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
@@ -142,7 +144,7 @@ summary{cursor:pointer;font-weight:700}details p{color:var(--mut);margin:8px 0 0
   nav{display:none}
 }
 @media (max-width:560px){.bays{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi{padding:12px}.kpi b{font-size:22px}}
-@media (prefers-reduced-motion:reduce){.ring .sw,.agent.on i,.st::before{animation:none}}
+@media (prefers-reduced-motion:reduce){.ring .sw,.agent.online i,.agent.connecting i,.st::before{animation:none}}
 </style>
 </head>
 <body>
@@ -197,9 +199,10 @@ async function load() {
 /* ---------- views ---------- */
 function agentOf() { return (D?.docks || []).slice().sort((a, b) => b.ts - a.ts)[0] || null; }
 function head(sub) {
-  const a = agentOf(), on = a?.online;
+  const a = agentOf(), st = a?.status || (a?.online ? 'online' : a ? 'offline' : 'none');
+  const label = { online: 'Dock Agent online', connecting: 'Dock Agent connecting…', offline: 'Dock Agent offline', none: D?.enabled === false ? 'Docking not enabled' : 'No Dock Agent yet' }[st];
   return `<div class="top"><div><h1>Docking <span>Station</span></h1><p>${sub}</p></div>
-    <span class="agent ${on ? 'on' : ''}"><i></i>${on ? 'Dock Agent online' : (a ? 'Dock Agent offline' : (D?.enabled === false ? 'Docking not enabled' : 'No Dock Agent yet'))}<small>${a ? esc(a.id) + ' · ' + ago(a.ts) : ''}</small></span></div>`;
+    <span class="agent ${st}"><i></i>${label}<small>${a ? esc(a.id) + ' · ' + ago(a.ts) : ''}</small></span></div>`;
 }
 function draw() {
   const v = $('#view');
@@ -248,7 +251,7 @@ function vDocks(v) {
   const st = D.storage, usedPct = st.totalBytes ? Math.min(100, ((st.totalBytes - st.freeBytes) / st.totalBytes) * 100) : 0;
   v.innerHTML = head('Plug a camera in and VisionGuard copies its recordings, verifies every file, and keeps the evidence safe.') +
     `<div class="kpis">
-      <div class="kpi" style="--c:var(--blue)"><span class="ki">${ic('dock')}</span><div><b>${list.filter((x) => x.online).length}/${list.length}</b><span>Docks online</span></div></div>
+      <div class="kpi" style="--c:var(--blue)"><span class="ki">${ic('dock')}</span><div><b>${list.filter((x) => x.status === 'online' || x.online).length}/${list.length}</b><span>Docks online</span></div></div>
       <div class="kpi" style="--c:var(--ok)"><span class="ki">${ic('plug')}</span><div><b>${docked}</b><span>Cameras docked</span></div></div>
       <div class="kpi" style="--c:var(--sel)"><span class="ki">${ic('bolt')}</span><div><b>${busy}</b><span>Offloading now</span></div></div>
       <div class="kpi" style="--c:var(--brand)"><span class="ki">${ic('data')}</span><div><b>${st.todayCount}</b><span>Files today · ${fmtB(st.todayBytes)}</span></div></div></div>` +
@@ -358,7 +361,7 @@ function vHelp(v) {
       <details><summary>Where do the recordings go?</summary><p>They are stored on the VisionGuard server and listed under Data Query, where you can play or download them.</p></details></div>`;
 }
 
-portalReady.then((m) => { me = m; go(location.hash.slice(1) || 'docks', true); load(); timer = setInterval(() => { if (!document.hidden) load(); }, 2000); });
+portalReady.then((m) => { me = m; go(location.hash.slice(1) || 'docks', true); load(); timer = setInterval(() => { if (!document.hidden) load(); }, 1000); });
 </script>
 </body>
 </html>
