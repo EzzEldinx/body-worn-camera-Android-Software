@@ -104,3 +104,49 @@ test('a camera on the dock is shown at the dock location until it has a GPS fix 
     assert.strictEqual(overwritten, false);
     dash.close(); cam.close();
 });
+
+test('dock files: the user decides per file (cloud or dock storage), automation can decide for them', async () => {
+    const crypto = require('node:crypto');
+    const login = await (await post('/api/mobile/login', { username: 'admin', password: 'mobile-test-pw' })).json();
+    const H = { authorization: `Bearer ${login.token}`, 'content-type': 'application/json' }, D = { 'x-dock-token': 'dt' };
+    const put = (p, b) => fetch(BASE + p, { method: 'PUT', headers: H, body: JSON.stringify(b) });
+    const files = (q = '') => fetch(BASE + '/api/dock/files' + q, { headers: H }).then((r) => r.json());
+    assert.strictEqual((await (await fetch(BASE + '/api/dock/policy', { headers: D })).json()).mode, 'ask');
+    assert.strictEqual((await put('/api/admin/dock/policy', { mode: 'nonsense' })).status, 400);
+
+    const body = Buffer.from('cloud-file-' + 'x'.repeat(4000)); const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
+    const A = { cameraId: 'DF-1', name: 'VID_100000001.mp4', size: body.length, sha256: sha(body), recordedTs: Date.now() };
+    const B = { cameraId: 'DF-1', name: 'VID_100000002.mp4', size: 99, sha256: sha(Buffer.from('b')), recordedTs: Date.now() };
+    let r = await (await post('/api/dock/catalog', { dockId: 'd', files: [A, B] }, D)).json();
+    assert.deepStrictEqual(r.files.map((f) => f.action), ['wait', 'wait']);               // ask mode: nothing moves by itself
+    let l = await files('?state=awaiting'); assert.strictEqual(l.counts.awaiting.n, 2);
+    const idA = l.files.find((f) => f.filename === A.name).id, idB = l.files.find((f) => f.filename === B.name).id;
+
+    assert.strictEqual((await post('/api/dock/files/choose', { ids: [idA], choice: 'cloud' }, H)).status, 200);
+    assert.strictEqual((await post('/api/dock/files/choose', { ids: [idB], choice: 'local' }, H)).status, 200);
+    assert.strictEqual((await post('/api/dock/files/choose', { ids: [idB], choice: 'maybe' }, H)).status, 400);
+    const q = await (await fetch(BASE + '/api/dock/queue?dockId=d', { headers: D })).json();
+    assert.deepStrictEqual(q.files.map((f) => f.name), [A.name]);                          // only the cloud choice is queued
+    r = await (await post('/api/dock/catalog', { dockId: 'd', files: [A, B] }, D)).json();
+    assert.deepStrictEqual(r.files.map((f) => f.action), ['upload', 'keep']);
+
+    const up = await fetch(BASE + '/api/dock/upload', { method: 'POST', headers: { ...D, 'content-type': 'application/octet-stream', 'x-camera-id': 'DF-1', 'x-filename': A.name, 'x-sha256': A.sha256, 'x-size': String(body.length), 'x-dock-id': 'd' }, body });
+    assert.strictEqual(up.status, 200);
+    l = await files(); assert.strictEqual(l.counts.cloud.n, 1); assert.strictEqual(l.counts.local.n, 1);
+    assert.strictEqual((await (await fetch(BASE + '/api/dock/queue?dockId=d', { headers: D })).json()).files.length, 0);
+
+    // automation: a new file follows the policy without asking
+    assert.strictEqual((await put('/api/admin/dock/policy', { mode: 'auto_local' })).status, 200);
+    const C = { cameraId: 'DF-1', name: 'VID_100000003.mp4', size: 5, sha256: sha(Buffer.from('c')), recordedTs: 1 };
+    r = await (await post('/api/dock/catalog', { dockId: 'd', files: [C] }, D)).json();
+    assert.strictEqual(r.files[0].action, 'keep');
+    assert.strictEqual((await put('/api/admin/dock/policy', { mode: 'auto_cloud' })).status, 200);
+    const E = { cameraId: 'DF-1', name: 'VID_100000004.mp4', size: 5, sha256: sha(Buffer.from('e')), recordedTs: 1 };
+    r = await (await post('/api/dock/catalog', { dockId: 'd', files: [E] }, D)).json();
+    assert.strictEqual(r.files[0].action, 'upload');
+    // a local file can still be pushed to the cloud later
+    const idC = (await files()).files.find((f) => f.filename === C.name).id;
+    await post('/api/dock/files/choose', { ids: [idC], choice: 'cloud' }, H);
+    assert.ok((await (await fetch(BASE + '/api/dock/queue?dockId=d', { headers: D })).json()).files.some((f) => f.name === C.name));
+    await put('/api/admin/dock/policy', { mode: 'ask' });
+});

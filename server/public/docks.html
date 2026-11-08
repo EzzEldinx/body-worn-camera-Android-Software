@@ -98,6 +98,16 @@ main#view{display:block;max-width:none;margin:0;padding:22px 24px 90px;display:g
 .statusbar .num{font-size:13px;font-weight:800;white-space:nowrap}
 
 /* ---------- tables / forms ---------- */
+.mode{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mode button{text-align:left;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;font:inherit}
+.mode button b{display:block;font-size:14px;margin-bottom:3px}.mode button span{display:block;font-size:12px;color:var(--mut);line-height:1.35}
+.mode button.on{border-color:var(--sel);box-shadow:0 0 0 3px color-mix(in srgb,var(--sel) 22%,transparent)}
+.mode button:disabled{opacity:.55;cursor:not-allowed}
+.fchips{display:flex;gap:8px;flex-wrap:wrap}.fchips .pill{cursor:pointer}.fchips .pill small{opacity:.75;margin-left:6px;font-weight:600}
+.cnt{position:absolute;top:2px;right:calc(50% - 30px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--rec);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center}
+.rb{position:relative}
+.b-wait{--c:var(--sel)}.b-cloud{--c:var(--ok)}.b-local{--c:var(--blue)}.b-fail{--c:var(--rec)}
+@media (max-width:760px){.mode{grid-template-columns:1fr}}
 .bar2{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .bar2 input,.bar2 select{min-width:150px}
 .tbl{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -178,8 +188,8 @@ const fmtB = (b) => { b = Number(b) || 0; if (b >= 1e12) return (b / 1e12).toFix
 const ago = (ts) => { if (!ts) return 'never'; const s = Math.max(0, (Date.now() - ts) / 1000); if (s < 5) return 'just now'; if (s < 60) return Math.round(s) + 's ago'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago'; };
 const when = (ts) => ts ? new Date(ts).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 
-const VIEWS = [['docks', 'Docks', 'dock'], ['cams', 'Registered', 'cam'], ['data', 'Data Query', 'data'], ['set', 'Settings', 'set'], ['help', 'Help', 'help']];
-let me = null, D = null, view = 'docks', dockSel = null, timer = null, recs = [];
+const VIEWS = [['docks', 'Docks', 'dock'], ['files', 'Files', 'file'], ['cams', 'Registered', 'cam'], ['data', 'Data Query', 'data'], ['set', 'Settings', 'set'], ['help', 'Help', 'help']];
+let me = null, D = null, view = 'docks', dockSel = null, timer = null, recs = [], FD = null, fstate = 'awaiting', sel = new Set();
 
 $('#rail').innerHTML = VIEWS.map(([k, l, i]) => `<button class="rb" data-v="${k}" aria-label="${l}"><span class="dot">${ic(i)}</span>${l}</button>`).join('') +
   '<span class="sp"></span><a class="rb" href="/" style="text-decoration:none" aria-label="Live dashboard"><span class="dot" style="--g1:#8A9BB5;--g2:#51607A">' + ic('cam') + '</span>Live</a>';
@@ -195,6 +205,8 @@ function go(v, fromHash) {
 
 async function load() {
   try { const r = await fetch('/api/docks'); if (r.status === 401) return (location.href = '/login.html'); D = await r.json(); } catch (e) { return; }
+  paintBadge();
+  if (view === 'files') { if (!$('#fmode')) draw(); else loadFiles(); }
   if (view === 'docks' || view === 'set') draw(); else if (view === 'cams') { if (window.paintCams && $('#cq')) window.paintCams(); else draw(); } else if (view === 'data' && !$('#fc')) draw();
 }
 
@@ -210,7 +222,7 @@ function head(sub) {
 function draw() {
   const v = $('#view');
   if (!D) { v.innerHTML = head('Loading…'); return; }
-  ({ docks: vDocks, cams: vCams, data: vData, set: vSet, help: vHelp })[view](v);
+  ({ docks: vDocks, files: vFiles, cams: vCams, data: vData, set: vSet, help: vHelp })[view](v);
 }
 
 function bayState(c) { return !c ? 'idle' : (c.state || 'connected'); }
@@ -271,6 +283,83 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-close]') || e.target === $('#modal')) closeModal();
   const pl = e.target.closest('[data-play]'); if (pl) openMedia(pl.dataset.play);
 });
+
+
+/* ---------- files: push to cloud or keep on the dock ---------- */
+function paintBadge() {
+  const n = D?.fileCounts?.awaiting || 0, b = document.querySelector('.rb[data-v="files"]');
+  if (!b) return;
+  let c = b.querySelector('.cnt');
+  if (n && !c) { c = document.createElement('b'); c.className = 'cnt'; b.appendChild(c); }
+  if (c) { if (n) c.textContent = n > 99 ? '99+' : n; else c.remove(); }
+}
+const MODES = [['ask', 'Ask me', 'Review the files, then choose what happens to each one.'],
+  ['auto_cloud', 'Automatic · Cloud', 'Every file is pushed to the cloud as soon as it is on the dock.'],
+  ['auto_local', 'Automatic · Dock storage', 'Every file stays on the dock’s own storage. Nothing is uploaded.']];
+const BUCKETS = [['awaiting', 'Waiting for you'], ['queued', 'Queued for cloud'], ['local', 'On dock storage'], ['cloud', 'In the cloud'], ['failed', 'Failed']];
+async function loadFiles() {
+  try {
+    const r = await fetch('/api/dock/files?state=' + encodeURIComponent(fstate)); if (r.status === 401) return (location.href = '/login.html');
+    FD = await r.json();
+  } catch (e) { return; }
+  paintFiles();
+}
+function vFiles(v) {
+  v.innerHTML = head('After the dock has copied a camera, decide what happens to its videos and photos.') +
+    `<div class="card"><h3>What should happen to new files?</h3><div class="mode" id="fmode"></div>
+       <p class="muted" style="margin:12px 0 0;font-size:13px" id="fnote"></p></div>
+     <div class="card"><div class="bar2"><div class="fchips" id="fchips"></div></div></div>
+     <div class="card" id="fbulk" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+       <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" id="fall"> Select all shown</label>
+       <span class="muted" id="fsel"></span><span style="flex:1"></span>
+       <button class="btn pri" id="fcloud" disabled>${ic('bolt').replace('<svg', '<svg width="14" height="14"')}Push to cloud</button>
+       <button class="btn" id="flocal" disabled>${ic('disk').replace('<svg', '<svg width="14" height="14"')}Keep on dock storage</button></div>
+     <div class="card" style="padding:0"><div class="scroll"><table class="tbl"><thead><tr><th style="width:34px"></th><th>Camera</th><th>File</th><th>Recorded</th><th class="r">Size</th><th>Status</th><th></th></tr></thead><tbody id="fbody"></tbody></table></div></div>`;
+  $('#fmode').onclick = async (e) => {
+    const b = e.target.closest('button[data-mode]'); if (!b || b.disabled) return;
+    const r = await fetch('/api/admin/dock/policy', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: b.dataset.mode }) });
+    if (r.ok) { const p = await r.json(); if (FD) FD.policy = p; if (D) D.policy = p; paintFiles(); }
+  };
+  $('#fchips').onclick = (e) => { const b = e.target.closest('[data-b]'); if (!b) return; fstate = b.dataset.b; sel.clear(); loadFiles(); };
+  $('#fall').onchange = (e) => { (FD?.files || []).forEach((f) => { if (f.bucket !== 'cloud') (e.target.checked ? sel.add(f.id) : sel.delete(f.id)); }); paintFiles(); };
+  $('#fbody').onchange = (e) => { const c = e.target.closest('input[data-id]'); if (!c) return; const id = Number(c.dataset.id); c.checked ? sel.add(id) : sel.delete(id); paintFilesBar(); };
+  $('#fbody').onclick = (e) => { const b = e.target.closest('button[data-one]'); if (b) choose([Number(b.dataset.id)], b.dataset.one); };
+  $('#fcloud').onclick = () => choose([...sel], 'cloud');
+  $('#flocal').onclick = () => choose([...sel], 'local');
+  if (FD) paintFiles(); else loadFiles();
+}
+async function choose(ids, choice) {
+  if (!ids.length) return;
+  const r = await fetch('/api/dock/files/choose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, choice }) });
+  if (!r.ok) { alert('Only an administrator can choose.'); return; }
+  sel.clear(); loadFiles(); load();
+}
+function paintFilesBar() {
+  const n = sel.size, can = me?.role === 'admin';
+  $('#fsel').textContent = n ? n + ' selected' : '';
+  $('#fcloud').disabled = !n || !can; $('#flocal').disabled = !n || !can;
+}
+function paintFiles() {
+  if (view !== 'files' || !$('#fmode') || !FD) return;
+  const mode = FD.policy?.mode || 'ask', can = me?.role === 'admin', c = FD.counts;
+  $('#fmode').innerHTML = MODES.map(([k, t, d]) => `<button data-mode="${k}" class="${mode === k ? 'on' : ''}" ${can ? '' : 'disabled'}><b>${t}</b><span>${d}</span></button>`).join('');
+  const dk = agentOf(), st = dk?.storage;
+  $('#fnote').innerHTML = 'Upload quality: <b>Original</b> (more options are coming). ' + (st?.dir ? 'Dock storage: <span class="mono">' + esc(st.dir) + '</span>' + (st.freeBytes != null ? ' · ' + fmtB(st.freeBytes) + ' free' : '') : '') +
+    (can ? '' : ' · Only an administrator can change this.');
+  $('#fchips').innerHTML = BUCKETS.map(([k, l]) => `<button class="pill ${fstate === k ? 'on' : ''}" data-b="${k}">${l}<small>${c[k].n}${c[k].bytes ? ' · ' + fmtB(c[k].bytes) : ''}</small></button>`).join('');
+  const files = FD.files;
+  $('#fall').checked = files.length > 0 && files.filter((f) => f.bucket !== 'cloud').every((f) => sel.has(f.id));
+  $('#fbody').innerHTML = files.length ? files.map((f) => {
+    const badge = { awaiting: ['b-wait', 'Waiting for you'], queued: ['b-wait', f.state === 'uploading' ? 'Uploading…' : 'Queued for cloud'], local: ['b-local', 'On dock storage'], cloud: ['b-cloud', 'In the cloud'], failed: ['b-fail', 'Failed, retrying'] }[f.bucket];
+    const dis = f.bucket === 'cloud';
+    const act = dis ? '' : `<button class="btn sm" data-one="cloud" data-id="${f.id}">Push to cloud</button>${f.bucket === 'local' ? '' : ` <button class="btn sm" data-one="local" data-id="${f.id}">Keep on dock</button>`}`;
+    return `<tr><td><input type="checkbox" data-id="${f.id}" ${sel.has(f.id) ? 'checked' : ''} ${dis || !can ? 'disabled' : ''}></td><td><b>${esc(f.cameraId)}</b></td><td class="mono">${esc(f.filename)}</td>
+      <td>${when(f.recordedTs || f.addedTs)}</td><td class="r">${fmtB(f.size)}</td>
+      <td><span class="badge ${badge[0]}">${badge[1]}</span>${f.message ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(f.message)}</div>` : ''}${f.chosenBy === 'auto' ? '<div class="muted" style="font-size:11.5px">automatic</div>' : ''}</td>
+      <td style="white-space:nowrap">${can ? act : ''}</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="empty">${fstate === 'awaiting' ? 'Nothing is waiting for your choice. Files appear here after a camera has been copied to the dock.' : 'No files in this list.'}</td></tr>`;
+  paintFilesBar();
+}
 
 function vCams(v) {
   v.innerHTML = head('Every camera registered to your fleet, and whether it is on a dock right now.') +

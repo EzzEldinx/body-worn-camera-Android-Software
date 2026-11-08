@@ -19,6 +19,19 @@ function register(app, ctx) {
         sha256 TEXT NOT NULL, recorded_ts INTEGER, uploaded_ts INTEGER NOT NULL, dock_id TEXT,
         UNIQUE(camera_id, sha256))`);
     db.exec('CREATE INDEX IF NOT EXISTS rec_cam ON recordings(camera_id, recorded_ts)');
+    // Files the dock has copied from cameras, and what the user decided to do with each one:
+    //   state  on_dock (safe on the dock's own storage) | uploading | cloud (stored on this server) | failed
+    //   choice NULL = waiting for the user | 'cloud' = push to the cloud | 'local' = keep on the dock's storage
+    db.exec(`CREATE TABLE IF NOT EXISTS dock_files(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, camera_id TEXT NOT NULL, filename TEXT NOT NULL, size INTEGER NOT NULL, sha256 TEXT NOT NULL,
+        recorded_ts INTEGER, dock_id TEXT, state TEXT NOT NULL DEFAULT 'on_dock', choice TEXT, chosen_by TEXT, message TEXT,
+        added_ts INTEGER NOT NULL, updated_ts INTEGER NOT NULL, UNIQUE(camera_id, sha256))`);
+    db.exec('CREATE INDEX IF NOT EXISTS dock_files_state ON dock_files(state, choice)');
+    db.exec('CREATE TABLE IF NOT EXISTS dock_settings(key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+    // Policy: what happens to files the dock has just copied. ask = the user decides per file (or in bulk); auto_cloud / auto_local = automatic.
+    const MODES = new Set(['ask', 'auto_cloud', 'auto_local']);
+    const getSetting = (k, d) => db.prepare('SELECT value FROM dock_settings WHERE key = ?').get(k)?.value ?? d;
+    const policy = () => ({ mode: MODES.has(getSetting('mode', 'ask')) ? getSetting('mode', 'ask') : 'ask', uploadQuality: 'original' });
     // A camera's physical dock port (USB location) always lands in the same bay: first free bay on first sight.
     db.exec('CREATE TABLE IF NOT EXISTS dock_slots(dock_id TEXT NOT NULL, port TEXT NOT NULL, slot INTEGER NOT NULL, PRIMARY KEY(dock_id, port))');
     const SLOTS = Math.max(1, Math.min(64, Number(process.env.DOCK_SLOTS) || 10));
@@ -68,7 +81,7 @@ function register(app, ctx) {
             return res.status(400).json({ error: 'Bad upload headers.' });
         }
         const dup = db.prepare('SELECT id FROM recordings WHERE camera_id = ? AND sha256 = ?').get(id, want);
-        if (dup) { req.resume(); return res.json({ ok: true, duplicate: true, id: dup.id }); }
+        if (dup) { req.resume(); db.prepare("UPDATE dock_files SET state='cloud', message=NULL, updated_ts=? WHERE camera_id=? AND sha256=?").run(Date.now(), id, want); return res.json({ ok: true, duplicate: true, id: dup.id }); }
         const camDir = path.join(dir, id); fs.mkdirSync(camDir, { recursive: true });
         const tmp = path.join(camDir, `.${name}.${crypto.randomBytes(4).toString('hex')}.part`);
         const out = fs.createWriteStream(tmp), h = crypto.createHash('sha256'); let n = 0, failed = false;
@@ -86,6 +99,7 @@ function register(app, ctx) {
             fs.renameSync(tmp, final);
             const r = db.prepare('INSERT INTO recordings(camera_id,filename,size,sha256,recorded_ts,uploaded_ts,dock_id) VALUES(?,?,?,?,?,?,?)')
                 .run(id, path.basename(final), size, got, rts, Date.now(), dockId);
+            db.prepare("UPDATE dock_files SET state='cloud', message=NULL, updated_ts=? WHERE camera_id=? AND sha256=?").run(Date.now(), id, got);
             audit(`dock:${dockId}`, 'recording_offloaded', id);
             res.json({ ok: true, id: Number(r.lastInsertRowid), sha256: got });
         });
@@ -125,7 +139,7 @@ function register(app, ctx) {
                 publish(c.cameraId, { lat: loc.lat, lng: loc.lng, acc, fixTs: now, posSrc: 'dock' });
             }
         }
-        docks.set(dockId, { ts: Date.now(), agent: String(req.body?.agent || '').slice(0, 20), mode: req.body?.deleteAfter ? 'move' : 'copy', cameras: list });
+        docks.set(dockId, { ts: Date.now(), storage: req.body?.storage && typeof req.body.storage === 'object' ? { dir: String(req.body.storage.dir || '').slice(0, 200), freeBytes: num(req.body.storage.freeBytes), usedBytes: num(req.body.storage.usedBytes) } : null, agent: String(req.body?.agent || '').slice(0, 20), mode: req.body?.deleteAfter ? 'move' : 'copy', cameras: list });
         res.json({ ok: true });
     });
     app.get('/api/admin/docks', needUser, needAdmin, (req, res) => res.json({ docks: [...docks].map(([id, d]) => ({ id, ...d })) }));
@@ -138,7 +152,7 @@ function register(app, ctx) {
         const now = Date.now();
         // The agent sends a heartbeat every 2 s: fresh = online, a few missed beats = connecting, long silence = offline.
         const statusOf = (age) => (age < 8_000 ? 'online' : age < 30_000 ? 'connecting' : 'offline');
-        const list = [...docks].map(([id, d]) => ({ id, ts: d.ts, status: statusOf(now - d.ts), online: now - d.ts < 8_000, agent: d.agent, mode: d.mode,
+        const list = [...docks].map(([id, d]) => ({ id, ts: d.ts, status: statusOf(now - d.ts), online: now - d.ts < 8_000, agent: d.agent, mode: d.mode, storage: d.storage || null,
             // A bay holding someone else's camera is shown as occupied, without saying whose or which camera.
             cameras: d.cameras.map((c) => (mine(req.user, c.cameraId)
                 ? { ...c, company: c.cameraId && cams.has(c.cameraId) ? companyName(cams.get(c.cameraId).companyId) : null }
@@ -150,8 +164,80 @@ function register(app, ctx) {
         const known = [...cams].filter(([id]) => visible(req.user, id)).map(([id, c]) => ({
             cameraId: id, company: companyName(c.companyId), region: c.region || null, online: !!c.online, recording: !!c.recording, ts: c.ts || null, quality: c.quality || null,
             recordings: db.prepare('SELECT COUNT(*) n FROM recordings WHERE camera_id = ?').get(id).n }));
-        res.json({ slots: SLOTS, enabled: !!DOCK_TOKEN, docks: list, cameras: known,
+        const fc = { awaiting: 0, local: 0, queued: 0, cloud: 0, failed: 0 };
+        for (const r of db.prepare('SELECT camera_id,state,choice FROM dock_files').all()) if (mine(req.user, r.camera_id)) fc[r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued']++;
+        res.json({ slots: SLOTS, enabled: !!DOCK_TOKEN, policy: policy(), fileCounts: fc, docks: list, cameras: known,
             storage: { retentionDays: RETENTION_DAYS, recordings: rec.n, recordingsBytes: rec.bytes, todayCount: td.n, todayBytes: td.bytes, ...(disk || {}) } });
+    });
+
+    // ---------- what to do with the files a dock has copied ----------
+    app.get('/api/dock/policy', needDock, (req, res) => res.json(policy()));
+    app.get('/api/admin/dock/policy', needUser, (req, res) => res.json(policy()));
+    app.put('/api/admin/dock/policy', needUser, needAdmin, (req, res) => {
+        const mode = String(req.body?.mode || '');
+        if (!MODES.has(mode)) return res.status(400).json({ error: 'mode must be ask, auto_cloud or auto_local.' });
+        db.prepare('INSERT INTO dock_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('mode', mode);
+        audit(req.user.username, `dock_policy_${mode}`, null);
+        res.json(policy());
+    });
+
+    // The agent announces files that are now safe on the dock's own storage; the answer says what to do with each.
+    app.post('/api/dock/catalog', needDock, (req, res) => {
+        const dockId = String(req.body?.dockId || 'dock').slice(0, 40);
+        const files = Array.isArray(req.body?.files) ? req.body.files.slice(0, 1000) : [];
+        const mode = policy().mode, now = Date.now(), out = [];
+        const ins = db.prepare(`INSERT INTO dock_files(camera_id,filename,size,sha256,recorded_ts,dock_id,state,choice,chosen_by,added_ts,updated_ts)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(camera_id,sha256) DO UPDATE SET dock_id = excluded.dock_id, updated_ts = excluded.updated_ts`);
+        for (const f of files) {
+            const cameraId = str(f.cameraId), name = String(f.name || ''), sha = String(f.sha256 || '').toLowerCase(), size = Number(f.size);
+            if (!cameraId || !NAME_RE.test(name) || !/^[0-9a-f]{64}$/.test(sha) || !Number.isInteger(size) || size < 1) continue;
+            const onCloud = !!db.prepare('SELECT 1 FROM recordings WHERE camera_id = ? AND sha256 = ?').get(cameraId, sha);
+            const auto = mode === 'auto_cloud' ? 'cloud' : mode === 'auto_local' ? 'local' : null;
+            ins.run(cameraId, name, size, sha, Number(f.recordedTs) || null, dockId, onCloud ? 'cloud' : 'on_dock', onCloud ? 'cloud' : auto, auto && !onCloud ? 'auto' : null, now, now);
+            let row = db.prepare('SELECT id,state,choice FROM dock_files WHERE camera_id = ? AND sha256 = ?').get(cameraId, sha);
+            // a file first seen before automation was switched on gets the automatic decision now
+            if (row.choice === null && auto) { db.prepare("UPDATE dock_files SET choice = ?, chosen_by = 'auto', updated_ts = ? WHERE id = ?").run(auto, now, row.id); row = { ...row, choice: auto }; }
+            out.push({ cameraId, sha256: sha, action: row.state === 'cloud' ? 'done' : row.choice === 'cloud' ? 'upload' : row.choice === 'local' ? 'keep' : 'wait' });
+        }
+        res.json({ policy: policy(), files: out });
+    });
+    // Files the user wants in the cloud that are not there yet (they may sit on the dock even after the camera has left).
+    app.get('/api/dock/queue', needDock, (req, res) => {
+        const dockId = String(req.query.dockId || '').slice(0, 40);
+        const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename AS name,size,sha256,recorded_ts AS recordedTs FROM dock_files
+            WHERE choice = 'cloud' AND state IN ('on_dock','failed') AND (? = '' OR dock_id = ?) ORDER BY added_ts LIMIT 200`).all(dockId, dockId);
+        res.json({ files: rows });
+    });
+    app.post('/api/dock/file-state', needDock, (req, res) => {
+        const state = String(req.body?.state || '');
+        if (!['on_dock', 'uploading', 'failed'].includes(state)) return res.status(400).json({ error: 'Bad state.' });
+        db.prepare("UPDATE dock_files SET state = ?, message = ?, updated_ts = ? WHERE camera_id = ? AND sha256 = ? AND state != 'cloud'")
+            .run(state, String(req.body?.message || '').slice(0, 160) || null, Date.now(), str(req.body?.cameraId), String(req.body?.sha256 || ''));
+        res.json({ ok: true });
+    });
+    app.get('/api/dock/files', needUser, (req, res) => {
+        const state = String(req.query.state || '');
+        const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename,size,sha256,recorded_ts AS recordedTs,dock_id AS dockId,state,choice,chosen_by AS chosenBy,message,added_ts AS addedTs
+            FROM dock_files ORDER BY added_ts DESC, id DESC LIMIT 3000`).all().filter((r) => mine(req.user, r.cameraId));
+        const bucket = (r) => (r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued');
+        const counts = { awaiting: { n: 0, bytes: 0 }, local: { n: 0, bytes: 0 }, queued: { n: 0, bytes: 0 }, cloud: { n: 0, bytes: 0 }, failed: { n: 0, bytes: 0 } };
+        for (const r of rows) { const b = bucket(r); counts[b].n++; counts[b].bytes += r.size; }
+        const files = rows.filter((r) => !state || bucket(r) === state).slice(0, 500).map((r) => ({ ...r, bucket: bucket(r) }));
+        res.json({ policy: policy(), counts, files });
+    });
+    // The user's decision: push to the cloud, or keep on the dock's own storage. Works on a list of files or on everything waiting.
+    app.post('/api/dock/files/choose', needUser, needAdmin, (req, res) => {
+        const choice = String(req.body?.choice || '');
+        if (!['cloud', 'local'].includes(choice)) return res.status(400).json({ error: 'choice must be cloud or local.' });
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger).slice(0, 5000) : null;
+        let rows = ids ? ids.map((id) => db.prepare('SELECT * FROM dock_files WHERE id = ?').get(id)).filter(Boolean)
+            : req.body?.allAwaiting ? db.prepare("SELECT * FROM dock_files WHERE choice IS NULL AND state != 'cloud'").all() : [];
+        rows = rows.filter((r) => mine(req.user, r.camera_id) && r.state !== 'cloud');
+        const upd = db.prepare('UPDATE dock_files SET choice = ?, chosen_by = ?, updated_ts = ?, state = CASE WHEN state = ? THEN ? ELSE state END WHERE id = ?');
+        const now = Date.now();
+        for (const r of rows) upd.run(choice, req.user.username, now, 'failed', 'on_dock', r.id);
+        if (rows.length) audit(req.user.username, `dock_files_${choice}_${rows.length}`, null);
+        res.json({ ok: true, changed: rows.length });
     });
 
     app.get('/api/recordings', needUser, (req, res) => {

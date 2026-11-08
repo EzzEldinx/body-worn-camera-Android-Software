@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // VisionGuard Dock Agent: runs on the PC next to the docking station.
-// For every camera visible over USB (adb) it pulls new recordings, verifies them by SHA-256 on the camera and
-// on the PC, uploads them to the server (which verifies again), and only then (optionally) deletes them from the camera.
+// For every camera visible over USB (adb) it COPIES new recordings to this PC's own storage (DOCK_STORAGE, default ~/VisionGuard-Dock),
+// verified by SHA-256, and tells the server. The user then chooses on the dashboard (Docking > Files) for each file or in bulk:
+// "Push to cloud" (the agent uploads it from the PC, verified again by the server) or "Keep on dock storage". The server policy can also
+// decide automatically: Ask me / Automatic · Cloud / Automatic · Dock storage. With --delete a file is removed from the camera only after
+// it is safe where the user wanted it. DOCK_PURGE_UPLOADED=1 frees the PC's copy once a file is verified in the cloud.
 //
 //   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--report-only] [--dry-run] [--interval 30] [--only VID_x.mp4] [--limit N] [--smallest] [--latest N] [--since today|YYYY-MM-DD] [--report-only] [--no-update] [--update-only]
 //
@@ -48,7 +51,7 @@ const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 // What the agent is doing per camera right now; sent to the server so the Docking page shows live progress.
 const status = new Map();   // serial -> { state, message, progress, synced, failed, lastSyncTs }
 let lastInfos = [], lastReportAt = 0;
-const AGENT_VERSION = '1.4';
+const AGENT_VERSION = '1.5';
 const log = (dev, ...a) => console.log(new Date().toISOString().slice(11, 19), dev ? `[${dev}]` : '', ...a);
 const run = (args) => new Promise((resolve, reject) => execFile(ADB, args, { maxBuffer: 64 * 1024 * 1024 }, (e, so, se) => (e ? reject(new Error((se || e.message).trim())) : resolve(so))));
 const shell = (serial, cmd) => run(['-s', serial, 'shell', cmd]);
@@ -80,47 +83,119 @@ async function inspect(serial) {
     return { serial, cameraId, battery, storageFreeMb, files };
 }
 
+// ---------- the dock's own storage, and what the user decided for each file ----------
+// Every file is first COPIED from the camera to this PC (verified by SHA-256) and announced to the server. The user then chooses on the
+// dashboard: "Push to cloud" (the agent uploads it from here, at any time, even after the camera has left) or "Keep on dock storage"
+// (it stays here). The server's policy can also decide automatically (Ask / Auto-cloud / Auto-local).
+const STORE = path.resolve(process.env.DOCK_STORAGE || path.join(os.homedir(), 'VisionGuard-Dock'));
+const PURGE_UPLOADED = process.env.DOCK_PURGE_UPLOADED === '1';   // free the dock's disk once a file is verified in the cloud (default: keep the local copy)
+const localPath = (cameraId, name) => path.join(STORE, cameraId, name);
+const shaCache = new Map();   // camera-side hash by serial|name|size|mtime: a 1.9 GB file is hashed once, not every cycle
+let policy = { mode: 'ask', legacy: false };
+const legacyPending = [];     // old servers without the catalog: upload straight after the copy, like before
+const uploadFailedAt = new Map();
+
+async function loadPolicy() {
+    try { policy = { ...(await api('GET', '/api/dock/policy')), legacy: false }; }
+    catch (e) { if (/-> 404/.test(e.message)) policy = { mode: 'auto_cloud', legacy: true }; }
+}
+function storageInfo() {
+    try { const f = fs.statfsSync(fs.existsSync(STORE) ? STORE : path.dirname(STORE)); return { dir: STORE, freeBytes: f.bavail * f.bsize }; } catch { return { dir: STORE }; }
+}
+const deleteOnCamera = async (serial, tag, name) => { await shell(serial, `rm "${REC_DIR}/${name}"`); log(tag, `${name} removed from the camera (verified)`); };
+
 async function offload(info, stats) {
     const { serial, cameraId } = info; const tag = cameraId || serial;
     if (!cameraId) { log(tag, 'no config.json id on the camera: skipped'); return; }
-    const dir = path.join(STAGING, cameraId); fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(path.join(STORE, cameraId), { recursive: true });
     const st = status.get(serial) || {}; status.set(serial, st);
     let todo = info.files.filter((f) => f.size > 0 && !(ONLY && f.name !== ONLY) && Date.now() - f.mtimeMs >= MIN_AGE_MS);
     if (SINCE) todo = todo.filter((f) => f.mtimeMs >= SINCE);
     if (LATEST) todo = todo.sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, LATEST);
     if (SMALLEST) todo = todo.sort((a, b) => a.size - b.size);
     if (LIMIT) todo = todo.slice(0, LIMIT);
-    const wanted = new Set(todo.map((f) => f.name));
-    if (DRY) { todo.forEach((f) => log(tag, `would offload ${f.name}  ${(f.size / 1e6).toFixed(1)} MB  ${new Date(f.mtimeMs).toISOString().slice(0, 16)}`)); return; }
-    const bytesTotal = todo.reduce((a, f) => a + f.size, 0); let bytesDone = 0, index = 0, mine = 0;
-    st.synced = 0; st.failed = 0;
+    if (DRY) { todo.forEach((f) => log(tag, `would copy ${f.name}  ${(f.size / 1e6).toFixed(1)} MB  ${new Date(f.mtimeMs).toISOString().slice(0, 16)}`)); return; }
+    const bytesTotal = todo.reduce((a, f) => a + f.size, 0); let bytesDone = 0, index = 0;
+    st.synced = 0; st.failed = 0; st.message = '';
+    const copied = [];
     for (const f of todo) {
-        if (f.size === 0 || (ONLY && f.name !== ONLY) || !wanted.has(f.name)) continue;
-        if (Date.now() - f.mtimeMs < MIN_AGE_MS) { log(tag, `${f.name} changed <1 min ago, left alone`); stats.skipped++; continue; }
         index++; Object.assign(st, { state: 'offloading', message: '', progress: { index, total: todo.length, file: f.name, bytesDone, bytesTotal } }); await report(false);
-        const remote = `${REC_DIR}/${f.name}`, local = path.join(dir, f.name);
         try {
-            const remoteSha = (await shell(serial, `sha256sum "${remote}"`)).trim().split(/\s+/)[0];
-            if (!/^[0-9a-f]{64}$/.test(remoteSha)) throw new Error('cannot hash on camera');
-            const known = (await api('GET', `/api/dock/has?camera=${encodeURIComponent(cameraId)}&sha256=${remoteSha}`)).has;
-            if (!known) {
-                const t0 = Date.now();
-                // a file already copied by an earlier (failed) try is reused if it is intact: no second USB copy of a 100+ MB video
-                let localSha = fs.existsSync(local) ? await hashFile(local).catch(() => null) : null;
-                if (localSha !== remoteSha) { await run(['-s', serial, 'pull', remote, local]); localSha = await hashFile(local); }
-                if (localSha !== remoteSha) throw new Error('hash differs after USB copy');
-                const up = await api('POST', '/api/dock/upload', { body: fs.createReadStream(local), headers: {
-                    'content-type': 'application/octet-stream', 'x-camera-id': cameraId, 'x-filename': f.name, 'x-sha256': localSha,
-                    'x-size': String(fs.statSync(local).size), 'x-recorded-ts': String(f.mtimeMs), 'x-dock-id': DOCK_ID } });
-                log(tag, `${f.name} ${(f.size / 1e6).toFixed(1)} MB offloaded in ${((Date.now() - t0) / 1000).toFixed(1)}s${up.duplicate ? ' (already on server)' : ''}`);
-                fs.rmSync(local, { force: true });
-                stats.uploaded++; stats.bytes += f.size;
-            } else { log(tag, `${f.name} already on the server`); stats.known++; }
-            if (DELETE) { await shell(serial, `rm "${remote}"`); log(tag, `${f.name} removed from the camera (verified on the server)`); stats.deleted++; }
-            bytesDone += f.size; st.synced++; mine++;
+            const key = `${serial}|${f.name}|${f.size}|${f.mtimeMs}`;
+            let sha = shaCache.get(key);
+            if (!sha) {
+                sha = (await shell(serial, `sha256sum "${REC_DIR}/${f.name}"`)).trim().split(/\s+/)[0];
+                if (!/^[0-9a-f]{64}$/.test(sha)) throw new Error('cannot hash on camera');
+                shaCache.set(key, sha);
+            }
+            const lp = localPath(cameraId, f.name);
+            const have = fs.existsSync(lp) && fs.statSync(lp).size === f.size && (await hashFile(lp).catch(() => null)) === sha;
+            if (!have) {
+                const t0 = Date.now(), part = lp + '.part';
+                await run(['-s', serial, 'pull', `${REC_DIR}/${f.name}`, part]);
+                if ((await hashFile(part)) !== sha) { fs.rmSync(part, { force: true }); throw new Error('hash differs after USB copy'); }
+                fs.renameSync(part, lp);
+                log(tag, `${f.name} ${(f.size / 1e6).toFixed(1)} MB copied to the dock in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+                stats.copied++; stats.bytes += f.size;
+            } else { log(tag, `${f.name} already on the dock`); stats.known++; }
+            copied.push({ cameraId, name: f.name, size: f.size, sha256: sha, recordedTs: f.mtimeMs });
+            bytesDone += f.size; st.synced++;
         } catch (e) { log(tag, `${f.name} FAILED: ${e.message}`); stats.failed++; st.failed++; st.message = e.message.slice(0, 120); }
     }
+    // tell the server what is now safe on the dock; it answers with what to do with each file
+    if (copied.length) {
+        if (policy.legacy) { legacyPending.push(...copied); }
+        else {
+            try {
+                const r = await api('POST', '/api/dock/catalog', { body: { dockId: DOCK_ID, files: copied } });
+                policy = { ...r.policy, legacy: false };
+                const waiting = r.files.filter((x) => x.action === 'wait').length, toCloud = r.files.filter((x) => x.action === 'upload').length;
+                st.message = waiting ? `${waiting} file${waiting === 1 ? '' : 's'} waiting for your choice` : toCloud ? `${toCloud} queued for the cloud` : '';
+                if (DELETE) for (const x of r.files.filter((y) => y.action === 'keep')) await deleteOnCamera(serial, tag, copied.find((c) => c.sha256 === x.sha256).name).catch(() => {});
+            } catch (e) { log(tag, 'catalog failed:', e.message); st.failed++; st.message = 'Could not reach the server: ' + e.message.slice(0, 80); }
+        }
+    }
     Object.assign(st, { state: st.failed ? 'error' : 'synced', progress: null, lastSyncTs: Date.now() });
+}
+
+// Uploads the files the user sent to the cloud, from the dock's storage, one at a time (they share one uplink).
+let queueBusy = false;
+async function processQueue() {
+    if (queueBusy || REPORT_ONLY || DRY) return;
+    queueBusy = true;
+    try {
+        let items;
+        if (policy.legacy) items = legacyPending.splice(0);
+        else items = (await api('GET', `/api/dock/queue?dockId=${encodeURIComponent(DOCK_ID)}`)).files;
+        let index = 0;
+        for (const f of items) {
+            index++;
+            const key = `${f.cameraId}|${f.sha256}`;
+            if (Date.now() - (uploadFailedAt.get(key) || 0) < 60_000) continue;
+            const lp = localPath(f.cameraId, f.name), info = lastInfos.find((i) => i.cameraId === f.cameraId), tag = f.cameraId;
+            const setSt = (patch) => { if (info) status.set(info.serial, { ...(status.get(info.serial) || {}), ...patch }); };
+            const markState = (state, message) => api('POST', '/api/dock/file-state', { body: { cameraId: f.cameraId, sha256: f.sha256, state, message } }).catch(() => {});
+            try {
+                if (!fs.existsSync(lp)) throw new Error('file is not on the dock storage');
+                if ((await hashFile(lp)) !== f.sha256) throw new Error('file on the dock storage is damaged');
+                if (!policy.legacy) await markState('uploading');
+                setSt({ state: 'offloading', message: '', progress: { index, total: items.length, file: f.name, bytesDone: 0, bytesTotal: f.size } }); await report(false);
+                const t0 = Date.now();
+                const up = await api('POST', '/api/dock/upload', { body: fs.createReadStream(lp), headers: {
+                    'content-type': 'application/octet-stream', 'x-camera-id': f.cameraId, 'x-filename': f.name, 'x-sha256': f.sha256,
+                    'x-size': String(fs.statSync(lp).size), 'x-recorded-ts': String(f.recordedTs || ''), 'x-dock-id': DOCK_ID } });
+                log(tag, `${f.name} ${(f.size / 1e6).toFixed(1)} MB pushed to the cloud in ${((Date.now() - t0) / 1000).toFixed(1)}s${up.duplicate ? ' (already there)' : ''}`);
+                if (DELETE && info) await deleteOnCamera(info.serial, tag, f.name).catch(() => {});
+                if (PURGE_UPLOADED) fs.rmSync(lp, { force: true });
+                setSt({ state: 'synced', message: '', progress: null, lastSyncTs: Date.now() });
+            } catch (e) {
+                uploadFailedAt.set(key, Date.now());
+                log(tag, `${f.name} cloud upload FAILED: ${e.message}`);
+                if (!policy.legacy) await markState('failed', e.message.slice(0, 150));
+                setSt({ state: 'error', message: `Cloud upload failed: ${e.message}`.slice(0, 150), progress: null });
+            }
+        }
+    } catch (e) { log('', 'upload queue:', e.message); } finally { queueBusy = false; }
 }
 
 
@@ -198,7 +273,7 @@ async function updateApp(info) {
 async function report(force) {
     if (!force && Date.now() - lastReportAt < 1500) return;   // progress updates are throttled
     lastReportAt = Date.now();
-    await api('POST', '/api/dock/report', { body: { dockId: DOCK_ID, agent: AGENT_VERSION, ...(LOC ? { location: LOC } : {}), deleteAfter: DELETE, cameras: lastInfos.map((i) => ({
+    await api('POST', '/api/dock/report', { body: { dockId: DOCK_ID, agent: AGENT_VERSION, ...(LOC ? { location: LOC } : {}), storage: storageInfo(), deleteAfter: DELETE, cameras: lastInfos.map((i) => ({
         serial: i.serial, port: i.port, cameraId: i.cameraId, battery: i.battery, storageFreeMb: i.storageFreeMb, files: i.files.length,
         pendingMb: Math.round(i.files.reduce((a, f) => a + f.size, 0) / 1e6), ...(status.get(i.serial) || { state: 'connected' }) })) } })
         .catch((e) => log('', 'report failed:', e.message));
@@ -213,9 +288,11 @@ async function cycle() {
     for (const i of lastInfos) if (!status.has(i.serial)) status.set(i.serial, { state: 'connected', synced: 0, failed: 0 });
     await report(true);   // also when the dock is empty: the page then shows the agent as online with idle bays
     if (!lastInfos.length) { log('', 'no camera on the dock'); return; }
-    const stats = { uploaded: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
+    await loadPolicy();
+    const stats = { copied: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
     if (!REPORT_ONLY && !NO_UPDATE) await Promise.all(lastInfos.map((i) => ensureGps(i).catch((e) => log(i.cameraId || i.serial, 'GPS check failed:', e.message))));
     if (!REPORT_ONLY && !UPDATE_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
+    if (flag('once') && !UPDATE_ONLY) await processQueue();   // the long-running agent does this on its own timer so a big upload never blocks copying
     if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => updateApp(i).catch((e) => log(i.cameraId || i.serial, 'update check failed:', e.message))));   // after the recordings are safe
     await report(true);
     log('', `cycle done: ${JSON.stringify(stats)}`);
@@ -247,7 +324,7 @@ async function heartbeat() {
 (async () => {
     if (!TOKEN) { console.error('Set DOCK_TOKEN (same value as on the server).'); process.exit(2); }
     log('', `Dock Agent ${DOCK_ID} -> ${SERVER} ${DELETE ? '(will delete verified files from cameras)' : '(copy only, nothing is deleted)'}`);
-    if (!flag('once')) setInterval(heartbeat, 2000);
+    if (!flag('once')) { setInterval(heartbeat, 2000); setInterval(() => { if (!UPDATE_ONLY) loadPolicy().then(processQueue).catch(() => {}); }, 10_000); }   // act on the user's choices within seconds, camera docked or not
     do {
         try { await cycle(); } catch (e) { log('', 'cycle error:', e.message); }
         if (flag('once')) break;
