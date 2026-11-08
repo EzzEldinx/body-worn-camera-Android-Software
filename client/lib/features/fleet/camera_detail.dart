@@ -97,14 +97,14 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
           SectionTitle(context.tr('quality')),
           VgCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final q in const ['240p', '480p', '720p', '1080p', '4k'])
+              for (final q in const ['auto', '480p', '720p', '1080p'])
                 ChoiceChip(
-                  label: Text(q == '4k' ? '4K' : q), selected: cam.quality == q, showCheckmark: false,
+                  label: Text(q == 'auto' ? context.tr('quality_auto') : q), selected: (cam.qualityAuto ? 'auto' : cam.quality) == q, showCheckmark: false,
                   onSelected: (_) { fleet.setQuality(cam.id, q); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('quality_sent')))); },
                 ),
             ]),
             const SizedBox(height: 10),
-            Text(context.tr('quality_note'), style: TextStyle(color: v.mut, fontSize: 12.5)),
+            Text(cam.qualityAuto ? '${context.tr('quality_auto_note')}${cam.quality != null ? ' (${cam.quality})' : ''}' : context.tr('quality_note'), style: TextStyle(color: v.mut, fontSize: 12.5)),
           ])),
         ],
         const SizedBox(height: 16),

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:rtmp_broadcaster/rtmp_broadcaster.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +15,7 @@ import '../widgets/hidden_admin_door.dart';
 import '../../../../hardware/hardware_key_listener.dart';
 import '../../../../core/services/central_link.dart';
 import '../../../../core/services/video_quality.dart';
+import '../../../../core/services/self_heal.dart';
 import '../../../../core/services/app_updater.dart'; 
 
 class KioskDashboardScreen extends ConsumerStatefulWidget {
@@ -57,6 +59,9 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   AppUpdater? _updater;
   VideoQuality _quality = VideoQuality.defaultQuality;
   bool _qualityLoaded = false;
+  bool _qualityAuto = true; // the control room can pin a quality; by default the camera picks it from its network
+  DateTime _lastQualitySwitch = DateTime.fromMillisecondsSinceEpoch(0);
+  StreamSubscription<dynamic>? _netSub;
   bool _remoteStarted = false; // the control room started this recording, so only it may stop it remotely
   bool _sosFired = false;
   String? _currentFile;
@@ -209,9 +214,26 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         updLink.refreshStatus();
       }
     });
-    _qualitySub = ref.read(centralLinkProvider).qualityCommands.listen((id) {
+    _qualitySub = ref.read(centralLinkProvider).qualityCommands.listen((id) async {
+      if (id == VideoQuality.autoId) {
+        _qualityAuto = true;
+        ref.read(centralLinkProvider).qualityAuto = true;
+        await VideoQuality.saveSetting(auto: true, fixed: _quality);
+        await _applyAutoNow(force: true);
+        ref.read(centralLinkProvider).sendStatus(recording: isRecording, quality: _quality.id, remote: _remoteStarted);
+        return;
+      }
       final q = VideoQuality.fromId(id);
-      if (q != null) _applyQuality(q);
+      if (q == null || !VideoQuality.selectable.contains(q)) return; // 240p / 4K are not offered any more
+      _qualityAuto = false;
+      ref.read(centralLinkProvider).qualityAuto = false;
+      await _applyQuality(q);
+    });
+    // Automatic mode follows the network: Wi-Fi 720p, mobile data 480p (debounced, never more than once a minute).
+    _netSub = Connectivity().onConnectivityChanged.listen((_) async {
+      if (!_qualityAuto) return;
+      await Future<void>.delayed(const Duration(seconds: 3));
+      if (_qualityAuto) _applyAutoNow();
     });
 
     ref.read(centralLinkProvider).sendStatus(recording: false, quality: _quality.id);
@@ -273,7 +295,10 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   Future<void> _initCamera() async {
     try {
       if (!_qualityLoaded) {
-        _quality = await VideoQuality.load();
+        final st = await VideoQuality.loadSetting();
+        _qualityAuto = st.auto;
+        _quality = st.auto ? VideoQuality.forNetwork(fast: await _isFastNetwork()) : st.fixed;
+        ref.read(centralLinkProvider).qualityAuto = _qualityAuto;
         _qualityLoaded = true;
       }
       if (_cameras == null) {
@@ -304,6 +329,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       }
     } catch (e) {
       _report('CAMERA INIT FAILED: $e');
+      await SelfHeal.restartIfPluginLost(e, where: 'camera init', report: _report);
       try {
         await _controller?.dispose(); // free the hardware so the next try can open it
       } catch (_) {}
@@ -314,15 +340,36 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
   /// The control room changed the quality (e.g. weak network). A running recording is stopped and
   /// restarted at the new quality, so there is a short gap while the camera is reopened.
+  Future<bool> _isFastNetwork() async {
+    try {
+      final r = await Connectivity().checkConnectivity();
+      return r.contains(ConnectivityResult.wifi) || r.contains(ConnectivityResult.ethernet);
+    } catch (_) {
+      return true; // cannot tell: the plain default
+    }
+  }
+
+  Future<void> _applyAutoNow({bool force = false}) async {
+    if (!force && DateTime.now().difference(_lastQualitySwitch) < const Duration(minutes: 1)) return;
+    await _applyQuality(VideoQuality.forNetwork(fast: await _isFastNetwork()));
+  }
+
   Future<void> _applyQuality(VideoQuality q) async {
-    if (q == _quality || _switching) return;
+    if (q == _quality) {
+      // Same picture quality: only remember how it was chosen (auto or pinned) and tell the control room.
+      await VideoQuality.saveSetting(auto: _qualityAuto, fixed: q);
+      ref.read(centralLinkProvider).sendStatus(recording: isRecording, quality: _quality.id, remote: _remoteStarted);
+      return;
+    }
+    if (_switching) return;
+    _lastQualitySwitch = DateTime.now();
     final wasRecording = isRecording;
     final remote = _remoteStarted;
     _switching = true;
     try {
       if (wasRecording) await _toggleRecording(silent: true);
       _quality = q;
-      await q.save();
+      await VideoQuality.saveSetting(auto: _qualityAuto, fixed: q);
       await _releaseCamera();
       await _initCamera();
       if (wasRecording && _isCameraInitialized) {
@@ -566,6 +613,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     } catch (e) {
       _remoteStarted = false;
       _report('REC FAILED: $e');
+      await SelfHeal.restartIfPluginLost(e, where: 'recording', report: _report);
     }
   }
 
@@ -861,6 +909,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     _linkSub?.cancel();
     _remoteSub?.cancel();
     _qualitySub?.cancel();
+    _netSub?.cancel();
     _updater?.dispose();
     _controller?.dispose();
     super.dispose();

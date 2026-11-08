@@ -849,7 +849,7 @@ function renderInfo() {
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
     <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
-    ${c.online ? `<div class="row qrow"><span>${currentLang === 'ar' ? 'جودة الفيديو' : 'Video quality'}</span><select id="qSel">${['240p', '480p', '720p', '1080p', '4k'].map((q) => `<option value="${q}" ${c.quality === q ? 'selected' : ''}>${q === '4k' ? '4K' : q}</option>`).join('')}</select></div>` : ''}
+    ${c.online ? `<div class="row qrow"><span>${currentLang === 'ar' ? 'جودة الفيديو' : 'Video quality'}</span><select id="qSel">${['auto', '480p', '720p', '1080p'].map((q) => `<option value="${q}" ${(c.qualityAuto ? 'auto' : c.quality) === q ? 'selected' : ''}>${q === 'auto' ? (currentLang === 'ar' ? 'تلقائي (حسب الشبكة)' : 'Auto (by network)') : q}${q === 'auto' && c.qualityAuto && c.quality ? ' · ' + c.quality : ''}</option>`).join('')}</select></div>` : ''}
     ${c.remote ? `<div class="row"><button class="btn" id="bX">${currentLang === 'ar' ? 'إيقاف البث عن بُعد' : 'Stop remote stream'}</button></div>` : ''}`;
   $('#bW').onclick = () => openLive(c.cameraId);
   if ($('#qSel')) $('#qSel').onchange = (e) => { socket.emit('set_quality', { cameraId: c.cameraId, quality: e.target.value }); flash(currentLang === 'ar' ? 'تم إرسال تغيير الجودة' : 'Quality change sent'); };

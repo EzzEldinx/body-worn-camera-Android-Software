@@ -269,7 +269,9 @@ class CentralLink {
   // A position is only reported when it is a REAL, recent, accurate fix. Before, the last value was re-sent
   // every 10 s forever (even a stale one the GPS chip remembered from another city), which put cameras
   // kilometres away from where they really were.
-  static const double _maxAccuracyM = 50;
+  // Indoors / on a dock the chip often returns a rough fix (100-1000 m). Report it with its accuracy so the dashboard
+  // can show the camera and "±N m" instead of nothing; stale or zero fixes are still rejected below.
+  static const double _maxAccuracyM = 2000;
   static const Duration _maxFixAge = Duration(seconds: 20);
   DateTime? _lastFixAt;
   final ValueNotifier<double?> gpsAccuracy = ValueNotifier(null); // metres of the last accepted fix
@@ -305,14 +307,23 @@ class CentralLink {
     });
   }
 
+  Timer? _gpsRetry;
+
+  // Location can be switched off (or the permission missing) when the app starts, e.g. a camera whose location
+  // setting was never enabled. Before, that meant no position until the next reboot; now we keep trying.
+  void _retryGpsSoon() {
+    _gpsRetry?.cancel();
+    _gpsRetry = Timer(const Duration(seconds: 20), _startGps);
+  }
+
   Future<void> _startGps() async {
-    if (!await Geolocator.isLocationServiceEnabled()) return;
+    if (!await Geolocator.isLocationServiceEnabled()) { gpsFix.value = false; _retryGpsSoon(); return; }
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
     }
     if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) return;
+        perm == LocationPermission.deniedForever) { gpsFix.value = false; _retryGpsSoon(); return; }
 
     await _gpsSub?.cancel();
     _gpsSub = Geolocator.getPositionStream(
@@ -339,6 +350,8 @@ class CentralLink {
 
   // Last known status, re-sent on every (re)connect so the dashboard sees the camera as online
   // immediately, not only after the first GPS fix.
+  /// true = the camera chooses its own quality from the network; null = not known yet
+  bool? qualityAuto;
   bool _statusRecording = false;
   String? _statusQuality;
   bool? _statusRemote;
@@ -356,6 +369,7 @@ class CentralLink {
       'cameraId': CentralConfig.cameraId,
       'recording': _statusRecording,
       if (_statusQuality != null) 'quality': _statusQuality,
+      if (qualityAuto != null) 'qualityAuto': qualityAuto,
       if (_statusRemote != null) 'remote': _statusRemote,
       if (appBuild != null) 'build': appBuild,
     });
@@ -383,6 +397,7 @@ class CentralLink {
   }
 
   void dispose() {
+    _gpsRetry?.cancel();
     _heartbeat?.cancel();
     _gpsSub?.cancel();
     _socket?.dispose();

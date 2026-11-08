@@ -19,7 +19,15 @@ enum VideoQuality {
   final ResolutionPreset preset;
   final int bitrate; // bits per second for the RTMP stream / recording
 
-  static const VideoQuality defaultQuality = VideoQuality.p1080;
+  static const VideoQuality defaultQuality = VideoQuality.p720;
+
+  /// The control room can pick only these; 240p and 4K are no longer offered (they caused failures, saved
+  /// 'auto' means "decide from the network").
+  static const String autoId = 'auto';
+  static const List<VideoQuality> selectable = [p480, p720, p1080];
+
+  /// Auto policy: Wi-Fi/ethernet carries 720p comfortably, mobile data gets 480p. Anything unknown stays safe at 480p.
+  static VideoQuality forNetwork({required bool fast}) => fast ? p720 : p480;
 
   static VideoQuality? fromId(Object? id) {
     for (final q in values) {
@@ -31,14 +39,24 @@ enum VideoQuality {
   static Future<File> _file() async =>
       File('${(await getApplicationSupportDirectory()).path}/quality.json');
 
-  static Future<VideoQuality> load() async {
+  /// What the control room last chose: a fixed quality or auto. Old files saved with 240p/4K fall back to 720p.
+  static Future<({bool auto, VideoQuality fixed})> loadSetting() async {
     try {
       final f = await _file();
       if (await f.exists()) {
-        return fromId((jsonDecode(await f.readAsString()) as Map)['quality']) ?? defaultQuality;
+        final id = (jsonDecode(await f.readAsString()) as Map)['quality'];
+        if (id == autoId) return (auto: true, fixed: defaultQuality);
+        final q = fromId(id);
+        if (q != null && selectable.contains(q)) return (auto: false, fixed: q);
       }
     } catch (_) {}
-    return defaultQuality;
+    return (auto: true, fixed: defaultQuality); // first start: automatic
+  }
+
+  static Future<void> saveSetting({required bool auto, required VideoQuality fixed}) async {
+    try {
+      await (await _file()).writeAsString(jsonEncode({'quality': auto ? autoId : fixed.id}));
+    } catch (_) {}
   }
 
   Future<void> save() async {

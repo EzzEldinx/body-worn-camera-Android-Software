@@ -19,6 +19,7 @@ dependencies:
   audioplayers: ^6.1.0
   geolocator: ^10.1.0
   socket_io_client: ^2.0.3
+  connectivity_plus: ^7.3.2
 
 dev_dependencies:
   flutter_test:

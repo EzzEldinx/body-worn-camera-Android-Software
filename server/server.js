@@ -633,7 +633,7 @@ io.on('connection', (socket) => {
         // Control room changes a camera's video quality (e.g. weak network -> 480p).
         socket.on('set_quality', (d) => {
             const id = str(d?.cameraId), quality = d?.quality;
-            if (!id || !['240p', '480p', '720p', '1080p', '4k'].includes(quality) || !canSee(user, id) || !cams.get(id)?.online) return;
+            if (!id || !['auto', '480p', '720p', '1080p'].includes(quality) || !canSee(user, id) || !cams.get(id)?.online) return;   // 240p/4k removed: not worth the failures
             db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user.username, `set_quality_${quality}`, id);
             io.to(`room:camera_${id}`).emit('set_quality', { quality });
         });
@@ -686,7 +686,7 @@ io.on('connection', (socket) => {
         if (upd && ['installing', 'queued', 'waiting'].includes(upd.state) && typeof d.build === 'string' && d.build === readMeta()?.build) {
             publish(id, { update: { state: 'done', ts: Date.now() } });
         }
-        publish(id, { recording: !!d.recording, online: true, ...(typeof d.build === 'string' && /^[0-9a-f]{64}$/.test(d.build) ? { appBuild: d.build } : {}), ...(['240p', '480p', '720p', '1080p', '4k'].includes(d.quality) ? { quality: d.quality } : {}), ...(d.recording ? (typeof d.remote === 'boolean' ? { remote: d.remote } : {}) : { remote: false }) });
+        publish(id, { recording: !!d.recording, online: true, ...(typeof d.build === 'string' && /^[0-9a-f]{64}$/.test(d.build) ? { appBuild: d.build } : {}), ...(['240p', '480p', '720p', '1080p', '4k'].includes(d.quality) ? { quality: d.quality } : {}), ...(typeof d.qualityAuto === 'boolean' ? { qualityAuto: d.qualityAuto } : {}), ...(d.recording ? (typeof d.remote === 'boolean' ? { remote: d.remote } : {}) : { remote: false }) });
     });
 
     // Progress of a remote update: queued / downloading (pct) / installing / failed (error) / done

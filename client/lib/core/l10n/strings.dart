@@ -54,6 +54,8 @@ const _t = <String, List<String>>{
   'live_limit': ['Live limit of your package reached. Stop another stream first.', 'تم بلوغ حد البث المباشر في باقتك. أوقف بثاً آخر أولاً.'],
   'quality': ['Video quality', 'جودة الفيديو'],
   'quality_note': ['Applies to everyone watching this camera.', 'يؤثر على كل من يشاهد هذه الكاميرا.'],
+  'quality_auto': ['Auto', 'تلقائي'],
+  'quality_auto_note': ['Auto: the camera picks the quality from its network (Wi-Fi or mobile data).', 'تلقائي: تختار الكاميرا الجودة حسب شبكتها (واي فاي أو بيانات).'],
   'quality_sent': ['Quality change sent', 'تم إرسال تغيير الجودة'],
   'fullscreen': ['Full screen', 'ملء الشاشة'],
   'listen': ['Listen', 'استماع'],
