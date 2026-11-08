@@ -206,6 +206,13 @@ Switch off with `--no-update`; `--update-only` updates apps without copying reco
 5. Efta7 el-dashboard — el-camera betzhar online ba3d sawani. **Companies** page: e5tar el-company + el-region.
 6. Ta2akkad: ▶ → el-live beyeshta8al.
 
+### 9.1 Adding a camera from a Mac (no PowerShell)
+1. Dashboard > Companies > **Issue** for the new camera id (e.g. `BWC-08-RIY`): copy the token (shown once).
+2. Charge the camera to 15%+, plug it into the dock/USB (USB debugging on). `adb devices` shows its serial.
+3. `tools/provision-camera.sh <serial> BWC-08-RIY <token>` (installs the app, device owner + Home app, writes id/token/server).
+   A camera that already runs the new app and only needs a token: `tools/provision-camera.sh --config-only <serial> <id> <token>`.
+4. Within seconds it shows *Link* on the camera screen and online on the dashboard; set its company, region and holder there.
+
 ---
 
 ## 10. Moshkelat sha2e3a
