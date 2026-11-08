@@ -2,7 +2,7 @@
 # Installs the VisionGuard Dock Agent as a background service on macOS: it starts at login, restarts if it stops,
 # and detects docked cameras by itself (every 15 s). Nothing to click or type after this.
 #
-#   ./install-macos.sh https://your-server DOCK_TOKEN [dock-id]
+#   DOCK_LOCATION=24.65997,46.71219 ./install-macos.sh https://your-server DOCK_TOKEN [dock-id]   (DOCK_LOCATION = where the dock stands)
 #   ./install-macos.sh --uninstall
 set -euo pipefail
 LABEL=com.visionguard.dock-agent
@@ -26,7 +26,7 @@ cat > "$PLIST" <<P
     <string>--latest</string><string>${DOCK_LATEST:-5}</string><string>--since</string><string>${DOCK_SINCE:-today}</string></array>
   <key>EnvironmentVariables</key><dict>
     <key>DOCK_SERVER</key><string>$SERVER</string><key>DOCK_TOKEN</key><string>$TOKEN</string>
-    <key>DOCK_ID</key><string>$DOCK_ID</string><key>ADB</key><string>$ADB</string>
+    <key>DOCK_ID</key><string>$DOCK_ID</string><key>DOCK_LOCATION</key><string>${DOCK_LOCATION:-}</string><key>ADB</key><string>$ADB</string>
     <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>$HOME/Library/Logs/visionguard-dock.log</string>
