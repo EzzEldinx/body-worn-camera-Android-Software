@@ -34,15 +34,21 @@ class AuthController extends AsyncNotifier<Session?> {
     }
   }
 
-  Future<void> login(String username, String password, {String? server}) async {
+  /// Checks the credentials and returns the session without publishing it, so the sign-in screen can play its
+  /// success animation before the app switches screens. Call [commit] afterwards.
+  Future<Session> authenticate(String username, String password, {String? server}) async {
     final base = (server ?? kDefaultServer).replaceAll(RegExp(r'/+$'), '');
     final j = await Api(base).login(username.trim(), password);
     final user = User.fromJson(j['user'] as Map);
     await _store.write(key: 'vg_token', value: j['token'] as String);
     await _store.write(key: 'vg_server', value: base);
     await _store.write(key: 'vg_user', value: jsonEncode(user.toJson()));
-    state = AsyncData(Session(server: base, token: j['token'] as String, user: user));
+    return Session(server: base, token: j['token'] as String, user: user);
   }
+
+  void commit(Session s) => state = AsyncData(s);
+
+  Future<void> login(String username, String password, {String? server}) async => commit(await authenticate(username, password, server: server));
 
   Future<void> logout() async {
     final s = state.value;
