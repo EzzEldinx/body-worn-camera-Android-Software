@@ -113,6 +113,7 @@ const _t = <String, List<String>>{
   'download': ['Download', 'تنزيل'],
   'size': ['Size', 'الحجم'],
   'recorded': ['Recorded', 'وقت التسجيل'],
+  'dock_updating': ['Updating app', 'تحديث التطبيق'],
   'dock_title': ['Docking station', 'قاعدة الشحن والنقل'],
   'dock_sub': ['Cameras on the dock are checked and their recordings copied to the server.', 'تُفحص الكاميرات على القاعدة وتُنقل تسجيلاتها إلى الخادم.'],
   'holder': ['Camera holder', 'حامل الكاميرا'],

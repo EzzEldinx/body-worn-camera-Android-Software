@@ -129,8 +129,8 @@ class _Bay extends StatelessWidget {
     final v = context.vg;
     final c = cam;
     final state = c == null ? 'idle' : c.state;
-    final color = switch (state) { 'offloading' => v.sel, 'synced' => v.ok, 'error' => v.rec, 'connected' => v.blue, _ => v.off };
-    final label = context.tr(switch (state) { 'idle' => 'dock_idle', 'offloading' => 'dock_offloading', 'synced' => 'dock_synced', 'error' => 'dock_error', 'other' => 'dock_other', _ => 'dock_ready' });
+    final color = switch (state) { 'offloading' || 'updating' => v.sel, 'synced' => v.ok, 'error' => v.rec, 'connected' => v.blue, _ => v.off };
+    final label = context.tr(switch (state) { 'idle' => 'dock_idle', 'offloading' => 'dock_offloading', 'updating' => 'dock_updating', 'synced' => 'dock_synced', 'error' => 'dock_error', 'other' => 'dock_other', _ => 'dock_ready' });
     final n = '${index + 1}'.padLeft(2, '0');
     final pct = c?.progress ?? 0.0;
     final center = switch (state) {
@@ -151,7 +151,7 @@ class _Bay extends StatelessWidget {
       child: Column(children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(n, style: TextStyle(color: v.mut, fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 11)),
-          if (compact) StatusDot(color: color, pulse: state == 'offloading', size: 9) else Flexible(child: StatusPill(label: label, color: color, pulse: state == 'offloading')),
+          if (compact) StatusDot(color: color, pulse: state == 'offloading', size: 9) else Flexible(child: StatusPill(label: label, color: color, pulse: state == 'offloading' || state == 'updating')),
         ]),
         const Spacer(),
         SizedBox(width: compact ? 64 : 104, height: compact ? 64 : 104, child: CustomPaint(painter: _Ring(pct: pct, color: color, track: color.withValues(alpha: .18)), child: Center(child: center))),
@@ -169,6 +169,7 @@ class _Bay extends StatelessWidget {
           ]),
           if (!compact && state == 'offloading' && c?.file != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(c!.file!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.mut, fontSize: 10.5))),
           if (!compact && state == 'synced') Padding(padding: const EdgeInsets.only(top: 6), child: Text('${c?.synced ?? 0} ${context.tr('files')} · ${agoText(context, c?.lastSyncTs)}', style: TextStyle(color: v.mut, fontSize: 11))),
+          if (!compact && (state == 'updating' || state == 'connected') && (c?.message ?? '').isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(c!.message!, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.mut, fontSize: 11))),
           if (!compact && state == 'error') Padding(padding: const EdgeInsets.only(top: 6), child: Text(c?.message ?? '', maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.rec, fontSize: 11))),
         ],
       ]),

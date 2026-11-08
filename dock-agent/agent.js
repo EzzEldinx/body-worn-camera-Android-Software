@@ -3,7 +3,11 @@
 // For every camera visible over USB (adb) it pulls new recordings, verifies them by SHA-256 on the camera and
 // on the PC, uploads them to the server (which verifies again), and only then (optionally) deletes them from the camera.
 //
-//   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--report-only] [--dry-run] [--interval 30] [--only VID_x.mp4] [--limit N] [--smallest] [--latest N] [--since today|YYYY-MM-DD] [--report-only]
+//   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--report-only] [--dry-run] [--interval 30] [--only VID_x.mp4] [--limit N] [--smallest] [--latest N] [--since today|YYYY-MM-DD] [--report-only] [--no-update] [--update-only]
+//
+// Camera app updates: every cycle the agent compares the app installed on each docked camera with the latest build published on the server
+// (Dashboard > Updates) and installs the new one over USB when the camera is not recording and has >= 20% battery. A camera signed with an
+// older key cannot be updated this way: it is flagged "needs migration" and left untouched.
 //
 // Requires: Node 22+, adb in PATH (or ADB=/path/to/adb).
 const { spawn, execFile } = require('child_process');
@@ -29,6 +33,8 @@ const SMALLEST = flag('smallest');             // take the smallest files first
 const LATEST = Number(opt('latest', 0)) || 0;  // only the newest N files per camera
 const SINCE_RAW = opt('since', null);          // 'today' or YYYY-MM-DD: ignore everything recorded before that day
 const SINCE = SINCE_RAW === 'today' ? new Date(new Date().setHours(0, 0, 0, 0)).getTime() : SINCE_RAW ? new Date(SINCE_RAW + 'T00:00:00').getTime() : 0;
+const NO_UPDATE = flag('no-update');          // do NOT update the camera app from the dock (default: update outdated cameras)
+const UPDATE_ONLY = flag('update-only');      // only update the camera app, copy no recordings (tests / first rollout)
 const DRY = flag('dry-run');                   // list what would be offloaded, touch nothing
 const ONLY = opt('only', null);
 if ((ARGV.includes('--only') && !ONLY) || (SINCE_RAW && !Number.isFinite(SINCE)) || (ARGV.includes('--since') && !SINCE_RAW)) { console.error('Bad --only / --since value: refusing to run without a filter.'); process.exit(2); }  // restrict to one file name (useful for tests)
@@ -38,7 +44,7 @@ const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 // What the agent is doing per camera right now; sent to the server so the Docking page shows live progress.
 const status = new Map();   // serial -> { state, message, progress, synced, failed, lastSyncTs }
 let lastInfos = [], lastReportAt = 0;
-const AGENT_VERSION = '1.2';
+const AGENT_VERSION = '1.3';
 const log = (dev, ...a) => console.log(new Date().toISOString().slice(11, 19), dev ? `[${dev}]` : '', ...a);
 const run = (args) => new Promise((resolve, reject) => execFile(ADB, args, { maxBuffer: 64 * 1024 * 1024 }, (e, so, se) => (e ? reject(new Error((se || e.message).trim())) : resolve(so))));
 const shell = (serial, cmd) => run(['-s', serial, 'shell', cmd]);
@@ -112,6 +118,61 @@ async function offload(info, stats) {
     Object.assign(st, { state: st.failed ? 'error' : 'synced', progress: null, lastSyncTs: Date.now() });
 }
 
+
+// ---------- camera app updates over the dock ----------
+const PKG = 'com.swg.swg_bwc';
+let latestP = null, latestAt = 0;
+const updateFailed = new Map();   // serial -> { build, at }: do not hammer a camera that just refused this build
+function latestBuild() {   // one request shared by every camera that asks within a minute
+    if (!latestP || Date.now() - latestAt > 60_000) {
+        latestAt = Date.now();
+        latestP = api('GET', '/api/dock/update').catch((e) => { log('', 'cannot read the latest app build:', e.message); return null; });
+    }
+    return latestP;
+}
+async function fetchApk(meta) {
+    fs.mkdirSync(STAGING, { recursive: true });
+    const f = path.join(STAGING, `app-${meta.build.slice(0, 12)}.apk`);
+    if (fs.existsSync(f) && (await hashFile(f)) === meta.build) return f;
+    const r = await fetch(`${SERVER}/api/dock/update/apk`, { headers: { 'x-dock-token': TOKEN } });
+    if (!r.ok) throw new Error(`download failed (${r.status})`);
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (crypto.createHash('sha256').update(buf).digest('hex') !== meta.build) throw new Error('downloaded app does not match the published build');
+    fs.writeFileSync(f + '.tmp', buf); fs.renameSync(f + '.tmp', f);
+    return f;
+}
+async function updateApp(info) {
+    if (NO_UPDATE) return;
+    const { serial } = info; const tag = info.cameraId || serial;
+    const meta = await latestBuild();
+    if (!meta) return;
+    const installed = (await shell(serial, `pm path ${PKG}`).catch(() => '')).trim().split('\n')[0].replace('package:', '').trim();
+    if (!installed) { status.set(serial, { ...(status.get(serial) || {}), state: 'connected', message: 'Camera app not installed: provision this camera first' }); return; }
+    const have = (await shell(serial, `sha256sum ${installed}`).catch(() => '')).trim().split(/\s+/)[0];
+    if (have === meta.build) { const st = status.get(serial) || {}; if (st.state === 'updating' || /needs migration/i.test(st.message || '')) status.set(serial, { ...st, state: 'connected', message: '' }); return; }
+    const failed = updateFailed.get(serial);
+    if (failed && failed.build === meta.build && Date.now() - failed.at < 10 * 60_000) return;
+    if (info.battery != null && info.battery < 20) { log(tag, `app is outdated but the battery is ${info.battery}%: waiting`); return; }
+    const newest = Math.max(0, ...info.files.map((f) => f.mtimeMs));
+    if (Date.now() - newest < 2 * MIN_AGE_MS) { log(tag, 'app is outdated but the camera is recording: waiting'); return; }
+    const keep = status.get(serial) || {};
+    try {
+        status.set(serial, { ...keep, state: 'updating', message: 'Updating the camera app…' }); await report(true);
+        const apk = await fetchApk(meta);
+        log(tag, `installing camera app ${meta.build.slice(0, 12)}…`);
+        await run(['-s', serial, 'install', '-r', apk]);
+        await shell(serial, `am start -n ${PKG}/.MainActivity`).catch(() => {});
+        log(tag, 'camera app updated');
+        status.set(serial, { ...keep, state: 'connected', message: 'Camera app updated' });
+        updateFailed.delete(serial);
+    } catch (e) {
+        const incompatible = /UPDATE_INCOMPATIBLE|signatures do not match|INSTALL_FAILED_VERSION_DOWNGRADE/i.test(e.message);
+        updateFailed.set(serial, { build: meta.build, at: Date.now() });
+        log(tag, 'app update failed:', e.message);
+        status.set(serial, { ...keep, state: 'error', message: incompatible ? 'Camera app needs migration (older signing key): not updated' : `App update failed: ${e.message}`.slice(0, 150) });
+    }
+}
+
 async function report(force) {
     if (!force && Date.now() - lastReportAt < 1500) return;   // progress updates are throttled
     lastReportAt = Date.now();
@@ -131,7 +192,8 @@ async function cycle() {
     await report(true);   // also when the dock is empty: the page then shows the agent as online with idle bays
     if (!lastInfos.length) { log('', 'no camera on the dock'); return; }
     const stats = { uploaded: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
-    if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
+    if (!REPORT_ONLY && !UPDATE_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
+    if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => updateApp(i).catch((e) => log(i.cameraId || i.serial, 'update check failed:', e.message))));   // after the recordings are safe
     await report(true);
     log('', `cycle done: ${JSON.stringify(stats)}`);
     return stats;

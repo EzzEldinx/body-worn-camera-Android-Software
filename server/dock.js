@@ -41,6 +41,18 @@ function register(app, ctx) {
     };
     const audit = (user, action, cam) => db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user, action, cam || null);
 
+    // Camera app updates through the dock: the agent asks which build is the latest and installs it on every docked camera that runs an older one.
+    const updDir = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'updates');
+    app.get('/api/dock/update', needDock, (req, res) => {
+        try { const m = JSON.parse(fs.readFileSync(path.join(updDir, 'meta.json'), 'utf8')); res.json({ build: m.build, size: m.size, uploaded: m.uploaded }); }
+        catch { res.status(404).json({ error: 'No camera app has been published yet.' }); }
+    });
+    app.get('/api/dock/update/apk', needDock, (req, res) => {
+        const f = path.join(updDir, 'app.apk');
+        if (!fs.existsSync(f)) return res.status(404).end();
+        res.type('application/vnd.android.package-archive').sendFile(f);
+    });
+
     // Does the server already hold this file? (lets the agent skip pulling it from the camera)
     app.get('/api/dock/has', needDock, (req, res) => {
         const id = str(req.query.camera), sha = String(req.query.sha256 || '');
@@ -80,7 +92,7 @@ function register(app, ctx) {
     });
 
     // Agent reports what it sees on the docks (battery, storage, build) and what it is doing with each camera.
-    const STATES = new Set(['connected', 'offloading', 'synced', 'error']);
+    const STATES = new Set(['connected', 'offloading', 'synced', 'error', 'updating']);
     const num = (v) => (Number.isFinite(v) ? v : null);
     app.post('/api/dock/report', needDock, (req, res) => {
         const dockId = String(req.body?.dockId || 'dock').slice(0, 40);

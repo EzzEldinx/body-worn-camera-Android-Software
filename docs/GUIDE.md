@@ -188,6 +188,14 @@ Law el-camera 3aleha account → mumken yerfod; el-script beyeqolak.
 
 El-build identifier = SHA-256 lel-APK. El-camera beteb3at el-build bta3ha lel-server 3and kol ittisal.
 
+### 8.4 The docking station updates the cameras by itself (Dock Agent 1.3)
+Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that sits on the dock is checked each cycle (about 30 s):
+* installed app = latest build -> nothing happens;
+* older build -> the agent installs the latest one over USB (only when the camera is **not recording** and has **>= 20% battery**), then starts the app. The bay shows *Updating app*;
+* camera signed with an older key -> **"needs migration"** (see CAMERA_SIGNING.md); nothing is changed on it;
+* camera without the app -> "provision this camera first" (needs its camera id and token, section 9).
+Switch off with `--no-update`; `--update-only` updates apps without copying recordings.
+
 ---
 
 ## 9. Camera gedeeda (BWC gedeed men el-shirka) — step by step

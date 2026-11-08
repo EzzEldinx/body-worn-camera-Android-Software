@@ -220,7 +220,7 @@ function ringSvg(pct) {
 }
 function bayHTML(i, c) {
   const s = bayState(c), n = String(i + 1).padStart(2, '0');
-  const label = { idle: 'Idle', connected: 'Ready', offloading: 'Offloading', synced: 'Synced', error: 'Needs attention', other: 'In use' }[s];
+  const label = { idle: 'Idle', connected: 'Ready', offloading: 'Offloading', updating: 'Updating app', synced: 'Synced', error: 'Needs attention', other: 'In use' }[s];
   if (!c) return `<article class="bay s-idle"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
     <div class="ring">${ringSvg(0)}<div class="mid idle"><b>Idle</b></div></div></article>`;
   if (s === 'other') return `<article class="bay s-other"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
@@ -228,7 +228,7 @@ function bayHTML(i, c) {
     <div class="hint">A camera is docked here but it is not assigned to your company.</div></article>`;
   const p = c.progress, pct = s === 'offloading' && p?.bytesTotal ? p.bytesDone / p.bytesTotal : (s === 'synced' ? 1 : 0);
   const mid = s === 'offloading' ? `<b>${Math.round(pct * 100)}%</b><small>${p ? p.index + ' / ' + p.total : ''}</small>`
-    : s === 'synced' ? ic('check') + '<small>Synced</small>' : s === 'error' ? ic('warn') + '<small>Error</small>' : ic('plug') + '<small>Docked</small>';
+    : s === 'synced' ? ic('check') + '<small>Synced</small>' : s === 'updating' ? ic('plug') + '<small>Updating</small>' : s === 'error' ? ic('warn') + '<small>Error</small>' : ic('plug') + '<small>Docked</small>';
   const low = c.battery != null && c.battery < 20;
   const chips = [
     c.battery != null ? `<span class="ch ${low ? 'low' : ''}">${ic('batt')}${c.battery}%</span>` : '',
@@ -238,7 +238,8 @@ function bayHTML(i, c) {
   const foot = s === 'offloading' && p ? `<div class="bar"><i style="width:${Math.round(pct * 100)}%"></i></div><div class="pf">${esc(p.file)} · ${fmtB(p.bytesDone)} of ${fmtB(p.bytesTotal)}</div>`
     : s === 'synced' ? `<div class="bar"><i style="width:100%"></i></div><div class="pf">${c.synced || 0} file${c.synced === 1 ? '' : 's'} verified · ${ago(c.lastSyncTs)}</div>`
     : s === 'error' ? `<div class="pf" style="color:var(--rec);white-space:normal">${esc(c.message || 'A file failed verification')}</div>`
-    : `<div class="pf">Waiting for the next sync…</div>`;
+    : s === 'updating' ? `<div class="bar"><i style="width:60%"></i></div><div class="pf">${esc(c.message || 'Updating the camera app…')}</div>`
+    : `<div class="pf">${esc(c.message || 'Waiting for the next sync…')}</div>`;
   return `<article class="bay has s-${s}" data-cam="${esc(c.cameraId || '')}"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
     <div class="ring">${ringSvg(pct)}<div class="mid">${mid}</div></div>
     <div class="cid">${esc(c.cameraId || 'Unregistered')}</div><div class="co">${esc(c.company || (c.cameraId ? '' : 'No config.json on this camera'))}</div>
