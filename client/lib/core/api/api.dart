@@ -80,5 +80,7 @@ class Api {
   }
   String recordingUrl(int id) => '$server/api/recordings/$id/file';
 
+  Future<DockState> docks() async => DockState.fromJson((await _get('/api/docks')) as Map);
+
   Future<void> registerPush(String pushToken, String platform) => _post('/api/mobile/push', {'token': pushToken, 'platform': platform});
 }

@@ -120,7 +120,7 @@ class MoreScreen extends ConsumerWidget {
         const SizedBox(height: 16),
         tile(Icons.video_library_rounded, v.blue, context.tr('recordings'), context.tr('recordings_sub'), () => onOpen('/recordings')),
         tile(Icons.settings_rounded, v.brand, context.tr('settings'), null, () => onOpen('/settings')),
-        tile(Icons.dock_rounded, v.ok, context.tr('dock'), context.tr('dock_sub'), () => launchUrl(Uri.parse('${session.server}/docks.html'), mode: LaunchMode.externalApplication)),
+        tile(Icons.dock_rounded, v.ok, context.tr('dock_title'), context.tr('dock_sub'), () => onOpen('/docking')),
         tile(Icons.dashboard_rounded, v.sel, context.tr('dashboard_web'), null, () => launchUrl(Uri.parse(session.server), mode: LaunchMode.externalApplication)),
       ]),
     );

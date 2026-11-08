@@ -78,7 +78,7 @@ class StatusPill extends StatelessWidget {
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           StatusDot(color: color, pulse: pulse, size: 7),
           const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 11.5, letterSpacing: .3)),
+          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 11.5, letterSpacing: .3))),
         ]),
       );
 }

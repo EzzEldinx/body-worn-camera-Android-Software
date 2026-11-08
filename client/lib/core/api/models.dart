@@ -83,3 +83,57 @@ class Recording {
         ts: ((j['recordedTs'] ?? j['uploadedTs']) as num?)?.toInt() ?? 0, sha256: '${j['sha256']}',
       );
 }
+
+/// One camera sitting in a dock bay, as reported by the Dock Agent (see server/dock.js).
+class DockCam {
+  DockCam({required this.slot, required this.state, this.cameraId, this.company, this.battery, this.storageFreeMb, this.files, this.pendingMb,
+      this.message, this.index, this.total, this.file, this.bytesDone, this.bytesTotal, this.synced, this.lastSyncTs});
+  final int slot;
+  final String state; // connected | offloading | synced | error | other
+  final String? cameraId, company, message, file;
+  final int? battery, storageFreeMb, files, pendingMb, index, total, bytesDone, bytesTotal, synced, lastSyncTs;
+
+  factory DockCam.fromJson(Map j) {
+    final p = j['progress'] is Map ? j['progress'] as Map : const {};
+    int? i(Object? v) => (v as num?)?.toInt();
+    return DockCam(
+      slot: i(j['slot']) ?? 0, state: '${j['state'] ?? 'connected'}', cameraId: j['cameraId'] as String?, company: j['company'] as String?,
+      battery: i(j['battery']), storageFreeMb: i(j['storageFreeMb']), files: i(j['files']), pendingMb: i(j['pendingMb']), message: j['message'] as String?,
+      index: i(p['index']), total: i(p['total']), file: p['file'] as String?, bytesDone: i(p['bytesDone']), bytesTotal: i(p['bytesTotal']),
+      synced: i(j['synced']), lastSyncTs: i(j['lastSyncTs']),
+    );
+  }
+
+  double get progress => state == 'synced' ? 1 : (bytesTotal != null && bytesTotal! > 0 ? (bytesDone ?? 0) / bytesTotal! : 0);
+}
+
+class Dock {
+  Dock({required this.id, required this.ts, required this.online, required this.cameras, this.mode, this.agent});
+  final String id;
+  final int ts;
+  final bool online;
+  final String? mode, agent;
+  final List<DockCam> cameras;
+  factory Dock.fromJson(Map j) => Dock(
+        id: '${j['id']}', ts: (j['ts'] as num?)?.toInt() ?? 0, online: j['online'] == true, mode: j['mode'] as String?, agent: j['agent'] as String?,
+        cameras: [for (final c in (j['cameras'] as List? ?? const [])) DockCam.fromJson(c as Map)],
+      );
+}
+
+class DockState {
+  DockState({required this.slots, required this.enabled, required this.docks, required this.recordings, required this.recordingsBytes, required this.todayCount, required this.todayBytes, this.freeBytes, this.totalBytes});
+  final int slots, recordings, recordingsBytes, todayCount, todayBytes;
+  final bool enabled;
+  final List<Dock> docks;
+  final int? freeBytes, totalBytes;
+  factory DockState.fromJson(Map j) {
+    final s = j['storage'] is Map ? j['storage'] as Map : const {};
+    int n(Object? v) => (v as num?)?.toInt() ?? 0;
+    return DockState(
+      slots: n(j['slots']) == 0 ? 8 : n(j['slots']), enabled: j['enabled'] == true,
+      docks: [for (final d in (j['docks'] as List? ?? const [])) Dock.fromJson(d as Map)],
+      recordings: n(s['recordings']), recordingsBytes: n(s['recordingsBytes']), todayCount: n(s['todayCount']), todayBytes: n(s['todayBytes']),
+      freeBytes: (s['freeBytes'] as num?)?.toInt(), totalBytes: (s['totalBytes'] as num?)?.toInt(),
+    );
+  }
+}
