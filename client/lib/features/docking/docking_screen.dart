@@ -52,7 +52,7 @@ class _DockingScreenState extends ConsumerState<DockingScreen> {
           final mine = cams.where((c) => c.state != 'other').length;
           final busy = cams.where((c) => c.state == 'offloading').length;
           final width = MediaQuery.sizeOf(context).width;
-          final cols = width >= 1100 ? 4 : width >= 700 ? 3 : 2;
+          final cols = width >= 700 ? 5 : 2; // the real dock is 5 slots on the top row and 5 on the bottom row
           final usedPct = (d.totalBytes != null && d.freeBytes != null && d.totalBytes! > 0) ? ((d.totalBytes! - d.freeBytes!) / d.totalBytes!).clamp(0.0, 1.0) : 0.0;
           return ListView(padding: const EdgeInsets.all(16), children: [
             Text(context.tr('dock_sub'), style: TextStyle(color: v.mut, height: 1.4)),
@@ -76,7 +76,7 @@ class _DockingScreenState extends ConsumerState<DockingScreen> {
             ],
             const SizedBox(height: 14),
             GridView.count(
-              crossAxisCount: cols, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: cols == 2 ? .56 : .78,
+              crossAxisCount: cols, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: cols == 2 ? .56 : .62,
               children: [for (var i = 0; i < total; i++) _Bay(index: i, cam: bySlot[i])],
             ),
             const SizedBox(height: 16),
@@ -123,7 +123,9 @@ class _Bay extends StatelessWidget {
   final DockCam? cam;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) => _card(context, compact: box.maxWidth < 175));
+
+  Widget _card(BuildContext context, {required bool compact}) {
     final v = context.vg;
     final c = cam;
     final state = c == null ? 'idle' : c.state;
@@ -132,41 +134,42 @@ class _Bay extends StatelessWidget {
     final n = '${index + 1}'.padLeft(2, '0');
     final pct = c?.progress ?? 0.0;
     final center = switch (state) {
-      'idle' => Text(context.tr('dock_idle'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: v.mut, fontFamily: 'serif')),
-      'offloading' => Column(mainAxisSize: MainAxisSize.min, children: [Text('${(pct * 100).round()}%', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)), Text('${c?.index ?? 0}/${c?.total ?? 0}', style: TextStyle(color: v.mut, fontSize: 11, fontWeight: FontWeight.w700))]),
-      'synced' => Icon(Icons.check_rounded, size: 40, color: color),
-      'error' => Icon(Icons.warning_amber_rounded, size: 38, color: color),
-      'other' => Icon(Icons.power_rounded, size: 34, color: color),
-      _ => Icon(Icons.power_rounded, size: 34, color: color),
+      'idle' => Text(context.tr('dock_idle'), style: TextStyle(fontSize: compact ? 14 : 20, fontWeight: FontWeight.w700, color: v.mut, fontFamily: 'serif')),
+      'offloading' => Column(mainAxisSize: MainAxisSize.min, children: [Text('${(pct * 100).round()}%', style: TextStyle(fontSize: compact ? 14 : 22, fontWeight: FontWeight.w800)), if (!compact) Text('${c?.index ?? 0}/${c?.total ?? 0}', style: TextStyle(color: v.mut, fontSize: 11, fontWeight: FontWeight.w700))]),
+      'synced' => Icon(Icons.check_rounded, size: compact ? 26 : 40, color: color),
+      'error' => Icon(Icons.warning_amber_rounded, size: compact ? 26 : 38, color: color),
+      'other' => Icon(Icons.power_rounded, size: compact ? 24 : 34, color: color),
+      _ => Icon(Icons.power_rounded, size: compact ? 24 : 34, color: color),
     };
     final low = (c?.battery ?? 100) < 20;
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      padding: EdgeInsets.all(compact ? 8 : 12),
       decoration: BoxDecoration(
-        color: v.panel, borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withValues(alpha: state == 'idle' ? .2 : .5)),
+        color: v.panel, borderRadius: BorderRadius.circular(compact ? 16 : 20), border: Border.all(color: color.withValues(alpha: state == 'idle' ? .2 : .5)),
         boxShadow: state == 'offloading' || state == 'error' ? [BoxShadow(color: color.withValues(alpha: .3), blurRadius: 16)] : v.shadowSm,
       ),
       child: Column(children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text(n, style: TextStyle(color: v.mut, fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 11)),
-          Flexible(child: StatusPill(label: label, color: color, pulse: state == 'offloading')),
+          if (compact) StatusDot(color: color, pulse: state == 'offloading', size: 9) else Flexible(child: StatusPill(label: label, color: color, pulse: state == 'offloading')),
         ]),
         const Spacer(),
-        SizedBox(width: 104, height: 104, child: CustomPaint(painter: _Ring(pct: pct, color: color, track: color.withValues(alpha: .18)), child: Center(child: center))),
+        SizedBox(width: compact ? 64 : 104, height: compact ? 64 : 104, child: CustomPaint(painter: _Ring(pct: pct, color: color, track: color.withValues(alpha: .18)), child: Center(child: center))),
         const Spacer(),
-        if (state == 'idle') const SizedBox(height: 40)
+        if (state == 'idle') SizedBox(height: compact ? 8 : 40)
+        else if (state == 'other' && compact) const SizedBox(height: 8)
         else if (state == 'other') Text(context.tr('dock_other_sub'), textAlign: TextAlign.center, style: TextStyle(color: v.mut, fontSize: 11.5))
         else ...[
-          Text(c?.cameraId ?? context.tr('dock_unregistered'), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+          Text(c?.cameraId ?? context.tr('dock_unregistered'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, fontSize: compact ? 12 : 15)),
           const SizedBox(height: 6),
           Wrap(alignment: WrapAlignment.center, spacing: 6, runSpacing: 4, children: [
             if (c?.battery != null) _Chip(Icons.battery_5_bar_rounded, '${c!.battery}%', low ? v.rec : null),
-            if (c?.storageFreeMb != null) _Chip(Icons.sd_storage_rounded, fmtBytes(c!.storageFreeMb! * 1000000)),
-            if (c?.files != null) _Chip(Icons.insert_drive_file_outlined, '${c!.files}'),
+            if (!compact && c?.storageFreeMb != null) _Chip(Icons.sd_storage_rounded, fmtBytes(c!.storageFreeMb! * 1000000)),
+            if (!compact && c?.files != null) _Chip(Icons.insert_drive_file_outlined, '${c!.files}'),
           ]),
-          if (state == 'offloading' && c?.file != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(c!.file!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.mut, fontSize: 10.5))),
-          if (state == 'synced') Padding(padding: const EdgeInsets.only(top: 6), child: Text('${c?.synced ?? 0} ${context.tr('files')} · ${agoText(context, c?.lastSyncTs)}', style: TextStyle(color: v.mut, fontSize: 11))),
-          if (state == 'error') Padding(padding: const EdgeInsets.only(top: 6), child: Text(c?.message ?? '', maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.rec, fontSize: 11))),
+          if (!compact && state == 'offloading' && c?.file != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(c!.file!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.mut, fontSize: 10.5))),
+          if (!compact && state == 'synced') Padding(padding: const EdgeInsets.only(top: 6), child: Text('${c?.synced ?? 0} ${context.tr('files')} · ${agoText(context, c?.lastSyncTs)}', style: TextStyle(color: v.mut, fontSize: 11))),
+          if (!compact && state == 'error') Padding(padding: const EdgeInsets.only(top: 6), child: Text(c?.message ?? '', maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.rec, fontSize: 11))),
         ],
       ]),
     );

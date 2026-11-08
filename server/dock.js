@@ -21,7 +21,7 @@ function register(app, ctx) {
     db.exec('CREATE INDEX IF NOT EXISTS rec_cam ON recordings(camera_id, recorded_ts)');
     // A camera's physical dock port (USB location) always lands in the same bay: first free bay on first sight.
     db.exec('CREATE TABLE IF NOT EXISTS dock_slots(dock_id TEXT NOT NULL, port TEXT NOT NULL, slot INTEGER NOT NULL, PRIMARY KEY(dock_id, port))');
-    const SLOTS = Math.max(1, Math.min(64, Number(process.env.DOCK_SLOTS) || 8));
+    const SLOTS = Math.max(1, Math.min(64, Number(process.env.DOCK_SLOTS) || 10));
     const slotFor = (dockId, port) => {
         const hit = db.prepare('SELECT slot FROM dock_slots WHERE dock_id = ? AND port = ?').get(dockId, port);
         if (hit) return hit.slot;

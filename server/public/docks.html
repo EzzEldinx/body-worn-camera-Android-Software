@@ -51,8 +51,9 @@ main#view{display:block;max-width:none;margin:0;padding:22px 24px 90px;display:g
 .dockpick{display:flex;gap:8px;flex-wrap:wrap}
 .pill{padding:6px 14px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:12.5px;font-weight:700;color:var(--mut)}
 .pill.on{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink)}
-.bays{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.bay{--c:var(--c-idle);position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 16px 18px;min-height:300px;border-radius:20px;overflow:hidden;cursor:default;
+/* The real dock: two rows of five slots (1-5 on top, 6-10 below) inside one chassis. */
+.bays{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;padding:16px;border-radius:26px;border:1px solid var(--line);background:linear-gradient(180deg,color-mix(in srgb,var(--raise) 70%,var(--panel)),var(--panel));box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.35)}
+.bay{--c:var(--c-idle);position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 16px 18px;min-height:268px;border-radius:18px;overflow:hidden;cursor:default;
   background:linear-gradient(180deg,color-mix(in srgb,var(--c) 7%,var(--panel)),var(--panel) 55%);border:1px solid color-mix(in srgb,var(--c) 28%,var(--line));box-shadow:var(--shadow-sm);transition:border-color .25s,box-shadow .25s,transform .2s}
 .bay::before{content:"";position:absolute;inset:0;background:radial-gradient(260px 160px at 50% 28%,color-mix(in srgb,var(--c) 16%,transparent),transparent 70%);pointer-events:none}
 .bay>*{position:relative}
@@ -131,7 +132,8 @@ summary{cursor:pointer;font-weight:700}details p{color:var(--mut);margin:8px 0 0
 .mbody{padding:16px 18px}
 
 /* ---------- phones: rail becomes a bottom bar ---------- */
-@media (max-width:1280px){.bays{grid-template-columns:repeat(3,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1280px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ring{width:112px;height:112px}.cid{font-size:15px}}
+@media (max-width:1000px){.bays{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px}}
 @media (max-width:900px){
   .shell{grid-template-columns:minmax(0,1fr)}
   .rail{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;flex-direction:row;justify-content:space-around;padding:6px 6px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--line);z-index:30}
@@ -139,7 +141,7 @@ summary{cursor:pointer;font-weight:700}details p{color:var(--mut);margin:8px 0 0
   .rb{width:auto;flex:1;padding:6px 0 5px;font-size:10.5px}.rb .dot{width:36px;height:36px}.rb .dot svg{width:18px;height:18px}.rb.on::before{display:none}
   .rb.on .dot{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--g1)}
   main#view{padding:16px 14px 100px}
-  .bays{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.bay{min-height:290px;padding:12px 10px 14px}.ring{width:112px;height:112px}
+  .bay{min-height:290px;padding:12px 10px 14px}.ring{width:112px;height:112px}
   .kv{grid-template-columns:1fr}
   nav{display:none}
 }

@@ -134,7 +134,7 @@ class DockState {
     final s = j['storage'] is Map ? j['storage'] as Map : const {};
     int n(Object? v) => (v as num?)?.toInt() ?? 0;
     return DockState(
-      slots: n(j['slots']) == 0 ? 8 : n(j['slots']), enabled: j['enabled'] == true,
+      slots: n(j['slots']) == 0 ? 10 : n(j['slots']), enabled: j['enabled'] == true,
       docks: [for (final d in (j['docks'] as List? ?? const [])) Dock.fromJson(d as Map)],
       recordings: n(s['recordings']), recordingsBytes: n(s['recordingsBytes']), todayCount: n(s['todayCount']), todayBytes: n(s['todayBytes']),
       freeBytes: (s['freeBytes'] as num?)?.toInt(), totalBytes: (s['totalBytes'] as num?)?.toInt(),
