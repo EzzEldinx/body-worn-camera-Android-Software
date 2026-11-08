@@ -148,11 +148,11 @@ class DockState {
 
 /// A video or photo the dock copied from a camera, and what is to be done with it (see server/dock.js: dock_files).
 class DockFile {
-  DockFile({required this.id, required this.cameraId, required this.filename, required this.size, required this.bucket, this.recordedTs, this.addedTs, this.message, this.camDelete = false, this.camDeletedTs, this.auto = false});
+  DockFile({required this.id, required this.cameraId, required this.filename, required this.size, required this.bucket, this.recordedTs, this.addedTs, this.updatedTs, this.message, this.camDelete = false, this.camDeletedTs, this.auto = false});
   final int id, size;
   final String cameraId, filename;
   final String bucket; // awaiting | queued | local | cloud | failed
-  final int? recordedTs, addedTs, camDeletedTs;
+  final int? recordedTs, addedTs, updatedTs, camDeletedTs;
   final String? message;
   final bool camDelete, auto;
   bool get isVideo => filename.toLowerCase().endsWith('.mp4');
@@ -160,7 +160,7 @@ class DockFile {
 
   factory DockFile.fromJson(Map j) => DockFile(
         id: (j['id'] as num).toInt(), cameraId: '${j['cameraId']}', filename: '${j['filename']}', size: (j['size'] as num?)?.toInt() ?? 0, bucket: '${j['bucket']}',
-        recordedTs: (j['recordedTs'] as num?)?.toInt(), addedTs: (j['addedTs'] as num?)?.toInt(), message: j['message'] as String?,
+        recordedTs: (j['recordedTs'] as num?)?.toInt(), addedTs: (j['addedTs'] as num?)?.toInt(), updatedTs: (j['updatedTs'] as num?)?.toInt(), message: j['message'] as String?,
         camDelete: (j['camDelete'] as num?) == 1, camDeletedTs: (j['camDeletedTs'] as num?)?.toInt(), auto: j['chosenBy'] == 'auto',
       );
 }

@@ -67,6 +67,28 @@
 @keyframes flowdash{to{stroke-dashoffset:-12}}
 .flow .dotp{fill:var(--sel);filter:drop-shadow(0 0 5px var(--sel))}
 @media (prefers-reduced-motion:reduce){.flow .path,.live i{animation:none}}
+
+/* insights, pipeline, health, audit */
+.sev{--c:var(--off)}.sev.critical{--c:var(--rec)}.sev.warning{--c:var(--sel)}.sev.info{--c:var(--blue)}.sev.good{--c:var(--ok)}
+.insgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:14px}
+.insc{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;background:var(--panel)}
+.insc b{display:block;font-size:14px;margin-bottom:3px}.insc span{font-size:12.5px;color:var(--mut);line-height:1.45}
+.insc .tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--c);margin-bottom:4px}
+.ins-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ai{margin-top:14px;padding:16px 18px;border-radius:14px;background:linear-gradient(135deg,rgba(124,92,255,.10),rgba(47,123,255,.10));border:1px solid color-mix(in srgb,var(--brand) 30%,var(--line));white-space:pre-wrap;line-height:1.6;font-size:14px}
+.ai small{display:block;margin-bottom:8px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.8px;font-size:11px;white-space:normal}
+.pipe{display:grid;gap:10px}.pipe .row{display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:center;font-size:13.5px}
+.pipe .meter{height:10px;border-radius:6px;background:var(--line-soft);overflow:hidden}.pipe .meter i{display:block;height:100%;border-radius:6px;background:var(--c);transition:width .8s}
+.hours{height:150px;gap:4px}.hours .bar span{font-size:9.5px}.hours .bar b{font-size:10px}
+.hth{width:100%;border-collapse:collapse;font-size:13px}.hth th{text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);border-bottom:1px solid var(--line)}
+.hth td{padding:10px;border-bottom:1px solid var(--line-soft)}.hth .r{text-align:right}
+.bat{display:inline-block;width:54px;height:8px;border-radius:5px;background:var(--line-soft);vertical-align:middle;margin-right:7px;overflow:hidden}.bat i{display:block;height:100%;background:var(--ok)}.bat.low i{background:var(--rec)}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--c,var(--off)) 14%,transparent);color:var(--c,var(--mut));margin-right:4px}
+.aud-f{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}.aud-f input,.aud-f select{min-width:130px}
+.integ{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:99px;font-size:12.5px;font-weight:800;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c)}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:var(--mut)}
+.scroll{overflow:auto;max-height:520px}
+@media (max-width:700px){.pipe .row{grid-template-columns:110px 1fr auto}}
 </style>
 </head>
 <body>
@@ -92,6 +114,37 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>
         Download PDF</a>
     </div>
+  </section>
+
+
+  <section class="card" id="insCard">
+    <div class="ins-h"><div><h3 style="margin:0">Insights</h3><p class="muted" style="margin:4px 0 0;font-size:13px">What needs attention, worked out from your cameras, docks and alarms.</p></div>
+      <button class="btn pri" id="aiBtn">&#10022; Written analysis</button></div>
+    <div id="aiOut"></div><div class="insgrid" id="ins"><div class="empty">Analysing…</div></div>
+  </section>
+
+  <section class="grid g4" id="kpi2"></section>
+
+  <section class="grid g2">
+    <div class="card"><h3>Evidence pipeline</h3><div class="pipe" id="pipe"></div>
+      <p class="muted" style="margin:14px 0 0;font-size:12.5px">From the camera to the dock, then to the cloud or kept on the dock. <a href="/docks.html#files">Open Docking &gt; Files</a></p></div>
+    <div class="card"><h3>Recordings reaching the cloud · 14 days</h3><div class="bars" id="recbars"></div></div>
+  </section>
+
+  <section class="grid g2">
+    <div class="card"><h3>SOS alarms by hour of day · 30 days</h3><div class="bars hours" id="hbars"></div></div>
+    <div class="card"><h3>Camera health</h3><div class="scroll" style="max-height:300px"><table class="hth" id="hth"></table></div></div>
+  </section>
+
+  <section class="card" id="audit">
+    <div class="ins-h"><div><h3 style="margin:0">Audit trail</h3><p class="muted" style="margin:4px 0 0;font-size:13px;max-width:640px">Every step is written by the server, cannot be edited or erased, and each line is chained to the one before it. This is the proof of what happened to every file and who decided it.</p></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="integ" id="integ" style="--c:var(--off)">Checking…</span><button class="btn" id="verBtn">Verify now</button><a class="btn" id="csvBtn" href="/api/audit/export.csv">Export CSV</a></div></div>
+    <div class="aud-f">
+      <select id="aKind"><option value="">Everything</option><option value="dock_file">All file steps</option><option value="dock_file_choice">Decisions (cloud / dock)</option><option value="dock_file_upload">Uploads to the cloud</option><option value="dock_file_delete">Deleted from cameras</option><option value="dock_policy">Automatic-mode changes</option><option value="recording">Recordings (downloaded / expired)</option><option value="camera">Camera changes</option><option value="token">Tokens</option></select>
+      <input id="aCam" placeholder="Camera, e.g. BWC-01-RIY"><input id="aUser" placeholder="User"><input type="date" id="aFrom" title="From"><input type="date" id="aTo" title="To">
+      <button class="btn pri" id="aGo">Show</button><span class="muted" id="aN"></span></div>
+    <div class="scroll"><table class="hth"><thead><tr><th>#</th><th>When</th><th>Who</th><th>What</th><th>Camera</th><th>Details</th><th>Seal</th></tr></thead><tbody id="aBody"></tbody></table></div>
+    <p class="muted mono" id="aHead" style="margin:10px 0 0;word-break:break-all"></p>
   </section>
 
   <section class="grid g4" id="gauges"></section>
@@ -212,6 +265,83 @@ function render(d, me) {
   }, 60));
   first = false;
 }
+
+
+/* ---------- insights, pipeline, health, audit ---------- */
+const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtB = (b) => { b = Number(b) || 0; if (b >= 1e12) return (b / 1e12).toFixed(2) + ' TB'; if (b >= 1e9) return (b / 1e9).toFixed(1) + ' GB'; if (b >= 1e6) return Math.round(b / 1e6) + ' MB'; return Math.round(b / 1e3) + ' KB'; };
+const whenT = (t) => t ? new Date(t).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+const STEPS = { dock_file_copied: 'File copied from the camera to the dock (verified)', dock_file_choice_cloud: 'Decision: push to cloud', dock_file_choice_local: 'Decision: keep on dock storage', dock_file_uploaded_cloud: 'Uploaded to the cloud (verified)', dock_file_upload_failed: 'Cloud upload failed',
+  dock_file_delete_requested: 'Deletion from camera requested', dock_file_deleted_from_camera: 'Deleted from the camera', dock_file_delete_refused: 'Deletion refused (no verified copy)', recording_expired: 'Removed from the cloud by retention', recording_downloaded: 'Recording downloaded',
+  dock_policy_ask: 'Mode set: Ask me', dock_policy_auto_cloud: 'Mode set: Automatic · Cloud', dock_policy_auto_local: 'Mode set: Automatic · Dock storage', camera_edited: 'Camera edited', camera_removed: 'Camera removed', token_issued: 'Camera token issued', token_revoked: 'Camera token revoked',
+  audit_exported: 'Audit trail exported', ai_analysis_generated: 'AI analysis generated', summary_generated: 'Summary generated', mobile_login: 'Signed in on the mobile app' };
+const stepText = (a) => STEPS[a] || a.replace(/^remote_stream_/, 'Live view ').replace(/^set_quality_/, 'Quality set to ').replace(/^update_/, 'Update ').replace(/_/g, ' ');
+const SEVL = { critical: 'Act now', warning: 'Watch', info: 'Good to know', good: 'All good' };
+
+function renderInsights(a) {
+  $('#ins').innerHTML = a.insights.length ? a.insights.map((i) => `<div class="insc sev ${i.severity}"><span class="tag">${SEVL[i.severity]}</span><b>${esc(i.title)}</b><span>${esc(i.detail)}</span></div>`).join('') : '<div class="empty">Nothing to report yet.</div>';
+  const p = a.pipeline, r = a.recordings;
+  $('#kpi2').innerHTML =
+    gauge('Fleet health', a.score == null ? '–' : a.score + '%', (a.score || 0) / 100, a.score >= 80 ? C_OK : a.score >= 50 ? C_SEL : C_REC, 'cameras with no problem') +
+    gauge('Waiting for you', p.awaiting.n, p.awaiting.n ? Math.min(1, p.awaiting.n / 20) : 0, C_SEL, p.awaiting.n ? fmtB(p.awaiting.bytes) + ' on the dock' : 'nothing to decide') +
+    gauge('In the cloud', r.cloudFiles, Math.min(1, r.cloudFiles / 200), C_BLUE, fmtB(r.cloudBytes)) +
+    gauge('Kept on dock', p.local.n, Math.min(1, p.local.n / 200), C_BR, fmtB(p.local.bytes) + (p.removedFromCameras ? ' · ' + p.removedFromCameras + ' cleared from cameras' : ''));
+  const tot = Math.max(1, p.awaiting.n + p.queued.n + p.local.n + p.cloud.n + p.failed.n);
+  const row = (n, k, c) => `<div class="row" style="--c:${c}"><span>${n}</span><div class="meter"><i style="width:${(p[k].n / tot * 100).toFixed(1)}%"></i></div><b>${p[k].n}<small class="muted"> · ${fmtB(p[k].bytes)}</small></b></div>`;
+  $('#pipe').innerHTML = row('Waiting for decision', 'awaiting', C_SEL) + row('Queued for cloud', 'queued', C_BLUE) + row('Kept on dock storage', 'local', C_BR) + row('In the cloud', 'cloud', C_OK) + row('Failed (retrying)', 'failed', C_REC);
+  const mx = Math.max(1, ...r.days.map((d) => d.count));
+  $('#recbars').innerHTML = r.days.map((d) => `<div class="bar" title="${d.count} files · ${fmtB(d.bytes)}"><b>${d.count || ''}</b><i style="height:${Math.max(4, d.count / mx * 140)}px"></i><span>${d.day.replace(/^\w+ /, '')}</span></div>`).join('');
+  const hm = Math.max(1, ...a.alarms.byHour.map((h) => h.count));
+  $('#hbars').innerHTML = a.alarms.byHour.map((h) => `<div class="bar" title="${h.count} SOS at ${h.hour}:00"><b>${h.count || ''}</b><i style="height:${Math.max(3, h.count / hm * 110)}px;background:linear-gradient(180deg,var(--rec),#c2185b)"></i><span>${h.hour % 3 === 0 ? h.hour : ''}</span></div>`).join('');
+  const FL = { low_battery: ['Low battery', 'var(--rec)'], offline_24h: ['Offline 24h', 'var(--rec)'], no_gps: ['No GPS', 'var(--blue)'], unstable: ['Unstable', 'var(--sel)'] };
+  $('#hth').innerHTML = '<thead><tr><th>Camera</th><th>State</th><th>Battery</th><th class="r">SOS 30d</th><th class="r">Files 7d</th><th>Flags</th></tr></thead><tbody>' + (a.health.length ? a.health.map((h) => `<tr>
+    <td><b>${esc(h.name)}</b>${h.holder ? `<div class="muted" style="font-size:11.5px">${esc(h.holder)}</div>` : ''}</td>
+    <td><span class="chip" style="--c:${h.recording ? 'var(--rec)' : h.online ? 'var(--ok)' : 'var(--off)'}">${h.recording ? 'Recording' : h.online ? 'Online' : 'Offline'}</span></td>
+    <td>${h.battery == null ? '<span class="muted">–</span>' : `<span class="bat ${h.battery < 20 ? 'low' : ''}"><i style="width:${h.battery}%"></i></span>${h.battery}%`}</td>
+    <td class="r">${h.alarms30d}</td><td class="r">${h.recordings7d}</td>
+    <td>${h.flags.length ? h.flags.map((f) => `<span class="chip" style="--c:${FL[f][1]}">${FL[f][0]}</span>`).join('') : '<span class="muted">–</span>'}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">No cameras.</td></tr>') + '</tbody>';
+  setTimeout(() => document.querySelectorAll('#kpi2 .gauge .val').forEach((c) => { c.style.strokeDashoffset = c.dataset.off; }), 80);
+  const i = a.audit; const ok = i.ok;
+  $('#integ').style.setProperty('--c', ok ? 'var(--ok)' : 'var(--rec)');
+  $('#integ').textContent = ok ? `✓ Verified · ${i.checked} steps unbroken` : '✗ Chain broken: see Insights';
+  $('#aHead').textContent = i.head ? `Latest seal: ${i.head}${i.legacy ? ` · ${i.legacy} older entries from before sealing began` : ''}. Keep a copy of this value elsewhere to prove nothing was rewritten.` : '';
+}
+async function loadInsights() { try { renderInsights(await (await fetch('/api/analytics/insights')).json()); } catch (e) { console.error('insights', e); } }
+
+$('#aiBtn').onclick = async () => {
+  const b = $('#aiBtn'); b.disabled = true; b.textContent = 'Analysing…';
+  try {
+    const r = await fetch('/api/analytics/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: true }) });
+    const j = await r.json();
+    $('#aiOut').innerHTML = r.ok ? `<div class="ai"><small>${j.ai ? '✦ Written by AI (' + esc(j.model) + ') from your numbers only' : 'Automatic summary · connect an AI key on the server for a written analysis'}${j.error ? ' · ' + esc(j.error) : ''}</small>${esc(j.text)}</div>` : `<div class="ai">${esc(j.error || 'Not available right now.')}</div>`;
+  } catch (e) { $('#aiOut').innerHTML = '<div class="ai">Not available right now.</div>'; }
+  b.disabled = false; b.innerHTML = '&#10022; Written analysis';
+};
+
+function auditQuery() {
+  const q = new URLSearchParams({ limit: 300 });
+  if ($('#aKind').value) q.set('action', $('#aKind').value);
+  if ($('#aCam').value.trim()) q.set('camera', $('#aCam').value.trim());
+  if ($('#aUser').value.trim()) q.set('user', $('#aUser').value.trim());
+  if ($('#aFrom').value) q.set('from', new Date($('#aFrom').value + 'T00:00:00').getTime());
+  if ($('#aTo').value) q.set('to', new Date($('#aTo').value + 'T00:00:00').getTime() + 864e5);
+  return q;
+}
+async function loadAudit() {
+  const q = auditQuery();
+  $('#csvBtn').href = '/api/audit/export.csv?' + q;
+  const lines = (await (await fetch('/api/audit?' + q)).json()).lines || [];
+  $('#aN').textContent = lines.length + ' line' + (lines.length === 1 ? '' : 's');
+  $('#aBody').innerHTML = lines.length ? lines.map((l) => {
+    const d = l.detail ? Object.entries(l.detail).filter(([k]) => k !== 'verifiedSha256').map(([k, v]) => `${k}: ${v}`).join(' · ') : '';
+    return `<tr><td class="mono">${l.id}</td><td>${whenT(l.ts)}</td><td>${esc(l.username)}</td><td><b>${esc(stepText(l.action))}</b></td><td>${esc(l.cameraId || '–')}</td><td class="muted" style="max-width:340px;word-break:break-word">${esc(d)}</td>
+      <td class="mono" title="${l.hash || 'older entry, not sealed'}">${l.hash ? l.hash.slice(0, 8) + '…' : '–'}</td></tr>`;
+  }).join('') : '<tr><td colspan="7" class="empty">No lines match.</td></tr>';
+}
+$('#aGo').onclick = loadAudit; ['aKind'].forEach((i) => $('#' + i).onchange = loadAudit);
+$('#verBtn').onclick = async () => { $('#integ').textContent = 'Checking…'; $('#integ').style.setProperty('--c', 'var(--off)'); await new Promise((r) => setTimeout(r, 350)); await loadInsights(); };
+if (location.hash === '#audit') setTimeout(() => $('#audit').scrollIntoView(), 400);
+loadInsights(); setInterval(loadInsights, 30000); loadAudit(); setInterval(() => { if (!document.hidden) loadAudit(); }, 20000);
 
 portalReady.then((me) => {
   const pad = (n) => String(n).padStart(2, '0'), t = new Date();

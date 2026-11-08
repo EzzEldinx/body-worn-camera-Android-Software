@@ -8,6 +8,8 @@ const { Server } = require('socket.io');
 const NodeMediaServer = require('node-media-server');
 const { db, hashPassword, verifyPassword } = require('./db');
 const packages = require('./packages');
+const auditlog = require('./auditlog');
+const insights = require('./insights');
 const deviceTokens = require('./tokens');
 
 // Cameras present this shared token for now (per-device tokens come later).
@@ -187,7 +189,7 @@ app.post('/api/mobile/login', (req, res) => {
     if (r.error) return res.status(r.status).json({ error: r.error });
     const ttl = 30 * DAY, token = newSession(r.user.id, ttl);
     const u = userBySession(token);
-    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), u.username, 'mobile_login', null);
+    auditlog.add(db, u.username, 'mobile_login', null);
     res.json({ token, expiresAt: Date.now() + ttl, user: { ...u, staff: isStaff(u), super: isSuper(u) } });
 });
 app.post('/api/mobile/logout', needUser, (req, res) => {
@@ -223,6 +225,7 @@ app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     }
     const holder = req.body && 'holder' in req.body ? String(req.body.holder ?? '').trim().slice(0, 60) : (cams.get(id).holder || '');
     db.prepare('UPDATE cameras SET name = ?, grp = ?, region = ?, holder = ? WHERE id = ?').run(name, grp, region, holder, id);
+    auditlog.add(db, req.user.username, 'camera_edited', id, { name, holder, grp, region });
     publish(id, { name, grp, region, holder });
     res.json({ ok: true });
 });
@@ -230,6 +233,7 @@ app.delete('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     const id = str(req.params.id);
     if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
     const rooms = roomsFor(id);
+    auditlog.add(db, req.user.username, 'camera_removed', id, { name: cams.get(id).name });
     db.prepare('DELETE FROM cameras WHERE id = ?').run(id);
     db.prepare('INSERT OR REPLACE INTO deleted_cameras(id,ts) VALUES(?,?)').run(id, Date.now());
     deleted.add(id);
@@ -271,6 +275,41 @@ app.get('/api/report', needUser, (req, res) => {
 // ---------- Regions (Riyadh, Jeddah, Dammam ...) ----------
 app.get('/api/regions', needUser, (req, res) => res.json(db.prepare('SELECT name FROM regions ORDER BY created').all().map((r) => r.name)));
 
+// ---------- Audit trail (tamper-evident, see auditlog.js) ----------
+// Everyone sees the lines about their own cameras and their own company's users; Smart Way staff see everything.
+function auditRows(u, q) {
+    const where = [], args = [];
+    if (q.camera) { where.push('camera_id = ?'); args.push(String(q.camera)); }
+    if (q.ref) { where.push('ref = ?'); args.push(String(q.ref)); }
+    if (q.user) { where.push('username = ?'); args.push(String(q.user)); }
+    if (q.action) { where.push('action LIKE ?'); args.push(String(q.action).replace(/[%_]/g, '') + '%'); }
+    if (Number(q.from)) { where.push('ts >= ?'); args.push(Number(q.from)); }
+    if (Number(q.to)) { where.push('ts < ?'); args.push(Number(q.to)); }
+    const limit = Math.min(Math.max(Number(q.limit) || 200, 1), 5000);
+    const mates = isStaff(u) ? null : new Set(db.prepare('SELECT username FROM users WHERE company_id = ?').all(u.companyId).map((r) => r.username));
+    const rows = db.prepare(`SELECT id,ts,username,action,camera_id AS cameraId,detail,ref,prev_hash AS prevHash,hash FROM audit
+        ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`).all(...args, isStaff(u) ? limit : 20000);
+    const out = [];
+    for (const r of rows) {
+        if (mates && !((r.cameraId && canSee(u, r.cameraId)) || mates.has(r.username))) continue;
+        let detail = null; try { detail = r.detail ? JSON.parse(r.detail) : null; } catch { detail = null; }
+        out.push({ ...r, detail });
+        if (out.length >= limit) break;
+    }
+    return out;
+}
+app.get('/api/audit', needUser, (req, res) => res.json({ lines: auditRows(req.user, req.query) }));
+app.get('/api/audit/verify', needUser, (req, res) => res.json(auditlog.verify(db)));
+app.get('/api/audit/export.csv', needUser, (req, res) => {
+    const q = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const lines = auditRows(req.user, { ...req.query, limit: 5000 });
+    auditlog.add(db, req.user.username, 'audit_exported', null, { lines: lines.length });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="VisionGuard-audit.csv"');
+    res.send('﻿' + 'id,time,user,action,camera,file_or_ref,detail,prev_hash,hash\n' + lines.map((r) =>
+        [r.id, new Date(r.ts).toISOString(), r.username, r.action, r.cameraId, r.ref, r.detail ? JSON.stringify(r.detail) : '', r.prevHash, r.hash].map(q).join(',')).join('\n'));
+});
+
 // ---------- Analytics (scoped to the signed-in user) ----------
 app.get('/api/analytics', needUser, (req, res) => {
     const u = req.user, now = Date.now();
@@ -310,6 +349,23 @@ app.get('/api/analytics', needUser, (req, res) => {
         out.totals = { companies: names.size, users: db.prepare('SELECT COUNT(*) n FROM users').get().n };
     }
     res.json(out);
+});
+
+const insightsFor = (u) => insights.build({ db, cameras: visibleCams(u), recordingsDir: path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'recordings'), staff: isStaff(u) });
+app.get('/api/analytics/insights', needUser, (req, res) => res.json(insightsFor(req.user)));
+const aiCache = new Map(), aiLast = new Map();
+app.post('/api/analytics/ai', needUser, async (req, res) => {
+    const key = isStaff(req.user) ? 'staff' : `c${req.user.companyId}`, now = Date.now();
+    const hit = aiCache.get(key);
+    if (hit && now - hit.at < 10 * 60000 && !req.body?.refresh) return res.json({ ...hit.v, cached: true });
+    if (now - (aiLast.get(req.user.id) || 0) < 15000) return res.status(429).json({ error: 'Please wait a few seconds before asking again.' });
+    aiLast.set(req.user.id, now);
+    try {
+        const v = { ...(await insights.aiNarrative(insightsFor(req.user))), generatedAt: now };
+        aiCache.set(key, { at: now, v });
+        auditlog.add(db, req.user.username, v.ai ? 'ai_analysis_generated' : 'summary_generated', null);
+        res.json(v);
+    } catch (e) { res.status(502).json({ error: 'The analysis could not be generated.' }); }
 });
 
 // ---------- Company management (Smart Way administrators only) ----------
@@ -368,7 +424,7 @@ app.put('/api/admin/companies/:id/package', adminOnly, (req, res) => {
         return res.status(409).json({ error: `This company already has ${cameraCount(id)} cameras. Unassign some first or pick a bigger package.` });
     }
     db.prepare('UPDATE companies SET max_cameras = ?, max_live = ? WHERE id = ?').run(pkg.maxCameras, pkg.maxLive, id);
-    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), req.user.username, `package_${pkg.maxCameras || 'unlimited'}`, null);
+    auditlog.add(db, req.user.username, `package_${pkg.maxCameras || 'unlimited'}`, null);
     res.json({ ok: true });
 });
 function kickUsers(userIds) {
@@ -425,7 +481,7 @@ app.post('/api/admin/cameras/:id/token', adminOnly, (req, res) => {
     if (!cams.has(id)) publish(id, {});   // pre-provision a camera that has not connected yet
     const token = deviceTokens.issueToken();
     db.prepare('UPDATE cameras SET token_hash = ? WHERE id = ?').run(deviceTokens.hashToken(token), id);
-    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), req.user.username, 'token_issued', id);
+    auditlog.add(db, req.user.username, 'token_issued', id);
     // kick the camera's current connection so it must reconnect with the new token
     for (const s of io.sockets.sockets.values()) if (s.data.role === 'camera' && (s.data.authId === id || s.data.cameraId === id)) s.disconnect(true);
     res.json({ ok: true, token, config: { id, token } });
@@ -435,7 +491,7 @@ app.delete('/api/admin/cameras/:id/token', adminOnly, (req, res) => {
     const id = str(req.params.id);
     if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
     db.prepare('UPDATE cameras SET token_hash = NULL WHERE id = ?').run(id);
-    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), req.user.username, 'token_revoked', id);
+    auditlog.add(db, req.user.username, 'token_revoked', id);
     for (const s of io.sockets.sockets.values()) if (s.data.role === 'camera' && s.data.authId === id) s.disconnect(true);
     res.json({ ok: true });
 });
@@ -473,7 +529,7 @@ app.put('/api/admin/update/apk', needUser, needAdmin, express.raw({ type: () => 
     fs.renameSync(UPD_APK + '.tmp', UPD_APK);
     const meta = { build, size: buf.length, uploaded: Date.now(), by: req.user.username };
     fs.writeFileSync(UPD_META, JSON.stringify(meta));
-    db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), req.user.username, `update_upload_${build.slice(0, 12)}`, null);
+    auditlog.add(db, req.user.username, `update_upload_${build.slice(0, 12)}`, null);
     res.json({ ok: true, ...meta });
 });
 app.get('/api/admin/update', adminOnly, (req, res) => {
@@ -610,7 +666,7 @@ io.on('connection', (socket) => {
             if (action === 'start' && !c.recording && !c.remote && c.companyId && !packages.canGoLive(companyLimits(c.companyId), liveCount(c.companyId))) {
                 return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'live_limit' });
             }
-            db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user.username, `remote_stream_${action}`, id);
+            auditlog.add(db, user.username, `remote_stream_${action}`, id);
             io.to(`room:camera_${id}`).emit('remote_stream', { action });
             if (action === 'start') publish(id, { remote: true });
             socket.emit('remote_stream_result', { cameraId: id, ok: true, action });
@@ -624,7 +680,7 @@ io.on('connection', (socket) => {
             for (const id of d.cameraIds.slice(0, 500)) {
                 const c = str(id) && cams.get(id);
                 if (!c || !c.online) continue;
-                db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user.username, `update_app_${meta.build.slice(0, 12)}`, id);
+                auditlog.add(db, user.username, `update_app_${meta.build.slice(0, 12)}`, id);
                 io.to(`room:camera_${id}`).emit('update_app', { build: meta.build, size: meta.size, force: !!d.force });
                 publish(id, { update: { state: 'queued', ts: Date.now() } });
                 sent++;
@@ -635,7 +691,7 @@ io.on('connection', (socket) => {
         socket.on('set_quality', (d) => {
             const id = str(d?.cameraId), quality = d?.quality;
             if (!id || !['auto', '480p', '720p', '1080p'].includes(quality) || !canSee(user, id) || !cams.get(id)?.online) return;   // 240p/4k removed: not worth the failures
-            db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user.username, `set_quality_${quality}`, id);
+            auditlog.add(db, user.username, `set_quality_${quality}`, id);
             io.to(`room:camera_${id}`).emit('set_quality', { quality });
         });
         socket.on('ack_alarm', (id) => {

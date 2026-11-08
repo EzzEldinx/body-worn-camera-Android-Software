@@ -169,3 +169,22 @@ test('delete from camera is requested by the user and confirmed by the agent', a
     // the file record (the verified copy) is still there
     assert.strictEqual(row.filename, f.name);
 });
+
+test('a file\'s whole life is written to the audit trail and can be read back', async () => {
+    const crypto = require('node:crypto');
+    const login = await (await post('/api/mobile/login', { username: 'admin', password: 'mobile-test-pw' })).json();
+    const H = { authorization: `Bearer ${login.token}`, 'content-type': 'application/json' }, D = { 'x-dock-token': 'dt' };
+    const f = { cameraId: 'AU-1', name: 'VID_300000001.mp4', size: 9, sha256: crypto.createHash('sha256').update('audit-life').digest('hex'), recordedTs: 1 };
+    await post('/api/dock/catalog', { dockId: 'd', files: [f] }, D);
+    const id = (await (await fetch(BASE + '/api/dock/files', { headers: H })).json()).files.find((x) => x.filename === f.name).id;
+    await post('/api/dock/files/choose', { ids: [id], choice: 'local' }, H);
+    await post('/api/dock/files/delete-from-camera', { ids: [id] }, H);
+    await post('/api/dock/deleted', { cameraId: 'AU-1', sha256: f.sha256 }, D);
+    const lines = (await (await fetch(BASE + '/api/audit?ref=' + f.sha256, { headers: H })).json()).lines.reverse();
+    assert.deepStrictEqual(lines.map((l) => l.action), ['dock_file_copied', 'dock_file_choice_local', 'dock_file_delete_requested', 'dock_file_deleted_from_camera']);
+    assert.strictEqual(lines[1].username, 'admin'); assert.strictEqual(lines[1].detail.file, f.name);
+    const v = await (await fetch(BASE + '/api/audit/verify', { headers: H })).json();
+    assert.strictEqual(v.ok, true); assert.ok(v.checked >= 4);
+    const csv = await (await fetch(BASE + '/api/audit/export.csv?ref=' + f.sha256, { headers: H })).text();
+    assert.match(csv, /dock_file_choice_local/);
+});

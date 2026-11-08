@@ -1,6 +1,7 @@
 // Automatic clean-up of offloaded recordings. Off by default (evidence is kept forever); a test or demo server sets
 // RECORDINGS_RETENTION_DAYS=3 so old test videos do not pile up.
 const fs = require('fs');
+const auditlog = require('./auditlog');
 const path = require('path');
 
 const DAY = 86400000;
@@ -8,11 +9,12 @@ const DAY = 86400000;
 /** Remove recordings uploaded more than `days` days ago (file first, then the database row). */
 function sweep({ db, dir, days, now = Date.now(), log = console }) {
     if (!(days > 0)) return { removed: 0, bytes: 0 };
-    const rows = db.prepare('SELECT id, camera_id, filename, size FROM recordings WHERE uploaded_ts < ?').all(now - days * DAY);
+    const rows = db.prepare('SELECT id, camera_id, filename, size, sha256 FROM recordings WHERE uploaded_ts < ?').all(now - days * DAY);
     let removed = 0, bytes = 0;
     for (const r of rows) {
         try { fs.rmSync(path.join(dir, r.camera_id, r.filename), { force: true }); } catch (e) { log.warn(`retention: cannot remove ${r.camera_id}/${r.filename}: ${e.message}`); continue; }
         db.prepare('DELETE FROM recordings WHERE id = ?').run(r.id);
+        auditlog.add(db, 'system', 'recording_expired', r.camera_id, { file: r.filename, size: r.size, afterDays: days }, r.sha256);
         removed++; bytes += r.size;
     }
     // Half-finished uploads (.part) older than a day are garbage too.
@@ -24,7 +26,7 @@ function sweep({ db, dir, days, now = Date.now(), log = console }) {
             }
         }
     } catch (e) { /* directory may not exist yet */ }
-    if (removed) db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(now, 'system', `recordings_expired_${removed}`, null);
+    if (removed) auditlog.add(db, 'system', `recordings_expired_${removed}`, null, { removed });
     return { removed, bytes };
 }
 

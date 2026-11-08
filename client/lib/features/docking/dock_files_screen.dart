@@ -33,7 +33,7 @@ class DockFilesScreen extends ConsumerStatefulWidget {
 }
 
 class _DockFilesScreenState extends ConsumerState<DockFilesScreen> {
-  String _bucket = 'awaiting';
+  String _bucket = 'all';
   final _sel = <int>{};
   bool _busy = false;
 
@@ -111,7 +111,7 @@ class _DockFilesScreenState extends ConsumerState<DockFilesScreen> {
               ),
             );
           }
-          final buckets = [('awaiting', 'dk_waiting'), ('queued', 'dk_queued'), ('local', 'dk_local'), ('cloud', 'dk_cloud'), ('failed', 'dk_failed')];
+          final buckets = [('all', 'dk_all'), ('awaiting', 'dk_waiting'), ('queued', 'dk_queued'), ('local', 'dk_local'), ('cloud', 'dk_cloud'), ('failed', 'dk_failed')];
           return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 120), children: [
             Text(context.tr('dk_files_sub'), style: TextStyle(color: v.mut, height: 1.4)),
             const SizedBox(height: 12),
@@ -131,7 +131,7 @@ class _DockFilesScreenState extends ConsumerState<DockFilesScreen> {
                   padding: const EdgeInsetsDirectional.only(end: 8),
                   child: ChoiceChip(
                     selected: _bucket == b.$1,
-                    label: Text('${context.tr(b.$2)}  ${d.counts[b.$1]!.n}${d.counts[b.$1]!.bytes > 0 ? ' · ${fmtBytes(d.counts[b.$1]!.bytes)}' : ''}'),
+                    label: Text('${context.tr(b.$2)}  ${b.$1 == 'all' ? d.counts.values.fold<int>(0, (a, c) => a + c.n) : d.counts[b.$1]!.n}${b.$1 != 'all' && d.counts[b.$1]!.bytes > 0 ? ' · ${fmtBytes(d.counts[b.$1]!.bytes)}' : ''}'),
                     onSelected: (_) => setState(() { _bucket = b.$1; _sel.clear(); }),
                   ),
                 ),
@@ -197,6 +197,8 @@ class _FileTile extends StatelessWidget {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(file.cameraId, style: const TextStyle(fontWeight: FontWeight.w800)),
             Text('${file.filename}  ·  ${fmtBytes(file.size)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.mut, fontSize: 12)),
+            if (file.bucket == 'cloud') Text('${context.tr('dk_uploaded')} · ${when(file.updatedTs ?? file.addedTs ?? 0)}', style: TextStyle(color: v.mut, fontSize: 11.5))
+            else if (file.bucket == 'local') Text('${context.tr('dk_saved_dock')} · ${when(file.updatedTs ?? file.addedTs ?? 0)}', style: TextStyle(color: v.mut, fontSize: 11.5)),
             if (file.message != null && file.message!.isNotEmpty) Text(file.message!, style: TextStyle(color: v.rec, fontSize: 11.5)),
             if (file.removed) Text(context.tr('dk_removed'), style: TextStyle(color: v.mut, fontSize: 11.5, fontWeight: FontWeight.w700))
             else if (file.camDelete) Text(context.tr('dk_removal_queued'), style: TextStyle(color: v.mut, fontSize: 11.5)),

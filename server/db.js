@@ -35,6 +35,7 @@ addColumn('cameras', 'company_id', 'INTEGER');
 addColumn('cameras', 'region', 'TEXT');
 addColumn('positions', 'acc', 'REAL');
 db.exec('CREATE TABLE IF NOT EXISTS deleted_cameras(id TEXT PRIMARY KEY, ts INTEGER NOT NULL)');
+require('./auditlog').init(db);
 db.exec('CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, camera_id TEXT NOT NULL, type TEXT NOT NULL, info TEXT)');
 db.exec('CREATE INDEX IF NOT EXISTS events_ts ON events(ts)');
 db.exec('CREATE TABLE IF NOT EXISTS regions(name TEXT PRIMARY KEY, created INTEGER NOT NULL)');

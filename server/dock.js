@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { safeEqual } = require('./tokens');
+const auditlog = require('./auditlog');
 
 const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 const MAX_BYTES = 8 * 1024 ** 3;
@@ -55,7 +56,9 @@ function register(app, ctx) {
         if (!safeEqual(req.headers['x-dock-token'] || '', DOCK_TOKEN)) return res.status(401).json({ error: 'Bad dock token.' });
         next();
     };
-    const audit = (user, action, cam) => db.prepare('INSERT INTO audit(ts,username,action,camera_id) VALUES(?,?,?,?)').run(Date.now(), user, action, cam || null);
+    const audit = (user, action, cam, detail, ref) => auditlog.add(db, user, action, cam || null, detail || null, ref || null);
+    // one line per file and step, so a file's whole life (copied, decided, uploaded, removed from the camera) can be read back and nobody can quietly change it
+    const fileLog = (user, action, row, extra) => audit(user, action, row.camera_id ?? row.cameraId, { file: row.filename ?? row.name, size: row.size, ...(extra || {}) }, row.sha256);
 
     // Camera app updates through the dock: the agent asks which build is the latest and installs it on every docked camera that runs an older one.
     const updDir = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'updates');
@@ -84,7 +87,7 @@ function register(app, ctx) {
             return res.status(400).json({ error: 'Bad upload headers.' });
         }
         const dup = db.prepare('SELECT id FROM recordings WHERE camera_id = ? AND sha256 = ?').get(id, want);
-        if (dup) { req.resume(); db.prepare("UPDATE dock_files SET state='cloud', message=NULL, updated_ts=? WHERE camera_id=? AND sha256=?").run(Date.now(), id, want); return res.json({ ok: true, duplicate: true, id: dup.id }); }
+        if (dup) { req.resume(); audit(`dock:${dockId}`, 'dock_file_uploaded_cloud', id, { file: name, size, duplicate: true }, want); db.prepare("UPDATE dock_files SET state='cloud', message=NULL, updated_ts=? WHERE camera_id=? AND sha256=?").run(Date.now(), id, want); return res.json({ ok: true, duplicate: true, id: dup.id }); }
         const camDir = path.join(dir, id); fs.mkdirSync(camDir, { recursive: true });
         const tmp = path.join(camDir, `.${name}.${crypto.randomBytes(4).toString('hex')}.part`);
         const out = fs.createWriteStream(tmp), h = crypto.createHash('sha256'); let n = 0, failed = false;
@@ -103,7 +106,7 @@ function register(app, ctx) {
             const r = db.prepare('INSERT INTO recordings(camera_id,filename,size,sha256,recorded_ts,uploaded_ts,dock_id) VALUES(?,?,?,?,?,?,?)')
                 .run(id, path.basename(final), size, got, rts, Date.now(), dockId);
             db.prepare("UPDATE dock_files SET state='cloud', message=NULL, updated_ts=? WHERE camera_id=? AND sha256=?").run(Date.now(), id, got);
-            audit(`dock:${dockId}`, 'recording_offloaded', id);
+            audit(`dock:${dockId}`, 'dock_file_uploaded_cloud', id, { file: name, size, verifiedSha256: true }, got);
             res.json({ ok: true, id: Number(r.lastInsertRowid), sha256: got });
         });
     });
@@ -179,8 +182,9 @@ function register(app, ctx) {
     app.put('/api/admin/dock/policy', needUser, needAdmin, (req, res) => {
         const mode = String(req.body?.mode || '');
         if (!MODES.has(mode)) return res.status(400).json({ error: 'mode must be ask, auto_cloud or auto_local.' });
+        const was = policy().mode;
         db.prepare('INSERT INTO dock_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('mode', mode);
-        audit(req.user.username, `dock_policy_${mode}`, null);
+        audit(req.user.username, `dock_policy_${mode}`, null, { mode, was });
         res.json(policy());
     });
 
@@ -196,10 +200,12 @@ function register(app, ctx) {
             if (!cameraId || !NAME_RE.test(name) || !/^[0-9a-f]{64}$/.test(sha) || !Number.isInteger(size) || size < 1) continue;
             const onCloud = !!db.prepare('SELECT 1 FROM recordings WHERE camera_id = ? AND sha256 = ?').get(cameraId, sha);
             const auto = mode === 'auto_cloud' ? 'cloud' : mode === 'auto_local' ? 'local' : null;
+            const existed = !!db.prepare('SELECT 1 FROM dock_files WHERE camera_id = ? AND sha256 = ?').get(cameraId, sha);
             ins.run(cameraId, name, size, sha, Number(f.recordedTs) || null, dockId, onCloud ? 'cloud' : 'on_dock', onCloud ? 'cloud' : auto, auto && !onCloud ? 'auto' : null, now, now);
+            if (!existed) audit(`dock:${dockId}`, 'dock_file_copied', cameraId, { file: name, size, dock: dockId, copiedAndVerified: true }, sha);
             let row = db.prepare('SELECT id,state,choice FROM dock_files WHERE camera_id = ? AND sha256 = ?').get(cameraId, sha);
             // a file first seen before automation was switched on gets the automatic decision now
-            if (row.choice === null && auto) { db.prepare("UPDATE dock_files SET choice = ?, chosen_by = 'auto', updated_ts = ? WHERE id = ?").run(auto, now, row.id); row = { ...row, choice: auto }; }
+            if (row.choice === null && auto) { db.prepare("UPDATE dock_files SET choice = ?, chosen_by = 'auto', updated_ts = ? WHERE id = ?").run(auto, now, row.id); row = { ...row, choice: auto }; audit('auto', `dock_file_choice_${auto}`, cameraId, { file: name, size, mode }, sha); }
             out.push({ cameraId, sha256: sha, action: row.state === 'cloud' ? 'done' : row.choice === 'cloud' ? 'upload' : row.choice === 'local' ? 'keep' : 'wait' });
         }
         res.json({ policy: policy(), files: out });
@@ -214,13 +220,14 @@ function register(app, ctx) {
     app.post('/api/dock/file-state', needDock, (req, res) => {
         const state = String(req.body?.state || '');
         if (!['on_dock', 'uploading', 'failed'].includes(state)) return res.status(400).json({ error: 'Bad state.' });
+        if (state === 'failed') audit('dock', 'dock_file_upload_failed', str(req.body?.cameraId), { reason: String(req.body?.message || '').slice(0, 160) }, String(req.body?.sha256 || ''));
         db.prepare("UPDATE dock_files SET state = ?, message = ?, updated_ts = ? WHERE camera_id = ? AND sha256 = ? AND state != 'cloud'")
             .run(state, String(req.body?.message || '').slice(0, 160) || null, Date.now(), str(req.body?.cameraId), String(req.body?.sha256 || ''));
         res.json({ ok: true });
     });
     app.get('/api/dock/files', needUser, (req, res) => {
-        const state = String(req.query.state || '');
-        const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename,size,sha256,recorded_ts AS recordedTs,dock_id AS dockId,state,choice,chosen_by AS chosenBy,message,added_ts AS addedTs,cam_delete AS camDelete,cam_deleted_ts AS camDeletedTs
+        const state = req.query.state === 'all' ? '' : String(req.query.state || '');
+        const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename,size,sha256,updated_ts AS updatedTs,recorded_ts AS recordedTs,dock_id AS dockId,state,choice,chosen_by AS chosenBy,message,added_ts AS addedTs,cam_delete AS camDelete,cam_deleted_ts AS camDeletedTs
             FROM dock_files ORDER BY added_ts DESC, id DESC LIMIT 3000`).all().filter((r) => mine(req.user, r.cameraId));
         const bucket = (r) => (r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued');
         const counts = { awaiting: { n: 0, bytes: 0 }, local: { n: 0, bytes: 0 }, queued: { n: 0, bytes: 0 }, cloud: { n: 0, bytes: 0 }, failed: { n: 0, bytes: 0 } };
@@ -238,8 +245,7 @@ function register(app, ctx) {
         rows = rows.filter((r) => mine(req.user, r.camera_id) && r.state !== 'cloud');
         const upd = db.prepare('UPDATE dock_files SET choice = ?, chosen_by = ?, updated_ts = ?, state = CASE WHEN state = ? THEN ? ELSE state END WHERE id = ?');
         const now = Date.now();
-        for (const r of rows) upd.run(choice, req.user.username, now, 'failed', 'on_dock', r.id);
-        if (rows.length) audit(req.user.username, `dock_files_${choice}_${rows.length}`, null);
+        for (const r of rows) { upd.run(choice, req.user.username, now, 'failed', 'on_dock', r.id); fileLog(req.user.username, `dock_file_choice_${choice}`, r, { was: r.choice || 'undecided' }); }
         res.json({ ok: true, changed: rows.length });
     });
 
@@ -249,8 +255,7 @@ function register(app, ctx) {
         const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger).slice(0, 5000) : [];
         const rows = ids.map((id) => db.prepare('SELECT * FROM dock_files WHERE id = ?').get(id)).filter((r) => r && mine(req.user, r.camera_id) && !r.cam_deleted_ts);
         const upd = db.prepare('UPDATE dock_files SET cam_delete = 1, message = NULL, updated_ts = ? WHERE id = ?');
-        for (const r of rows) upd.run(Date.now(), r.id);
-        if (rows.length) audit(req.user.username, `dock_files_delete_from_camera_${rows.length}`, null);
+        for (const r of rows) { upd.run(Date.now(), r.id); fileLog(req.user.username, 'dock_file_delete_requested', r); }
         res.json({ ok: true, requested: rows.length });
     });
     app.get('/api/dock/deletions', needDock, (req, res) => {
@@ -259,6 +264,7 @@ function register(app, ctx) {
     });
     app.post('/api/dock/deleted', needDock, (req, res) => {
         const ok = req.body?.ok !== false, now = Date.now();
+        audit(ok ? 'dock' : 'dock', ok ? 'dock_file_deleted_from_camera' : 'dock_file_delete_refused', str(req.body?.cameraId), ok ? { verifiedCopyChecked: true } : { reason: String(req.body?.message || '').slice(0, 160) }, String(req.body?.sha256 || ''));
         db.prepare('UPDATE dock_files SET cam_delete = 0, cam_deleted_ts = ?, message = ?, updated_ts = ? WHERE camera_id = ? AND sha256 = ?')
             .run(ok ? now : null, ok ? null : String(req.body?.message || 'Not removed from the camera').slice(0, 160), now, str(req.body?.cameraId), String(req.body?.sha256 || ''));
         res.json({ ok: true });
@@ -280,7 +286,7 @@ function register(app, ctx) {
     app.get('/api/recordings/:id/file', needUser, (req, res) => {
         const r = db.prepare('SELECT * FROM recordings WHERE id = ?').get(Number(req.params.id));
         if (!r || !(cams.has(r.camera_id) ? visible(req.user, r.camera_id) : isStaff(req.user))) return res.status(404).json({ error: 'Not found.' });
-        audit(req.user.username, 'recording_downloaded', r.camera_id);
+        audit(req.user.username, 'recording_downloaded', r.camera_id, { file: r.filename, size: r.size }, r.sha256);
         res.sendFile(path.join(dir, r.camera_id, r.filename));
     });
 }
