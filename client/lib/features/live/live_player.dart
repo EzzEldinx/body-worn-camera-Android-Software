@@ -43,7 +43,7 @@ class _LivePlayerState extends ConsumerState<LivePlayer> {
     _player.setVolume(0);
     _configure();
     _subs.add(_player.stream.width.listen((w) { if ((w ?? 0) > 0 && mounted) { _tries = 0; setState(() => _phase = LivePhase.playing); } }));
-    _subs.add(_player.stream.error.listen((e) { if (e.isNotEmpty) _retrySoon(); }));
+    _subs.add(_player.stream.error.listen((e) { if (_fatal(e)) _retrySoon(); }));
     _subs.add(_player.stream.completed.listen((c) { if (c) _retrySoon(); }));
     _subs.add(_fleet.streamUps.where((id) => id == widget.cameraId).listen((_) => _retrySoon(fast: true)));
     _subs.add(_fleet.results.where((r) => r.cameraId == widget.cameraId && !r.ok).listen((r) {
@@ -89,6 +89,16 @@ class _LivePlayerState extends ConsumerState<LivePlayer> {
     } finally {
       _opening = false;
     }
+  }
+
+  /// libmpv also reports problems that do not stop the picture (no audio device on a simulator or while a call
+  /// holds the audio session, hardware decoder falling back to software). Reconnecting on those made the
+  /// stream restart every couple of seconds, so only real stream failures count.
+  bool _fatal(String e) {
+    if (e.isEmpty) return false;
+    final m = e.toLowerCase();
+    if (m.contains('audio') || m.contains('no sound') || m.contains('hwaccel') || m.contains('videotoolbox') || m.contains('property not found')) return false;
+    return true;
   }
 
   void _retrySoon({bool fast = false}) {
