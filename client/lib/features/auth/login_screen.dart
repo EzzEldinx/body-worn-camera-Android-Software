@@ -10,11 +10,12 @@ import '../../core/settings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import 'auth_controller.dart';
+import 'widgets/camera_turntable.dart';
 import 'widgets/hero_scene.dart';
 
 /// Sign-in. Concept "Aperture": the screen is a camera viewfinder. The iris breathes while you type, the card is
 /// glass over a moving perspective floor, a wrong password shakes the card, and a correct one opens the iris wide
-/// before the app appears. Drop a transparent `assets/brand/camera.png` and the real camera floats over the hero.
+/// before the app appears. The real camera (assets/camera/*, logo printed on it) floats over the hero and turns through its angles.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
   @override
@@ -28,13 +29,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with TickerProviderSt
   late final AnimationController _burst = AnimationController(vsync: this, duration: const Duration(milliseconds: 760));
   late final AnimationController _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 460));
   String _server = kDefaultServer;
-  bool _busy = false, _hide = true, _started = false, _hasCamera = false;
+  bool _busy = false, _hide = true, _started = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    rootBundle.load('assets/brand/camera.png').then((_) { if (mounted) setState(() => _hasCamera = true); }, onError: (_) {});
   }
 
   @override
@@ -94,10 +94,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with TickerProviderSt
 
     final heroWidget = Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
       ApertureHero(t: _t, burst: _burst, size: hero),
-      if (_hasCamera) Positioned(
-        bottom: -hero * .06,
-        child: AnimatedBuilder(animation: _t, builder: (_, child) => Transform.translate(offset: Offset(0, math.sin(_t.value * math.pi * 2 * 7) * 6), child: child),
-            child: Image.asset('assets/brand/camera.png', height: hero * .62, fit: BoxFit.contain)),
+      Positioned(
+        bottom: -hero * .02,
+        child: CameraTurntable(t: _t, enter: _enter, box: Size(hero * .78, hero * .78)),
       ),
     ]);
 
