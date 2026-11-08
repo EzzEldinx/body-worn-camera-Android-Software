@@ -15,7 +15,7 @@ class CameraTile extends StatelessWidget {
     final v = context.vg;
     final color = sos ? v.rec : stateColor(context, cam.state);
     final gps = cam.hasPosition
-        ? (cam.gpsFresh ? 'GPS ±${(cam.acc ?? 0).round()} m' : context.tr('gps_stale'))
+        ? (cam.gpsFresh ? (cam.atDock ? context.tr('at_dock') : 'GPS ±${(cam.acc ?? 0).round()} m') : context.tr('gps_stale'))
         : context.tr('no_gps');
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

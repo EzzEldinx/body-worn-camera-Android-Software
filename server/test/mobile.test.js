@@ -79,3 +79,28 @@ test('a docked camera\'s battery reaches the dashboards and the app', async () =
     assert.ok(c.batteryTs > Date.now() - 5000);
     dash.close(); cam.close();
 });
+
+test('a camera on the dock is shown at the dock location until it has a GPS fix of its own', async () => {
+    const login = await (await post('/api/mobile/login', { username: 'admin', password: 'mobile-test-pw' })).json();
+    const dash = io(BASE, { auth: { session: login.token }, transports: ['websocket'] });
+    const cam = io(BASE, { auth: { token: 't' }, transports: ['websocket'] });
+    await new Promise((res) => cam.on('connect', res));
+    cam.emit('camera_status', { cameraId: 'LOC-1', recording: false });
+    await new Promise((res) => setTimeout(res, 300));
+    const atDock = new Promise((res) => dash.on('dashboard_cam', (c) => c.cameraId === 'LOC-1' && c.posSrc === 'dock' && res(c)));
+    await post('/api/dock/report', { dockId: 'd', location: { lat: 24.66, lng: 46.712, acc: 30 }, cameras: [{ serial: 's2', port: 'p2', cameraId: 'LOC-1', state: 'connected' }] }, { 'x-dock-token': 'dt' });
+    const c = await Promise.race([atDock, new Promise((_, rej) => setTimeout(() => rej(new Error('camera not placed at the dock')), 4000))]);
+    assert.strictEqual(c.lat, 24.66); assert.strictEqual(c.lng, 46.712); assert.strictEqual(c.acc, 30);
+    // the camera's own fix wins and clears the dock marker
+    const own = new Promise((res) => dash.on('dashboard_cam', (x) => x.cameraId === 'LOC-1' && x.posSrc === null && res(x)));
+    cam.emit('camera_gps_update', { cameraId: 'LOC-1', lat: 24.7, lng: 46.7, acc: 5 });
+    const x = await Promise.race([own, new Promise((_, rej) => setTimeout(() => rej(new Error('own fix ignored')), 4000))]);
+    assert.strictEqual(x.lat, 24.7);
+    // and while that fix is fresh the dock does not overwrite it
+    let overwritten = false;
+    dash.on('dashboard_cam', (y) => { if (y.cameraId === 'LOC-1' && y.posSrc === 'dock') overwritten = true; });
+    await post('/api/dock/report', { dockId: 'd', location: { lat: 24.66, lng: 46.712 }, cameras: [{ serial: 's2', port: 'p2', cameraId: 'LOC-1', state: 'connected' }] }, { 'x-dock-token': 'dt' });
+    await new Promise((res) => setTimeout(res, 600));
+    assert.strictEqual(overwritten, false);
+    dash.close(); cam.close();
+});

@@ -4,11 +4,11 @@ enum CamState { rec, online, off }
 class Camera {
   Camera({
     required this.id, required this.name, required this.group, required this.online, required this.recording, required this.remote,
-    required this.ptt, required this.ts, this.lat, this.lng, this.acc, this.fixTs, this.speed, this.company, this.region, this.quality, this.battery, this.batteryTs, this.holder, this.qualityAuto = false,
+    required this.ptt, required this.ts, this.lat, this.lng, this.acc, this.fixTs, this.speed, this.company, this.region, this.quality, this.battery, this.batteryTs, this.holder, this.atDock = false, this.qualityAuto = false,
   });
 
   final String id, name, group;
-  final bool online, recording, remote, ptt, qualityAuto;
+  final bool online, recording, remote, ptt, qualityAuto, atDock;
   final int ts;
   final double? lat, lng, acc, speed;
   final int? fixTs, battery, batteryTs;
@@ -34,6 +34,7 @@ class Camera {
         battery: (j['battery'] as num?)?.toInt(),
         batteryTs: (j['batteryTs'] as num?)?.toInt(),
         qualityAuto: j['qualityAuto'] == true,
+        atDock: j['posSrc'] == 'dock',
         holder: (j['holder'] is String && (j['holder'] as String).trim().isNotEmpty) ? (j['holder'] as String).trim() : null,
       );
 

@@ -33,6 +33,10 @@ const SMALLEST = flag('smallest');             // take the smallest files first
 const LATEST = Number(opt('latest', 0)) || 0;  // only the newest N files per camera
 const SINCE_RAW = opt('since', null);          // 'today' or YYYY-MM-DD: ignore everything recorded before that day
 const SINCE = SINCE_RAW === 'today' ? new Date(new Date().setHours(0, 0, 0, 0)).getTime() : SINCE_RAW ? new Date(SINCE_RAW + 'T00:00:00').getTime() : 0;
+// Where this dock stands (decimal degrees), e.g. DOCK_LOCATION=24.65997,46.71219 or --location 24.65997,46.71219.
+// Cameras on the dock are indoors with no GPS fix; the server then shows them at this spot ("at the docking station").
+const LOC_RAW = opt('location', process.env.DOCK_LOCATION || '');
+const LOC = (() => { const m = String(LOC_RAW).split(',').map((x) => Number(x.trim())); return m.length >= 2 && m.every(Number.isFinite) && Math.abs(m[0]) <= 90 && Math.abs(m[1]) <= 180 ? { lat: m[0], lng: m[1], acc: m[2] || 25 } : null; })();
 const NO_UPDATE = flag('no-update');          // do NOT update the camera app from the dock (default: update outdated cameras)
 const UPDATE_ONLY = flag('update-only');      // only update the camera app, copy no recordings (tests / first rollout)
 const DRY = flag('dry-run');                   // list what would be offloaded, touch nothing
@@ -44,7 +48,7 @@ const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 // What the agent is doing per camera right now; sent to the server so the Docking page shows live progress.
 const status = new Map();   // serial -> { state, message, progress, synced, failed, lastSyncTs }
 let lastInfos = [], lastReportAt = 0;
-const AGENT_VERSION = '1.3';
+const AGENT_VERSION = '1.4';
 const log = (dev, ...a) => console.log(new Date().toISOString().slice(11, 19), dev ? `[${dev}]` : '', ...a);
 const run = (args) => new Promise((resolve, reject) => execFile(ADB, args, { maxBuffer: 64 * 1024 * 1024 }, (e, so, se) => (e ? reject(new Error((se || e.message).trim())) : resolve(so))));
 const shell = (serial, cmd) => run(['-s', serial, 'shell', cmd]);
@@ -143,12 +147,14 @@ async function fetchApk(meta) {
 }
 
 // GPS must be ready on every camera, after every install/update: location switched on (GPS provider), location permission granted.
+const aidedOnce = new Set();   // assisted-GPS data is pushed once per camera and agent run
 async function ensureGps(info) {
     const { serial } = info; const tag = info.cameraId || serial;
     const has = (await shell(serial, `pm path ${PKG}`).catch(() => '')).trim();
     if (!has) return;
     const probe = (await shell(serial, `echo mode:$(settings get secure location_mode); dumpsys package ${PKG} | grep -c "ACCESS_FINE_LOCATION: granted=true"`).catch(() => '')).trim().split('\n');
     const modeOk = (probe[0] || '').trim() === 'mode:3', permOk = Number(probe[1]) > 0;
+    if (!aidedOnce.has(serial)) { aidedOnce.add(serial); await shell(serial, 'settings put global assisted_gps_enabled 1; cmd location providers send-extra-command gps force_time_injection; cmd location providers send-extra-command gps force_xtra_injection').catch(() => {}); }
     if (modeOk && permOk) return;
     if (!modeOk) await shell(serial, 'settings put secure location_mode 3').catch(() => {});
     for (const perm of ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION']) await shell(serial, `pm grant ${PKG} android.permission.${perm}`).catch(() => {});
@@ -191,7 +197,7 @@ async function updateApp(info) {
 async function report(force) {
     if (!force && Date.now() - lastReportAt < 1500) return;   // progress updates are throttled
     lastReportAt = Date.now();
-    await api('POST', '/api/dock/report', { body: { dockId: DOCK_ID, agent: AGENT_VERSION, deleteAfter: DELETE, cameras: lastInfos.map((i) => ({
+    await api('POST', '/api/dock/report', { body: { dockId: DOCK_ID, agent: AGENT_VERSION, ...(LOC ? { location: LOC } : {}), deleteAfter: DELETE, cameras: lastInfos.map((i) => ({
         serial: i.serial, port: i.port, cameraId: i.cameraId, battery: i.battery, storageFreeMb: i.storageFreeMb, files: i.files.length,
         pendingMb: Math.round(i.files.reduce((a, f) => a + f.size, 0) / 1e6), ...(status.get(i.serial) || { state: 'connected' }) })) } })
         .catch((e) => log('', 'report failed:', e.message));

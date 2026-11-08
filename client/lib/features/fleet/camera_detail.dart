@@ -35,7 +35,7 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
     if (cam == null) return EmptyState(icon: Icons.videocam_off_rounded, title: context.tr('cam_offline'));
     final color = stateColor(context, cam.state);
     final gps = !cam.hasPosition ? context.tr('no_gps')
-        : '${ltr('${cam.lat!.toStringAsFixed(5)}, ${cam.lng!.toStringAsFixed(5)}')}${cam.gpsFresh && cam.acc != null ? '  ${ltr('(±${cam.acc!.round()} m)')}' : '  ·  ${context.tr('gps_stale')}'}';
+        : '${ltr('${cam.lat!.toStringAsFixed(5)}, ${cam.lng!.toStringAsFixed(5)}')}${cam.gpsFresh && cam.atDock ? '  ·  ${context.tr('at_dock')}' : cam.gpsFresh && cam.acc != null ? '  ${ltr('(±${cam.acc!.round()} m)')}' : '  ·  ${context.tr('gps_stale')}'}';
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [

@@ -828,7 +828,12 @@ function renderInfo() {
   if (!c) { box.style.display = 'none'; return; }
   const label = c.recording ? t('recording') : c.online ? t('online') : t('offline');
   box.style.display = 'block';
+  // The camera sends an update every second or two. While the edit form is open it must NOT be rebuilt, or every
+  // letter typed disappears (the inputs are recreated empty). It is only drawn once per edit session.
+  if (editing && me.role === 'admin' && box.dataset.editing === c.cameraId && box.querySelector('#eN')) return;
+  box.dataset.editing = '';
   if (editing && me.role === 'admin') {
+    box.dataset.editing = c.cameraId;
     box.innerHTML = `<h3>Edit ${c.cameraId}</h3>
       <input class="in" id="eN" maxlength="40" placeholder="Display name" value="${esc(c.name || '')}" aria-label="Display name">
       <input class="in" id="eH" maxlength="60" placeholder="Camera holder (who carries it)" value="${esc(c.holder || '')}" aria-label="Camera holder">
@@ -856,7 +861,7 @@ function renderInfo() {
     <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
     <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || (currentLang === 'ar' ? 'غير معيّنة' : 'Unassigned')}</p>
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
-    ${c.lat == null ? '' : gpsStale(c) ? `<p style="color:var(--sel)">${currentLang === 'ar' ? 'لا يوجد تحديد موقع حي. آخر موقع معروف' + (c.ts ? ' منذ ' + agoShort(c.ts) : '') : 'No live GPS fix. Last known position' + (c.ts ? ', ' + agoShort(c.ts) + ' ago' : '')}</p>` : `<p style="color:var(--ok)">${currentLang === 'ar' ? 'GPS دقيق' : 'GPS fix'} ${c.acc ? '±' + Math.round(c.acc) + ' m' : ''} · ${agoShort(c.fixTs)} ${currentLang === 'ar' ? '' : 'ago'}</p>`}
+    ${c.lat == null ? '' : (c.posSrc === 'dock' && !gpsStale(c)) ? `<p style="color:var(--ok)">${currentLang === 'ar' ? 'على قاعدة الشحن (موقع القاعدة)' : 'At the docking station (dock location)'}</p>` : gpsStale(c) ? `<p style="color:var(--sel)">${currentLang === 'ar' ? 'لا يوجد تحديد موقع حي. آخر موقع معروف' + (c.ts ? ' منذ ' + agoShort(c.ts) : '') : 'No live GPS fix. Last known position' + (c.ts ? ', ' + agoShort(c.ts) + ' ago' : '')}</p>` : `<p style="color:var(--ok)">${currentLang === 'ar' ? 'GPS دقيق' : 'GPS fix'} ${c.acc ? '±' + Math.round(c.acc) + ' m' : ''} · ${agoShort(c.fixTs)} ${currentLang === 'ar' ? '' : 'ago'}</p>`}
     ${c.battery != null ? `<p>${currentLang === 'ar' ? 'البطارية' : 'Battery'}: <b${c.battery < 20 ? ' style="color:var(--rec)"' : ''}>${c.battery}%</b> <span style="color:var(--mut)">(${currentLang === 'ar' ? 'قراءة القاعدة منذ ' : 'read on the dock, '}${agoShort(c.batteryTs)}${currentLang === 'ar' ? '' : ' ago'})</span></p>` : ''}
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>

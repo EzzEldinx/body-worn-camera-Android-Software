@@ -110,6 +110,21 @@ function register(app, ctx) {
         // A docked camera's battery is the only battery reading we have (cameras do not report it themselves yet):
         // hand it to the fleet state so every dashboard and the mobile app show it, with the time it was read.
         for (const c of list) if (c.cameraId && c.battery != null && cams.has(c.cameraId)) publish(c.cameraId, { battery: c.battery, batteryTs: Date.now() });
+        // A camera on the dock is indoors and cannot see the sky, so it has no GPS fix. The dock's own (fixed) location is the best
+        // position there is: show the camera there (marked "at the docking station") until it reports a fresh fix of its own.
+        const loc = req.body?.location && Number.isFinite(req.body.location.lat) && Number.isFinite(req.body.location.lng)
+            && Math.abs(req.body.location.lat) <= 90 && Math.abs(req.body.location.lng) <= 180 ? req.body.location : null;
+        if (loc) {
+            const now = Date.now(), acc = Number.isFinite(req.body.location.acc) && req.body.location.acc > 0 ? Math.min(req.body.location.acc, 500) : 25;
+            for (const c of list) {
+                const cam = c.cameraId ? cams.get(c.cameraId) : null;
+                if (!cam) continue;
+                const ownFresh = cam.posSrc !== 'dock' && cam.fixTs && now - cam.fixTs < 120000;
+                if (ownFresh) continue;
+                if (cam.posSrc === 'dock' && cam.lat === loc.lat && cam.lng === loc.lng && now - (cam.fixTs || 0) < 30000) continue; // refresh every 30 s, not every report
+                publish(c.cameraId, { lat: loc.lat, lng: loc.lng, acc, fixTs: now, posSrc: 'dock' });
+            }
+        }
         docks.set(dockId, { ts: Date.now(), agent: String(req.body?.agent || '').slice(0, 20), mode: req.body?.deleteAfter ? 'move' : 'copy', cameras: list });
         res.json({ ok: true });
     });

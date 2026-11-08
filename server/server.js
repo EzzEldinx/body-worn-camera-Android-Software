@@ -674,7 +674,7 @@ io.on('connection', (socket) => {
             db.prepare('INSERT INTO positions(camera_id,lat,lng,ts,acc) VALUES(?,?,?,?,?)').run(id, lat, lng, now, acc);
             lastPos.set(id, now);
         }
-        publish(id, { lat, lng, acc, fixTs, online: true, ts: now });
+        publish(id, { lat, lng, acc, fixTs, online: true, ts: now, posSrc: null });
     });
 
     socket.on('camera_status', (d) => {
