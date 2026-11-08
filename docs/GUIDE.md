@@ -194,6 +194,7 @@ Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updat
 * older build -> the agent installs the latest one over USB (only when the camera is **not recording** and has **>= 20% battery**), then starts the app. The bay shows *Updating app*;
 * camera signed with an older key -> **"needs migration"** (see CAMERA_SIGNING.md); nothing is changed on it;
 * camera without the app -> "provision this camera first" (needs its camera id and token, section 9).
+Every cycle the agent also makes sure **GPS is ready** on each docked camera (location switched on, location permission granted) and fixes it if not, and again right after every install.
 Switch off with `--no-update`; `--update-only` updates apps without copying recordings.
 
 ---

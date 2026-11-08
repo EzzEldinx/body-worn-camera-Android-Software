@@ -141,6 +141,20 @@ async function fetchApk(meta) {
     fs.writeFileSync(f + '.tmp', buf); fs.renameSync(f + '.tmp', f);
     return f;
 }
+
+// GPS must be ready on every camera, after every install/update: location switched on (GPS provider), location permission granted.
+async function ensureGps(info) {
+    const { serial } = info; const tag = info.cameraId || serial;
+    const has = (await shell(serial, `pm path ${PKG}`).catch(() => '')).trim();
+    if (!has) return;
+    const probe = (await shell(serial, `echo mode:$(settings get secure location_mode); dumpsys package ${PKG} | grep -c "ACCESS_FINE_LOCATION: granted=true"`).catch(() => '')).trim().split('\n');
+    const modeOk = (probe[0] || '').trim() === 'mode:3', permOk = Number(probe[1]) > 0;
+    if (modeOk && permOk) return;
+    if (!modeOk) await shell(serial, 'settings put secure location_mode 3').catch(() => {});
+    for (const perm of ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION']) await shell(serial, `pm grant ${PKG} android.permission.${perm}`).catch(() => {});
+    log(tag, `GPS fixed (${[!modeOk && 'location was off', !permOk && 'permission was missing'].filter(Boolean).join(', ')})`);
+}
+
 async function updateApp(info) {
     if (NO_UPDATE) return;
     const { serial } = info; const tag = info.cameraId || serial;
@@ -162,6 +176,7 @@ async function updateApp(info) {
         log(tag, `installing camera app ${meta.build.slice(0, 12)}…`);
         await run(['-s', serial, 'install', '-r', apk]);
         await shell(serial, `am start -n ${PKG}/.MainActivity`).catch(() => {});
+        await ensureGps(info);
         log(tag, 'camera app updated');
         status.set(serial, { ...keep, state: 'connected', message: 'Camera app updated' });
         updateFailed.delete(serial);
@@ -193,6 +208,7 @@ async function cycle() {
     if (!lastInfos.length) { log('', 'no camera on the dock'); return; }
     const stats = { uploaded: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
     if (!REPORT_ONLY && !UPDATE_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
+    if (!REPORT_ONLY && !NO_UPDATE) await Promise.all(lastInfos.map((i) => ensureGps(i).catch((e) => log(i.cameraId || i.serial, 'GPS check failed:', e.message))));
     if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => updateApp(i).catch((e) => log(i.cameraId || i.serial, 'update check failed:', e.message))));   // after the recordings are safe
     await report(true);
     log('', `cycle done: ${JSON.stringify(stats)}`);

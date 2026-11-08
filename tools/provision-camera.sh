@@ -26,6 +26,8 @@ if [ "$CONFIG_ONLY" = 0 ]; then
   a shell dumpsys duraspeed addwhitelist $PKG >/dev/null 2>&1 || true
   a shell dpm set-device-owner "$PKG/.BwcAdminReceiver" | head -1
 fi
+a shell settings put secure location_mode 3 || true   # GPS on
+for p in ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION; do a shell pm grant $PKG android.permission.$p 2>/dev/null || true; done
 write_config
 a shell am force-stop $PKG; a shell am start -n "$PKG/.MainActivity" >/dev/null; sleep 4
 a shell cmd package set-home-activity "$PKG/.HomeAlias" >/dev/null 2>&1 || true
