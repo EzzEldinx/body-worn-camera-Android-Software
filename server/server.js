@@ -729,6 +729,10 @@ io.on('connection', (socket) => {
 });
 
 const PORT = Number(process.env.PORT) || 3000;
+// Docking uploads are recordings of 100 MB to a few GB over a shared uplink: Node's default 5 minute request limit cut them off (HTTP 408).
+// Headers must still arrive quickly; the body may take up to 3 hours (only the authenticated dock endpoint accepts large bodies).
+server.requestTimeout = 3 * 60 * 60 * 1000;
+server.headersTimeout = 60 * 1000;
 server.listen(PORT, () => console.log(`Central Dashboard is running on: http://localhost:${PORT}`));
 
 // RTMP media server. Stream key = cameraId, e.g. rtmp://HOST:1935/live/BWC-01

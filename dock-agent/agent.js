@@ -105,8 +105,9 @@ async function offload(info, stats) {
             const known = (await api('GET', `/api/dock/has?camera=${encodeURIComponent(cameraId)}&sha256=${remoteSha}`)).has;
             if (!known) {
                 const t0 = Date.now();
-                await run(['-s', serial, 'pull', remote, local]);
-                const localSha = await hashFile(local);
+                // a file already copied by an earlier (failed) try is reused if it is intact: no second USB copy of a 100+ MB video
+                let localSha = fs.existsSync(local) ? await hashFile(local).catch(() => null) : null;
+                if (localSha !== remoteSha) { await run(['-s', serial, 'pull', remote, local]); localSha = await hashFile(local); }
                 if (localSha !== remoteSha) throw new Error('hash differs after USB copy');
                 const up = await api('POST', '/api/dock/upload', { body: fs.createReadStream(local), headers: {
                     'content-type': 'application/octet-stream', 'x-camera-id': cameraId, 'x-filename': f.name, 'x-sha256': localSha,
