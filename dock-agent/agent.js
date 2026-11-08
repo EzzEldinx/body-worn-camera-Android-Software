@@ -213,8 +213,8 @@ async function cycle() {
     await report(true);   // also when the dock is empty: the page then shows the agent as online with idle bays
     if (!lastInfos.length) { log('', 'no camera on the dock'); return; }
     const stats = { uploaded: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
-    if (!REPORT_ONLY && !UPDATE_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
     if (!REPORT_ONLY && !NO_UPDATE) await Promise.all(lastInfos.map((i) => ensureGps(i).catch((e) => log(i.cameraId || i.serial, 'GPS check failed:', e.message))));
+    if (!REPORT_ONLY && !UPDATE_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
     if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => updateApp(i).catch((e) => log(i.cameraId || i.serial, 'update check failed:', e.message))));   // after the recordings are safe
     await report(true);
     log('', `cycle done: ${JSON.stringify(stats)}`);
