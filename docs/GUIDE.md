@@ -188,6 +188,10 @@ Law el-camera 3aleha account → mumken yerfod; el-script beyeqolak.
 
 El-build identifier = SHA-256 lel-APK. El-camera beteb3at el-build bta3ha lel-server 3and kol ittisal.
 
+### 8.3b Recording size (camera app 2026-11)
+Recordings are 720p H.264 at 2 Mbps (about **0.9 GB per hour**; before: 1080p at 5.2 Mbps = 2.3 GB/h). 1080p, if chosen, is capped at 3.5 Mbps. A recording is cut into files of **10 minutes** (about 150 MB each): the camera and the live stream keep running and the next file starts on the next key frame, so at most about one second can sit at a boundary (measured under 1 s on a real camera). Small files upload, retry and expire independently.
+Publish a new build from a Mac: `tools/publish-build.sh https://server --build`.
+
 ### 8.4 The docking station updates the cameras by itself (Dock Agent 1.3)
 Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that sits on the dock is checked each cycle (about 30 s):
 * installed app = latest build -> nothing happens;

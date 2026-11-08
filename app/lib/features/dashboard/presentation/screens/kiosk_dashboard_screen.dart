@@ -609,11 +609,34 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
       }
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         _recSecs.value++;
+        if (_recSecs.value % kSegmentSeconds == 0) _rotateSegment();
       });
     } catch (e) {
       _remoteStarted = false;
       _report('REC FAILED: $e');
       await SelfHeal.restartIfPluginLost(e, where: 'recording', report: _report);
+    }
+  }
+
+  /// Long recordings are cut into files of [kSegmentSeconds]: a 48 minute shift is no longer one 1.9 GB file that must be uploaded
+  /// in one piece, and each part can be kept, uploaded or deleted on its own. The camera and the live stream keep running;
+  /// the next file starts on the next key frame (the encoder makes one every second).
+  static const int kSegmentSeconds = 600;
+  bool _rotating = false;
+  Future<void> _rotateSegment() async {
+    final c = _controller;
+    if (_rotating || !isRecording || c == null || c.value.isInitialized != true) return;
+    _rotating = true;
+    try {
+      final dir = await _mediaDir();
+      final next = '$dir/VID_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      await c.rotateVideoRecording(next);
+      _report('SEGMENT: ${_currentFile?.split('/').last} -> ${next.split('/').last}');
+      _currentFile = next;
+    } catch (e) {
+      _report('SEGMENT FAILED (recording continues in the same file): $e'); // never risk the evidence for the split
+    } finally {
+      _rotating = false;
     }
   }
 

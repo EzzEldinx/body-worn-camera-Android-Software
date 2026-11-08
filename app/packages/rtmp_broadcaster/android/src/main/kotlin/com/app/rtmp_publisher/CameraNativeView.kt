@@ -283,6 +283,22 @@ class CameraNativeView(
         }
     }
 
+    /// Closes the current recording file and opens the next one while the encoder (and the live stream) keeps running:
+    /// the new file starts on the next key frame (the encoder makes one every second), so at most ~1 s is not in either file.
+    fun rotateVideoRecording(newPath: String?, result: MethodChannel.Result) {
+        if (newPath == null || File(newPath).exists()) { result.error("rotateRecordingFailed", "Bad or existing path", null); return }
+        try {
+            rtmpCamera.apply {
+                if (!isRecording) { result.error("rotateRecordingFailed", "Not recording", null); return }
+                stopRecord()
+                startRecord(newPath)
+            }
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("rotateRecordingFailed", e.message, null)
+        }
+    }
+
     fun stopVideoRecording(result: MethodChannel.Result) {
         try {
             rtmpCamera.apply {

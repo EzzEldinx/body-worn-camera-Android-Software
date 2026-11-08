@@ -632,6 +632,20 @@ class CameraController extends ValueNotifier<CameraValue> {
     }
   }
 
+  /// Ends the current recording file and continues in [newPath] without stopping the camera or the live stream
+  /// (Android). Used to cut long recordings into segments.
+  Future<void> rotateVideoRecording(String newPath) async {
+    if (!value.isInitialized! || _isDisposed || !value.isRecordingVideo!) {
+      throw CameraException('rotateVideoRecording', 'Not recording');
+    }
+    try {
+      await _channel.invokeMethod<void>('rotateRecording', <String, dynamic>{'textureId': _textureId, 'path': newPath});
+      _videoRecordingPath = newPath;
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    }
+  }
+
   /// Stops the video recording and returns the file where it was saved.
   ///
   /// Throws a [CameraException] if the capture failed, or if

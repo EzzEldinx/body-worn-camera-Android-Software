@@ -135,6 +135,10 @@ class MethodCallHandlerImplNew(
                 getCameraView()?.stopVideoRecordingOrStreaming(result)
             }
 
+            "rotateRecording" -> {
+                getCameraView()?.rotateVideoRecording(call.argument<String>("path"), result)
+            }
+
             "stopRecording" -> {
                 Log.i("Stuff", "stopRecording")
                 getCameraView()?.stopVideoRecording(result)

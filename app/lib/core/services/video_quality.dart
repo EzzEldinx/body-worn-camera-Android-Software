@@ -9,8 +9,8 @@ import 'package:rtmp_broadcaster/rtmp_broadcaster.dart' show ResolutionPreset;
 enum VideoQuality {
   p240('240p', ResolutionPreset.low, 400 * 1024),
   p480('480p', ResolutionPreset.medium, 1000 * 1024),
-  p720('720p', ResolutionPreset.high, 2500 * 1024),
-  p1080('1080p', ResolutionPreset.veryHigh, 5000 * 1024),
+  p720('720p', ResolutionPreset.high, 2000 * 1024),   // ~0.9 GB per recorded hour
+  p1080('1080p', ResolutionPreset.veryHigh, 3500 * 1024), // was 5 Mbps = 2.3 GB/h
   p2160('4k', ResolutionPreset.ultraHigh, 12000 * 1024);
 
   const VideoQuality(this.id, this.preset, this.bitrate);
