@@ -48,7 +48,7 @@ class _DockingScreenState extends ConsumerState<DockingScreen> {
           final dock = docks.where((x) => x.id == _dockId).firstOrNull ?? docks.firstOrNull;
           final cams = dock?.cameras ?? const <DockCam>[];
           final bySlot = {for (final c in cams) c.slot: c};
-          final total = math.max(d.slots, bySlot.keys.fold<int>(0, (m, k) => math.max(m, k + 1)));
+          final total = math.max(math.max(d.slots, 10), bySlot.keys.fold<int>(0, (m, k) => math.max(m, k + 1))); // the dock has 10 slots (5 over 5), whatever an older server says
           final mine = cams.where((c) => c.state != 'other').length;
           final busy = cams.where((c) => c.state == 'offloading').length;
           final width = MediaQuery.sizeOf(context).width;
