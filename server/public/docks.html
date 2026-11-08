@@ -338,6 +338,7 @@ function vSet(v) {
         <dt>Dock ID</dt><dd>${esc(a?.id || '-')}</dd><dt>Agent version</dt><dd>${esc(a?.agent || '-')}</dd>
         <dt>Last report</dt><dd>${a ? ago(a.ts) : '-'}</dd>
         <dt>Mode</dt><dd>${a ? (a.mode === 'move' ? 'Move: verified files are removed from the camera' : 'Copy: nothing is deleted from the camera') : '-'}</dd>
+        <dt>Retention</dt><dd>${D.storage.retentionDays ? 'Recordings are deleted ' + D.storage.retentionDays + ' days after upload' : 'Recordings are kept until deleted'}</dd>
         <dt>Slots</dt><dd>${D.slots} (set <code>DOCK_SLOTS</code> on the server)</dd>
         <dt>Server docking</dt><dd>${D.enabled ? 'Enabled' : '<span style="color:var(--rec)">Disabled: set DOCK_TOKEN on the server</span>'}</dd></dl></div>
       <div class="card"><h3>Safety rules</h3><dl class="kv">

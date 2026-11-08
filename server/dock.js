@@ -30,6 +30,8 @@ function register(app, ctx) {
         db.prepare('INSERT INTO dock_slots(dock_id,port,slot) VALUES(?,?,?)').run(dockId, port, n);
         return n;
     };
+    const RETENTION_DAYS = Number(process.env.RECORDINGS_RETENTION_DAYS) || 0;
+    require('./retention').start({ db, dir, days: RETENTION_DAYS }); // 0 = keep forever (default)
     const docks = new Map(); // dock id -> last report (in memory)
 
     const needDock = (req, res, next) => {
@@ -122,7 +124,7 @@ function register(app, ctx) {
             cameraId: id, company: companyName(c.companyId), region: c.region || null, online: !!c.online, recording: !!c.recording, ts: c.ts || null, quality: c.quality || null,
             recordings: db.prepare('SELECT COUNT(*) n FROM recordings WHERE camera_id = ?').get(id).n }));
         res.json({ slots: SLOTS, enabled: !!DOCK_TOKEN, docks: list, cameras: known,
-            storage: { recordings: rec.n, recordingsBytes: rec.bytes, todayCount: td.n, todayBytes: td.bytes, ...(disk || {}) } });
+            storage: { retentionDays: RETENTION_DAYS, recordings: rec.n, recordingsBytes: rec.bytes, todayCount: td.n, todayBytes: td.bytes, ...(disk || {}) } });
     });
 
     app.get('/api/recordings', needUser, (req, res) => {
