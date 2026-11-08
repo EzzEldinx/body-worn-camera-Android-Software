@@ -50,7 +50,7 @@ class FleetController extends Notifier<FleetState> {
   void _connect(Session session) {
     final s = io.io(
       session.server,
-      io.OptionBuilder().setTransports(['websocket']).setAuth({'session': session.token}).disableAutoConnect().enableReconnection().setReconnectionDelay(1000).setReconnectionDelayMax(8000).build(),
+      io.OptionBuilder().setTransports(['websocket']).setAuth({'session': session.token}).setExtraHeaders({'Cookie': 'sid=${session.token}'}).disableAutoConnect().enableReconnection().setReconnectionDelay(1000).setReconnectionDelayMax(8000).build(),
     );
     _s = s;
     s.onConnect((_) => state = state.copy(connected: true));

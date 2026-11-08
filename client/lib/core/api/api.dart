@@ -19,7 +19,8 @@ class Api {
   final String server;
   final String? token;
 
-  Map<String, String> get headers => {'content-type': 'application/json', if (token != null) 'authorization': 'Bearer $token'};
+  // The token goes both ways: as a bearer (new servers) and as the session cookie (servers that predate /api/mobile).
+  Map<String, String> get headers => {'content-type': 'application/json', if (token != null) ...{'authorization': 'Bearer $token', 'cookie': 'sid=$token'}};
 
   Future<dynamic> _send(Future<http.Response> Function() call) async {
     http.Response r;
@@ -43,7 +44,29 @@ class Api {
   Future<Map> config() async => (await _get('/api/mobile/config')) as Map;
 
   /// Returns {token, expiresAt, user}.
-  Future<Map> login(String username, String password) async => (await _post('/api/mobile/login', {'username': username, 'password': password})) as Map;
+  Future<Map> login(String username, String password) async {
+    try {
+      return (await _post('/api/mobile/login', {'username': username, 'password': password})) as Map;
+    } on ApiError catch (e) {
+      if (e.status != 404) rethrow;
+    }
+    // Older server without the mobile API: use the web login and keep its session cookie as the token.
+    http.Response r;
+    try {
+      r = await http.post(_u('/api/login'), headers: {'content-type': 'application/json'}, body: jsonEncode({'username': username, 'password': password})).timeout(const Duration(seconds: 15));
+    } catch (_) {
+      throw ApiError(0, 'offline');
+    }
+    if (r.statusCode != 200) {
+      String msg = 'HTTP ${r.statusCode}';
+      try { msg = (jsonDecode(r.body) as Map)['error']?.toString() ?? msg; } catch (_) {}
+      throw ApiError(r.statusCode, msg);
+    }
+    final sid = RegExp(r'sid=([0-9a-f]+)').firstMatch(r.headers['set-cookie'] ?? '')?.group(1);
+    if (sid == null) throw ApiError(500, 'no session');
+    final user = await Api(server, token: sid).me();
+    return {'token': sid, 'expiresAt': DateTime.now().millisecondsSinceEpoch + 7 * 86400000, 'user': user.toJson()};
+  }
   Future<void> logout() async { try { await _post('/api/mobile/logout'); } catch (_) {} }
   Future<User> me() async => User.fromJson((await _get('/api/me')) as Map);
 
