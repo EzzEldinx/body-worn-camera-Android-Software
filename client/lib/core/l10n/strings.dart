@@ -8,6 +8,7 @@ const _t = <String, List<String>>{
   'tab_fleet': ['Cameras', 'الكاميرات'],
   'tab_map': ['Map', 'الخريطة'],
   'tab_live': ['Live', 'مباشر'],
+  'tab_dock': ['Docking', 'الدوك'],
   'tab_alerts': ['Alerts', 'التنبيهات'],
   'tab_more': ['More', 'المزيد'],
   'sign_in': ['Sign in', 'تسجيل الدخول'],

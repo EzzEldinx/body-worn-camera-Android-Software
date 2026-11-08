@@ -65,12 +65,13 @@ class _AppShellState extends ConsumerState<AppShell> {
       (Icons.videocam_outlined, Icons.videocam_rounded, 'tab_fleet'),
       (Icons.map_outlined, Icons.map_rounded, 'tab_map'),
       (Icons.live_tv_outlined, Icons.live_tv_rounded, 'tab_live'),
+      (Icons.dock_outlined, Icons.dock_rounded, 'tab_dock'),
       (Icons.notifications_outlined, Icons.notifications_rounded, 'tab_alerts'),
       (Icons.grid_view_outlined, Icons.grid_view_rounded, 'tab_more'),
     ];
     Widget icon(int i, bool sel) {
       final ic = Icon(sel ? items[i].$2 : items[i].$1);
-      if (i != 3) return ic;
+      if (i != 4) return ic;
       return Badge(label: Text('$open'), isLabelVisible: open > 0, backgroundColor: context.vg.rec, child: ic);
     }
     void go(int i) { HapticFeedback.selectionClick(); shell.goBranch(i, initialLocation: i == shell.currentIndex); }

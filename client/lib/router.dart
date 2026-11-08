@@ -41,6 +41,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [GoRoute(path: '/fleet', builder: (_, _) => const FleetScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/map', builder: (_, s) => MapScreen(focusCam: s.uri.queryParameters['cam']))]),
           StatefulShellBranch(routes: [GoRoute(path: '/live', builder: (_, _) => const LiveScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/dock', builder: (_, _) => const DockingScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/alerts', builder: (_, _) => const AlertsScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/more', builder: (c, _) => MoreScreen(onOpen: (r) => c.push(r)))]),
         ],
