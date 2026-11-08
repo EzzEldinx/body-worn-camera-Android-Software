@@ -165,6 +165,11 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 
 /* ---------- map ---------- */
 .mk{width:22px;height:22px;border-radius:50%;background:var(--off);border:3px solid #fff;box-shadow:0 0 0 1px rgba(15,27,45,.35),0 3px 8px rgba(15,27,45,.35);cursor:pointer;position:absolute;z-index:9999 !important;transform:translate(-50%,-50%)}
+.mk-l{position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);background:#fff;color:#0F1B2D;border-radius:9px;padding:4px 9px;font:600 12px/1.25 system-ui,sans-serif;white-space:nowrap;text-align:center;box-shadow:0 2px 10px rgba(15,27,45,.28);pointer-events:none}
+.mk-l::after{content:"";position:absolute;left:50%;top:100%;margin-left:-5px;border:5px solid transparent;border-top-color:#fff}
+.mk-l b{display:block;font-weight:800}.mk-l span{display:block;color:#5B6B82;font-weight:600;font-size:11px}
+.mk.sel .mk-l{z-index:2;box-shadow:0 0 0 2px var(--sel),0 2px 10px rgba(15,27,45,.3)}
+#map.far .mk-l{display:none}
 .mk.online{background:var(--ok);animation:pulseOnline 1.5s infinite}
 .mk.rec{background:var(--rec);animation:pulseRec 1.5s infinite}
 .mk.off{background:var(--off)}
@@ -572,10 +577,13 @@ function syncMarker(c) {
   if (!m) {
     const el = document.createElement('div');
     el.addEventListener('click', (e) => { e.stopPropagation(); select(c.cameraId, false); });
+    const lb = document.createElement('div'); lb.className = 'mk-l'; el.appendChild(lb);
     m = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
     markers.set(c.cameraId, m);
   }
   m.setLngLat([lng, lat]);
+  const lb = m.getElement().querySelector('.mk-l');
+  if (lb) { lb.innerHTML = '<b>' + esc(c.name || c.cameraId) + '</b>' + (c.holder ? '<span>' + esc(c.holder) + '</span>' : ''); }
   m.getElement().className = 'mk ' + stateOf(c) + (selected === c.cameraId ? ' sel' : '') + (gpsStale(c) ? ' stale' : '');
 }
 // A position is only "live" if the camera reported a fresh fix in the last 2 minutes; otherwise it is the last known place.
@@ -592,6 +600,8 @@ function drawAcc() {
   const c = cams.get(selected);
   src.setData(c && c.acc && c.lat != null && !gpsStale(c) ? circlePoly(Number(c.lng), Number(c.lat), Math.max(c.acc, 3)) : { type: 'FeatureCollection', features: [] });
 }
+const farCheck = () => document.getElementById('map').classList.toggle('far', map.getZoom() < 10);
+map.on('zoom', farCheck); map.on('load', farCheck);
 map.on('load', () => {
   map.addSource('acc', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'acc-fill', type: 'fill', source: 'acc', paint: { 'fill-color': '#2F7BFF', 'fill-opacity': 0.14 } });
@@ -821,6 +831,7 @@ function renderInfo() {
   if (editing && me.role === 'admin') {
     box.innerHTML = `<h3>Edit ${c.cameraId}</h3>
       <input class="in" id="eN" maxlength="40" placeholder="Display name" value="${esc(c.name || '')}" aria-label="Display name">
+      <input class="in" id="eH" maxlength="60" placeholder="Camera holder (who carries it)" value="${esc(c.holder || '')}" aria-label="Camera holder">
       <input class="in" id="eG" maxlength="40" placeholder="Group" value="${esc(c.grp || '')}" aria-label="Group">
       <select class="in" id="eR" aria-label="Region"><option value="">No region</option>${regionList.map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
       ${me.super ? `<select class="in" id="eC2" aria-label="Company"><option value="">No company</option>${companyList.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select>` : ''}
@@ -829,11 +840,11 @@ function renderInfo() {
     const call = (method, body) => fetch('/api/cameras/' + c.cameraId, { method, headers: { 'Content-Type': 'application/json' }, body });
     $('#eS').onclick = async () => {
       // read every field first: the panel re-renders as soon as the first save comes back
-      const v = { name: $('#eN').value, grp: $('#eG').value, region: $('#eR').value, company: $('#eC2') ? $('#eC2').value : null };
+      const v = { name: $('#eN').value, holder: $('#eH').value, grp: $('#eG').value, region: $('#eR').value, company: $('#eC2') ? $('#eC2').value : null };
       if (v.company !== null && String(v.company) !== String(c.companyId || '')) {
         await fetch('/api/admin/cameras/' + encodeURIComponent(c.cameraId) + '/company', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyId: v.company === '' ? null : Number(v.company) }) });
       }
-      await call('PATCH', JSON.stringify({ name: v.name, grp: v.grp, region: v.region }));
+      await call('PATCH', JSON.stringify({ name: v.name, holder: v.holder, grp: v.grp, region: v.region }));
       editing = false; renderInfo();
     };
     $('#eC').onclick = () => { editing = false; renderInfo(); };
@@ -841,6 +852,7 @@ function renderInfo() {
     return;
   }
   box.innerHTML = `<h3>${esc(getOfficerLabel(c.cameraId))}</h3>
+    ${c.holder ? `<p>${currentLang === 'ar' ? 'حامل الكاميرا' : 'Holder'}: <b>${esc(c.holder)}</b></p>` : ''}
     <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
     <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || (currentLang === 'ar' ? 'غير معيّنة' : 'Unassigned')}</p>
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>

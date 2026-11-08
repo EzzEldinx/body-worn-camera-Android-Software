@@ -4,7 +4,7 @@ enum CamState { rec, online, off }
 class Camera {
   Camera({
     required this.id, required this.name, required this.group, required this.online, required this.recording, required this.remote,
-    required this.ptt, required this.ts, this.lat, this.lng, this.acc, this.fixTs, this.speed, this.company, this.region, this.quality, this.battery, this.batteryTs, this.qualityAuto = false,
+    required this.ptt, required this.ts, this.lat, this.lng, this.acc, this.fixTs, this.speed, this.company, this.region, this.quality, this.battery, this.batteryTs, this.holder, this.qualityAuto = false,
   });
 
   final String id, name, group;
@@ -12,7 +12,7 @@ class Camera {
   final int ts;
   final double? lat, lng, acc, speed;
   final int? fixTs, battery, batteryTs;
-  final String? company, region, quality;
+  final String? company, region, quality, holder;
 
   factory Camera.fromJson(Map j) => Camera(
         id: '${j['cameraId']}',
@@ -34,6 +34,7 @@ class Camera {
         battery: (j['battery'] as num?)?.toInt(),
         batteryTs: (j['batteryTs'] as num?)?.toInt(),
         qualityAuto: j['qualityAuto'] == true,
+        holder: (j['holder'] is String && (j['holder'] as String).trim().isNotEmpty) ? (j['holder'] as String).trim() : null,
       );
 
   CamState get state => recording ? CamState.rec : (online ? CamState.online : CamState.off);

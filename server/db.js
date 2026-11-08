@@ -27,6 +27,7 @@ function addColumn(table, col, ddl) {
     }
 }
 addColumn('users', 'company_id', 'INTEGER');
+addColumn('cameras', 'holder', 'TEXT');               // who carries the camera (shown above it on the map)
 addColumn('cameras', 'token_hash', 'TEXT');           // sha256 of the camera's own device token
 addColumn('companies', 'max_cameras', 'INTEGER');   // package size (NULL = unlimited / legacy)
 addColumn('companies', 'max_live', 'INTEGER');      // max cameras streaming live at once (NULL = unlimited)

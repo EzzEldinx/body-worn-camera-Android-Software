@@ -62,7 +62,7 @@ const lastPos = new Map();
 for (const r of db.prepare('SELECT * FROM cameras').all()) {
     const p = db.prepare('SELECT lat,lng,ts FROM positions WHERE camera_id=? ORDER BY ts DESC LIMIT 1').get(r.id);
     cams.set(r.id, {
-        cameraId: r.id, name: r.name || r.id, grp: r.grp || '', online: false, recording: false,
+        cameraId: r.id, name: r.name || r.id, grp: r.grp || '', holder: r.holder || '', online: false, recording: false,
         lat: p ? p.lat : null, lng: p ? p.lng : null, ts: p ? p.ts : 0, companyId: r.company_id || null, region: r.region || null,
     });
 }
@@ -221,8 +221,9 @@ app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {
         region = r === null || r === '' ? null : String(r);
         if (region && !db.prepare('SELECT 1 FROM regions WHERE name = ?').get(region)) return res.status(400).json({ error: 'Unknown region.' });
     }
-    db.prepare('UPDATE cameras SET name = ?, grp = ?, region = ? WHERE id = ?').run(name, grp, region, id);
-    publish(id, { name, grp, region });
+    const holder = req.body && 'holder' in req.body ? String(req.body.holder ?? '').trim().slice(0, 60) : (cams.get(id).holder || '');
+    db.prepare('UPDATE cameras SET name = ?, grp = ?, region = ?, holder = ? WHERE id = ?').run(name, grp, region, holder, id);
+    publish(id, { name, grp, region, holder });
     res.json({ ok: true });
 });
 app.delete('/api/cameras/:id', needUser, needAdmin, (req, res) => {

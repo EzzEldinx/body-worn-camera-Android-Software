@@ -24,6 +24,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   String? _selected;
   bool _fitted = false;
   final _byCircle = <String, String>{}; // circle id -> camera id
+  final _bySymbol = <String, String>{}; // label id -> camera id
 
   @override
   void initState() { super.initState(); _selected = widget.focusCam; }
@@ -46,7 +47,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final v = context.vg;
     final sos = {for (final a in ref.read(fleetProvider).alarms.where((a) => !a.ack)) a.cameraId};
     await c.clearCircles();
+    await c.clearSymbols();
     _byCircle.clear();
+    _bySymbol.clear();
     if (cams.isEmpty) return;
     final opts = [
       for (final cam in cams) CircleOptions(
@@ -57,6 +60,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ];
     final made = await c.addCircles(opts, [for (final cam in cams) {'id': cam.id}]);
     for (var i = 0; i < made.length; i++) { _byCircle[made[i].id] = cams[i].id; }
+    // The name (and who carries it) floats above every camera, like the pop-up on the web map.
+    final labels = await c.addSymbols([
+      for (final cam in cams) SymbolOptions(
+        geometry: LatLng(cam.lat!, cam.lng!),
+        textField: cam.holder == null ? cam.name : '${cam.name}\n${cam.holder}',
+        textSize: 12, textColor: '#0F1B2D', textHaloColor: '#FFFFFF', textHaloWidth: 2.2, textHaloBlur: .4,
+        textOffset: const Offset(0, -2.1), textAnchor: 'bottom', fontNames: const ['Noto Sans Bold'], textMaxWidth: 12,
+        textJustify: 'center', zIndex: cam.id == _selected ? 1 : 0,
+      ),
+    ], [for (final cam in cams) {'id': cam.id}]);
+    for (var i = 0; i < labels.length; i++) { _bySymbol[labels[i].id] = cams[i].id; }
     if (!_fitted) { _fitted = true; _fitAll(cams); }
     if (widget.focusCam != null && _selected == widget.focusCam) _focus();
   }
@@ -93,6 +107,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           compassEnabled: false, attributionButtonPosition: AttributionButtonPosition.bottomLeft,
           onMapCreated: (c) {
             _c = c;
+            c.onSymbolTapped.add((sym) { final id = _bySymbol[sym.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
             c.onCircleTapped.add((circle) { final id = _byCircle[circle.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
           },
           onStyleLoadedCallback: _draw,
@@ -107,6 +122,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                   Text(cam.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  if (cam.holder != null) Text(cam.holder!, style: TextStyle(color: v.mut, fontSize: 13.5, fontWeight: FontWeight.w600)),
                   Text('${stateLabel(context, cam.state)} · ${agoText(context, cam.fixTs ?? cam.ts)}', style: TextStyle(color: v.mut, fontSize: 12.5)),
                 ])),
                 TextButton(onPressed: () => context.push('/camera/${cam.id}'), child: Text(context.tr('open_alert'))),

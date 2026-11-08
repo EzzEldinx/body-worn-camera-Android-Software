@@ -87,6 +87,7 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
         SectionTitle(context.tr('status')),
         VgCard(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: Column(children: [
           _Row(context.tr('last_seen'), agoText(context, cam.ts)),
+          if (cam.holder != null) _Row(context.tr('holder'), cam.holder!),
           if (cam.battery != null) _Row(context.tr('battery'), '${ltr('${cam.battery}%')}  ·  ${context.tr('battery_dock')}, ${agoText(context, cam.batteryTs)}'),
           _Row(context.tr('position'), gps),
           if (cam.speed != null && cam.speed! > 0.5) _Row(context.tr('speed'), '${(cam.speed! * 3.6).round()} km/h'),
