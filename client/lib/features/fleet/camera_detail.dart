@@ -77,6 +77,13 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
             ),
           ),
         ],
+        if (!cam.hasPosition) Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: VgCard(child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.location_off_rounded, color: v.sel), const SizedBox(width: 12),
+            Expanded(child: Text(context.tr('no_gps_why'), style: TextStyle(color: v.mut, height: 1.4, fontSize: 13))),
+          ])),
+        ),
         SectionTitle(context.tr('status')),
         VgCard(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: Column(children: [
           _Row(context.tr('last_seen'), agoText(context, cam.ts)),

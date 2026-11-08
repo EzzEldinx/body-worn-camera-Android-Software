@@ -200,9 +200,10 @@ async function load() {
 function agentOf() { return (D?.docks || []).slice().sort((a, b) => b.ts - a.ts)[0] || null; }
 function head(sub) {
   const a = agentOf(), st = a?.status || (a?.online ? 'online' : a ? 'offline' : 'none');
-  const label = { online: 'Dock Agent online', connecting: 'Dock Agent connecting…', offline: 'Dock Agent offline', none: D?.enabled === false ? 'Docking not enabled' : 'No Dock Agent yet' }[st];
+  const empty = st === 'online' && !(a.cameras || []).length;   // the PC is fine but the dock shows no camera: off, unplugged or just empty
+  const label = empty ? 'Dock Agent online · no cameras detected' : { online: 'Dock Agent online', connecting: 'Dock Agent connecting…', offline: 'Dock Agent offline', none: D?.enabled === false ? 'Docking not enabled' : 'No Dock Agent yet' }[st];
   return `<div class="top"><div><h1>Docking <span>Station</span></h1><p>${sub}</p></div>
-    <span class="agent ${st}"><i></i>${label}<small>${a ? esc(a.id) + ' · ' + ago(a.ts) : ''}</small></span></div>`;
+    <span class="agent ${empty ? 'connecting' : st}"><i></i>${label}<small>${a ? esc(a.id) + ' · ' + ago(a.ts) : ''}</small></span></div>`;
 }
 function draw() {
   const v = $('#view');

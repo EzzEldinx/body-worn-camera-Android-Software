@@ -104,8 +104,9 @@ class _AgentPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final v = context.vg;
     final st = dock?.status ?? 'none';
-    final color = st == 'online' ? v.ok : st == 'connecting' ? v.sel : v.off;
-    final label = context.tr(switch (st) { 'online' => 'dock_agent_on', 'connecting' => 'dock_agent_connecting', 'offline' => 'dock_agent_off', _ => 'dock_none' });
+    final empty = st == 'online' && (dock?.cameras.isEmpty ?? true); // PC fine, but no camera on the dock: off, unplugged or empty
+    final color = empty ? v.sel : st == 'online' ? v.ok : st == 'connecting' ? v.sel : v.off;
+    final label = empty ? context.tr('dock_no_cameras') : context.tr(switch (st) { 'online' => 'dock_agent_on', 'connecting' => 'dock_agent_connecting', 'offline' => 'dock_agent_off', _ => 'dock_none' });
     return Align(
       alignment: AlignmentDirectional.centerStart,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

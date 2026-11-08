@@ -121,6 +121,8 @@ const _t = <String, List<String>>{
   'dock_other_sub': ['A camera of another account is docked here.', 'كاميرا تابعة لحساب آخر موضوعة هنا.'],
   'dock_agent_on': ['Dock Agent online', 'برنامج القاعدة متصل'],
   'dock_agent_connecting': ['Dock Agent connecting…', 'برنامج القاعدة يتصل…'],
+  'dock_no_cameras': ['Agent online · no cameras detected', 'البرنامج متصل · لا توجد كاميرات'],
+  'no_gps_why': ['The camera sends its position only when its GPS has a fix (open sky). Indoors or on a dock it usually has none.', 'ترسل الكاميرا موقعها فقط عند توفر إشارة GPS (سماء مفتوحة). داخل المباني أو على القاعدة غالباً لا تتوفر.'],
   'dock_agent_off': ['Dock Agent offline', 'برنامج القاعدة غير متصل'],
   'dock_none': ['No Dock Agent yet', 'لا يوجد برنامج قاعدة بعد'],
   'dock_none_sub': ['Install the Dock Agent on the PC next to the docking station.', 'ثبّت برنامج القاعدة على الكمبيوتر بجانب قاعدة الشحن.'],
