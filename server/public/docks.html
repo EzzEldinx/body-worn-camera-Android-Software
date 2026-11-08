@@ -192,7 +192,7 @@ const fmtB = (b) => { b = Number(b) || 0; if (b >= 1e12) return (b / 1e12).toFix
 const ago = (ts) => { if (!ts) return 'never'; const s = Math.max(0, (Date.now() - ts) / 1000); if (s < 5) return 'just now'; if (s < 60) return Math.round(s) + 's ago'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago'; };
 const when = (ts) => ts ? new Date(ts).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 
-const VIEWS = [['docks', 'Docks', 'dock'], ['files', 'Files', 'files'], ['cams', 'Registered', 'cam'], ['data', 'Data Query', 'data'], ['set', 'Settings', 'set'], ['help', 'Help', 'help']];
+const VIEWS = [['docks', 'Docks', 'dock'], ['files', 'Files', 'files'], ['cams', 'Registered', 'cam'], ['data', 'Cloud Library', 'data'], ['set', 'Settings', 'set'], ['help', 'Help', 'help']];
 let me = null, D = null, view = 'docks', dockSel = null, timer = null, recs = [], FD = null, fstate = 'all', sel = new Set();
 
 $('#rail').innerHTML = VIEWS.map(([k, l, i]) => `<button class="rb" data-v="${k}" aria-label="${l}"><span class="dot">${ic(i)}</span>${l}</button>`).join('') +
@@ -328,7 +328,7 @@ function vFiles(v) {
   $('#fchips').onclick = (e) => { const b = e.target.closest('[data-b]'); if (!b) return; fstate = b.dataset.b; sel.clear(); loadFiles(); };
   $('#fall').onchange = (e) => { (FD?.files || []).forEach((f) => { if (!f.camDeletedTs) (e.target.checked ? sel.add(f.id) : sel.delete(f.id)); }); paintFiles(); };
   $('#fbody').onchange = (e) => { const c = e.target.closest('input[data-id]'); if (!c) return; const id = Number(c.dataset.id); c.checked ? sel.add(id) : sel.delete(id); paintFilesBar(); };
-  $('#fbody').onclick = (e) => { const b = e.target.closest('button[data-one]'); if (b) choose([Number(b.dataset.id)], b.dataset.one); const d = e.target.closest('button[data-del]'); if (d) askDelete([Number(d.dataset.del)]); const h = e.target.closest('button[data-hist]'); if (h) showHistory(Number(h.dataset.hist)); };
+  $('#fbody').onclick = (e) => { const b = e.target.closest('button[data-one]'); if (b) choose([Number(b.dataset.id)], b.dataset.one); const d = e.target.closest('button[data-del]'); if (d) askDelete([Number(d.dataset.del)]); const h = e.target.closest('button[data-hist]'); if (h) showHistory(Number(h.dataset.hist)); const pv = e.target.closest('button[data-prev]'); if (pv) previewCloud(pv.dataset.prev, pv.dataset.name); };
   $('#fcloud').onclick = () => choose([...sel], 'cloud');
   $('#flocal').onclick = () => choose([...sel], 'local');
   $('#fdel').onclick = () => askDelete([...sel]);
@@ -352,6 +352,11 @@ async function showHistory(id) {
       <span class="muted" style="font-size:12.5px">${when(l.ts)}</span><span><b>${esc(STEP[l.action] || l.action)}</b><br><span class="muted" style="font-size:12px">${esc(l.username)}${l.detail && l.detail.reason ? ' · ' + esc(l.detail.reason) : ''}</span></span></div>`).join('') : '<p class="muted">No recorded steps yet.</p>'}</div>
     <p class="muted" style="font-size:12px;margin:12px 0 0">This history is written by the server and cannot be edited or erased. <a href="/analytics.html#audit">Open the full audit trail</a></p>
     <div class="acts"><button class="btn" data-close>Close</button></div></div>`;
+  $('#modal').classList.add('on');
+}
+function previewCloud(rid, name) {
+  const src = `/api/recordings/${rid}/file`, vid = /\.mp4/i.test(name);
+  $('#mbox').innerHTML = `<header><b>${esc(name)}</b><button class="btn sm" data-close>Close</button></header>${vid ? `<video src="${src}" controls autoplay playsinline></video>` : `<img src="${src}" alt="">`}`;
   $('#modal').classList.add('on');
 }
 function askDelete(ids) {
@@ -394,7 +399,7 @@ function paintFiles() {
     return `<tr><td><input type="checkbox" data-id="${f.id}" ${sel.has(f.id) ? 'checked' : ''} ${f.camDeletedTs || !can ? 'disabled' : ''}></td><td><b>${esc(f.cameraId)}</b></td><td class="mono">${esc(f.filename)}</td>
       <td>${when(f.recordedTs || f.addedTs)}</td><td class="r">${fmtB(f.size)}</td>
       <td><span class="badge ${badge[0]}">${badge[1]}</span>${f.bucket === 'cloud' ? `<div class="muted" style="font-size:11.5px;margin-top:3px">Uploaded to cloud · ${when(f.updatedTs)}</div>` : f.bucket === 'local' ? `<div class="muted" style="font-size:11.5px;margin-top:3px">Saved on dock storage · ${when(f.updatedTs)}</div>` : ''}${f.message ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(f.message)}</div>` : ''}${f.camDeletedTs ? '<div style="margin-top:4px"><span class="badge b-gone">Removed from camera</span></div>' : f.camDelete ? '<div class="muted" style="font-size:11.5px">Removal queued for the next dock visit</div>' : ''}${f.chosenBy === 'auto' ? '<div class="muted" style="font-size:11.5px">automatic</div>' : ''}</td>
-      <td style="white-space:nowrap"><button class="btn sm" data-hist="${f.id}" title="Every step this file went through">${ic('file').replace('<svg', '<svg width="13" height="13"')}History</button> ${can ? act + (f.camDeletedTs ? '' : ` <button class="btn sm del" data-del="${f.id}" ${f.camDelete ? 'disabled' : ''}>${ic('trash').replace('<svg', '<svg width="13" height="13"')}${f.camDelete ? 'Queued' : 'Delete'}</button>`) : ''}</td></tr>`;
+      <td style="white-space:nowrap">${f.recordingId ? `<button class="btn sm" data-prev="${f.recordingId}" data-name="${esc(f.cameraId)} · ${esc(f.filename)}">${ic('play').replace('<svg', '<svg width="13" height="13"')}Play</button> <a class="btn sm" href="/api/recordings/${f.recordingId}/file" download="${esc(f.cameraId)}_${esc(f.filename)}" title="Download to this computer">${ic('down').replace('<svg', '<svg width="13" height="13"')}</a> ` : ''}<button class="btn sm" data-hist="${f.id}" title="Every step this file went through">${ic('file').replace('<svg', '<svg width="13" height="13"')}History</button> ${can ? act + (f.camDeletedTs ? '' : ` <button class="btn sm del" data-del="${f.id}" ${f.camDelete ? 'disabled' : ''}>${ic('trash').replace('<svg', '<svg width="13" height="13"')}${f.camDelete ? 'Queued' : 'Delete'}</button>`) : ''}</td></tr>`;
   }).join('') : `<tr><td colspan="7" class="empty">${fstate === 'awaiting' ? 'Nothing is waiting for your choice. Files appear here after a camera has been copied to the dock.' : 'No files in this list.'}</td></tr>`;
   paintFilesBar();
 }
@@ -420,7 +425,7 @@ function vData(v) {
   const cams = [...new Set([...D.cameras.map((c) => c.cameraId), ...recs.map((r) => r.cameraId)])].sort();
   const pre = sessionStorage.getItem('dockq') || ''; sessionStorage.removeItem('dockq');
   const day = (o) => { const d = new Date(Date.now() - o * 864e5); return d.toISOString().slice(0, 10); };
-  v.innerHTML = head('Search the verified evidence offloaded from your cameras. Every file is SHA-256 checked.') +
+  v.innerHTML = head('Everything that is in the cloud. Play any video or photo, or download it, at any time. Files kept only on the dock PC are in Files.') +
     `<div class="card"><div class="bar2">
       <select id="fc"><option value="">All cameras</option>${cams.map((c) => `<option ${c === pre ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
       <input type="date" id="ff" title="From"><input type="date" id="ft" title="To">

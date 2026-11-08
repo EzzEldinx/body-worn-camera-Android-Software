@@ -227,7 +227,7 @@ function register(app, ctx) {
     });
     app.get('/api/dock/files', needUser, (req, res) => {
         const state = req.query.state === 'all' ? '' : String(req.query.state || '');
-        const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename,size,sha256,updated_ts AS updatedTs,recorded_ts AS recordedTs,dock_id AS dockId,state,choice,chosen_by AS chosenBy,message,added_ts AS addedTs,cam_delete AS camDelete,cam_deleted_ts AS camDeletedTs
+        const rows = db.prepare(`SELECT id,camera_id AS cameraId,filename,size,sha256,updated_ts AS updatedTs,recorded_ts AS recordedTs,dock_id AS dockId,state,choice,chosen_by AS chosenBy,message,added_ts AS addedTs,(SELECT r.id FROM recordings r WHERE r.camera_id = dock_files.camera_id AND r.sha256 = dock_files.sha256) AS recordingId,cam_delete AS camDelete,cam_deleted_ts AS camDeletedTs
             FROM dock_files ORDER BY added_ts DESC, id DESC LIMIT 3000`).all().filter((r) => mine(req.user, r.cameraId));
         const bucket = (r) => (r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued');
         const counts = { awaiting: { n: 0, bytes: 0 }, local: { n: 0, bytes: 0 }, queued: { n: 0, bytes: 0 }, cloud: { n: 0, bytes: 0 }, failed: { n: 0, bytes: 0 } };
