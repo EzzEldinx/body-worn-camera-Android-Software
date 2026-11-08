@@ -1,5 +1,6 @@
 package sa.com.smartwaygroup.visionguard_client
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FlutterFragmentActivity: required by local_auth (fingerprint / face unlock)
+class MainActivity : FlutterFragmentActivity()

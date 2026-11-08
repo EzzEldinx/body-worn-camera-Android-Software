@@ -74,5 +74,9 @@ Apple Developer Program (US$99/yr, organisation account needs a D-U-N-S number) 
 
 ## 9. Status
 
-Done: server mobile API with tests (`/api/mobile/config|login|logout|push`, bearer on HTTP and socket, FCM sender, 17 passing tests); Flutter project `client/` created with the dependencies, design tokens, translations (EN/AR), models, API client, settings and auth controller.
-Next: realtime fleet service, app shell + login, fleet / detail / live / alerts / map / recordings / settings screens, then run on the iPad simulator and the two tablets.
+Built and verified on the iPad Pro 11" and iPhone 17 simulators (against a local server with simulated cameras):
+sign in / sign out with the bearer token, live fleet and SOS over the socket, acknowledge (reaches the server database), camera detail, quality picker, map (OpenFreeMap, one dot per camera), alerts, recordings with in-app playback of a real body-camera MP4 over the authenticated URL (libmpv on iOS), settings, light/dark, English/Arabic with full RTL, phone layout (bottom bar) and tablet layout (rail). 17 server tests and 6 app tests pass.
+
+Not verified yet (needs the real hardware or accounts): live FLV from a real camera inside the app, push notifications, Face ID, the Android build on a real tablet, and the iPad itself (Xcode signing).
+
+Next: run on the two tablets against the test server, then the items in section 3 (v1.1).
