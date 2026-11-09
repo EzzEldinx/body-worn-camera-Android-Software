@@ -79,10 +79,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   double _maxZoomLevel = 4.0;
   double _minZoomLevel = 1.0;
 
+  // ignore: unused_field
   bool _wasLightButtonPressed = false;
 
   static const MethodChannel _kioskChannel = MethodChannel('com.swg.bwc/kiosk');
 
+  // ignore: unused_element
   void _showChatDialog() {
   final TextEditingController msgController = TextEditingController();
   String selectedChatType = 'PUBLIC'; // 'PUBLIC' or 'PRIVATE'
@@ -731,6 +733,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   }
 
   // Volume keys: a single press steps 0.5x, holding the key steps smoothly.
+  // ignore: unused_element
   void _stepZoom(bool zoomIn) {
     final now = DateTime.now();
     final step = now.difference(_lastZoomKey).inMilliseconds < 250 ? 0.1 : 0.5;

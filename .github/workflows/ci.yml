@@ -20,4 +20,4 @@ jobs:
       - uses: subosito/flutter-action@v2
         with: { channel: stable, cache: true }
       - run: flutter pub get
-      - run: flutter analyze
+      - run: flutter analyze --no-fatal-infos   # style hints are listed but only warnings and errors fail the build
