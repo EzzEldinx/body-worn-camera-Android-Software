@@ -10,6 +10,7 @@ const { db, hashPassword, verifyPassword } = require('./db');
 const packages = require('./packages');
 const auditlog = require('./auditlog');
 const insights = require('./insights');
+const support = require('./support');
 const deviceTokens = require('./tokens');
 
 // Cameras present this shared token for now (per-device tokens come later).
@@ -550,6 +551,9 @@ app.get('/api/update/apk', (req, res) => {
     res.type('application/vnd.android.package-archive').sendFile(UPD_APK);
 });
 
+// Help & Support tickets (see support.js)
+support.register(app, { db, needUser, isStaff, str, cams, canSee, companyName });
+
 // Docking stations: offload recordings from cameras (see dock.js)
 require('./dock').register(app, { db, cams, needUser, needAdmin, canSee, isStaff, str, companyName, publish });
 
@@ -574,6 +578,7 @@ const page = (file) => (req, res) => res.sendFile(path.join(__dirname, 'public',
 app.get(['/', '/index.html'], needUser, page('index.html'));
 app.get('/analytics.html', needUser, page('analytics.html'));
 app.get('/docks.html', needUser, page('docks.html'));
+app.get('/help.html', needUser, page('help.html'));
 app.get('/updates.html', needUser, (req, res) => (isSuper(req.user) ? page('updates.html')(req, res) : res.redirect('/analytics.html')));
 app.get('/admin.html', needUser, (req, res, next) => (isSuper(req.user) ? page('admin.html')(req, res) : res.redirect('/analytics.html')));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));

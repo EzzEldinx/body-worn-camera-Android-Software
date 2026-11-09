@@ -188,3 +188,23 @@ test('a file\'s whole life is written to the audit trail and can be read back', 
     const csv = await (await fetch(BASE + '/api/audit/export.csv?ref=' + f.sha256, { headers: H })).text();
     assert.match(csv, /dock_file_choice_local/);
 });
+
+test('support tickets: open, follow, reply, close; bad input is refused', async () => {
+    const login = await (await post('/api/mobile/login', { username: 'admin', password: 'mobile-test-pw' })).json();
+    const H = { authorization: `Bearer ${login.token}`, 'content-type': 'application/json' };
+    const info = await (await fetch(BASE + '/api/support/info', { headers: H })).json();
+    assert.strictEqual(info.email, 'sdpt@smart-way.com.sa'); assert.strictEqual(info.emailConfigured, false);
+    assert.strictEqual((await post('/api/tickets', { subject: 'x', description: 'too short' }, H)).status, 400);
+    const r = await (await post('/api/tickets', { subject: 'Camera offline', category: 'camera', priority: 'urgent', description: 'BWC-03 has been offline since the morning' }, H)).json();
+    assert.match(r.ref, /^VG-\d{5}$/); assert.strictEqual(r.emailed, false); assert.match(r.note, /not configured/i);   // saved even without e-mail
+    const list = (await (await fetch(BASE + '/api/tickets', { headers: H })).json()).tickets;
+    assert.ok(list.some((t) => t.id === r.id && t.priority === 'urgent' && t.status === 'open'));
+    assert.strictEqual((await post(`/api/tickets/${r.id}/messages`, { body: 'We are looking into it.' }, H)).status, 200);
+    let t = await (await fetch(BASE + `/api/tickets/${r.id}`, { headers: H })).json();
+    assert.strictEqual(t.messages.length, 2); assert.strictEqual(t.messages[1].staff, true); assert.strictEqual(t.status, 'in_progress');   // staff answer moves it on
+    assert.strictEqual((await post(`/api/tickets/${r.id}/status`, { status: 'resolved' }, H)).status, 200);
+    assert.strictEqual((await post(`/api/tickets/${r.id}/status`, { status: 'nonsense' }, H)).status, 400);
+    assert.strictEqual((await fetch(BASE + '/api/tickets/99999', { headers: H })).status, 404);
+    const lines = (await (await fetch(BASE + '/api/audit?action=ticket', { headers: H })).json()).lines.map((l) => l.action);
+    assert.ok(lines.includes('ticket_created') && lines.includes('ticket_answered'));       // tickets are in the audit trail too
+});

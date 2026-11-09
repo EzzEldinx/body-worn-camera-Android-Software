@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Help &amp; Support - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="stylesheet" href="/portal.css">
+<style>
+.hero{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:26px 30px;border:0;color:#fff;position:relative;overflow:hidden;
+  background:radial-gradient(700px 300px at 90% 0,rgba(47,123,255,.5),transparent 65%),radial-gradient(600px 300px at 0 100%,rgba(124,92,255,.55),transparent 65%),linear-gradient(135deg,#1B1442,#0E1B45)}
+.hero h1{margin:0 0 6px;font-size:clamp(24px,3vw,34px);font-weight:800;letter-spacing:-.3px}
+.hero h1 span{background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin:0;color:rgba(232,238,247,.82);font-size:14.5px;max-width:560px;line-height:1.5}
+.cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+details.q{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:8px;overflow:hidden}
+details.q summary{cursor:pointer;padding:13px 16px;font-weight:700;font-size:14px;list-style:none;display:flex;justify-content:space-between;gap:10px}
+details.q summary::after{content:"+";color:var(--mut);font-weight:800}details.q[open] summary::after{content:"–"}
+details.q div{padding:0 16px 14px;color:var(--mut);font-size:13.5px;line-height:1.6}
+.frm{display:grid;gap:12px}.frm .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.frm .row2{grid-template-columns:1fr}}
+.frm label{display:grid;gap:5px;font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--mut)}
+.frm input,.frm select,.frm textarea{font:inherit;font-size:14px;letter-spacing:0;text-transform:none;font-weight:500;color:var(--text)}
+.frm textarea{min-height:120px;resize:vertical}
+.note{padding:11px 14px;border-radius:12px;font-size:13px;line-height:1.5;background:color-mix(in srgb,var(--blue) 10%,transparent);border:1px solid color-mix(in srgb,var(--blue) 30%,var(--line))}
+.note.ok{background:color-mix(in srgb,var(--ok) 12%,transparent);border-color:color-mix(in srgb,var(--ok) 35%,var(--line))}
+.note.warn{background:color-mix(in srgb,var(--sel) 14%,transparent);border-color:color-mix(in srgb,var(--sel) 40%,var(--line))}
+.tk{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);cursor:pointer;margin-bottom:8px}
+.tk:hover,.tk.on{border-color:var(--sel)}.tk b{display:block;font-size:14px}.tk small{color:var(--mut);font-size:12px}
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--c,var(--off)) 14%,transparent);color:var(--c,var(--mut));white-space:nowrap}
+.s-open{--c:var(--sel)}.s-in_progress{--c:var(--blue)}.s-resolved{--c:var(--ok)}.s-closed{--c:var(--off)}
+.p-urgent{--c:var(--rec)}.p-high{--c:var(--sel)}.p-normal{--c:var(--blue)}.p-low{--c:var(--off)}
+.msg{padding:12px 14px;border-radius:12px;margin-bottom:10px;background:var(--raise);border:1px solid var(--line-soft);white-space:pre-wrap;line-height:1.55;font-size:14px}
+.msg.staff{background:color-mix(in srgb,var(--brand) 9%,transparent);border-color:color-mix(in srgb,var(--brand) 28%,var(--line))}
+.msg small{display:block;color:var(--mut);font-weight:700;margin-bottom:4px;font-size:11.5px;white-space:normal}
+.fchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.fchips button{padding:5px 13px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-weight:700;font-size:12.5px;color:var(--mut);cursor:pointer}
+.fchips button.on{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink)}
+.empty{color:var(--mut);font-size:13px;padding:14px 0}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <section class="card hero">
+    <div><h1>Help &amp; <span>Support</span></h1>
+      <p>Find a quick answer, or open a ticket and the Smart Way support team will answer you right here. You can also write to <a id="mailTop" style="color:#FFC857;font-weight:700" href="mailto:sdpt@smart-way.com.sa">sdpt@smart-way.com.sa</a>.</p></div>
+    <a class="btn pri" href="#new" id="goNew" style="font-size:16px;padding:14px 26px">Open a ticket</a>
+  </section>
+
+  <section class="cols">
+    <div class="card"><h3>Quick answers</h3><div id="faq"></div></div>
+    <div class="card" id="new"><h3>Open a ticket</h3>
+      <form class="frm" id="tf" autocomplete="off">
+        <label>Subject<input id="tSub" maxlength="120" placeholder="e.g. Camera BWC-03 shows offline" required></label>
+        <div class="row2">
+          <label>About<select id="tCat"><option value="question">A question</option><option value="camera">A camera</option><option value="docking">The docking station</option><option value="live">Live view</option><option value="alerts">Alerts / SOS</option><option value="account">My account</option><option value="app">The mobile app</option><option value="other">Something else</option></select></label>
+          <label>Priority<select id="tPri"><option value="normal">Normal</option><option value="low">Low</option><option value="high">High</option><option value="urgent">Urgent (cameras are not working)</option></select></label>
+        </div>
+        <label>Camera (optional)<select id="tCam"><option value="">None</option></select></label>
+        <label>What happened?<textarea id="tDesc" maxlength="4000" placeholder="What did you do, what did you expect, what happened instead? The more detail, the faster we can help." required></textarea></label>
+        <div id="tMsg"></div>
+        <button class="btn pri" id="tGo" type="submit" style="justify-self:start">Send to support</button>
+      </form></div>
+  </section>
+
+  <section class="cols" id="mine">
+    <div class="card"><h3 id="lTitle">My tickets</h3><div class="fchips" id="fch"></div><div id="tl"><div class="empty">Loading…</div></div></div>
+    <div class="card" id="det"><h3>Conversation</h3><div class="empty">Choose a ticket to read the conversation and reply.</div></div>
+  </section>
+</main>
+
+<script src="/portal.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const when = (t) => new Date(t).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+const ST = { open: 'Open', in_progress: 'In progress', resolved: 'Resolved', closed: 'Closed' }, PR = { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' };
+let info = { email: 'sdpt@smart-way.com.sa', staff: false }, filter = '', cur = null, tickets = [];
+
+const FAQ = [
+  ['A camera shows offline', 'Check it is charged and has Wi-Fi or mobile data. A camera on the docking station is charging and appears online within seconds. If it stays offline after charging, open a ticket with the camera name.'],
+  ['The camera on the map has no GPS position', 'Indoors and on the dock a camera cannot see the sky, so it has no GPS fix. A docked camera is shown at the dock’s location ("At the docking station"). Outdoors it gets a fix within a minute or two. If it never does, open a ticket.'],
+  ['What happens to videos after I dock a camera?', 'The dock copies them to the dock computer and checks them. Then in Docking › Files you choose, per file or all at once: Push to cloud, or keep on the dock’s storage. You can also switch on an automatic mode.'],
+  ['Where are my files? What does "Keep on dock storage" mean?', 'It means a verified copy stays on the computer next to the docking station (not on the camera). Files in the cloud are listed under Docking › Cloud Library, where you can play or download them any time.'],
+  ['Can I delete a video from the camera?', 'Yes: Docking › Files › Delete. The camera removes it only when it is docked and a verified copy exists on the dock or in the cloud. The copy is never touched. This cannot be undone.'],
+  ['The live view does not start', 'The camera must be online. Press Live next to the camera and wait a few seconds; it starts by itself. On a weak mobile network the video quality lowers automatically. If it keeps failing, open a ticket with the camera name and the time.'],
+  ['How can I prove nothing was changed?', 'Analytics › Audit trail records every step of every file and who decided it. It cannot be edited or erased, and each line is chained to the previous one. “Verify now” checks it, and you can export it.'],
+  ['I forgot my password / I need a new user', 'Ask your company administrator, or open a ticket under "My account".'],
+];
+$('#faq').innerHTML = FAQ.map(([q, a]) => `<details class="q"><summary>${esc(q)}</summary><div>${esc(a)}</div></details>`).join('');
+
+async function loadList() {
+  const r = await fetch('/api/tickets' + (filter ? '?status=' + filter : '')); tickets = (await r.json()).tickets || [];
+  $('#lTitle').textContent = info.staff ? 'All tickets' : 'My tickets';
+  $('#fch').innerHTML = [['', 'All'], ['open', 'Open'], ['in_progress', 'In progress'], ['resolved', 'Resolved'], ['closed', 'Closed']].map(([k, l]) => `<button data-f="${k}" class="${filter === k ? 'on' : ''}">${l}</button>`).join('');
+  $('#tl').innerHTML = tickets.length ? tickets.map((t) => `<div class="tk ${cur === t.id ? 'on' : ''}" data-id="${t.id}"><div><b>${esc(t.subject)}</b><small>${esc(t.ref)} · ${when(t.updated)}${info.staff ? ' · ' + esc(t.by) + (t.company ? ' · ' + esc(t.company) : '') : ''}${t.replies ? ' · ' + t.replies + ' repl' + (t.replies === 1 ? 'y' : 'ies') : ''}</small></div>
+    <div style="display:grid;gap:4px;justify-items:end"><span class="chip s-${t.status}">${ST[t.status]}</span><span class="chip p-${t.priority}">${PR[t.priority]}</span></div></div>`).join('') : '<div class="empty">No tickets yet. When you open one it appears here.</div>';
+}
+async function openTicket(id) {
+  cur = id; const r = await fetch('/api/tickets/' + id); if (!r.ok) return;
+  const t = await r.json();
+  const canStatus = info.staff;
+  $('#det').innerHTML = `<h3>${esc(t.ref)} · ${esc(t.subject)}</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px"><span class="chip s-${t.status}">${ST[t.status]}</span><span class="chip p-${t.priority}">${PR[t.priority]}</span><span class="chip" style="--c:var(--mut)">${esc(t.category)}</span>${t.cameraId ? `<span class="chip" style="--c:var(--blue)">${esc(t.cameraId)}</span>` : ''}</div>
+    ${t.messages.map((m) => `<div class="msg ${m.staff ? 'staff' : ''}"><small>${esc(m.author)}${m.staff ? ' · Smart Way support' : ''} · ${when(m.ts)}</small>${esc(m.body)}</div>`).join('')}
+    ${t.status === 'closed' ? '<div class="note">This ticket is closed. Reply to reopen it.</div>' : ''}
+    <div class="frm" style="margin-top:12px"><textarea id="rBody" placeholder="Write a reply…" maxlength="4000"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn pri" id="rGo">Send reply</button>
+        ${canStatus ? `<select id="rSt">${Object.entries(ST).map(([k, v]) => `<option value="${k}" ${t.status === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn" id="rSet">Set status</button>`
+          : (t.status !== 'closed' ? '<button class="btn" id="rClose">Close ticket</button>' : '')}<span class="muted" id="rMsg"></span></div></div>`;
+  $('#rGo').onclick = async () => {
+    const body = $('#rBody').value.trim(); if (body.length < 2) return;
+    const x = await fetch(`/api/tickets/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }) });
+    if (x.ok) { await openTicket(id); loadList(); } else $('#rMsg').textContent = (await x.json()).error || 'Could not send.';
+  };
+  if ($('#rSet')) $('#rSet').onclick = async () => { await fetch(`/api/tickets/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: $('#rSt').value }) }); openTicket(id); loadList(); };
+  if ($('#rClose')) $('#rClose').onclick = async () => { await fetch(`/api/tickets/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'closed' }) }); openTicket(id); loadList(); };
+  history.replaceState(null, '', '#t=' + id);
+}
+$('#tl').addEventListener('click', (e) => { const t = e.target.closest('.tk'); if (t) { openTicket(Number(t.dataset.id)); loadList(); } });
+$('#fch').addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (b) { filter = b.dataset.f; loadList(); } });
+$('#goNew').onclick = (e) => { e.preventDefault(); $('#new').scrollIntoView({ behavior: 'smooth' }); $('#tSub').focus(); };
+
+$('#tf').onsubmit = async (e) => {
+  e.preventDefault(); const b = $('#tGo'); b.disabled = true; $('#tMsg').innerHTML = '';
+  const r = await fetch('/api/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: $('#tSub').value, category: $('#tCat').value, priority: $('#tPri').value, cameraId: $('#tCam').value, description: $('#tDesc').value }) });
+  const j = await r.json(); b.disabled = false;
+  if (!r.ok) { $('#tMsg').innerHTML = `<div class="note warn">${esc(j.error || 'Could not send the ticket.')}</div>`; return; }
+  $('#tMsg').innerHTML = j.emailed ? `<div class="note ok">Ticket <b>${esc(j.ref)}</b> was sent to support. We will answer it here.</div>`
+    : `<div class="note ok">Ticket <b>${esc(j.ref)}</b> is saved and support will answer it here. If it is urgent, also write to <a href="mailto:${esc(info.email)}?subject=${encodeURIComponent(j.ref)}">${esc(info.email)}</a>.</div>`;
+  $('#tf').reset(); await loadList(); openTicket(j.id);
+};
+
+portalReady.then(async (me) => {
+  info = await (await fetch('/api/support/info')).json();
+  $('#mailTop').textContent = info.email; $('#mailTop').href = 'mailto:' + info.email;
+  if (info.staff && !info.emailConfigured) $('#tMsg').innerHTML = '<div class="note warn">E-mail to the support desk is not configured on the server (set SMTP_HOST in the server .env). Tickets are stored here meanwhile.</div>';
+  try { const d = await (await fetch('/api/docks')).json(); $('#tCam').innerHTML = '<option value="">None</option>' + (d.cameras || []).map((c) => `<option>${esc(c.cameraId)}</option>`).join(''); } catch (e) { /* optional */ }
+  await loadList();
+  const m = /#t=(\d+)/.exec(location.hash); if (m) openTicket(Number(m[1]));
+  setInterval(() => { if (!document.hidden) loadList(); }, 20000);
+});
+</script>
+</body>
+</html>

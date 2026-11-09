@@ -205,6 +205,9 @@ Limit: someone with full control of the server's disk can still destroy it entir
 ### 8.3e Analytics insights and the written analysis
 Analytics shows what needs attention (low battery, cameras offline, files waiting, failed uploads, unacknowledged SOS, storage running out, slower alarm response, unusual SOS counts, broken audit trail), the evidence pipeline, trends and a camera-health table. *Written analysis* gives an automatic summary; with `ANTHROPIC_API_KEY` in the server `.env` it becomes an AI-written briefing (numbers and camera names only).
 
+### 8.3f Help & Support (Help in the top menu)
+Quick answers, and **tickets**: a customer opens a ticket (subject, topic, priority, optional camera), follows the conversation and can reply or close it; a company administrator sees the company's tickets; Smart Way staff see and answer all of them and set the status (open, in progress, resolved, closed). A customer's reply reopens a resolved ticket. Every ticket action is in the audit trail. New tickets and customer replies are e-mailed to **sdpt@smart-way.com.sa** when the server has `SMTP_HOST` (see `.env.example`); without it they are stored and answered on the page.
+
 ### 8.4 The docking station updates the cameras by itself (Dock Agent 1.3)
 Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that sits on the dock is checked each cycle (about 30 s):
 * installed app = latest build -> nothing happens;
