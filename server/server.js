@@ -584,11 +584,20 @@ app.get('/admin.html', needUser, (req, res, next) => (isSuper(req.user) ? page('
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ---------- Sockets ----------
+const socketRefusedAt = new Map();
 io.use((socket, next) => {
     const cam = authCamera(socket.handshake.auth?.token);
     if (cam) { socket.data.role = 'camera'; socket.data.authId = cam.id || null; return next(); }
-    const u = userFromCookie(socket.handshake.headers.cookie) || userBySession(socket.handshake.auth?.session);
+    // The session can arrive as the socket.io auth payload, the sid cookie, an Authorization bearer header or a query parameter:
+    // some networks and proxies drop one of them, so any valid one is enough.
+    const h = socket.handshake;
+    const u = userFromCookie(h.headers.cookie) || userBySession(h.auth?.session) || userBySession(bearer(h.headers.authorization)) || userBySession(typeof h.query?.session === 'string' ? h.query.session : null);
     if (u) { socket.data.role = 'dashboard'; socket.data.user = u; return next(); }
+    const now = Date.now();
+    if (now - (socketRefusedAt.get(h.address) || 0) > 10000) {   // what the refused client sent (never the secret itself), so the cause can be read from the log
+        socketRefusedAt.set(h.address, now);
+        console.warn(`socket refused from ${h.address}: auth.session=${typeof h.auth?.session}(${String(h.auth?.session || '').length}) cookie=${!!h.headers.cookie} bearer=${!!h.headers.authorization} query=${!!h.query?.session} transport=${h.query?.transport} ua=${String(h.headers['user-agent'] || '').slice(0, 50)}`);
+    }
     next(new Error('unauthorized'));
 });
 

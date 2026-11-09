@@ -208,3 +208,20 @@ test('support tickets: open, follow, reply, close; bad input is refused', async 
     const lines = (await (await fetch(BASE + '/api/audit?action=ticket', { headers: H })).json()).lines.map((l) => l.action);
     assert.ok(lines.includes('ticket_created') && lines.includes('ticket_answered'));       // tickets are in the audit trail too
 });
+
+test('the dashboard socket accepts the session however a network lets it through (auth payload, cookie, bearer header, query)', async () => {
+    const login = await (await post('/api/mobile/login', { username: 'admin', password: 'mobile-test-pw' })).json();
+    const t = login.token;
+    const tries = [
+        { auth: { session: t } }, { extraHeaders: { Cookie: `sid=${t}` } }, { extraHeaders: { Authorization: `Bearer ${t}` } }, { query: { session: t } },
+    ];
+    for (const o of tries) {
+        const s = io(BASE, { transports: ['websocket'], reconnection: false, ...o });
+        const r = await new Promise((res) => { s.on('connect', () => res('connected')); s.on('connect_error', (e) => res(e.message)); setTimeout(() => res('timeout'), 4000); });
+        s.close();
+        assert.strictEqual(r, 'connected', JSON.stringify(o).replace(t, '<token>'));
+    }
+    const bad = io(BASE, { transports: ['websocket'], reconnection: false, auth: { session: 'f'.repeat(64) } });
+    assert.strictEqual(await new Promise((res) => { bad.on('connect', () => res('connected')); bad.on('connect_error', (e) => res(e.message)); setTimeout(() => res('timeout'), 4000); }), 'unauthorized');
+    bad.close();
+});
