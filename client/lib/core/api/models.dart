@@ -179,3 +179,26 @@ class DockFiles {
     );
   }
 }
+
+
+/// A Help & Support ticket (see server/support.js).
+class Ticket {
+  Ticket({required this.id, required this.ref, required this.subject, required this.status, required this.priority, required this.category, required this.updated, this.by, this.company, this.cameraId, this.replies = 0, this.messages = const []});
+  final int id, updated, replies;
+  final String ref, subject, status, priority, category;
+  final String? by, company, cameraId;
+  final List<TicketMessage> messages;
+  factory Ticket.fromJson(Map j) => Ticket(
+        id: (j['id'] as num).toInt(), ref: '${j['ref']}', subject: '${j['subject']}', status: '${j['status']}', priority: '${j['priority']}', category: '${j['category']}',
+        updated: (j['updated'] as num?)?.toInt() ?? 0, by: j['by'] as String?, company: j['company'] as String?, cameraId: j['cameraId'] as String?, replies: (j['replies'] as num?)?.toInt() ?? 0,
+        messages: [for (final m in (j['messages'] as List? ?? const [])) TicketMessage.fromJson(m as Map)],
+      );
+}
+
+class TicketMessage {
+  TicketMessage({required this.author, required this.staff, required this.body, required this.ts});
+  final String author, body;
+  final bool staff;
+  final int ts;
+  factory TicketMessage.fromJson(Map j) => TicketMessage(author: '${j['author']}', staff: j['staff'] == true, body: '${j['body']}', ts: (j['ts'] as num?)?.toInt() ?? 0);
+}

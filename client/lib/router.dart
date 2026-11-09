@@ -8,6 +8,7 @@ import 'features/auth/auth_controller.dart';
 import 'features/auth/login_screen.dart';
 import 'features/docking/docking_screen.dart';
 import 'features/docking/dock_files_screen.dart';
+import 'features/support/support_screen.dart';
 import 'features/fleet/camera_detail.dart';
 import 'features/fleet/fleet_screen.dart';
 import 'features/live/live_screen.dart';
@@ -51,6 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/watch/:id', builder: (_, s) => LiveFullscreen(cameraId: s.pathParameters['id']!)),
       GoRoute(path: '/recordings', builder: (_, s) => RecordingsScreen(camera: s.uri.queryParameters['cam'])),
       GoRoute(path: '/recordings/play', builder: (_, s) => RecordingPlayerPage(recording: s.extra! as Recording)),
+      GoRoute(path: '/support', builder: (_, _) => const SupportScreen()),
       GoRoute(path: '/dock/files', builder: (_, _) => const DockFilesScreen()),
       GoRoute(path: '/docking', builder: (_, _) => const DockingScreen()),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),

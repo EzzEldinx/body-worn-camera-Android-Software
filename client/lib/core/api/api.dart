@@ -88,5 +88,12 @@ class Api {
   Future<void> deleteFromCamera(List<int> ids) => _post('/api/dock/files/delete-from-camera', {'ids': ids});
   Future<void> setDockPolicy(String mode) => _put('/api/admin/dock/policy', {'mode': mode});
 
+  Future<List<Ticket>> tickets() async => [for (final t in ((await _get('/api/tickets')) as Map)['tickets'] as List) Ticket.fromJson(t as Map)];
+  Future<Ticket> ticket(int id) async => Ticket.fromJson((await _get('/api/tickets/$id')) as Map);
+  Future<Map> createTicket({required String subject, required String category, required String priority, required String description, String? cameraId}) async =>
+      (await _post('/api/tickets', {'subject': subject, 'category': category, 'priority': priority, 'description': description, 'cameraId': ?cameraId})) as Map;
+  Future<void> replyTicket(int id, String body) => _post('/api/tickets/$id/messages', {'body': body});
+  Future<void> setTicketStatus(int id, String status) => _post('/api/tickets/$id/status', {'status': status});
+
   Future<void> registerPush(String pushToken, String platform) => _post('/api/mobile/push', {'token': pushToken, 'platform': platform});
 }

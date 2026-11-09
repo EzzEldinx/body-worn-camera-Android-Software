@@ -16,7 +16,7 @@
         ${link('/analytics.html', 'Analytics')}
         ${link('/', 'Live Dashboard')}
         ${link('/docks.html', 'Docking')}
-        ${link('/help.html', 'Help')}
+        ${link('/help.html', 'Support')}
         ${me.super ? link('/admin.html', 'Companies') + link('/updates.html', 'Updates') : ''}
       </nav>
       <div class="hdr-right">
@@ -28,6 +28,10 @@
         </button>
         <button class="btn sm" id="outBtn">Sign out</button>
       </div>`;
+    if (me.staff) fetch('/api/tickets?status=open').then((r) => (r.ok ? r.json() : null)).then((d) => {   // Smart Way support: how many tickets wait for an answer
+      const n = d && d.tickets ? d.tickets.length : 0, a = document.querySelector('nav a[href="/help.html"]');
+      if (n && a) a.insertAdjacentHTML('beforeend', ` <b style="display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--rec);color:#fff;font-size:11px;line-height:18px;text-align:center">${n > 99 ? '99+' : n}</b>`);
+    }).catch(() => {});
     document.getElementById('themeBtn').onclick = () => {
       const n = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
       document.documentElement.dataset.theme = n; try { localStorage.setItem('bwc-theme', n); } catch (e) { }
