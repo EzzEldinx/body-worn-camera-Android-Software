@@ -50,9 +50,10 @@ class FleetController extends Notifier<FleetState> {
   }
 
   void _connect(Session session) {
+    // forceNew: never reuse an earlier connection, it would keep the previous account's session token
     final s = io.io(
       session.server,
-      io.OptionBuilder().setTransports(['websocket']).setAuth({'session': session.token}).setQuery({'session': session.token}).setExtraHeaders({'Cookie': 'sid=${session.token}', 'Authorization': 'Bearer ${session.token}'}).disableAutoConnect().enableReconnection().setReconnectionDelay(1000).setReconnectionDelayMax(8000).build(),
+      io.OptionBuilder().setTransports(['websocket']).enableForceNew().setAuth({'session': session.token}).setQuery({'session': session.token}).setExtraHeaders({'Cookie': 'sid=${session.token}', 'Authorization': 'Bearer ${session.token}'}).disableAutoConnect().enableReconnection().setReconnectionDelay(1000).setReconnectionDelayMax(8000).build(),
     );
     _s = s;
     s.onConnect((_) => state = state.copy(connected: true, clearError: true));
