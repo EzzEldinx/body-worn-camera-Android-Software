@@ -15,17 +15,18 @@ class StreamResult {
 
 @immutable
 class FleetState {
-  const FleetState({this.cams = const {}, this.alarms = const [], this.connected = false, this.loaded = false});
+  const FleetState({this.cams = const {}, this.alarms = const [], this.connected = false, this.loaded = false, this.error});
   final Map<String, Camera> cams;
   final List<Alarm> alarms;
   final bool connected, loaded;
+  final String? error; // why the live connection is not up (shown next to "Reconnecting")
 
   int get online => cams.values.where((c) => c.online).length;
   int get streaming => cams.values.where((c) => c.recording).length;
   int get openAlarms => alarms.where((a) => !a.ack).length;
 
-  FleetState copy({Map<String, Camera>? cams, List<Alarm>? alarms, bool? connected, bool? loaded}) =>
-      FleetState(cams: cams ?? this.cams, alarms: alarms ?? this.alarms, connected: connected ?? this.connected, loaded: loaded ?? this.loaded);
+  FleetState copy({Map<String, Camera>? cams, List<Alarm>? alarms, bool? connected, bool? loaded, String? error, bool clearError = false}) =>
+      FleetState(cams: cams ?? this.cams, alarms: alarms ?? this.alarms, connected: connected ?? this.connected, loaded: loaded ?? this.loaded, error: clearError ? null : (error ?? this.error));
 }
 
 /// One socket.io connection (same events as the web dashboard) that keeps the fleet and the alarms live.
@@ -54,11 +55,12 @@ class FleetController extends Notifier<FleetState> {
       io.OptionBuilder().setTransports(['websocket']).setAuth({'session': session.token}).setExtraHeaders({'Cookie': 'sid=${session.token}'}).disableAutoConnect().enableReconnection().setReconnectionDelay(1000).setReconnectionDelayMax(8000).build(),
     );
     _s = s;
-    s.onConnect((_) => state = state.copy(connected: true));
+    s.onConnect((_) => state = state.copy(connected: true, clearError: true));
     s.onDisconnect((_) => state = state.copy(connected: false));
     // A refused socket handshake must not by itself throw the user back to the sign-in page: ask the server whether the session is really
     // invalid (HTTP 401) and only then sign out. Anything else (network, a restart, a busy server) just reconnects.
     s.onConnectError((e) async {
+      state = state.copy(connected: false, error: '$e'.replaceAll(RegExp(r'\s+'), ' ').trim());
       if (!'$e'.contains('unauthorized')) return;
       try { await session.api.me(); } on ApiError catch (x) { if (x.unauthorized) ref.read(authProvider.notifier).logout(); } catch (_) {}
     });

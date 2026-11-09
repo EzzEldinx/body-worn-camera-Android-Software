@@ -98,7 +98,7 @@ class _FleetScreenState extends ConsumerState<FleetScreen> {
     ]);
 
     return Scaffold(
-      appBar: BrandBar(actions: [_ConnDot(connected: s.connected)]),
+      appBar: BrandBar(actions: [_ConnDot(connected: s.connected, error: s.error)]),
       body: wide
           ? Row(children: [
               SizedBox(width: 400, child: listPane),
@@ -113,8 +113,9 @@ class _FleetScreenState extends ConsumerState<FleetScreen> {
 }
 
 class _ConnDot extends StatelessWidget {
-  const _ConnDot({required this.connected});
+  const _ConnDot({required this.connected, this.error});
   final bool connected;
+  final String? error;
   @override
   Widget build(BuildContext context) {
     final v = context.vg;
@@ -126,7 +127,7 @@ class _ConnDot extends StatelessWidget {
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           StatusDot(color: connected ? v.ok : v.sel, pulse: !connected, size: 8),
           const SizedBox(width: 6),
-          Text(context.tr(connected ? 'connected' : 'reconnecting'), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: connected ? v.ok : v.accentText)),
+          Text(connected || error == null ? context.tr(connected ? 'connected' : 'reconnecting') : '${context.tr('reconnecting')} · ${error!.length > 34 ? error!.substring(0, 34) : error}', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: connected ? v.ok : v.accentText)),
         ]),
       ),
     );
