@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../features/auth/auth_controller.dart';
+import 'api.dart';
 import 'models.dart';
 
 class StreamResult {
@@ -41,7 +42,7 @@ class FleetController extends Notifier<FleetState> {
   @override
   FleetState build() {
     final session = ref.watch(sessionProvider);
-    ref.onDispose(() { _s?.dispose(); _s = null; });
+    ref.onDispose(() { _s?.clearListeners(); _s?.dispose(); _s = null; });   // detach first: a handler must not touch state while the provider is being disposed
     if (session == null) return const FleetState();
     _connect(session);
     return const FleetState();
@@ -55,7 +56,12 @@ class FleetController extends Notifier<FleetState> {
     _s = s;
     s.onConnect((_) => state = state.copy(connected: true));
     s.onDisconnect((_) => state = state.copy(connected: false));
-    s.onConnectError((e) { if ('$e'.contains('unauthorized')) ref.read(authProvider.notifier).logout(); });
+    // A refused socket handshake must not by itself throw the user back to the sign-in page: ask the server whether the session is really
+    // invalid (HTTP 401) and only then sign out. Anything else (network, a restart, a busy server) just reconnects.
+    s.onConnectError((e) async {
+      if (!'$e'.contains('unauthorized')) return;
+      try { await session.api.me(); } on ApiError catch (x) { if (x.unauthorized) ref.read(authProvider.notifier).logout(); } catch (_) {}
+    });
     s.on('dashboard_snapshot', (d) {
       final m = d as Map;
       state = state.copy(
