@@ -70,3 +70,9 @@ input,select{padding:10px 12px;border-radius:10px;border:1px solid var(--line);b
 input:focus,select:focus{outline:none;background:var(--panel);border-color:var(--sel);box-shadow:var(--glow-amber)}
 .muted{color:var(--mut)}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);padding:11px 20px;border-radius:12px;background:var(--text);color:var(--bg);font-weight:600;box-shadow:var(--shadow-md);z-index:50}
+
+/* licence notice under the header */
+.licbar{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:9px 18px;font-size:13.5px;font-weight:600;text-align:center;border-bottom:1px solid var(--line)}
+.licbar.warn{background:color-mix(in srgb,var(--sel) 22%,var(--panel));color:var(--text)}
+.licbar.bad{background:color-mix(in srgb,var(--rec) 20%,var(--panel));color:var(--text)}
+.licbar .btn{padding:4px 12px}

@@ -2,6 +2,7 @@
 // Everything is computed from the server's own data and scoped to the cameras the user may see.
 const fs = require('fs');
 const auditlog = require('./auditlog');
+const { isLow, LOW, CRITICAL } = require('./battery');
 
 const DAY = 86400000, HOUR = 3600000;
 const dayStart = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -49,11 +50,11 @@ function build({ db, cameras, recordingsDir, staff, now = Date.now() }) {
     const health = cameras.map((c) => {
         const flags = [];
         const batteryOld = c.batteryTs ? now - c.batteryTs : null;
-        if (c.battery != null && c.battery < 20) flags.push('low_battery');
+        if (isLow(c)) flags.push('low_battery');   // below 20 % and not on a charger
         if (!c.online && c.ts && now - c.ts > DAY) flags.push('offline_24h');
         if (c.online && (!c.fixTs || now - c.fixTs > 2 * HOUR)) flags.push('no_gps');
         if ((offEvents.get(c.cameraId) || 0) > 10) flags.push('unstable');
-        return { id: c.cameraId, name: c.name || c.cameraId, holder: c.holder || null, online: !!c.online, recording: !!c.recording, battery: c.battery ?? null, batteryAgeMin: batteryOld == null ? null : Math.round(batteryOld / 60000),
+        return { id: c.cameraId, name: c.name || c.cameraId, holder: c.holder || null, online: !!c.online, recording: !!c.recording, battery: c.battery ?? null, charging: !!c.charging, batterySrc: c.batterySrc || null, batteryAgeMin: batteryOld == null ? null : Math.round(batteryOld / 60000),
             lastSeen: c.ts || null, gpsFixAgeMin: c.fixTs ? Math.round((now - c.fixTs) / 60000) : null, alarms30d: alarmCount.get(c.cameraId) || 0, recordings7d: rec7.get(c.cameraId) || 0, offlineEvents7d: offEvents.get(c.cameraId) || 0, flags };
     });
     const healthy = health.filter((h) => !h.flags.length).length;
@@ -89,6 +90,12 @@ function build({ db, cameras, recordingsDir, staff, now = Date.now() }) {
     if (idle.length && cameras.length > 1) add('info', 'idle', `${idle.length} camera${idle.length === 1 ? '' : 's'} sent nothing to the cloud this week`, `${idle.slice(0, 5).map((h) => h.name).join(', ')}. They may be unused or their files are kept on the dock.`);
     if (audit.ok && audit.checked) add('good', 'audit_ok', 'Audit trail verified', `${audit.checked} recorded steps checked, none changed or removed.`);
     if (cameras.length && healthy === cameras.length) add('good', 'all_good', 'Every camera looks healthy', 'Battery, connection and GPS are fine on all cameras.');
+    let subs = []; try { if (staff) subs = db.prepare('SELECT name, sub_end FROM companies WHERE sub_end IS NOT NULL').all(); } catch (e) { /* no companies table */ }
+    for (const c of subs) {   // subscriptions about to end (Smart Way sees every company)
+        const d = Math.ceil((c.sub_end - now) / DAY);
+        if (d < 0) add('critical', 'sub_' + c.name, `${c.name}: subscription ended ${-d} day${d === -1 ? '' : 's'} ago`, 'Renew it in Companies, or the company is told it has ended.');
+        else if (d <= 30) add(d <= 7 ? 'warning' : 'info', 'sub_' + c.name, `${c.name}: subscription ends in ${d} day${d === 1 ? '' : 's'}`, `Ends on ${new Date(c.sub_end).toISOString().slice(0, 10)}. Extend it in Companies; the company already sees a notice.`);
+    }
     const rank = { critical: 0, warning: 1, info: 2, good: 3 };
     out.sort((a, b) => rank[a.severity] - rank[b.severity]);
 
@@ -99,6 +106,8 @@ function build({ db, cameras, recordingsDir, staff, now = Date.now() }) {
         pipeline: { ...pipeline, oldestAwaitingHours: oldestAwaiting ? ageH : null, removedFromCameras },
         alarms: { byHour, days: alarmDays, thisWeek: thisWeek.length, lastWeek: lastWeek.length, avgResponseThisWeekSec: rw, avgResponseLastWeekSec: rl, unacked: unacked.length },
         storage: { disk, growthBytesPerDay: Math.round(growth), daysLeft },
+        battery: { low: health.filter((h) => h.flags.includes('low_battery')).length, critical: health.filter((h) => h.flags.includes('low_battery') && h.battery < CRITICAL).length,
+            known: health.filter((h) => h.battery != null).length, charging: health.filter((h) => h.charging).length, threshold: LOW },
         health, audit: { ok: audit.ok, checked: audit.checked, head: audit.head, total: audit.total, legacy: audit.legacy || 0 },
         insights: out,
     };

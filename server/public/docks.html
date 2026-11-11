@@ -24,7 +24,7 @@ main#view{display:block;max-width:none;margin:0;padding:22px 24px 90px;display:g
 .rb.on .dot{box-shadow:0 0 0 3px var(--panel),0 0 0 5px var(--g1),0 8px 22px color-mix(in srgb,var(--g2) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.45)}
 .rb.on::before{content:"";position:absolute;left:-8px;top:22%;bottom:22%;width:4px;border-radius:0 4px 4px 0;background:linear-gradient(var(--sel),var(--brand))}
 .rb[data-v="docks"]{--g1:#7C5CFF;--g2:#2F7BFF}.rb[data-v="cams"]{--g1:#FF5D77;--g2:#D81B49}.rb[data-v="data"]{--g1:#FFC857;--g2:#FF8A3D}
-.rb[data-v="files"]{--g1:#38D9F5;--g2:#0E8FB5}.rb[data-v="set"]{--g1:#2EE6A6;--g2:#009C6B}.rb[data-v="help"]{--g1:#5AA9FF;--g2:#2F4FD8}
+.rb[data-v="shifts"]{--g1:#B38CFF;--g2:#6C3DD6}.rb[data-v="files"]{--g1:#38D9F5;--g2:#0E8FB5}.rb[data-v="set"]{--g1:#2EE6A6;--g2:#009C6B}.rb[data-v="help"]{--g1:#5AA9FF;--g2:#2F4FD8}
 .rail .sp{flex:1}
 
 /* ---------- title + KPIs ---------- */
@@ -52,6 +52,7 @@ main#view{display:block;max-width:none;margin:0;padding:22px 24px 90px;display:g
 .pill{padding:6px 14px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:12.5px;font-weight:700;color:var(--mut)}
 .pill.on{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink)}
 /* The real dock: two rows of five slots (1-5 on top, 6-10 below) inside one chassis. */
+.calbox{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:12px;padding:14px 18px;border-radius:14px;background:color-mix(in srgb,var(--sel) 16%,var(--panel));border:1px solid var(--sel)}.calbox span{color:var(--mut);font-size:13px;flex:1}
 .bays{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;padding:16px;border-radius:26px;border:1px solid var(--line);background:linear-gradient(180deg,color-mix(in srgb,var(--raise) 70%,var(--panel)),var(--panel));box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.35)}
 .bay{--c:var(--c-idle);position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 16px 18px;min-height:268px;border-radius:18px;overflow:hidden;cursor:default;
   background:linear-gradient(180deg,color-mix(in srgb,var(--c) 7%,var(--panel)),var(--panel) 55%);border:1px solid color-mix(in srgb,var(--c) 28%,var(--line));box-shadow:var(--shadow-sm);transition:border-color .25s,box-shadow .25s,transform .2s}
@@ -185,6 +186,7 @@ const IC = {
   check: '<path d="M5 13l4 4L19 7"/>', warn: '<path d="M12 3l10 18H2zM12 10v5M12 18v.01"/>', bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>', play: '<path d="M8 5v14l11-7z"/>',
   files: '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M12 16v-5M9.5 13.5L12 11l2.5 2.5"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/>',
   down: '<path d="M12 3v12M7 11l5 5 5-5M5 21h14"/>', plug: '<path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 01-12 0zM12 18v4"/>',
 };
 const ic = (n, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[n]}</svg>`;
@@ -192,7 +194,7 @@ const fmtB = (b) => { b = Number(b) || 0; if (b >= 1e12) return (b / 1e12).toFix
 const ago = (ts) => { if (!ts) return 'never'; const s = Math.max(0, (Date.now() - ts) / 1000); if (s < 5) return 'just now'; if (s < 60) return Math.round(s) + 's ago'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago'; };
 const when = (ts) => ts ? new Date(ts).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 
-const VIEWS = [['docks', 'Docks', 'dock'], ['files', 'Files', 'files'], ['cams', 'Registered', 'cam'], ['data', 'Cloud Library', 'data'], ['set', 'Settings', 'set'], ['help', 'Help', 'help']];
+const VIEWS = [['docks', 'Docks', 'dock'], ['shifts', 'Check-out', 'user'], ['files', 'Files', 'files'], ['cams', 'Registered', 'cam'], ['data', 'Cloud Library', 'data'], ['set', 'Settings', 'set'], ['help', 'Help', 'help']];
 let me = null, D = null, view = 'docks', dockSel = null, timer = null, recs = [], FD = null, fstate = 'all', sel = new Set();
 
 $('#rail').innerHTML = VIEWS.map(([k, l, i]) => `<button class="rb" data-v="${k}" aria-label="${l}"><span class="dot">${ic(i)}</span>${l}</button>`).join('') +
@@ -211,6 +213,8 @@ async function load() {
   try { const r = await fetch('/api/docks'); if (r.status === 401) return (location.href = '/login.html'); D = await r.json(); } catch (e) { return; }
   paintBadge();
   if (view === 'files') { if (!$('#fmode')) draw(); else loadFiles(); }
+  if (document.activeElement?.classList?.contains('baysel')) return;   // do not redraw under a list the administrator is choosing from
+  if (view === 'shifts') { if (!$('#shOpen')) draw(); else if (Date.now() - (loadShifts.at || 0) > 8000) loadShifts(); }   // the page polls every second; the list changes rarely
   if (view === 'docks' || view === 'set') draw(); else if (view === 'cams') { if (window.paintCams && $('#cq')) window.paintCams(); else draw(); } else if (view === 'data' && !$('#fc')) draw();
 }
 
@@ -226,13 +230,84 @@ function head(sub) {
 function draw() {
   const v = $('#view');
   if (!D) { v.innerHTML = head('Loading…'); return; }
-  ({ docks: vDocks, files: vFiles, cams: vCams, data: vData, set: vSet, help: vHelp })[view](v);
+  ({ docks: vDocks, shifts: vShifts, files: vFiles, cams: vCams, data: vData, set: vSet, help: vHelp })[view](v);
+}
+
+
+/* ---------- check-out: who carries which camera ---------- */
+let SH = null, shF = { user: '', camera: '', from: '', to: '' };
+const who = (a) => (a.employeeNo ? 'No. ' + esc(a.employeeNo) : '') + (a.username !== a.employeeNo ? (a.employeeNo ? ' · ' : '') + esc(a.username) : '');   // the username is often the employee number: say it once
+const dur = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
+async function loadShifts() {
+  loadShifts.at = Date.now();
+  const q = new URLSearchParams({ status: 'all', limit: 400 });
+  if (shF.user) q.set('user', shF.user); if (shF.camera) q.set('camera', shF.camera);
+  if (shF.from) q.set('from', new Date(shF.from + 'T00:00:00').getTime()); if (shF.to) q.set('to', new Date(shF.to + 'T00:00:00').getTime() + 864e5);
+  try { const r = await fetch('/api/assignments?' + q); if (r.ok) SH = await r.json(); } catch (e) { return; }
+  paintShifts();
+}
+function paintShifts() {
+  if (!SH || !$('#shOpen')) return;
+  const open = SH.assignments.filter((a) => a.status === 'reserved' || a.status === 'in_use'), hist = SH.assignments.filter((a) => a.status === 'returned' || a.status === 'cancelled');
+  const stat = { reserved: ['Reserved', 'var(--sel)'], in_use: ['Carrying', 'var(--ok)'], returned: ['Returned', 'var(--off)'], cancelled: ['Cancelled', 'var(--off)'] };
+  const chip = (a) => `<span class="ch" style="--c:${stat[a.status][1]};color:${stat[a.status][1]}">${stat[a.status][0]}</span>`;
+  $('#shN').textContent = open.length ? `(${open.length})` : '';
+  $('#shOpen').innerHTML = open.length ? `<table class="tbl"><thead><tr><th>Camera</th><th>Employee</th><th>Status</th><th>Since</th><th>Battery</th><th></th></tr></thead><tbody>${open.map((a) => `<tr>
+    <td><b>${esc(a.cameraName)}</b>${a.slot != null ? `<div class="muted" style="font-size:12px">bay ${a.slot + 1}</div>` : ''}</td>
+    <td><b>${esc(a.name)}</b><div class="muted" style="font-size:12px">${who(a)}</div></td>
+    <td>${chip(a)}${a.status === 'reserved' ? `<div class="muted" style="font-size:12px">still on the dock until ${new Date(a.holdUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>` : ''}</td>
+    <td>${when(a.pickedTs || a.issuedTs)}<div class="muted" style="font-size:12px">${dur(Date.now() - (a.pickedTs || a.issuedTs))}</div></td>
+    <td>${a.batteryOut != null ? a.batteryOut + '% out' : '-'}</td>
+    <td style="text-align:right">${SH.canManage ? `<button class="btn sm" data-end="${a.id}">Return now</button>` : ''}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted" style="margin:0">Nobody has a camera right now.</p>';
+  $('#shHist').innerHTML = hist.length ? `<table class="tbl"><thead><tr><th>Camera</th><th>Employee</th><th>Taken</th><th>Returned</th><th>Time out</th><th>Battery</th><th>Closed by</th></tr></thead><tbody>${hist.map((a) => `<tr>
+    <td><b>${esc(a.cameraName)}</b></td><td>${esc(a.name)}<div class="muted" style="font-size:12px">${who(a)}</div></td>
+    <td>${a.pickedTs ? when(a.pickedTs) : '<span class="muted">never left the dock</span>'}</td><td>${when(a.returnedTs)}</td>
+    <td>${a.pickedTs && a.returnedTs ? dur(a.returnedTs - a.pickedTs) : '-'}</td><td>${a.batteryOut ?? '-'}${a.batteryIn != null ? ' → ' + a.batteryIn : ''}${a.batteryOut != null || a.batteryIn != null ? '%' : ''}</td>
+    <td>${chip(a)} <span class="muted" style="font-size:12px">${esc(({ dock: 'dock', timeout: 'timed out', station: 'station' })[a.endedBy] || String(a.endedBy || '').replace(/^(admin|user):/, ''))}${a.note ? ' · ' + esc(a.note) : ''}</span></td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted" style="margin:0">No history yet for this filter.</p>';
+}
+function vShifts(v) {
+  const url = location.origin + '/station.html', st = SH?.settings || { minBattery: 30, holdMinutes: 10 }, canSet = !!me?.super;
+  v.innerHTML = head('Employees sign in at the check-out station and the system gives them a camera that is charged and ready. Here is who carries what.') + `
+    <section class="card"><h3>On shift now <span id="shN" class="muted"></span></h3><div id="shOpen"><p class="muted" style="margin:0">Loading…</p></div></section>
+    <section class="card"><h3>Check-out station</h3>
+      <p class="muted" style="margin:0 0 12px;font-size:13.5px;line-height:1.5">Open this page full screen (F11) on the PC or tablet next to the dock and leave it there. Employees type their own username and password; the page shows the camera to take and lights up its bay. When the camera goes back on the dock the shift closes by itself.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><code style="padding:8px 12px;border-radius:9px;background:var(--raise);border:1px solid var(--line)">${esc(url)}</code>
+        <a class="btn pri sm" href="/station.html" target="_blank" rel="noopener">Open the station</a><button class="btn sm" id="cpUrl">Copy link</button></div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:16px">
+        <label class="muted" style="font-size:13px">A camera is ready from <input id="stMin" type="number" min="0" max="100" value="${st.minBattery}" style="width:70px" ${canSet ? '' : 'disabled'}> % battery</label>
+        <label class="muted" style="font-size:13px">A reservation is kept for <input id="stHold" type="number" min="1" max="120" value="${st.holdMinutes}" style="width:70px" ${canSet ? '' : 'disabled'}> minutes</label>
+        ${canSet ? '<button class="btn sm" id="stSave">Save</button>' : '<span class="muted" style="font-size:12px">Only a Smart Way administrator changes these.</span>'}</div>
+    </section>
+    <section class="card"><h3>History</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <input id="shU" placeholder="Employee name, number or username" value="${esc(shF.user)}" style="min-width:230px"><input id="shC" placeholder="Camera, e.g. BWC-01" value="${esc(shF.camera)}">
+        <input type="date" id="shFrom" value="${shF.from}" title="From"><input type="date" id="shTo" value="${shF.to}" title="To">
+        <button class="btn pri sm" id="shGo">Show</button><a class="btn sm" id="shCsv" href="/api/assignments/export.csv">Export CSV</a></div>
+      <div id="shHist" style="overflow:auto"></div></section>`;
+  paintShifts(); loadShifts();
+  $('#cpUrl').onclick = () => navigator.clipboard?.writeText(url).then(() => toast('Link copied'));
+  const csv = () => { const q = new URLSearchParams(); if (shF.user) q.set('user', shF.user); if (shF.camera) q.set('camera', shF.camera); if (shF.from) q.set('from', new Date(shF.from + 'T00:00:00').getTime()); if (shF.to) q.set('to', new Date(shF.to + 'T00:00:00').getTime() + 864e5); $('#shCsv').href = '/api/assignments/export.csv?' + q; };
+  $('#shGo').onclick = () => { shF = { user: $('#shU').value.trim(), camera: $('#shC').value.trim(), from: $('#shFrom').value, to: $('#shTo').value }; csv(); loadShifts(); };
+  if ($('#stSave')) $('#stSave').onclick = () => fetch('/api/admin/checkout/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ minBattery: Number($('#stMin').value), holdMinutes: Number($('#stHold').value) }) })
+    .then(async (r) => { const j = await r.json(); toast(r.ok ? 'Saved' : j.error); }).catch(() => toast('Could not save'));
+  $('#view').onclick = (e) => {
+    const b = e.target.closest('[data-end]'); if (!b) return;
+    if (!confirm('Close this check-out? Use it when the employee handed the camera back without docking it.')) return;
+    fetch('/api/assignments/' + b.dataset.end + '/end', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(async (r) => { const j = await r.json(); toast(r.ok ? 'Closed' : j.error); loadShifts(); });
+  };
 }
 
 function bayState(c) { return !c ? 'idle' : (c.state || 'connected'); }
 function ringSvg(pct) {
   const r = 54, C = 2 * Math.PI * r, off = C * (1 - Math.max(0, Math.min(1, pct)));
   return `<svg viewBox="0 0 120 120"><circle class="tr" cx="60" cy="60" r="${r}" stroke-width="9"/><circle class="vl" cx="60" cy="60" r="${r}" stroke-width="9" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/><circle class="sw" cx="60" cy="60" r="${r}" stroke-width="9" style="transform-box:fill-box"/></svg>`;
+}
+let bayDock = '';
+function bayPick(i, c) {   // administrators: which physical bay is this port?
+  if (!me?.super || !c?.port) return '';
+  return `<select class="baysel" data-port="${esc(c.port)}" title="Which bay is this camera really in?" aria-label="Bay">${Array.from({ length: D.slots }, (_, k) => `<option value="${k}" ${k === i ? 'selected' : ''}>Bay ${k + 1}</option>`).join('')}</select>`;
 }
 function bayHTML(i, c) {
   const s = bayState(c), n = String(i + 1).padStart(2, '0');
@@ -259,11 +334,12 @@ function bayHTML(i, c) {
   return `<article class="bay has s-${s}" data-cam="${esc(c.cameraId || '')}"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
     <div class="ring">${ringSvg(pct)}<div class="mid">${mid}</div></div>
     <div class="cid">${esc(c.cameraId || 'Unregistered')}</div><div class="co">${esc(c.company || (c.cameraId ? '' : 'No config.json on this camera'))}</div>
-    <div class="chips">${chips}</div>${foot}</article>`;
+    <div class="chips">${chips}</div>${foot}${bayPick(i, c)}</article>`;
 }
 function vDocks(v) {
   const list = D.docks, d = list.find((x) => x.id === dockSel) || list.slice().sort((a, b) => b.ts - a.ts)[0];
   if (d) dockSel = d.id;
+  bayDock = dockSel;
   const cams = d && d.online !== false ? d.cameras : (d ? d.cameras : []);
   const bySlot = new Map(); (cams || []).forEach((c) => { if (c.slot != null) bySlot.set(c.slot, c); });
   const total = Math.max(D.slots, ...[...bySlot.keys()].map((k) => k + 1), 1);
@@ -277,11 +353,36 @@ function vDocks(v) {
       <div class="kpi" style="--c:var(--brand)"><span class="ki">${ic('data')}</span><div><b>${st.todayCount}</b><span>Files today · ${fmtB(st.todayBytes)}</span></div></div></div>` +
     (list.length > 1 ? `<div class="dockpick">${list.map((x) => `<button class="pill ${x.id === dockSel ? 'on' : ''}" data-dock="${esc(x.id)}">${esc(x.id)}</button>`).join('')}</div>` : '') +
     `<div class="bays">${Array.from({ length: total }, (_, i) => bayHTML(i, bySlot.get(i))).join('')}</div>
+    ${(() => { const c = (D.calibration || []).find((x) => x.dock === bayDock); return c ? `<div class="calbox"><b>Calibrating: plug a camera into bay ${c.next + 1}</b><span>Every time a camera is seen in a new bay, the next bay is asked for. ${c.next} of ${D.slots} learned.</span><button class="btn sm" id="calStop">Stop</button></div>` : ''; })()}
+    ${me?.super && (docked || (D.calibration || []).length === 0) ? '<p class="muted" style="margin:10px 4px 0;font-size:12.5px">A camera is shown in the bay of its USB port. If a camera shows in the wrong bay, pick its real bay in the list under it. <button class="btn pri sm" id="calBays">Calibrate bays</button> <button class="btn sm" id="arrangeBays">Arrange by hand</button> <button class="btn sm" id="resetBays">Reset all bays</button></p>' : ''}
     <div class="statusbar"><span class="lbl">Server storage</span>
       <div class="meter"><i style="width:${usedPct.toFixed(1)}%"></i></div>
       <span class="num">${fmtB(st.recordingsBytes)} evidence · ${st.recordings} file${st.recordings === 1 ? '' : 's'}${st.totalBytes ? ' · ' + fmtB(st.freeBytes) + ' free of ' + fmtB(st.totalBytes) : ''}</span></div>`;
 }
+document.addEventListener('change', (e) => {
+  const sel = e.target.closest('.baysel'); if (!sel) return;
+  fetch('/api/admin/dock/slot', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dockId: bayDock, port: sel.dataset.port, slot: Number(sel.value) }) })
+    .then(async (r) => { toast(r.ok ? 'Bay saved' : (await r.json()).error); load(); });
+});
 document.addEventListener('click', (e) => {
+  if (e.target.closest('.baysel')) return e.stopPropagation();
+  if (e.target.id === 'calStop') { fetch('/api/admin/dock/calibrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dockId: bayDock, action: 'stop' }) }).then(load); return; }
+  if (e.target.id === 'calBays') {
+    if (!confirm('Take every camera off the dock first. Then plug one camera into bay 1, wait for the next prompt, move it to bay 2, and so on. Start?')) return;
+    fetch('/api/admin/dock/calibrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dockId: bayDock, action: 'start' }) }).then(async (r) => { if (!r.ok) toast((await r.json()).error); load(); });
+    return;
+  }
+  if (e.target.id === 'arrangeBays') {
+    const num = (c) => (/(\d+)/.exec(c.cameraId || '') || [])[1] || c.cameraId;
+    const d = (D.docks || []).find((x) => x.id === bayDock), by = new Map((d?.cameras || []).map((c) => [c.slot, c]));
+    const half = Math.ceil(D.slots / 2), line = (a, b) => Array.from({ length: b - a }, (_, k) => (by.get(a + k) ? num(by.get(a + k)) : '-')).join(' ');
+    const txt = prompt('Type what you see in front of the dock, left to right: camera numbers, - for an empty bay.\nTop row / bottom row, separated by /', line(0, half) + ' / ' + line(half, D.slots));
+    if (!txt) return;
+    const [top, bottom] = txt.split('/');
+    fetch('/api/admin/dock/layout', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dockId: bayDock, top, bottom: bottom || '' }) }).then(async (r) => { toast(r.ok ? 'Bays arranged' : (await r.json()).error); load(); });
+    return;
+  }
+  if (e.target.id === 'resetBays') { if (confirm('Forget every bay setting? Bays fill again in the order cameras are seen.')) fetch('/api/admin/dock/slots?dockId=' + encodeURIComponent(bayDock), { method: 'DELETE' }).then(() => { toast('Bays reset'); load(); }); return; }
   const p = e.target.closest('[data-dock]'); if (p) { dockSel = p.dataset.dock; return draw(); }
   const b = e.target.closest('.bay.has'); if (b && b.dataset.cam) { location.hash = '#data'; sessionStorage.setItem('dockq', b.dataset.cam); }
   if (e.target.closest('[data-close]') || e.target === $('#modal')) closeModal();

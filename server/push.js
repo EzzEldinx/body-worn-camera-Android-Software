@@ -66,7 +66,37 @@ function createPush({ db, env = process.env, fetchImpl = fetch, log = console })
         } catch (e) { log.warn(`push failed: ${e.message}`); }
         return { sent };
     }
-    return { enabled: () => !!sa, notifyAlarm };
+    // A less urgent notice than an SOS (e.g. low battery): no siren-style channel, normal priority.
+    async function notifyAlert(alert, label, companyId) {
+        if (!sa) return { sent: 0, skipped: 'push not configured' };
+        let sent = 0;
+        try {
+            const bearer = await accessToken();
+            for (const d of recipients(companyId)) {
+                const r = await fetchImpl(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
+                    method: 'POST', headers: { authorization: `Bearer ${bearer}`, 'content-type': 'application/json' },
+                    body: JSON.stringify({ message: buildAlertMessage(d.token, d.platform, alert, label) }),
+                });
+                if (r.ok) sent++;
+                else if (r.status === 404 || r.status === 400) db.prepare('DELETE FROM push_devices WHERE token = ?').run(d.token);
+            }
+        } catch (e) { log.warn(`push failed: ${e.message}`); }
+        return { sent };
+    }
+    return { enabled: () => !!sa, notifyAlarm, notifyAlert };
 }
 
-module.exports = { createPush, buildMessage, jwtAssertion };
+// Low-battery notice: "BWC-03 battery is 18%".
+function buildAlertMessage(token, platform, alert, label) {
+    const critical = alert.level === 'critical';
+    const msg = {
+        token,
+        notification: { title: `${critical ? 'Battery critical' : 'Low battery'}: ${label}`, body: `${label} battery is ${alert.value}%. Put it on the dock to charge.` },
+        data: { type: 'battery', alertId: String(alert.id), cameraId: alert.cameraId, level: alert.level, ts: String(alert.ts) },
+    };
+    if (platform === 'android') msg.android = { priority: critical ? 'HIGH' : 'NORMAL', notification: { channel_id: 'alerts' } };
+    else msg.apns = { headers: { 'apns-priority': critical ? '10' : '5' }, payload: { aps: { sound: 'default' } } };
+    return msg;
+}
+
+module.exports = { createPush, buildMessage, buildAlertMessage, jwtAssertion };

@@ -98,7 +98,15 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .stat.ok{--c:var(--ok)}.stat.rec{--c:var(--rec)}.stat.all{--c:var(--blue)}.stat.alert{--c:var(--sel)}
 .stat.alert.hot{--c:var(--rec);border-color:color-mix(in srgb,var(--rec) 45%,var(--line));box-shadow:var(--glow-rec)}
 .stat.alert.hot b{color:var(--rec)}
+.stat.low{--c:var(--sel)}
+.stat.low.hot{border-color:color-mix(in srgb,var(--sel) 55%,var(--line));box-shadow:var(--glow-amber)}
+.stat.low.hot b{color:var(--accent-text)}
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.lic-chip{white-space:nowrap;padding:7px 13px;border-radius:99px;font-size:12.5px;font-weight:800;text-decoration:none;color:var(--text);background:color-mix(in srgb,var(--sel) 24%,var(--panel));border:1px solid color-mix(in srgb,var(--sel) 55%,var(--line))}
+.lic-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:900px){.lic-long{display:none}.lic-chip{padding:5px 9px;font-size:11px}}
+.lic-chip.ok{background:var(--raise);border-color:var(--line);color:var(--mut)}
+.lic-chip.bad{background:color-mix(in srgb,var(--rec) 22%,var(--panel));border-color:color-mix(in srgb,var(--rec) 55%,var(--line))}
 .clock{font-size:14px;font-weight:600;padding:8px 14px;background:var(--raise);border:1px solid var(--line);border-radius:10px;letter-spacing:.3px;white-space:nowrap}
 .icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);display:flex;align-items:center;justify-content:center;flex:none;transition:.15s}
 .icon-btn:hover{background:var(--hover);color:var(--text);box-shadow:var(--glow-amber)}
@@ -158,6 +166,8 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .badge{font-size:10.5px;font-weight:800;letter-spacing:.6px;color:#fff;background:var(--rec);border-radius:6px;padding:3px 7px;box-shadow:0 0 10px color-mix(in srgb,var(--rec) 55%,transparent);flex:none}
 .batt{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--raise);border:1px solid var(--line);flex:none;color:var(--mut)}
 .batt.low{color:#fff;background:var(--rec);border-color:transparent}
+.batt.chg{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.cam.lowbat{border-color:color-mix(in srgb,var(--sel) 60%,var(--line-soft))}
 .badge.talk{background:var(--ok);color:#042a1d;box-shadow:0 0 10px color-mix(in srgb,var(--ok) 55%,transparent)}
 .cam button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--panel);flex:none;color:var(--blue);font-size:12px;transition:.15s}
 .cam button:hover{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:var(--glow-blue)}
@@ -168,6 +178,8 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .mk-l{position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);background:#fff;color:#0F1B2D;border-radius:9px;padding:4px 9px;font:600 12px/1.25 system-ui,sans-serif;white-space:nowrap;text-align:center;box-shadow:0 2px 10px rgba(15,27,45,.28);pointer-events:none}
 .mk-l::after{content:"";position:absolute;left:50%;top:100%;margin-left:-5px;border:5px solid transparent;border-top-color:#fff}
 .mk-l b{display:block;font-weight:800}.mk-l span{display:block;color:#5B6B82;font-weight:600;font-size:11px}
+.mk-l .mk-bat{display:inline-block;margin-left:5px;padding:0 5px;border-radius:5px;background:#E9EEF5;color:#41526B;font-size:10.5px;font-weight:800}
+.mk-l .mk-bat.low{background:#FF3355;color:#fff}
 .mk.sel .mk-l{z-index:2;box-shadow:0 0 0 2px var(--sel),0 2px 10px rgba(15,27,45,.3)}
 #map.far .mk-l{display:none}
 .mk.online{background:var(--ok);animation:pulseOnline 1.5s infinite}
@@ -189,6 +201,19 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .lay{display:flex;gap:3px;padding:3px;background:var(--raise);border:1px solid var(--line-soft);border-radius:10px}
 .lay button{padding:3px 11px;border-radius:7px;border:1px solid transparent;background:none;font-size:12.5px;color:var(--mut);font-weight:600;text-transform:none;letter-spacing:0}
 .lay button.on{background:var(--panel);color:var(--text);border-color:var(--line);box-shadow:var(--shadow-sm)}
+.wallctl{display:flex;align-items:center;gap:8px}
+.icon-btn.sm{width:30px;height:30px;border-radius:8px}
+.icon-btn.sm svg{width:15px;height:15px}
+.tile.dragging{opacity:.45}
+.tile.dropping{outline:3px dashed var(--sel);outline-offset:-3px}
+.cam[draggable=true]{-webkit-user-drag:element}
+#wallCard:fullscreen{background:#070C16;border-radius:0;border:0;padding:6px;box-shadow:none}
+#wallCard:fullscreen .sec{padding:6px 10px;color:#8FA2BF}
+#wallCard:fullscreen #wall{padding:0 6px 6px;overflow:hidden;grid-template-rows:repeat(var(--rows,2),minmax(0,1fr))}
+#wallCard:fullscreen .tile{aspect-ratio:auto}
+#wallBanner{display:none;margin:0 14px 10px;padding:9px 12px;border-radius:10px;background:color-mix(in srgb,var(--blue) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--blue) 35%,var(--line));font-size:12.5px;align-items:center;gap:10px}
+#wallBanner.on{display:flex}
+#wallBanner button{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:3px 10px;font-weight:700;font-size:12px}
 
 /* ---------- live wall: glass tiles ---------- */
 #wall{flex:1;display:grid;gap:10px;padding:0 14px 14px;min-height:0;overflow:auto;align-content:start}
@@ -213,6 +238,10 @@ body[dir="rtl"] .tile.live .pill::after{content:"تسجيل"}
 .tag button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.4)}
 .tag button.on{background:rgba(0,184,124,.35);border-color:rgba(46,230,166,.7);box-shadow:0 0 12px rgba(0,184,124,.5)}
 .tag button[data-x]:hover{background:rgba(255,51,85,.6);border-color:rgba(255,51,85,.9)}
+.tbat{flex:none;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.14);color:#fff;white-space:nowrap}
+.tbat.low{background:var(--rec)}
+.tbat:empty{display:none}
+@container (max-width:240px){.tbat{display:none}}
 .tag .pill+button{margin-left:auto}
 body[dir="rtl"] .tag .pill+button{margin-left:0;margin-right:auto}
 .tag button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
@@ -242,6 +271,11 @@ body.theater::before{content:"";position:fixed;inset:0;background:rgba(8,13,24,.
 .al.ack{box-shadow:inset 3px 0 0 var(--off);border-color:var(--line-soft);background:none;color:var(--mut)}
 .al b{flex:1;min-width:110px;font-size:13px}
 .al small{color:var(--mut)}
+.al.bat{border-color:color-mix(in srgb,var(--sel) 50%,var(--line));background:color-mix(in srgb,var(--sel) 11%,var(--panel));box-shadow:inset 3px 0 0 var(--sel)}
+.al.bat.crit{border-color:color-mix(in srgb,var(--rec) 40%,var(--line));background:color-mix(in srgb,var(--rec) 8%,var(--panel));box-shadow:inset 3px 0 0 var(--rec)}
+.al.bat.ack{box-shadow:inset 3px 0 0 var(--off);border-color:var(--line-soft);background:none;color:var(--mut)}
+.al .ackb{flex:none;padding:3px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:11.5px;font-weight:700;color:var(--mut)}
+.al .ackb:hover{background:var(--hover);color:var(--text)}
 
 /* ---------- chat & voice notes ---------- */
 #chat-section{display:flex;flex-direction:column;min-height:0;overflow:hidden}
@@ -310,7 +344,7 @@ header.flash{animation:fl 1s 3}
   body[data-tab="alerts"] #wallCard{display:none}
   .bottom{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(110px,36%) minmax(0,1fr)}
   #wall{grid-template-columns:minmax(0,1fr)!important;padding:0 8px 10px}
-  .lay{display:none}
+  .lay,#wallPop,#wallFs{display:none}
   #info{left:8px;right:8px;bottom:8px;width:auto;max-height:70%;overflow:auto}
   #q,.chat-composer input,.in,.qrow select{font-size:16px}
   .cam{padding:12px}
@@ -345,8 +379,10 @@ header.flash{animation:fl 1s 3}
     <div class="stat rec"><i class="si"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg></i><div><b id="sRec">0</b><span id="txtRec">recording</span></div></div>
     <div class="stat all"><i class="si"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/></svg></i><div><b id="sAll">0</b><span id="txtReg">registered</span></div></div>
     <div class="stat alert"><i class="si"><svg class="i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg></i><div><b id="sAl">0</b><span id="txtAlarms">open alarms</span></div></div>
+    <div class="stat low" id="statLow" title="Cameras below 20% battery that are not charging"><i class="si"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="8" width="17" height="8" rx="2"/><path d="M22 11v2M6 11v2"/></svg></i><div><b id="sLow">0</b><span id="txtLow">low battery</span></div></div>
   </div>
   <div class="hdr-right">
+  <a class="lic-chip" id="licChip" href="/license.html" style="display:none"></a>
   <div class="clock" id="clock"></div>
   <div class="lang-switch" id="langToggle">
     <button class="lang-btn" data-l="ar">
@@ -392,6 +428,7 @@ header.flash{animation:fl 1s 3}
       <button class="chip on" data-f="all" id="chipAll">All</button>
       <button class="chip" data-f="online" id="chipOnline">Online</button>
       <button class="chip" data-f="rec" id="chipRec">Recording</button>
+      <button class="chip" data-f="low" id="chipLow">Low battery</button>
     </div>
     <div id="list"></div>
   </aside>
@@ -404,10 +441,15 @@ header.flash{animation:fl 1s 3}
   <section id="right">
     <div class="card" id="wallCard">
       <div class="sec"><span id="secWall">Live wall</span>
-        <div class="lay" id="lay">
-          <button data-n="1">1</button><button data-n="4" class="on">2×2</button><button data-n="9">3×3</button>
+        <div class="wallctl">
+          <div class="lay" id="lay">
+            <button data-n="1">1</button><button data-n="4" class="on">2×2</button><button data-n="9">3×3</button><button data-n="16">4×4</button>
+          </div>
+          <button class="icon-btn sm" id="wallFs" title="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+          <button class="icon-btn sm" id="wallPop" title="Open the wall in its own window: drag it onto a second screen and press Full screen there" aria-label="Open the wall in its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg></button>
         </div>
       </div>
+      <div id="wallBanner"><span id="wallBannerTxt">The live wall is open in its own window. Cameras you pick here appear there.</span><button id="wallBack">Bring it back here</button></div>
       <div id="wall"></div>
     </div>
     <div class="bottom">
@@ -455,6 +497,16 @@ const lang = {
     all: "All",
     onlineChip: "Online",
     recChip: "Recording",
+    lowChip: "Low battery",
+    lowStat: "low battery",
+    battery: "Battery",
+    batLive: "live from the camera",
+    batDock: "read on the dock, charging",
+    batLast: "last read",
+    batCharging: "charging",
+    batAlert: "Low battery",
+    batCritical: "Battery critical",
+    dismiss: "Dismiss",
     watchLive: "Watch live",
     noGps: "No GPS fix yet",
     noCamerasMatch: "No cameras match. Turn on a body camera and it will appear here automatically.",
@@ -484,6 +536,16 @@ const lang = {
     all: "الكل",
     onlineChip: "متصل",
     recChip: "تسجيل",
+    lowChip: "بطارية منخفضة",
+    lowStat: "بطارية منخفضة",
+    battery: "البطارية",
+    batLive: "مباشر من الكاميرا",
+    batDock: "قراءة القاعدة، قيد الشحن",
+    batLast: "آخر قراءة",
+    batCharging: "قيد الشحن",
+    batAlert: "بطارية منخفضة",
+    batCritical: "بطارية حرجة",
+    dismiss: "إخفاء",
     watchLive: "متابعة البث",
     noGps: "لا يوجد إحداثيات GPS",
     noCamerasMatch: "لا توجد كاميرات مطابقة. قم بتشغيل كاميرا الجسم وستظهر هنا تلقائياً.",
@@ -510,7 +572,7 @@ const t = (key) => lang[currentLang][key] || key;
 const $ = (s) => document.querySelector(s);
 const host = location.hostname;
 const cams = new Map(), markers = new Map(), players = new Map();
-let alarms = [], selected = null, filter = 'all', term = '', follow = false;
+let alarms = [], alerts = [], selected = null, filter = 'all', term = '', follow = false;
 let region = 'all', regionList = [], companyList = [];
 let shut = new Set(JSON.parse((() => { try { return localStorage.getItem('bwc-shut') || '[]'; } catch (e) { return '[]'; } })()));
 const saveShut = () => { try { localStorage.setItem('bwc-shut', JSON.stringify([...shut])); } catch (e) { } };
@@ -518,6 +580,16 @@ let me = { role: 'viewer' }, editing = false, currentUser = null;
 let layout = 4, slots = [null, null, null, null];
 
 const stateOf = (c) => (c.recording ? 'rec' : c.online ? 'online' : 'off');
+/* Battery: every camera reports its own (or the dock reads it while charging). Low = under 20 % and not on a charger. */
+const battLow = (c) => !!c && c.battery != null && c.battery < 20 && !c.charging;
+const battTxt = (c) => (c.battery == null ? '' : (c.charging ? '⚡' : '') + c.battery + '%');
+function battNote(c) {
+  if (c.battery == null) return '';
+  const age = c.batteryTs ? Date.now() - c.batteryTs : null;
+  if (c.batterySrc === 'camera' && age != null && age < 300000) return t('batLive');
+  if (c.batterySrc === 'dock') return t('batDock') + (age != null ? ', ' + agoShort(c.batteryTs) : '');
+  return t('batLast') + (c.batteryTs ? ' ' + agoShort(c.batteryTs) : '');
+}
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 function resolveCameraId(id) {
@@ -584,7 +656,7 @@ function syncMarker(c) {
   }
   m.setLngLat([lng, lat]);
   const lb = m.getElement().querySelector('.mk-l');
-  if (lb) { lb.innerHTML = '<b>' + esc(c.name || c.cameraId) + '</b>' + (c.holder ? '<span>' + esc(c.holder) + '</span>' : ''); }
+  if (lb) { lb.innerHTML = '<b>' + esc(c.name || c.cameraId) + (c.battery != null ? '<i class="mk-bat' + (battLow(c) ? ' low' : '') + '" style="font-style:normal">' + battTxt(c) + '</i>' : '') + '</b>' + (c.holder ? '<span>' + esc(c.holder) + '</span>' : ''); }
   m.getElement().className = 'mk ' + stateOf(c) + (selected === c.cameraId ? ' sel' : '') + (gpsStale(c) ? ' stale' : '');
 }
 // A position is only "live" if the camera reported a fresh fix in the last 2 minutes; otherwise it is the last known place.
@@ -614,7 +686,7 @@ map.on('load', () => {
 function visible() {
   return [...cams.values()]
     .filter((c) => (getOfficerLabel(c.cameraId) + ' ' + (c.grp || '') + ' ' + c.cameraId).toLowerCase().includes(term))
-    .filter((c) => filter === 'all' || (filter === 'online' ? c.online : c.recording))
+    .filter((c) => filter === 'all' || (filter === 'online' ? c.online : filter === 'low' ? battLow(c) : c.recording))
     .filter((c) => region === 'all' || (region === '_none' ? !c.region : c.region === region))
     .sort((a, b) => ({ rec: 0, online: 1, off: 2 }[stateOf(a)] - { rec: 0, online: 1, off: 2 }[stateOf(b)]) || a.cameraId.localeCompare(b.cameraId));
 }
@@ -630,6 +702,8 @@ function renderList() {
     $('#chipAll').textContent = t('all');
     $('#chipOnline').textContent = t('onlineChip');
     $('#chipRec').textContent = t('recChip');
+    $('#chipLow').textContent = t('lowChip');
+    $('#txtLow').textContent = t('lowStat');
     $('#secCameras').textContent = t('cameras');
     $('#secWall').textContent = t('liveWall');
     $('#secAlarmTitle').textContent = t('alarmsTitle');
@@ -655,12 +729,12 @@ function renderList() {
       const resolved = resolveCameraId(c.cameraId);
       const unreadCount = unreadChats[c.cameraId] || unreadChats[resolved] || 0;
       return `
-      <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''}" data-id="${c.cameraId}" tabindex="0">
+      <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''} ${battLow(c) ? 'lowbat' : ''}" data-id="${c.cameraId}" tabindex="0" draggable="true">
         <span class="dot"></span>
         <div class="meta"><b>${esc(getOfficerLabel(c.cameraId))}</b>
           <small>${c.region ? esc(c.region) + ', ' : ''}${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
         ${unreadCount > 0 ? `<span class="badge" style="background:var(--rec); margin-right:4px;">${unreadCount}</span>` : ''}
-        ${c.battery != null ? `<span class="batt ${c.battery < 20 ? 'low' : ''}" title="Battery">${c.battery}%</span>` : ''}
+        ${c.battery != null ? `<span class="batt ${battLow(c) ? 'low' : ''} ${c.charging ? 'chg' : ''}" title="${esc(t('battery') + ': ' + battNote(c))}">${battTxt(c)}</span>` : ''}
         ${c.recording ? '<span class="badge">REC</span>' : ''}
         ${c.ptt ? '<span class="badge talk">TALK</span>' : ''}
         <button data-w="${c.cameraId}" title="${t('watchLive')}" aria-label="${t('watchLive')}">▶</button>
@@ -689,7 +763,10 @@ function stats() {
   $('#sAll').textContent = all.length;
   const open = alarms.filter((a) => !a.ack).length;
   $('#sAl').textContent = open;
-  { const nb = $('#nbAl'); if (nb) { nb.textContent = open; nb.style.display = open ? 'block' : 'none'; } }
+  const low = all.filter(battLow).length, newBat = alerts.filter((a) => !a.ack).length;
+  $('#sLow').textContent = low;
+  $('#statLow').classList.toggle('hot', low > 0);
+  { const nb = $('#nbAl'); if (nb) { nb.textContent = open + newBat; nb.style.display = open + newBat ? 'block' : 'none'; } }
   $('#sAl').closest('.stat').classList.toggle('hot', open > 0);
 }
 $('#regions').addEventListener('click', (e) => {
@@ -837,7 +914,7 @@ function renderInfo() {
     box.dataset.editing = c.cameraId;
     box.innerHTML = `<h3>Edit ${c.cameraId}</h3>
       <input class="in" id="eN" maxlength="40" placeholder="Display name" value="${esc(c.name || '')}" aria-label="Display name">
-      <input class="in" id="eH" maxlength="60" placeholder="Camera holder (who carries it)" value="${esc(c.holder || '')}" aria-label="Camera holder">
+      <input class="in" id="eH" maxlength="60" placeholder="Camera holder (who carries it)" value="${esc(c.holder || '')}" aria-label="Camera holder" ${c.custody ? 'disabled title="An employee has this camera checked out: the holder is set by the check-out station."' : ''}>
       <input class="in" id="eG" maxlength="40" placeholder="Group" value="${esc(c.grp || '')}" aria-label="Group">
       <select class="in" id="eR" aria-label="Region"><option value="">No region</option>${regionList.map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
       ${me.super ? `<select class="in" id="eC2" aria-label="Company"><option value="">No company</option>${companyList.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select>` : ''}
@@ -858,12 +935,12 @@ function renderInfo() {
     return;
   }
   box.innerHTML = `<h3>${esc(getOfficerLabel(c.cameraId))}</h3>
-    ${c.holder ? `<p>${currentLang === 'ar' ? 'حامل الكاميرا' : 'Holder'}: <b>${esc(c.holder)}</b></p>` : ''}
+    ${c.holder ? `<p>${currentLang === 'ar' ? 'حامل الكاميرا' : 'Holder'}: <b>${esc(c.holder)}</b>${c.holderNo ? ' · ' + esc(c.holderNo) : ''}${c.custody ? ` <span style="color:var(--mut)">(${c.custody === 'reserved' ? (currentLang === 'ar' ? 'محجوزة، ما زالت على القاعدة' : 'reserved, still on the dock') : (currentLang === 'ar' ? 'مستلمة' : 'carrying it')})</span>` : ''}</p>` : ''}
     <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
     <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || (currentLang === 'ar' ? 'غير معيّنة' : 'Unassigned')}</p>
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
     ${c.lat == null ? '' : (c.posSrc === 'dock' && !gpsStale(c)) ? `<p style="color:var(--ok)">${currentLang === 'ar' ? 'على قاعدة الشحن (موقع القاعدة)' : 'At the docking station (dock location)'}</p>` : gpsStale(c) ? `<p style="color:var(--sel)">${currentLang === 'ar' ? 'لا يوجد تحديد موقع حي. آخر موقع معروف' + (c.ts ? ' منذ ' + agoShort(c.ts) : '') : 'No live GPS fix. Last known position' + (c.ts ? ', ' + agoShort(c.ts) + ' ago' : '')}</p>` : `<p style="color:var(--ok)">${currentLang === 'ar' ? 'GPS دقيق' : 'GPS fix'} ${c.acc ? '±' + Math.round(c.acc) + ' m' : ''} · ${agoShort(c.fixTs)} ${currentLang === 'ar' ? '' : 'ago'}</p>`}
-    ${c.battery != null ? `<p>${currentLang === 'ar' ? 'البطارية' : 'Battery'}: <b${c.battery < 20 ? ' style="color:var(--rec)"' : ''}>${c.battery}%</b> <span style="color:var(--mut)">(${currentLang === 'ar' ? 'قراءة القاعدة منذ ' : 'read on the dock, '}${agoShort(c.batteryTs)}${currentLang === 'ar' ? '' : ' ago'})</span></p>` : ''}
+    ${c.battery != null ? `<p>${t('battery')}: <b${battLow(c) ? ' style="color:var(--rec)"' : c.charging ? ' style="color:var(--ok)"' : ''}>${battTxt(c)}</b> <span style="color:var(--mut)">(${battNote(c)})</span></p>` : ''}
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
     <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
@@ -911,6 +988,7 @@ function requestStream(id, action) {
 function buildWall() {
   const w = $('#wall'), cols = Math.sqrt(layout);
   w.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+  w.style.setProperty('--rows', cols);   // full screen: the rows share the screen height
   players.forEach((p) => p.destroy()); players.clear();
   slots = slots.slice(0, layout); while (slots.length < layout) slots.push(null);
   w.innerHTML = slots.map((_, i) => `<div class="tile" data-i="${i}"></div>`).join('');
@@ -920,13 +998,22 @@ function renderTile(i) {
   const t = document.querySelector(`.tile[data-i="${i}"]`), id = slots[i];
   if (players.has(i)) { players.get(i).destroy(); players.delete(i); }
   t.classList.remove('live');
+  t.draggable = !!id;   // drag a picture onto another one to swap them
   if (!id) { t.innerHTML = `<div class="empty">${currentLang === 'ar' ? 'خانة فارغة' : 'Empty slot'}<small>${currentLang === 'ar' ? 'اضغط ▶ بجوار الكاميرا لعرضها هنا' : 'Press ▶ next to a camera to show it here'}</small></div>`; return; }
   t.innerHTML = `<video muted autoplay playsinline></video>
-    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'طولي' : 'Portrait'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="tbat"></span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'طولي' : 'Portrait'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}<button class="reqbtn" data-r="${id}">${currentLang === 'ar' ? 'بدء البث عن بُعد' : 'Start live view'}</button></div>`;
   start(i, id, t.querySelector('video'));
   if (dbgText.has(i)) dbg(i, dbgText.get(i));
   applySound(i);
+  syncTileBattery(i);
+}
+// the battery chip in a tile's header follows the camera (refreshed on every update of that camera)
+function syncTileBattery(i) {
+  const id = slots[i], b = document.querySelector(`.tile[data-i="${i}"] .tbat`); if (!b) return;
+  const c = cams.get(id);
+  b.textContent = c && c.battery != null ? battTxt(c) : '';
+  b.classList.toggle('low', battLow(c));
 }
 const retry = new Map(), stall = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
 const waitMsg = (id) => currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…';
@@ -1014,6 +1101,7 @@ setInterval(() => {
 }, 2500);
 
 function watch(id) {
+  if (wallOpen() && bc) { bc.postMessage({ type: 'watch', id }); return; }   // the wall lives in its own window: show it there
   if (slots.includes(id)) return;
   let i = slots.indexOf(null); if (i < 0) i = slots.length - 1;
   slots[i] = id; renderTile(i);
@@ -1074,16 +1162,82 @@ $('#lay').addEventListener('click', (e) => {
   buildWall();
 });
 
+/* ---------- drag & drop: swap two pictures, or drag a camera from the list onto a tile ---------- */
+function swapSlots(a, b) { if (a === b) return; [slots[a], slots[b]] = [slots[b], slots[a]]; renderTile(a); renderTile(b); }
+function dropCam(id, i) {
+  const old = slots.indexOf(id);
+  if (old >= 0 && old !== i) { slots[old] = null; renderTile(old); }
+  slots[i] = id; renderTile(i);
+  const c = cams.get(id); if (c?.online && !c.recording) socket.emit('remote_stream', { cameraId: id, action: 'start' });
+}
+$('#wall').addEventListener('dragstart', (e) => {
+  const t = e.target.closest?.('.tile'); if (!t || !slots[+t.dataset.i]) return e.preventDefault();
+  e.dataTransfer.setData('text/vg-slot', t.dataset.i); e.dataTransfer.effectAllowed = 'move'; t.classList.add('dragging');
+});
+$('#wall').addEventListener('dragend', () => document.querySelectorAll('.tile').forEach((t) => t.classList.remove('dragging', 'dropping')));
+$('#wall').addEventListener('dragover', (e) => { const t = e.target.closest?.('.tile'); if (!t) return; e.preventDefault(); document.querySelectorAll('.tile.dropping').forEach((x) => x !== t && x.classList.remove('dropping')); t.classList.add('dropping'); });
+$('#wall').addEventListener('dragleave', (e) => { const t = e.target.closest?.('.tile'); if (t && !t.contains(e.relatedTarget)) t.classList.remove('dropping'); });
+$('#wall').addEventListener('drop', (e) => {
+  const t = e.target.closest?.('.tile'); if (!t) return; e.preventDefault(); t.classList.remove('dropping');
+  const to = +t.dataset.i, from = e.dataTransfer.getData('text/vg-slot'), cam = e.dataTransfer.getData('text/vg-cam');
+  if (from !== '') swapSlots(+from, to); else if (cam && cams.has(cam)) dropCam(cam, to);
+});
+$('#list').addEventListener('dragstart', (e) => {
+  const row = e.target.closest?.('.cam'); if (!row) return;
+  e.dataTransfer.setData('text/vg-cam', row.dataset.id); e.dataTransfer.effectAllowed = 'copy';
+});
+
+/* ---------- the wall in its own window (drag it onto a second screen, then Full screen) ---------- */
+let bc = null, wallAliveAt = 0;
+try {
+  bc = new BroadcastChannel('vg-wall');
+  bc.onmessage = (e) => { if (e.data?.type === 'alive') wallAliveAt = Date.now(); else if (e.data?.type === 'closed') wallAliveAt = 0; syncWallBanner(); };
+  bc.postMessage({ type: 'ping' });
+} catch (e) { bc = null; }
+const wallOpen = () => !!bc && Date.now() - wallAliveAt < 8000;
+function syncWallBanner() { $('#wallBanner').classList.toggle('on', wallOpen()); }
+setInterval(syncWallBanner, 2000);
+async function popOutWall() {
+  if (wallOpen()) { const w = window.open('', 'vg-live-wall'); if (w) { w.focus(); return; } }
+  const url = '/wall.html#' + new URLSearchParams({ l: String(layout), c: slots.filter(Boolean).join(',') });
+  const w = window.open(url, 'vg-live-wall', 'popup=yes,width=1280,height=720');   // opened first, inside the click, so no pop-up blocker objects
+  if (!w) { flash(currentLang === 'ar' ? 'المتصفح منع النافذة الجديدة. اسمح بالنوافذ المنبثقة لهذا الموقع.' : 'The browser blocked the new window. Allow pop-ups for this site.'); return; }
+  slots = slots.map(() => null); buildWall();    // the cameras move to the new window, so nothing is streamed twice
+  wallAliveAt = Date.now(); syncWallBanner();
+  try {   // two or more screens: put the window on the other one and let it fill that screen (the browser asks once)
+    if (window.screen.isExtended && window.getScreenDetails) {
+      const d = await window.getScreenDetails(), s = d.screens.find((x) => x !== d.currentScreen) || d.currentScreen;
+      w.moveTo(s.availLeft, s.availTop); w.resizeTo(s.availWidth, s.availHeight);
+    }
+  } catch (e) { /* permission refused: the window stays where it opened and can be dragged */ }
+}
+$('#wallPop').onclick = popOutWall;
+$('#wallBack').onclick = () => { if (bc) bc.postMessage({ type: 'close' }); wallAliveAt = 0; syncWallBanner(); };
+$('#wallFs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else $('#wallCard').requestFullscreen?.().catch(() => { }); };
+
 /* ---------- Alarms ---------- */
+// A low-battery alert (below 20 % and not charging; critical below 10 %). It clears by itself once the camera is charging or recovered.
+function batAlertRow(a) {
+  const c = cams.get(a.cameraId), crit = a.level === 'critical', v = c && c.battery != null ? c.battery : a.value;
+  const off = c && !c.online ? (currentLang === 'ar' ? ' · غير متصلة' : ' · offline') : '';
+  return `<div class="al bat ${crit ? 'crit' : ''} ${a.ack ? 'ack' : ''}" data-al="${a.id}"><b>🔋 ${crit ? t('batCritical') : t('batAlert')} · ${tagOf(a.cameraId)}</b>
+    <small>${v}%${off} · ${new Date(a.ts).toLocaleTimeString()}</small>${a.ack ? '' : `<button class="ackb" data-ackal="${a.id}">${t('dismiss')}</button>`}</div>`;
+}
 function renderAlarms() {
-  $('#aSub').textContent = alarms.length ? alarms.filter((a) => !a.ack).length + (currentLang === 'ar' ? ' مفتوح' : ' open') : '';
-  $('#alarms').innerHTML = alarms.length ? alarms.map((a) => `
-    <div class="al ${a.ack ? 'ack' : ''}" data-a="${a.id}"><b>${t('sosFrom')} ${tagOf(a.cameraId)}</b>
-    <small>${new Date(a.ts).toLocaleTimeString()}</small></div>`).join('')
-    : `<div class="none">${t('noAlarms')}</div>`;
+  const openSos = alarms.filter((a) => !a.ack).length, openBat = alerts.filter((a) => !a.ack).length;
+  $('#aSub').textContent = alarms.length || alerts.length ? (openSos + openBat) + (currentLang === 'ar' ? ' مفتوح' : ' open') : '';
+  const bats = [...alerts].sort((a, b) => (a.ack - b.ack) || ((b.level === 'critical') - (a.level === 'critical')) || b.ts - a.ts).map(batAlertRow).join('');
+  const sos = alarms.map((a) => `
+    <div class="al ${a.ack ? 'ack' : ''}" data-a="${a.id}"><b>${t('sosFrom')} ${tagOf(a.cameraId)}${a.holder ? ' · ' + esc(a.holder) + (a.holderNo ? ' #' + esc(a.holderNo) : '') : ''}</b>
+    <small>${new Date(a.ts).toLocaleTimeString()}</small></div>`).join('');
+  $('#alarms').innerHTML = bats || sos ? bats + sos : `<div class="none">${t('noAlarms')}</div>`;
   stats();
 }
 $('#alarms').addEventListener('click', (e) => {
+  const ab = e.target.closest('[data-ackal]');
+  if (ab) { socket.emit('ack_alert', +ab.dataset.ackal); return; }
+  const br = e.target.closest('.al.bat');
+  if (br) { const a = alerts.find((x) => x.id === +br.dataset.al); if (a) select(a.cameraId, true); return; }
   const row = e.target.closest('.al'); if (!row) return;
   const a = alarms.find((x) => x.id === +row.dataset.a); if (!a) return;
   socket.emit('ack_alarm', a.id);
@@ -1290,6 +1444,7 @@ function upsert(c) {
   if (!!c.ptt !== wasPtt) pttChanged(c);
   if (follow && selected === c.cameraId && c.lat != null) map.easeTo({ center: [c.lng, c.lat] });
   if (selected === c.cameraId) { renderInfo(); drawAcc(); }
+  slots.forEach((id, i) => { if (id === c.cameraId) syncTileBattery(i); });
   renderList();
 }
 
@@ -1299,8 +1454,26 @@ socket.on('connect', () => {
   socket.emit('register', { id: 'admin', type: 'admin' });
 });
 
-socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; renderAlarms(); });
+socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; alerts = s.alerts || []; renderAlarms(); });
 socket.on('dashboard_cam', upsert);
+// A camera fell under 20 % (or under 10 %): a soft two-tone beep and a notice; the alert stays in the Alarms list until it clears.
+function softBeep() {
+  try {
+    const a = new (window.AudioContext || webkitAudioContext)();
+    [0, 0.2].forEach((d, k) => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = k ? 440 : 560; g.gain.value = 0.08; o.connect(g); g.connect(a.destination); o.start(a.currentTime + d); o.stop(a.currentTime + d + 0.14); });
+  } catch (e) { }
+}
+socket.on('dashboard_alert', (a) => {
+  const i = alerts.findIndex((x) => x.id === a.id), was = i >= 0 ? alerts[i] : null;
+  if (i >= 0) alerts[i] = a; else alerts.unshift(a);
+  if (!was || (a.level === 'critical' && was.level !== 'critical')) {   // new, or it just got worse (an acknowledgement alone is silent)
+    const c = cams.get(a.cameraId);
+    flash((a.level === 'critical' ? t('batCritical') : t('batAlert')) + ': ' + getOfficerLabel(a.cameraId) + ' ' + (c && c.battery != null ? c.battery : a.value) + '%');
+    softBeep();
+  }
+  renderAlarms(); renderList();
+});
+socket.on('dashboard_alert_resolved', ({ id }) => { alerts = alerts.filter((a) => a.id !== id); renderAlarms(); renderList(); });
 socket.on('stream_up', ({ cameraId }) => {
   // the publisher restarted: rebuild any open tile for it (after a moment so the server has the first frames)
   slots.forEach((id, i) => { if (id === cameraId) setTimeout(() => { if (slots[i] === id) { const t = document.querySelector(`.tile[data-i="${i}"]`); const keep = t && ['port', 'expanded'].some((c) => t.classList.contains(c)); renderTile(i); if (keep) syncTileLabel(i); } }, 700); });
@@ -1312,6 +1485,7 @@ function syncTileLabel(i) {
 socket.on('dashboard_alarm_ack', ({ id }) => { const a = alarms.find((x) => x.id === id); if (a) { a.ack = true; renderAlarms(); } });
 socket.on('dashboard_cam_removed', ({ cameraId }) => {
   cams.delete(cameraId);
+  alerts = alerts.filter((a) => a.cameraId !== cameraId);
   markers.get(cameraId)?.remove(); markers.delete(cameraId);
   slots.forEach((id, i) => { if (id === cameraId) { slots[i] = null; renderTile(i); } });
   if (selected === cameraId) { selected = null; renderInfo(); }
@@ -1393,6 +1567,22 @@ function updateUserDisplay() {
   $('#adminLink').style.display = currentUser.super ? '' : 'none';
 }
 
+// licence notice: a chip in the header (administrators open the License page from it)
+function showLicense(l) {
+  const chip = $('#licChip');
+  if (!l || !l.show) {   // nothing to warn about: a company still sees until when its subscription runs
+    const s = window.__sub;
+    if (s) { chip.className = 'lic-chip ok'; chip.style.display = ''; chip.textContent = 'Subscription until ' + new Date(s.end).toISOString().slice(0, 10); chip.removeAttribute('href'); } else chip.style.display = 'none';
+    return;
+  }
+  const n = l.daysLeft, bad = ['grace', 'restricted', 'locked', 'subexpired'].includes(l.state) || l.clock;
+  chip.className = 'lic-chip' + (bad ? ' bad' : ''); chip.style.display = '';
+  const days = `${n} day${n === 1 ? '' : 's'} left`;
+  chip.innerHTML = l.clock ? 'Server clock behind' : l.state === 'expiring' ? `<span class="lic-long">Licence: </span>${days}` : l.state === 'trial' ? `<span class="lic-long">Trial: </span>${days}`
+    : l.state === 'subexpiring' ? `Subscription: ${n} day${n === 1 ? '' : 's'} left` : l.state === 'subexpired' ? 'Subscription ended' : l.state === 'grace' ? 'Licence expired' : '<span class="lic-long">Limited mode: </span>expired';
+  chip.title = l.canManage ? 'Open the License page' : 'Tell your administrator';
+  if (!l.canManage) chip.removeAttribute('href');
+}
 function loadDirectory() {
   fetch('/api/regions').then((r) => r.json()).then((l) => { regionList = l; renderList(); }).catch(() => { });
   if (me.super) fetch('/api/admin/companies').then((r) => r.json()).then((d) => { companyList = d.companies; }).catch(() => { });
@@ -1401,6 +1591,8 @@ fetch('/api/me').then((r) => (r.ok ? r.json() : Promise.reject()))
   .then((u) => { 
     me = u; 
     currentUser = u;
+    window.__sub = u.subscription;
+    showLicense(u.license && u.license.show ? u.license : u.subscription && u.subscription.show ? { show: true, state: u.subscription.state === 'expired' ? 'subexpired' : 'subexpiring', daysLeft: u.subscription.daysLeft } : null);
     updateUserDisplay();
     loadDirectory();
     renderInfo(); 

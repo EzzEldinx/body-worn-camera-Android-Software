@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live wall - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"dark"}catch(e){document.documentElement.dataset.theme="dark"}</script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/vendor/flv.min.js"></script>
+<style>
+/* A live wall made to be dragged onto a second screen and shown full screen: nothing but the pictures and a bar that hides itself. */
+:root{--bg:#070C16;--bar:rgba(14,22,38,.92);--line:rgba(255,255,255,.14);--text:#EAF0FA;--mut:#8FA2BF;--ok:#2EE6A6;--rec:#FF5D77;--sel:#FFC857;--blue:#5AA9FF}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+#bar{position:fixed;z-index:50;left:0;right:0;top:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--bar);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);transition:transform .25s,opacity .25s}
+body.hidebar #bar{transform:translateY(-110%);opacity:0;pointer-events:none}
+body.hidebar{cursor:none}
+#bar .ttl{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:.3px;margin-right:6px}
+#bar .ttl img{height:22px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mut);flex:none}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.seg{display:flex;gap:3px;padding:3px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
+.seg button{border:0;background:none;padding:5px 11px;border-radius:7px;font-size:13px;font-weight:700;color:var(--mut)}
+.seg button.on{background:rgba(255,255,255,.16);color:#fff}
+.btn{border:1px solid var(--line);background:rgba(255,255,255,.08);padding:6px 12px;border-radius:9px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{background:rgba(255,255,255,.18)}
+.btn.pri{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:#1A1405}
+.btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#picker{position:relative}
+#pickList{position:absolute;top:calc(100% + 6px);left:0;min-width:260px;max-height:60vh;overflow:auto;padding:6px;border-radius:12px;background:#0E1626;border:1px solid var(--line);box-shadow:0 16px 40px rgba(0,0,0,.55);display:none}
+#pickList.open{display:block}
+#pickList button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:8px;font-size:13px}
+#pickList button:hover{background:rgba(255,255,255,.1)}
+#pickList small{color:var(--mut);margin-left:auto}
+#pickList .none{padding:10px;color:var(--mut);font-size:13px}
+.sp{flex:1}
+#clock{font-variant-numeric:tabular-nums;font-weight:700;color:var(--mut)}
+#wall{position:fixed;inset:0;display:grid;gap:6px;padding:6px;padding-top:6px}
+body:not(.hidebar):not(.full) #wall{top:58px}
+.tile{position:relative;min-width:0;min-height:0;overflow:hidden;border-radius:12px;background:radial-gradient(120% 100% at 50% 0,#16233a,#0A111D);border:1px solid rgba(120,140,175,.28);container-type:inline-size}
+.tile.drag{opacity:.45}
+.tile.over{outline:3px dashed var(--sel);outline-offset:-3px}
+.tile.talk{border-color:var(--ok);box-shadow:0 0 18px rgba(46,230,166,.45)}
+.tile.sos{border-color:var(--rec);box-shadow:0 0 22px rgba(255,93,119,.55)}
+.tile video{width:100%;height:100%;object-fit:contain;display:block;background:#05080F}
+.tile.cover video{object-fit:cover}
+.tag{position:absolute;top:8px;left:8px;right:8px;display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:11px;background:rgba(10,16,28,.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);z-index:2;pointer-events:none;font-size:13px}
+.tag .nm{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;padding:0 5px}
+.tag .nm small{font-weight:600;color:var(--mut);margin-left:6px}
+.tag button{pointer-events:auto;height:26px;min-width:26px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.1);display:inline-flex;align-items:center;justify-content:center;padding:0 6px}
+.tag button:hover{background:rgba(255,255,255,.26)}
+.tag button.on{background:rgba(0,184,124,.38);border-color:rgba(46,230,166,.7)}
+.tag button[data-x]:hover{background:rgba(255,51,85,.65)}
+.tag button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tag .sp{flex:1}
+.pill{flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;letter-spacing:.8px;background:rgba(154,168,189,.25);color:#C5D0E2}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:#9AA8BD}
+.pill::after{content:"WAITING"}
+.tile.live .pill{background:rgba(255,51,85,.24);color:#FFB3C0}
+.tile.live .pill::before{background:var(--rec);animation:pulse 1.4s infinite}
+.tile.live .pill::after{content:"LIVE"}
+.bat{flex:none;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.14)}
+.bat.low{background:var(--rec)}
+.bat:empty{display:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,51,85,.7)}100%{box-shadow:0 0 0 9px rgba(255,51,85,0)}}
+@container (max-width:300px){.tag .lbl,.tag small{display:none}}
+@container (max-width:230px){.bat,.pill{display:none}}
+.wait,.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;color:var(--mut);font-size:14px;text-align:center;padding:14px;padding-top:44px}
+.tile.live .wait{display:none}
+.empty{border:2px dashed rgba(143,162,191,.3);border-radius:10px;inset:8px;padding-top:14px}
+.empty small{opacity:.8}
+.wait::before{content:"";width:26px;height:26px;border-radius:50%;border:2px solid rgba(143,162,191,.3);border-top-color:var(--sel);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.reqbtn{margin-top:4px;padding:7px 16px;border-radius:99px;border:0;font-weight:800;font-size:13px;background:linear-gradient(135deg,var(--sel),#ff9d00);color:#1A1405}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:80;padding:11px 20px;border-radius:12px;background:#fff;color:#0F1B2D;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}
+#hint{position:fixed;z-index:40;right:14px;bottom:12px;color:var(--mut);font-size:12px;opacity:.8;pointer-events:none}
+body.hidebar #hint{display:none}
+</style>
+</head>
+<body>
+<div id="bar">
+  <div class="ttl"><img src="/brand/visionguard-logo-light.png" alt="VisionGuard" onerror="this.style.display='none'"><span id="tTitle">Live wall</span></div>
+  <span class="dot" id="conn" title="Connection"></span>
+  <div class="seg" id="lay"><button data-n="1">1</button><button data-n="4">2×2</button><button data-n="6">3×2</button><button data-n="9">3×3</button><button data-n="16">4×4</button></div>
+  <div id="picker"><button class="btn" id="addBtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span id="tAdd">Add camera</span></button><div id="pickList"></div></div>
+  <button class="btn" id="fillBtn" title="Put every camera that is recording on the wall"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span id="tFill">Fill with live</span></button>
+  <button class="btn" id="clearBtn"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span id="tClear">Clear</span></button>
+  <span class="sp"></span>
+  <span id="clock"></span>
+  <button class="btn pri" id="fsBtn"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span id="tFs">Full screen</span></button>
+</div>
+<div id="wall"></div>
+<div id="toast"></div>
+<div id="hint">Drag a picture onto another to swap · F = full screen · Esc = exit</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cams = new Map();
+const KEY = 'vg-wall-v1';
+let layout = 4, slots = [], players = new Map(), listen = new Set(), cover = new Set(), solo = -1;
+const grid = (n) => ({ 1: [1, 1], 4: [2, 2], 6: [3, 2], 9: [3, 3], 16: [4, 4] }[n] || [2, 2]);   // [columns, rows]
+
+/* ---------- what is on the wall: remembered between visits, and handed over from the dashboard ---------- */
+function save() { try { localStorage.setItem(KEY, JSON.stringify({ layout, slots })); } catch (e) { } }
+function load() {
+  let st = null; try { st = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { }
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (st && [1, 4, 6, 9, 16].includes(st.layout)) { layout = st.layout; slots = Array.isArray(st.slots) ? st.slots : []; }
+  if (h.get('l') && [1, 4, 6, 9, 16].includes(+h.get('l'))) layout = +h.get('l');
+  if (h.get('c')) slots = h.get('c').split(',').filter(Boolean);            // cameras handed over by the dashboard replace what was remembered
+  slots = slots.slice(0, layout); while (slots.length < layout) slots.push(null);
+  history.replaceState(null, '', location.pathname);
+}
+
+/* ---------- the grid ---------- */
+function build() {
+  const [cols, rows] = grid(layout), w = $('#wall');
+  w.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`; w.style.gridTemplateRows = `repeat(${rows},minmax(0,1fr))`;
+  players.forEach((p) => { try { p.destroy(); } catch (e) { } }); players.clear();
+  slots = slots.slice(0, layout); while (slots.length < layout) slots.push(null);
+  w.innerHTML = slots.map((_, i) => `<div class="tile" data-i="${i}"></div>`).join('');
+  document.querySelectorAll('#lay button').forEach((b) => b.classList.toggle('on', +b.dataset.n === layout));
+  slots.forEach((_, i) => tile(i));
+  applySolo();
+}
+const nameOf = (id) => { const c = cams.get(id); return c ? (c.name && c.name !== id ? `${esc(c.name)}` : esc(id)) : esc(id); };
+const batt = (c) => (c && c.battery != null ? (c.charging ? '⚡' : '') + c.battery + '%' : '');
+const isLow = (c) => !!c && c.battery != null && c.battery < 20 && !c.charging;
+const ico = {
+  snd: '<path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/>',
+  fit: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  big: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+};
+function tile(i) {
+  const t = document.querySelector(`.tile[data-i="${i}"]`), id = slots[i];
+  if (!t) return;
+  if (players.has(i)) { try { players.get(i).destroy(); } catch (e) { } players.delete(i); }
+  t.classList.remove('live', 'talk', 'sos'); t.draggable = !!id;
+  if (!id) { t.innerHTML = '<div class="empty">Empty<small>Add a camera from the bar, or drag one here from the dashboard</small></div>'; return; }
+  const c = cams.get(id);
+  t.innerHTML = `<video muted autoplay playsinline></video>
+    <div class="tag"><span class="nm">${nameOf(id)}<small data-h>${esc(c?.holder || '')}</small></span><span class="bat"></span><span class="pill"></span><span class="sp"></span>
+      <button data-s title="Listen"><svg viewBox="0 0 24 24">${ico.snd}</svg></button>
+      <button data-f title="Fill the tile (crop) / fit the whole picture"><svg viewBox="0 0 24 24">${ico.fit}</svg></button>
+      <button data-e title="Show this one big"><svg viewBox="0 0 24 24">${ico.big}</svg></button>
+      <button data-x title="Remove from the wall"><svg viewBox="0 0 24 24">${ico.x}</svg></button></div>
+    <div class="wait"><span data-w>${c?.online === false ? 'Camera is offline' : 'Waiting for ' + nameOf(id) + ' to start recording…'}</span><button class="reqbtn" data-r>Start live view</button></div>`;
+  info(i); sound(i);
+  if (cams.get(id)?.recording) play(i, id, t.querySelector('video'));
+  t.classList.toggle('cover', cover.has(id));
+}
+function info(i) {
+  const id = slots[i], t = document.querySelector(`.tile[data-i="${i}"]`), c = cams.get(id); if (!t || !id) return;
+  const b = t.querySelector('.bat'); if (b) { b.textContent = batt(c); b.classList.toggle('low', isLow(c)); }
+  const h = t.querySelector('[data-h]'); if (h) h.textContent = c?.holder || '';
+  const w = t.querySelector('[data-w]'); if (w && !t.classList.contains('live')) w.textContent = c && c.online === false ? 'Camera is offline' : 'Waiting for ' + (c?.name || id) + ' to start recording…';
+  t.classList.toggle('talk', !!c?.ptt);
+}
+function sound(i) {
+  const id = slots[i], t = document.querySelector(`.tile[data-i="${i}"]`); if (!t || !id) return;
+  const v = t.querySelector('video'), open = listen.has(id) || !!cams.get(id)?.ptt;
+  if (v) { v.muted = !open; if (open) Promise.resolve(v.play()).catch(() => { }); }
+  t.querySelector('[data-s]')?.classList.toggle('on', open);
+}
+function applySolo() {
+  document.querySelectorAll('.tile').forEach((t) => { const i = +t.dataset.i; t.style.display = solo < 0 || solo === i ? '' : 'none'; });
+  const w = $('#wall');
+  if (solo >= 0) { w.style.gridTemplateColumns = '1fr'; w.style.gridTemplateRows = '1fr'; }
+  else { const [cols, rows] = grid(layout); w.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`; w.style.gridTemplateRows = `repeat(${rows},minmax(0,1fr))`; }
+}
+
+/* ---------- playing a stream (same signed HTTP-FLV the dashboard uses) ---------- */
+const startedAt = new Map(), lastT = new Map(), stall = new Map(), retry = new Map();
+function request(id) { socket.emit('remote_stream', { cameraId: id, action: 'start' }); }
+function play(i, id, v) {
+  if (!window.flvjs || !flvjs.isSupported()) return;
+  startedAt.set(i, Date.now());
+  fetch('/api/stream/' + encodeURIComponent(id)).then((r) => (r.ok ? r.json() : Promise.reject())).then(({ sign }) => {
+    if (slots[i] !== id || !v.isConnected || players.has(i)) return;
+    const p = flvjs.createPlayer({ type: 'flv', isLive: true, url: `${location.origin}/live/${encodeURIComponent(id)}.flv?sign=${sign}` },
+      { enableStashBuffer: true, stashInitialSize: 64 * 1024, autoCleanupSourceBuffer: true, liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 2.0, liveBufferLatencyMinRemain: 0.4 });
+    p.attachMediaElement(v);
+    const again = () => {
+      if (players.get(i) !== p) return;
+      try { p.destroy(); } catch (e) { } players.delete(i);
+      const n = (retry.get(i) || 0) + 1; retry.set(i, n);
+      setTimeout(() => { const el = document.querySelector(`.tile[data-i="${i}"] video`); if (slots[i] === id && el && cams.get(id)?.recording) play(i, id, el); }, Math.min(500 * n, 4000));
+    };
+    p.on(flvjs.Events.ERROR, again); p.on(flvjs.Events.LOADING_COMPLETE, again);
+    v.addEventListener('playing', () => { v.parentElement.classList.add('live'); retry.set(i, 0); }, { once: true });
+    players.set(i, p); p.load(); Promise.resolve(p.play()).catch(() => { });
+  }).catch(() => setTimeout(() => { const el = document.querySelector(`.tile[data-i="${i}"] video`); if (slots[i] === id && el && cams.get(id)?.recording) play(i, id, el); }, 3000));
+}
+// a picture frozen for ~10 s, or one that never started, is rebuilt
+setInterval(() => {
+  slots.forEach((id, i) => {
+    if (!id || !cams.get(id)?.recording || !players.has(i)) return;
+    const v = document.querySelector(`.tile[data-i="${i}"] video`); if (!v) return;
+    const live = v.parentElement.classList.contains('live');
+    if (!live && Date.now() - (startedAt.get(i) || 0) > 20000) { lastT.delete(i); stall.delete(i); return tile(i); }
+    if (live && lastT.get(i) === v.currentTime) { const n = (stall.get(i) || 0) + 1; stall.set(i, n); if (n >= 4) { lastT.delete(i); stall.delete(i); return tile(i); } } else stall.delete(i);
+    lastT.set(i, v.currentTime);
+  });
+}, 2500);
+
+/* ---------- adding / removing / reordering ---------- */
+// ask = the operator chose this camera here: if it is online but not recording, start its live stream (the officer does nothing)
+function put(id, at, ask) {
+  const c = cams.get(id); if (!c) return;
+  const old = slots.indexOf(id);
+  let i = at ?? slots.indexOf(null); if (i < 0) i = slots.length - 1;
+  if (old !== i) {
+    if (old >= 0) { slots[old] = null; tile(old); }
+    slots[i] = id; tile(i); save();
+  }
+  if (ask && c.online && !c.recording) request(id);
+}
+function swap(a, b) {
+  if (a === b) return;
+  [slots[a], slots[b]] = [slots[b], slots[a]]; tile(a); tile(b); save();
+}
+$('#wall').addEventListener('dragstart', (e) => {
+  const t = e.target.closest?.('.tile'); if (!t || !slots[+t.dataset.i]) return e.preventDefault();
+  e.dataTransfer.setData('text/vg-slot', t.dataset.i); e.dataTransfer.effectAllowed = 'move'; t.classList.add('drag');
+});
+$('#wall').addEventListener('dragend', () => document.querySelectorAll('.tile').forEach((t) => t.classList.remove('drag', 'over')));
+$('#wall').addEventListener('dragover', (e) => { const t = e.target.closest?.('.tile'); if (!t) return; e.preventDefault(); document.querySelectorAll('.tile.over').forEach((x) => x !== t && x.classList.remove('over')); t.classList.add('over'); });
+$('#wall').addEventListener('dragleave', (e) => { const t = e.target.closest?.('.tile'); if (t && !t.contains(e.relatedTarget)) t.classList.remove('over'); });
+$('#wall').addEventListener('drop', (e) => {
+  const t = e.target.closest?.('.tile'); if (!t) return; e.preventDefault();
+  t.classList.remove('over'); const to = +t.dataset.i;
+  const from = e.dataTransfer.getData('text/vg-slot'), cam = e.dataTransfer.getData('text/vg-cam');
+  if (from !== '') swap(+from, to); else if (cam) put(cam, to, true);
+});
+$('#wall').addEventListener('click', (e) => {
+  const t = e.target.closest('.tile'); if (!t) return; const i = +t.dataset.i, id = slots[i];
+  if (e.target.closest('[data-x]')) { slots[i] = null; if (solo === i) solo = -1; tile(i); applySolo(); save(); return; }
+  if (e.target.closest('[data-s]')) { if (listen.has(id)) listen.delete(id); else listen.add(id); sound(i); return; }
+  if (e.target.closest('[data-f]')) { if (cover.has(id)) cover.delete(id); else cover.add(id); t.classList.toggle('cover', cover.has(id)); return; }
+  if (e.target.closest('[data-e]')) { solo = solo === i ? -1 : i; applySolo(); return; }
+  if (e.target.closest('[data-r]')) { request(id); e.target.textContent = 'Requesting…'; return; }
+});
+$('#lay').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; layout = +b.dataset.n; solo = -1; build(); save(); });
+$('#clearBtn').onclick = () => { slots = slots.map(() => null); solo = -1; build(); save(); };
+$('#fillBtn').onclick = () => {
+  const live = [...cams.values()].filter((c) => c.recording).map((c) => c.cameraId).filter((id) => !slots.includes(id));
+  for (const id of live) { const i = slots.indexOf(null); if (i < 0) break; slots[i] = id; tile(i); }
+  save();
+};
+function pickList() {
+  const rows = [...cams.values()].filter((c) => !slots.includes(c.cameraId)).sort((a, b) => (b.recording - a.recording) || (b.online - a.online) || a.cameraId.localeCompare(b.cameraId));
+  $('#pickList').innerHTML = rows.length ? rows.map((c) => `<button data-id="${esc(c.cameraId)}"><span class="dot ${c.recording ? '' : c.online ? 'on' : ''}" style="${c.recording ? 'background:var(--rec)' : ''}"></span>${nameOf(c.cameraId)}<small>${c.recording ? 'recording' : c.online ? 'online' : 'offline'}${c.battery != null ? ' · ' + batt(c) : ''}</small></button>`).join('') : '<div class="none">Every camera is already on the wall.</div>';
+}
+$('#addBtn').onclick = (e) => { e.stopPropagation(); pickList(); $('#pickList').classList.toggle('open'); };
+$('#pickList').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; put(b.dataset.id, undefined, true); $('#pickList').classList.remove('open'); });
+document.addEventListener('click', (e) => { if (!e.target.closest('#picker')) $('#pickList').classList.remove('open'); });
+
+/* ---------- full screen, and the bar that gets out of the way ---------- */
+async function fullscreen() {
+  try {
+    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+    await document.documentElement.requestFullscreen({ navigationUI: 'hide' });   // fills the screen this window is on: drag it to the second monitor first
+  } catch (e) { toast('Full screen was refused. Press F11 instead.'); }
+}
+$('#fsBtn').onclick = fullscreen;
+addEventListener('keydown', (e) => {
+  if (e.target.closest?.('input,textarea')) return;
+  if (e.key === 'f' || e.key === 'F') fullscreen();
+  else if (e.key === 'Escape' && solo >= 0) { solo = -1; applySolo(); }
+  else if (['1', '2', '3', '4'].includes(e.key)) { layout = { 1: 1, 2: 4, 3: 9, 4: 16 }[e.key]; solo = -1; build(); save(); }
+});
+document.addEventListener('fullscreenchange', () => { document.body.classList.toggle('full', !!document.fullscreenElement); $('#tFs').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; wake(); });
+let idle; function wake() { document.body.classList.remove('hidebar'); clearTimeout(idle); idle = setTimeout(() => { if (document.fullscreenElement && !$('#pickList').classList.contains('open')) document.body.classList.add('hidebar'); }, 3500); }
+['mousemove', 'mousedown', 'touchstart', 'keydown'].forEach((ev) => addEventListener(ev, wake, { passive: true }));
+function toast(m) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => { t.style.display = 'none'; }, 3200); }
+setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }, 1000);
+
+/* ---------- live data ---------- */
+const socket = io();
+socket.on('connect', () => $('#conn').classList.add('on'));
+socket.on('disconnect', () => $('#conn').classList.remove('on'));
+socket.on('connect_error', (e) => { if (e.message === 'unauthorized') location.href = '/login.html'; });
+function upsert(c) {
+  const prev = cams.get(c.cameraId); cams.set(c.cameraId, c);
+  slots.forEach((id, i) => {
+    if (id !== c.cameraId) return;
+    info(i); sound(i);
+    if (c.recording && !prev?.recording) setTimeout(() => { if (slots[i] === id && cams.get(id)?.recording) tile(i); }, 600);
+    else if (!c.recording && prev?.recording) tile(i);
+  });
+}
+socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); build(); });
+socket.on('dashboard_cam', upsert);
+socket.on('dashboard_cam_removed', ({ cameraId }) => { cams.delete(cameraId); slots.forEach((id, i) => { if (id === cameraId) { slots[i] = null; tile(i); } }); save(); });
+socket.on('stream_up', ({ cameraId }) => slots.forEach((id, i) => { if (id === cameraId) setTimeout(() => { if (slots[i] === id) tile(i); }, 700); }));
+socket.on('remote_stream_result', (r) => { if (!r.ok) toast(r.reason === 'live_limit' ? 'Live-stream limit of your package reached' : 'Camera is offline'); });
+socket.on('dashboard_sos', (a) => {   // an SOS: that camera goes on the wall at once and its tile turns red
+  put(a.cameraId); const i = slots.indexOf(a.cameraId);
+  if (i >= 0) { document.querySelector(`.tile[data-i="${i}"]`)?.classList.add('sos'); setTimeout(() => document.querySelector(`.tile[data-i="${i}"]`)?.classList.remove('sos'), 60000); }
+  try { const a2 = new (window.AudioContext || webkitAudioContext)(); [0, .25, .5].forEach((d) => { const o = a2.createOscillator(), g = a2.createGain(); o.frequency.value = 880; g.gain.value = .15; o.connect(g); g.connect(a2.destination); o.start(a2.currentTime + d); o.stop(a2.currentTime + d + .15); }); } catch (e) { }
+});
+
+/* ---------- the dashboard window talks to this one: cameras it wants shown arrive here ---------- */
+let bc = null;
+try {
+  bc = new BroadcastChannel('vg-wall');
+  bc.onmessage = (e) => { if (e.data?.type === 'watch' && e.data.id) put(e.data.id); if (e.data?.type === 'ping') bc.postMessage({ type: 'alive' }); if (e.data?.type === 'close') window.close(); };
+  setInterval(() => bc.postMessage({ type: 'alive' }), 3000); bc.postMessage({ type: 'alive' });
+  addEventListener('pagehide', () => bc.postMessage({ type: 'closed' }));
+} catch (e) { /* no BroadcastChannel: the dashboard just keeps its own wall */ }
+
+load(); build(); wake();
+</script>
+</body>
+</html>

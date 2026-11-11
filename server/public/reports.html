@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="stylesheet" href="/portal.css">
+<style>
+.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.rd{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--mut)}
+.presets{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.presets button{padding:6px 13px;border-radius:99px;border:1px solid var(--line);background:var(--raise);font-size:12.5px;font-weight:700;color:var(--mut)}
+.presets button:hover,.presets button.on{background:var(--panel);color:var(--text);border-color:var(--sel)}
+.presets .muted{margin-left:auto;font-size:12.5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;margin-top:18px}
+.rep{display:flex;flex-direction:column;gap:10px}
+.rep .ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(135deg,var(--c1,#7C5CFF),var(--c2,#2F7BFF))}
+.rep .ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rep h4{margin:0;font-size:16px}
+.rep p{margin:0;color:var(--mut);font-size:13px;line-height:1.5;flex:1}
+.rep .fmt{font-size:11px;font-weight:800;letter-spacing:.8px;color:var(--mut)}
+.rep .btn{align-self:flex-start}
+.rep.off{opacity:.55}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <section class="card">
+    <h3>Reports</h3>
+    <p class="muted" style="margin:0 0 14px;font-size:13.5px;line-height:1.5">Pick the dates once, then download any report. A PDF is for reading and printing, a spreadsheet (CSV) opens in Excel. You only get what you are allowed to see.</p>
+    <div class="bar">
+      <select id="co" style="display:none" aria-label="Company"></select>
+      <label class="rd">From <input type="date" id="from"></label>
+      <label class="rd">To <input type="date" id="to"></label>
+      <span class="muted" id="hint"></span>
+    </div>
+    <div class="presets" id="presets"><button data-p="today">Today</button><button data-p="yesterday">Yesterday</button><button data-p="7">Last 7 days</button><button data-p="30">Last 30 days</button><button data-p="month">This month</button><button data-p="lastmonth">Last month</button></div>
+  </section>
+  <section class="grid2" id="cards"></section>
+</main>
+<script src="/portal.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const I = {
+  pdf: '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5M9 13h6M9 17h6"/>',
+  sos: '<path d="M6 17v-6a6 6 0 0112 0v6l2 2H4zM10 21a2 2 0 004 0"/>',
+  cam: '<rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/>',
+  bat: '<rect x="2" y="8" width="17" height="9" rx="2"/><path d="M22 11v3M6 11v3M10 11v3"/>',
+  file: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+};
+// kind: pdf | csv; dates: needs From/To; need: licence feature or role limits are enforced by the server
+const R = [
+  { id: 'ops', t: 'Operations report', d: 'Alarms, recordings, distance, activity, who carried which camera and a timeline. One day or up to 92 days.', fmt: 'PDF', ic: 'pdf', url: '/api/report', dates: true, tz: true, co: true, c: ['#7C5CFF', '#2F7BFF'] },
+  { id: 'sos', t: 'SOS alarms', d: 'Every SOS: when, which camera, who carried it, who answered and how fast.', fmt: 'CSV (Excel)', ic: 'sos', url: '/api/reports/alarms.csv', dates: true, tz: true, c: ['#FF7A59', '#FF3355'] },
+  { id: 'fleet', t: 'Cameras right now', d: 'Every camera: online, recording, battery, who has it, last seen and position.', fmt: 'CSV (Excel)', ic: 'cam', url: '/api/reports/fleet.csv', c: ['#12C2C2', '#00B87C'] },
+  { id: 'bat', t: 'Low-battery history', d: 'Every time a camera fell under 20 %: when, how low, who dismissed it, when it recovered.', fmt: 'CSV (Excel)', ic: 'bat', url: '/api/reports/battery.csv', dates: true, tz: true, c: ['#FFC857', '#FF8A3D'] },
+  { id: 'rec', t: 'Recordings', d: 'The recordings that reached the cloud: camera, file, size, time and the SHA-256 fingerprint.', fmt: 'CSV (Excel)', ic: 'file', url: '/api/reports/recordings.csv', dates: true, tz: true, c: ['#38D9F5', '#0E8FB5'] },
+  { id: 'shift', t: 'Who carried which camera', d: 'Check-outs: employee, camera, taken, returned, time out, battery.', fmt: 'CSV (Excel)', ic: 'user', url: '/api/assignments/export.csv', dates: true, ms: true, c: ['#B38CFF', '#6C3DD6'] },
+  { id: 'audit', t: 'Audit trail', d: 'Every step of every file and every change, sealed so it cannot be altered.', fmt: 'CSV (Excel)', ic: 'shield', url: '/api/audit/export.csv', dates: true, ms: true, c: ['#5AA9FF', '#2F4FD8'] },
+];
+const pad = (n) => String(n).padStart(2, '0'), stamp = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const t = new Date(), today = stamp(t), day = (n) => { const d = new Date(t); d.setDate(d.getDate() - n); return stamp(d); };
+$('#cards').innerHTML = R.map((r) => `<div class="card rep" style="--c1:${r.c[0]};--c2:${r.c[1]}"><div class="ic"><svg viewBox="0 0 24 24">${I[r.ic]}</svg></div><h4>${r.t}</h4><p>${r.d}</p>
+  <span class="fmt">${r.fmt}${r.dates ? '' : ' · always the latest'}</span><a class="btn pri" href="#" data-r="${r.id}">Download</a></div>`).join('');
+const days = () => Math.round((new Date($('#to').value + 'T00:00:00') - new Date($('#from').value + 'T00:00:00')) / 864e5) + 1;
+function hint() { const n = days(); $('#hint').textContent = !$('#from').value || !$('#to').value ? '' : n < 1 ? '"From" is after "To"' : n > 92 ? `${n} days: the most is 92` : n === 1 ? '1 day' : `${n} days`; }
+function set(a, b, key) { $('#from').value = a; $('#to').value = b; hint(); document.querySelectorAll('#presets button').forEach((x) => x.classList.toggle('on', x.dataset.p === key)); }
+$('#from').max = $('#to').max = today;
+$('#presets').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return; const p = b.dataset.p;
+  if (p === 'today') set(today, today, p); else if (p === 'yesterday') set(day(1), day(1), p); else if (p === '7') set(day(6), today, p); else if (p === '30') set(day(29), today, p);
+  else if (p === 'month') set(stamp(new Date(t.getFullYear(), t.getMonth(), 1)), today, p); else if (p === 'lastmonth') set(stamp(new Date(t.getFullYear(), t.getMonth() - 1, 1)), stamp(new Date(t.getFullYear(), t.getMonth(), 0)), p);
+};
+$('#from').onchange = () => { if ($('#to').value && $('#from').value > $('#to').value) $('#to').value = $('#from').value; set($('#from').value, $('#to').value, ''); };
+$('#to').onchange = () => { if ($('#from').value && $('#to').value < $('#from').value) $('#from').value = $('#to').value; set($('#from').value, $('#to').value, ''); };
+set(day(6), today, '7');
+$('#cards').addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-r]'); if (!a) return; e.preventDefault();
+  const r = R.find((x) => x.id === a.dataset.r), f = $('#from').value || today, to = $('#to').value || f, q = new URLSearchParams();
+  if (r.dates) {
+    if (days() < 1 || days() > 92) return toast('Pick 1 to 92 days.');
+    if (r.ms) { q.set('from', new Date(f + 'T00:00:00').getTime()); q.set('to', new Date(to + 'T00:00:00').getTime() + 864e5); }
+    else { q.set('from', f); q.set('to', to); }
+  }
+  if (r.tz) q.set('tz', String(new Date().getTimezoneOffset()));
+  if (r.co && $('#co').value) q.set('company', $('#co').value);
+  location.href = r.url + (q.toString() ? '?' + q : '');
+});
+portalReady.then((me) => {
+  if (me.super) fetch('/api/admin/companies').then((r) => r.json()).then((d) => {
+    $('#co').innerHTML = '<option value="">All companies</option>' + d.companies.map((c) => `<option value="${c.id}">${c.name.replace(/[<>&]/g, '')}</option>`).join('');
+    $('#co').style.display = ''; $('#co').title = 'Company for the Operations report';
+  });
+  if (!me.super) document.querySelector('[data-r="audit"]').closest('.card').querySelector('p').textContent += ' You see the lines about your own company.';
+});
+</script>
+</body>
+</html>

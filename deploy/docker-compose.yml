@@ -10,6 +10,7 @@ services:
     env_file: .env
     environment:
       DATA_DIR: /data
+      TZ: ${TZ:-Asia/Riyadh}               # days in charts and the audit export follow Saudi time (reports use the reader's own zone)
     volumes:
       - visionguard-data:/data
     ports:

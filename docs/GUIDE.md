@@ -115,12 +115,12 @@ El-company beshoof arqamha bas.
 
 ---
 
-### 6.b El-PDF report el-yawmi
-Fe saf7et el-Analytics, kart **Daily report**: e5tar el-yawm (el-default el-nahar-da) > **Download PDF**. (El-Smart Way admin yeqdar ye5tar **company** aw "All companies"; el-company beteshoof bta3tha bas.)
-El-report feeh: banner b-gradient, 4 KPI (cameras active, SOS, recorded time, distance), donut el-cameras, chart el-nashat 3ala el-sa3at, gadwal el-SOS (wa2t el-response), gadwal kol camera (online/recorded/distance/PTT/messages), control-room actions w timeline (kol recording fe sater wa7ed bel-moddah).
-- Endpoint: `/api/report?date=YYYY-MM-DD&company=<id>` (el-company el-user mesh betetghayyar: bey-shoof bta3to bas).
-- El-events (online/offline, recording, PTT, messages) betetsagal **men wa2t el-ta7deeth da** — el-ayyam abl keda feeha SOS + GPS + control-room actions bas.
-- Arabic fe asma2 el-companies/cameras bet-etshal fel-PDF (el-font latin bas): esta5dem asma2 englizi.
+### 6.b The PDF report (one day, or any range up to 92 days)
+Analytics > card **Reports**: pick **From** and **To** (or a shortcut: Today, Yesterday, Last 7 days, Last 30 days, This month, Last month) > **Download PDF**. Smart Way administrators can pick a **company** or "All companies"; a company only gets its own.
+The report has: banner, 4 KPIs (active cameras, SOS, recorded time, distance), the fleet donut, **activity by hour** (one day) or **recorded time by day with the SOS count** (several days), the SOS table with response times, a **Day by day** table (several days), **Camera custody** (who took which camera, when, how long, from the check-out station), camera activity, control-room actions and a timeline. Days are cut in **your own time zone** (the browser sends it).
+* Endpoint: `/api/report?from=YYYY-MM-DD&to=YYYY-MM-DD&tz=<minutes>&company=<id>` (the old `?date=` still means one day). Every download is written to the audit trail.
+* Events (online/offline, recording, PTT, messages) are logged **from the moment of that update**; earlier days have SOS + GPS + control-room actions only.
+* Arabic in company/camera names is dropped in the PDF (Latin font only): use English names.
 
 ---
 
@@ -207,6 +207,19 @@ Analytics shows what needs attention (low battery, cameras offline, files waitin
 
 ### 8.3f Help & Support (Help in the top menu)
 Quick answers, and **tickets**: a customer opens a ticket (subject, topic, priority, optional camera), follows the conversation and can reply or close it; a company administrator sees the company's tickets; Smart Way staff see and answer all of them and set the status (open, in progress, resolved, closed). A customer's reply reopens a resolved ticket. Every ticket action is in the audit trail. New tickets and customer replies are e-mailed to **sdpt@smart-way.com.sa** when the server has `SMTP_HOST` (see `.env.example`); without it they are stored and answered on the page.
+
+### 8.3g Battery on every camera, and the low-battery alert
+Every camera shows its **battery wherever it is**: the camera reports its own (live) and the dock adds its USB reading while it charges. The dashboard list, the map bubble, the live-wall tiles, the info panel, Analytics (*Low battery* gauge, Camera health) and the mobile apps all show it, with a bolt when it is charging.
+**Under 20 % and not charging** raises an alert: an amber line in the Alarms list (with *Dismiss*), a soft beep, a *Low battery* chip in the header, a push notice (when push is configured) and an Insights line. **Under 10 %** it becomes critical and rings again even if it was dismissed. The alert clears by itself when the camera charges or is back above 25 % (so 19-21 % does not flap). Change the levels with `BATTERY_LOW` / `BATTERY_CRITICAL`. Cameras report with `camera_battery {cameraId, battery, charging}` (camera app update, see CHECKOUT.md section 5).
+
+### 8.3h The live wall on a second screen
+Live Dashboard > Live wall: **4x4** layout, **Full screen**, and **Open in its own window** (the icon with the arrow). The new window is a clean wall (`/wall.html`): drag it onto the extended screen and press **Full screen** (or F). With two screens Chrome asks once to place it on the other one automatically. Inside the wall: **drag a picture onto another to swap them**, drag a camera from the dashboard list onto a tile, *Add camera*, *Fill with live*, layouts 1 / 2x2 / 3x2 / 3x3 / 4x4 (keys 1-4), expand one tile (the arrows), listen, fit/crop. An SOS puts that camera on the wall and turns its tile red. While the wall window is open, the cameras you pick on the dashboard appear there, so the main screen keeps the map and alarms. The wall remembers its layout.
+
+### 8.3i Employees and camera check-out
+Each employee has a username and password; at the **check-out station** (`/station.html`) the system gives them a ready camera and lights its bay; the camera stamps date/time, camera ID and the employee ID. Full guide: **CHECKOUT.md**.
+
+### 8.3j Licence (self-hosted customers)
+Customers who run VisionGuard on their own server need a licence you issue (3, 6, 12, 24 or 36 months) and renew; the system degrades gently (grace, then limited mode, safety never stops). Full guide: **LICENSING.md**; page **License** (administrators).
 
 ### 8.4 The docking station updates the cameras by itself (Dock Agent 1.3)
 Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that sits on the dock is checked each cycle (about 30 s):

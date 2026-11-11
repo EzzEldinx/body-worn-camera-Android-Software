@@ -16,8 +16,22 @@
 .hero h1 span{background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero p{margin:0;color:rgba(232,238,247,.8);font-size:14.5px}
 .rep{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
-.rep h3{margin-bottom:6px}.rep p{margin:0;color:var(--mut);font-size:13.5px;max-width:520px;line-height:1.5}
+.rep h3{margin-bottom:6px}.rep p{margin:0;color:var(--mut);font-size:13.5px;max-width:560px;line-height:1.5}
 .rep-ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.rd{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--mut)}
+.presets{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)}
+.presets button{padding:6px 13px;border-radius:99px;border:1px solid var(--line);background:var(--raise);font-size:12.5px;font-weight:700;color:var(--mut)}
+.presets button:hover,.presets button.on{background:var(--panel);color:var(--text);border-color:var(--sel);box-shadow:0 0 0 1px rgba(255,179,0,.45)}
+.presets .muted{margin-left:auto;font-size:12.5px}
+.hero-btns{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.hero .btn.ghost{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.32);color:#fff}
+.hero .btn.ghost:hover{background:rgba(255,255,255,.22)}
+.gauges{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.gauges .gauge{padding:16px 18px;gap:14px}
+.gauges .gauge svg{width:88px;height:88px}
+.gauges .gauge b{font-size:28px}
+.attn{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;border-left:4px solid var(--c,var(--sel))}
+.attn b{font-size:14.5px}.attn span{color:var(--mut);font-size:13px;flex:1;min-width:200px}
 .live{display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:rgba(232,238,247,.75)}
 .live i{width:8px;height:8px;border-radius:50%;background:#2EE6A6;animation:pulse 1.6s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,230,166,.7)}100%{box-shadow:0 0 0 10px rgba(46,230,166,0)}}
@@ -100,54 +114,25 @@
       <p id="scope">Loading your fleet…</p>
       <div class="live"><i></i><span id="upd">Live data</span></div>
     </div>
-    <a class="btn pri" href="/" style="font-size:16px;padding:14px 26px">Open Live Dashboard
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-  </section>
-
-  <section class="card rep">
-    <div class="rep-txt"><h3>Daily report</h3>
-      <p>Everything VisionGuard did for your fleet on a day: alarms, recordings, distance, activity and a timeline, as a PDF.</p></div>
-    <div class="rep-ctl">
-      <select id="repCo" style="display:none"></select>
-      <input type="date" id="repDate">
-      <a class="btn pri" id="repBtn" href="#">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>
-        Download PDF</a>
+    <div class="hero-btns">
+      <a class="btn ghost" href="/reports.html">Reports</a>
+      <a class="btn pri" href="/" style="font-size:16px;padding:14px 26px">Open Live Dashboard
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     </div>
   </section>
 
+  <section class="card attn" id="attn" style="display:none"></section>
 
-  <section class="card" id="insCard">
-    <div class="ins-h"><div><h3 style="margin:0">Insights</h3><p class="muted" style="margin:4px 0 0;font-size:13px">What needs attention, worked out from your cameras, docks and alarms.</p></div>
-      <button class="btn pri" id="aiBtn">&#10022; Written analysis</button></div>
-    <div id="aiOut"></div><div class="insgrid" id="ins"><div class="empty">Analysing…</div></div>
+  <!-- the circles: everything that is happening right now, then health and evidence, side by side -->
+  <section class="gauges" id="gauges">
+    <div id="gA" style="display:contents"></div><div id="gBat" style="display:contents"></div>
+    <div id="gB" style="display:contents"></div><div id="gDuty" style="display:contents"></div>
   </section>
 
-  <section class="grid g4" id="kpi2"></section>
-
-  <section class="grid g2">
-    <div class="card"><h3>Evidence pipeline</h3><div class="pipe" id="pipe"></div>
-      <p class="muted" style="margin:14px 0 0;font-size:12.5px">From the camera to the dock, then to the cloud or kept on the dock. <a href="/docks.html#files">Open Docking &gt; Files</a></p></div>
-    <div class="card"><h3>Recordings reaching the cloud · 14 days</h3><div class="bars" id="recbars"></div></div>
+  <section class="card">
+    <h3>Evidence &amp; alert flow</h3>
+    <svg class="flow" viewBox="0 0 1080 330" id="flow" role="img" aria-label="System flow"></svg>
   </section>
-
-  <section class="grid g2">
-    <div class="card"><h3>SOS alarms by hour of day · 30 days</h3><div class="bars hours" id="hbars"></div></div>
-    <div class="card"><h3>Camera health</h3><div class="scroll" style="max-height:300px"><table class="hth" id="hth"></table></div></div>
-  </section>
-
-  <section class="card" id="audit">
-    <div class="ins-h"><div><h3 style="margin:0">Audit trail</h3><p class="muted" style="margin:4px 0 0;font-size:13px;max-width:640px">Every step is written by the server, cannot be edited or erased, and each line is chained to the one before it. This is the proof of what happened to every file and who decided it.</p></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="integ" id="integ" style="--c:var(--off)">Checking…</span><button class="btn" id="verBtn">Verify now</button><a class="btn" id="csvBtn" href="/api/audit/export.csv">Export CSV</a></div></div>
-    <div class="aud-f">
-      <select id="aKind"><option value="">Everything</option><option value="dock_file">All file steps</option><option value="dock_file_choice">Decisions (cloud / dock)</option><option value="dock_file_upload">Uploads to the cloud</option><option value="dock_file_delete">Deleted from cameras</option><option value="dock_policy">Automatic-mode changes</option><option value="recording">Recordings (downloaded / expired)</option><option value="camera">Camera changes</option><option value="token">Tokens</option></select>
-      <input id="aCam" placeholder="Camera, e.g. BWC-01-RIY"><input id="aUser" placeholder="User"><input type="date" id="aFrom" title="From"><input type="date" id="aTo" title="To">
-      <button class="btn pri" id="aGo">Show</button><span class="muted" id="aN"></span></div>
-    <div class="scroll"><table class="hth"><thead><tr><th>#</th><th>When</th><th>Who</th><th>What</th><th>Camera</th><th>Details</th><th>Seal</th></tr></thead><tbody id="aBody"></tbody></table></div>
-    <p class="muted mono" id="aHead" style="margin:10px 0 0;word-break:break-all"></p>
-  </section>
-
-  <section class="grid g4" id="gauges"></section>
 
   <section class="grid g3">
     <div class="card"><h3>Fleet status</h3><div id="dFleet"></div></div>
@@ -155,14 +140,35 @@
     <div class="card"><h3 id="dThirdTitle">Cameras by group</h3><div id="dThird"></div></div>
   </section>
 
-  <section class="grid g2">
+  <section class="grid g3">
     <div class="card"><h3>SOS alarms · last 7 days</h3><div class="bars" id="bars"></div></div>
+    <div class="card"><h3>SOS alarms by hour of day · 30 days</h3><div class="bars hours" id="hbars"></div></div>
     <div class="card"><h3>Overview</h3><div class="stats" id="stats"></div></div>
   </section>
 
-  <section class="card">
-    <h3>Evidence &amp; alert flow</h3>
-    <svg class="flow" viewBox="0 0 1080 330" id="flow" role="img" aria-label="System flow"></svg>
+  <section class="card" id="insCard">
+    <div class="ins-h"><div><h3 style="margin:0">Insights</h3><p class="muted" style="margin:4px 0 0;font-size:13px">What needs attention, worked out from your cameras, docks and alarms.</p></div>
+      <button class="btn pri" id="aiBtn">&#10022; Written analysis</button></div>
+    <div id="aiOut"></div><div class="insgrid" id="ins"><div class="empty">Analysing…</div></div>
+  </section>
+
+  <section class="grid g2">
+    <div class="card"><h3>Evidence pipeline</h3><div class="pipe" id="pipe"></div>
+      <p class="muted" style="margin:14px 0 0;font-size:12.5px">From the camera to the dock, then to the cloud or kept on the dock. <a href="/docks.html#files">Open Docking &gt; Files</a></p></div>
+    <div class="card"><h3>Recordings reaching the cloud · 14 days</h3><div class="bars" id="recbars"></div></div>
+  </section>
+
+  <section class="card"><h3>Camera health</h3><div class="scroll" style="max-height:420px"><table class="hth" id="hth"></table></div></section>
+
+  <section class="card" id="audit">
+    <div class="ins-h"><div><h3 style="margin:0">Audit trail</h3><p class="muted" style="margin:4px 0 0;font-size:13px;max-width:640px">Every step is written by the server, cannot be edited or erased, and each line is chained to the one before it. This is the proof of what happened to every file and who decided it.</p></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="integ" id="integ" style="--c:var(--off)">Checking…</span><button class="btn" id="verBtn">Verify now</button><a class="btn" id="csvBtn" href="/api/audit/export.csv">Export CSV</a></div></div>
+    <div class="aud-f">
+      <select id="aKind"><option value="">Everything</option><option value="dock_file">All file steps</option><option value="dock_file_choice">Decisions (cloud / dock)</option><option value="dock_file_upload">Uploads to the cloud</option><option value="dock_file_delete">Deleted from cameras</option><option value="dock_policy">Automatic-mode changes</option><option value="recording">Recordings (downloaded / expired)</option><option value="camera_edited,camera_removed">Camera changes</option><option value="camera_checkout,camera_picked_up,camera_returned,checkout">Check-outs and returns</option><option value="employee,user_">Employees and users</option><option value="battery">Battery alerts</option><option value="license">Licence</option><option value="report">Reports</option><option value="token">Tokens</option></select>
+      <input id="aCam" placeholder="Camera, e.g. BWC-01-RIY"><input id="aUser" placeholder="User"><input type="date" id="aFrom" title="From"><input type="date" id="aTo" title="To">
+      <button class="btn pri" id="aGo">Show</button><span class="muted" id="aN"></span></div>
+    <div class="scroll"><table class="hth"><thead><tr><th>#</th><th>When</th><th>Who</th><th>What</th><th>Camera</th><th>Details</th><th>Seal</th></tr></thead><tbody id="aBody"></tbody></table></div>
+    <p class="muted mono" id="aHead" style="margin:10px 0 0;word-break:break-all"></p>
   </section>
 </main>
 
@@ -173,6 +179,7 @@ const C_OK = 'var(--ok)', C_REC = 'var(--rec)', C_OFF = 'var(--off)', C_BLUE = '
 let first = true;
 
 const arcLen = (R) => 2 * Math.PI * R;
+function animateGauges() { setTimeout(() => document.querySelectorAll('.gauge .val').forEach((c) => { c.style.strokeDashoffset = c.dataset.off; }), 80); }
 function gauge(label, value, pct, color, sub) {
   const R = 46, C = arcLen(R), off = C * (1 - Math.min(1, Math.max(0, pct)));
   return `<div class="card gauge" style="--c:${color}">
@@ -237,7 +244,7 @@ function render(d, me) {
     : `${d.scope.company} · ${f.total} assigned camera${f.total === 1 ? '' : 's'}`;
   $('#upd').textContent = 'Live data · updated ' + new Date().toLocaleTimeString();
 
-  $('#gauges').innerHTML =
+  $('#gA').innerHTML =
     gauge('Cameras online', f.online + '<span class="muted" style="font-size:18px"> / ' + f.total + '</span>', pctOf(f.online, f.total), C_OK, `<span class="pct">${Math.round(pctOf(f.online, f.total) * 100)}%</span> of the fleet`) +
     gauge('Recording', f.recording, pctOf(f.recording, f.total), C_REC, `<span class="pct">${Math.round(pctOf(f.recording, f.total) * 100)}%</span> streaming evidence`) +
     gauge('Open alarms', a.open, pctOf(a.open, a.total), C_SEL, `${a.total} SOS in 30 days`) +
@@ -259,10 +266,8 @@ function render(d, me) {
   ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
   flow(d);
 
-  if (first) requestAnimationFrame(() => setTimeout(() => {
-    document.querySelectorAll('.gauge .val').forEach((c) => { c.style.strokeDashoffset = c.dataset.off; });
-    document.querySelectorAll('.bar i').forEach((b) => { b.style.height = b.dataset.h + 'px'; });
-  }, 60));
+  animateGauges();
+  if (first) setTimeout(() => document.querySelectorAll('.bar i[data-h]').forEach((b) => { b.style.height = b.dataset.h + 'px'; }), 60);
   first = false;
 }
 
@@ -274,18 +279,29 @@ const whenT = (t) => t ? new Date(t).toLocaleString([], { day: '2-digit', month:
 const STEPS = { dock_file_copied: 'File copied from the camera to the dock (verified)', dock_file_choice_cloud: 'Decision: push to cloud', dock_file_choice_local: 'Decision: keep on dock storage', dock_file_uploaded_cloud: 'Uploaded to the cloud (verified)', dock_file_upload_failed: 'Cloud upload failed',
   dock_file_delete_requested: 'Deletion from camera requested', dock_file_deleted_from_camera: 'Deleted from the camera', dock_file_delete_refused: 'Deletion refused (no verified copy)', recording_expired: 'Removed from the cloud by retention', recording_downloaded: 'Recording downloaded',
   dock_policy_ask: 'Mode set: Ask me', dock_policy_auto_cloud: 'Mode set: Automatic · Cloud', dock_policy_auto_local: 'Mode set: Automatic · Dock storage', camera_edited: 'Camera edited', camera_removed: 'Camera removed', token_issued: 'Camera token issued', token_revoked: 'Camera token revoked',
-  audit_exported: 'Audit trail exported', ai_analysis_generated: 'AI analysis generated', summary_generated: 'Summary generated', mobile_login: 'Signed in on the mobile app' };
+  audit_exported: 'Audit trail exported', ai_analysis_generated: 'AI analysis generated', summary_generated: 'Summary generated', mobile_login: 'Signed in on the mobile app', report_downloaded: 'Report downloaded', battery_low: 'Battery low (under 20%)', battery_critical: 'Battery critical (under 10%)', battery_recovered: 'Battery recovered or charging',
+  camera_checkout: 'Camera checked out by an employee', camera_picked_up: 'Camera left the dock', camera_returned: 'Camera returned to the dock', checkout_cancelled: 'Check-out cancelled', checkouts_exported: 'Check-outs exported', checkout_settings: 'Check-out settings changed',
+  employee_created: 'Employee account created', employee_updated: 'Employee updated', employee_disabled: 'Employee switched off', employee_enabled: 'Employee switched on', employee_removed: 'Employee removed', user_created: 'Dashboard user created', user_removed: 'Dashboard user removed',
+  license_installed: 'Licence installed', license_renewal_requested: 'Licence renewal requested', license_warning: 'Licence reminder', license_camera_refused: 'Camera refused by the licence' };
 const stepText = (a) => STEPS[a] || a.replace(/^remote_stream_/, 'Live view ').replace(/^set_quality_/, 'Quality set to ').replace(/^update_/, 'Update ').replace(/_/g, ' ');
 const SEVL = { critical: 'Act now', warning: 'Watch', info: 'Good to know', good: 'All good' };
 
 function renderInsights(a) {
   $('#ins').innerHTML = a.insights.length ? a.insights.map((i) => `<div class="insc sev ${i.severity}"><span class="tag">${SEVL[i.severity]}</span><b>${esc(i.title)}</b><span>${esc(i.detail)}</span></div>`).join('') : '<div class="empty">Nothing to report yet.</div>';
   const p = a.pipeline, r = a.recordings;
-  $('#kpi2').innerHTML =
+  $('#gB').innerHTML =
     gauge('Fleet health', a.score == null ? '–' : a.score + '%', (a.score || 0) / 100, a.score >= 80 ? C_OK : a.score >= 50 ? C_SEL : C_REC, 'cameras with no problem') +
     gauge('Waiting for you', p.awaiting.n, p.awaiting.n ? Math.min(1, p.awaiting.n / 20) : 0, C_SEL, p.awaiting.n ? fmtB(p.awaiting.bytes) + ' on the dock' : 'nothing to decide') +
     gauge('In the cloud', r.cloudFiles, Math.min(1, r.cloudFiles / 200), C_BLUE, fmtB(r.cloudBytes)) +
     gauge('Kept on dock', p.local.n, Math.min(1, p.local.n / 200), C_BR, fmtB(p.local.bytes) + (p.removedFromCameras ? ' · ' + p.removedFromCameras + ' cleared from cameras' : ''));
+  const bt = a.battery || { low: 0, critical: 0, known: 0, charging: 0, threshold: 20 };
+  $('#gBat').innerHTML = gauge('Low battery', bt.low, bt.known ? bt.low / bt.known : 0, bt.critical ? C_REC : bt.low ? C_SEL : C_OK,
+    bt.known ? (bt.low ? `under ${bt.threshold}% and not charging` : 'all cameras above ' + bt.threshold + '%') + (bt.charging ? ' · ' + bt.charging + ' charging' : '') : 'no battery readings yet');
+  $('#gDuty').innerHTML = a.shifts ? gauge('On duty', a.shifts.out, a.shifts.total ? a.shifts.out / a.shifts.total : 0, C_BLUE, `${a.shifts.out} of ${a.shifts.total} cameras carried now` + (a.shifts.ready != null ? ' · ' + a.shifts.ready + ' ready' : '')) : '';
+  // what needs attention, as one line right under the greeting
+  const hot = a.insights.filter((i) => i.severity === 'critical' || i.severity === 'warning'), at = $('#attn');
+  if (hot.length) { at.style.display = ''; at.style.setProperty('--c', hot.some((i) => i.severity === 'critical') ? 'var(--rec)' : 'var(--sel)'); at.innerHTML = `<b>${hot.length} thing${hot.length === 1 ? '' : 's'} need${hot.length === 1 ? 's' : ''} attention</b><span>${hot.slice(0, 3).map((i) => esc(i.title)).join(' · ')}${hot.length > 3 ? ' …' : ''}</span><a class="btn sm" href="#insCard">See insights</a>`; }
+  else at.style.display = 'none';
   const tot = Math.max(1, p.awaiting.n + p.queued.n + p.local.n + p.cloud.n + p.failed.n);
   const row = (n, k, c) => `<div class="row" style="--c:${c}"><span>${n}</span><div class="meter"><i style="width:${(p[k].n / tot * 100).toFixed(1)}%"></i></div><b>${p[k].n}<small class="muted"> · ${fmtB(p[k].bytes)}</small></b></div>`;
   $('#pipe').innerHTML = row('Waiting for decision', 'awaiting', C_SEL) + row('Queued for cloud', 'queued', C_BLUE) + row('Kept on dock storage', 'local', C_BR) + row('In the cloud', 'cloud', C_OK) + row('Failed (retrying)', 'failed', C_REC);
@@ -297,10 +313,10 @@ function renderInsights(a) {
   $('#hth').innerHTML = '<thead><tr><th>Camera</th><th>State</th><th>Battery</th><th class="r">SOS 30d</th><th class="r">Files 7d</th><th>Flags</th></tr></thead><tbody>' + (a.health.length ? a.health.map((h) => `<tr>
     <td><b>${esc(h.name)}</b>${h.holder ? `<div class="muted" style="font-size:11.5px">${esc(h.holder)}</div>` : ''}</td>
     <td><span class="chip" style="--c:${h.recording ? 'var(--rec)' : h.online ? 'var(--ok)' : 'var(--off)'}">${h.recording ? 'Recording' : h.online ? 'Online' : 'Offline'}</span></td>
-    <td>${h.battery == null ? '<span class="muted">–</span>' : `<span class="bat ${h.battery < 20 ? 'low' : ''}"><i style="width:${h.battery}%"></i></span>${h.battery}%`}</td>
+    <td title="${h.batterySrc === 'dock' ? 'Read on the dock' : h.batterySrc === 'camera' ? 'Reported by the camera' : ''}${h.batteryAgeMin != null ? ', ' + h.batteryAgeMin + ' min ago' : ''}">${h.battery == null ? '<span class="muted">–</span>' : `<span class="bat ${h.battery < 20 && !h.charging ? 'low' : ''}"><i style="width:${h.battery}%"></i></span>${h.charging ? '⚡ ' : ''}${h.battery}%`}</td>
     <td class="r">${h.alarms30d}</td><td class="r">${h.recordings7d}</td>
     <td>${h.flags.length ? h.flags.map((f) => `<span class="chip" style="--c:${FL[f][1]}">${FL[f][0]}</span>`).join('') : '<span class="muted">–</span>'}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">No cameras.</td></tr>') + '</tbody>';
-  setTimeout(() => document.querySelectorAll('#kpi2 .gauge .val').forEach((c) => { c.style.strokeDashoffset = c.dataset.off; }), 80);
+  animateGauges();
   const i = a.audit; const ok = i.ok;
   $('#integ').style.setProperty('--c', ok ? 'var(--ok)' : 'var(--rec)');
   $('#integ').textContent = ok ? `✓ Verified · ${i.checked} steps unbroken` : '✗ Chain broken: see Insights';
@@ -344,19 +360,6 @@ if (location.hash === '#audit') setTimeout(() => $('#audit').scrollIntoView(), 4
 loadInsights(); setInterval(loadInsights, 30000); loadAudit(); setInterval(() => { if (!document.hidden) loadAudit(); }, 20000);
 
 portalReady.then((me) => {
-  const pad = (n) => String(n).padStart(2, '0'), t = new Date();
-  const today = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
-  $('#repDate').value = today; $('#repDate').max = today;
-  if (me.super) fetch('/api/admin/companies').then((r) => r.json()).then((d) => {
-    $('#repCo').innerHTML = '<option value="">All companies</option>' + d.companies.map((c) => `<option value="${c.id}">${c.name.replace(/[<>&]/g, '')}</option>`).join('');
-    $('#repCo').style.display = '';
-  });
-  $('#repBtn').onclick = (e) => {
-    e.preventDefault();
-    const q = new URLSearchParams({ date: $('#repDate').value || today });
-    if ($('#repCo').value) q.set('company', $('#repCo').value);
-    location.href = '/api/report?' + q;
-  };
   const load = () => fetch('/api/analytics').then((r) => r.json()).then((d) => render(d, me)).catch(() => { });
   load(); setInterval(load, 10000);
 });

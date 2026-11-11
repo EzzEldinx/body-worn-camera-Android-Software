@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Companies - VisionGuard</title>
+<title>Admin panel - VisionGuard</title>
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="stylesheet" href="/portal.css">
@@ -16,7 +16,9 @@
 .rgchip button:hover{background:var(--rec);color:#fff}
 .newco{display:flex;gap:10px;flex-wrap:wrap}
 .newco input{flex:1;min-width:200px}
-.co{margin-top:16px;padding:18px 20px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.co{margin-top:10px;padding:12px 16px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.co-body{display:none;margin-top:12px;padding-top:6px;border-top:1px solid var(--line-soft)}.co.open .co-body{display:block}
+.chev{font-style:normal;color:var(--mut);transition:transform .15s;width:14px}.co.open .chev{transform:rotate(90deg)}
 .co-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .co-head .logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--blue));box-shadow:0 4px 14px rgba(94,74,158,.4);flex:none}
 .co-head h2{margin:0;font-size:18px}
@@ -28,9 +30,23 @@
 .user .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--sel),#ff8a00);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--sel-ink);flex:none}
 .user b{font-size:14px}.user small{color:var(--mut);display:block;font-size:12px}
 .user .sp{margin-left:auto;display:flex;gap:6px}
-.adduser{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:8px;margin-top:10px}
+.subbox{display:flex;gap:8px;align-items:center}.chip-s{padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--raise);border:1px solid var(--line)}.chip-s.expiring{background:color-mix(in srgb,var(--sel) 22%,var(--panel))}.chip-s.locked{background:var(--rec);color:#fff;border-color:transparent}.chip-s.expired{background:color-mix(in srgb,var(--rec) 22%,var(--panel))}.chip-s.active{background:color-mix(in srgb,var(--ok) 16%,var(--panel))}
+.adduser{display:grid;grid-template-columns:1fr 1fr 1.2fr auto auto;gap:8px;margin-top:10px}
 .adduser .pw{display:flex;gap:6px}.adduser .pw input{flex:1;min-width:0}
 @media (max-width:760px){.adduser{grid-template-columns:1fr}}
+.emp-tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--blue) 14%,var(--panel));color:var(--blue);vertical-align:middle}
+.emp-tag.on{background:color-mix(in srgb,var(--ok) 16%,var(--panel));color:var(--ok)}
+.emp-tag.off{background:color-mix(in srgb,var(--rec) 14%,var(--panel));color:var(--rec)}
+.user.is-off{opacity:.6}
+.addemp{display:grid;grid-template-columns:1.3fr .8fr 1fr auto;gap:8px;margin-top:10px}
+@media (max-width:760px){.addemp{grid-template-columns:1fr}}
+details.bulk{margin-top:10px;border:1px solid var(--line-soft);border-radius:12px;background:var(--raise);padding:10px 14px}
+details.bulk summary{cursor:pointer;font-weight:700;font-size:13.5px}
+details.bulk textarea{width:100%;min-height:110px;margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace}
+details.bulk p{margin:8px 0 0;color:var(--mut);font-size:12.5px;line-height:1.5}
+.credbox{margin-top:12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ok) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line))}
+.credbox table td{padding:5px 8px;font-size:13px;font-family:Consolas,monospace}
+.credbox .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:13px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .cam{padding:5px 12px;border-radius:99px;font-size:12.5px;font-weight:600;background:color-mix(in srgb,var(--blue) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--blue) 35%,var(--line))}
 .cred{margin-top:12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ok) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line));font-size:13.5px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -47,14 +63,18 @@ td select{width:100%}
 <body>
 <header id="top"></header>
 <main>
+  <section class="card" style="margin-bottom:18px" id="newCompany">
+    <h3>Add a new company</h3>
+    <div class="newco">
+      <input id="coName" placeholder="New company name, e.g. Al Rajhi Security" maxlength="60">
+      <select id="coPkg" aria-label="Package"></select>
+      <button class="btn pri" id="coAdd">Add company</button>
+    </div>
+  </section>
   <div class="layout">
     <section class="card">
-      <h3>Companies</h3>
-      <div class="newco">
-        <input id="coName" placeholder="New company name, e.g. Al Rajhi Security" maxlength="60">
-        <select id="coPkg" aria-label="Package"></select>
-        <button class="btn pri" id="coAdd">Add company</button>
-      </div>
+      <h3>Companies <span class="muted" id="coCount" style="text-transform:none;letter-spacing:0;font-weight:500"></span></h3>
+      <div style="display:flex;gap:8px;margin-bottom:6px"><button class="btn sm" id="openAll">Open all</button><button class="btn sm" id="closeAll">Close all</button></div>
       <div id="companies"></div>
     </section>
 
@@ -88,6 +108,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let data = { companies: [], cameras: [] };
 const lastCred = {};   // companyId -> { username, password } shown once after creating a user
+const lastEmp = {};    // companyId -> [{ name, employeeNo, username, password }] shown once after creating employees
 
 const api = (method, url, body) => fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
   .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; });
@@ -98,25 +119,29 @@ const genPw = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ
 const pkgOptions = (sel) => '<option value="">Unlimited (legacy)</option>' + (data.packages || []).map((p) =>
   `<option value="${p.maxCameras}" ${sel === p.maxCameras ? 'selected' : ''}>${p.maxCameras} cameras · ${p.maxLive} live</option>`).join('');
 
+const openCo = new Set();   // companies that are expanded (the rest are collapsed into one line each)
 function render() {
+  $('#coCount').textContent = data.companies.length ? `· ${data.companies.length}` : '';
   $('#coPkg').innerHTML = pkgOptions(20).replace('Unlimited (legacy)', 'Unlimited');
   const byCo = (id) => data.cameras.filter((c) => c.companyId === id);
   $('#companies').innerHTML = data.companies.length ? data.companies.map((co) => `
-    <div class="co" data-id="${co.id}">
-      <div class="co-head">
-        <div class="logo">${esc(co.name[0].toUpperCase())}</div>
-        <div><h2>${esc(co.name)}</h2><div class="meta">${co.users.length} user${co.users.length === 1 ? '' : 's'} · ${byCo(co.id).length}${co.maxCameras ? ' / ' + co.maxCameras : ''} camera${byCo(co.id).length === 1 ? '' : 's'}${co.maxLive ? ` · live ${co.liveNow} / ${co.maxLive}` : ''}</div></div>
+    <div class="co ${openCo.has(co.id) ? 'open' : ''}" data-id="${co.id}">
+      <div class="co-head" data-act="toggle" style="cursor:pointer">
+        <i class="chev">▸</i><div class="logo">${esc(co.name[0].toUpperCase())}</div>
+        <div><h2>${esc(co.name)}</h2><div class="meta">${co.users.filter((u) => u.role !== 'officer').length} user${co.users.filter((u) => u.role !== 'officer').length === 1 ? '' : 's'} · ${co.users.filter((u) => u.role === 'officer').length} employee${co.users.filter((u) => u.role === 'officer').length === 1 ? '' : 's'} · ${byCo(co.id).length}${co.maxCameras ? ' / ' + co.maxCameras : ''} camera${byCo(co.id).length === 1 ? '' : 's'}${co.maxLive ? ` · live ${co.liveNow} / ${co.maxLive}` : ''}</div></div>
         <select class="pkg" data-act="pkg" aria-label="Package">${pkgOptions(co.maxCameras)}</select>
+        <span class="subbox" title="Subscription: the company is told 30 days before it ends"><span class="chip-s ${co.subscription ? co.subscription.state : 'none'}">${co.subscription ? (co.subscription.state === 'locked' ? 'LOCKED since ' + new Date(co.subscription.lockOn).toISOString().slice(0, 10) : co.subscription.daysLeft < 0 ? 'Ended ' + new Date(co.subEnd).toISOString().slice(0, 10) : 'Until ' + new Date(co.subEnd).toISOString().slice(0, 10) + ' · ' + co.subscription.daysLeft + ' d') : 'No end date'}</span>
+          <select class="subsel" data-act="sub" aria-label="Extend subscription"><option value="">Extend by…</option><option value="1">+1 month</option><option value="3">+3 months</option><option value="6">+6 months</option><option value="12">+1 year</option><option value="24">+2 years</option><option value="36">+3 years</option><option value="date">Pick a date…</option><option value="clear">No end date</option></select></span>
         <button class="btn sm danger sp" data-act="delco">Delete company</button>
       </div>
-
+      <div class="co-body">
       <div class="sub">Assigned cameras</div>
       <div class="chips">${byCo(co.id).map((c) => `<span class="cam">${esc(c.id)}</span>`).join('') || '<span class="muted" style="font-size:13px">None yet. Assign cameras from the list on the right.</span>'}</div>
 
-      <div class="sub">Users</div>
-      <div class="users">${co.users.map((u) => `
+      <div class="sub">Dashboard users <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(watch the live wall and the map)</span></div>
+      <div class="users">${co.users.filter((u) => u.role !== 'officer').map((u) => `
         <div class="user" data-uid="${u.id}"><div class="av">${esc(u.username[0].toUpperCase())}</div>
-          <div><b>${esc(u.username)}</b><small>${esc(u.name)}</small></div>
+          <div><b>${esc(u.username)}</b><small>${esc(u.name)} · ${({ manager: 'Administrator', client: 'Operator', viewer: 'Viewer' })[u.role] || u.role}</small></div>
           <div class="sp"><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>`).join('') || '<div class="empty">No users yet.</div>'}</div>
       ${lastCred[co.id] ? `<div class="cred">Login to give to the customer: <code>${esc(lastCred[co.id].username)}</code> <code>${esc(lastCred[co.id].password)}</code>
         <button class="btn sm" data-act="copy">Copy</button><span class="muted" style="font-size:12px">Shown only now. Save it.</span></div>` : ''}
@@ -124,9 +149,29 @@ function render() {
         <input class="nu" placeholder="Username" maxlength="32" autocomplete="off">
         <input class="nn" placeholder="Display name (optional)" maxlength="60">
         <div class="pw"><input class="np" placeholder="Password (8+)" autocomplete="new-password"><button class="btn sm" data-act="gen" type="button">Generate</button></div>
+        <select class="nr" aria-label="Role" title="Administrator: everything in the company. Operator: watch, alarms, chat, no delete. Viewer: read only."><option value="manager">Administrator</option><option value="client" selected>Operator</option><option value="viewer">Viewer (read only)</option></select>
         <button class="btn pri" data-act="adduser">Add user</button>
       </div>
-    </div>`).join('') : '<div class="empty">No companies yet. Add your first customer above.</div>';
+
+      <div class="sub">Employees <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(each has a username and password and takes a camera at the docking station)</span></div>
+      <div class="users">${co.users.filter((u) => u.role === 'officer').map((u) => `
+        <div class="user ${u.active ? '' : 'is-off'}" data-uid="${u.id}"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}</div>
+          <div><b>${esc(u.name)}${u.holding ? `<span class="emp-tag on">has ${esc(u.holding)}</span>` : ''}${u.active ? '' : '<span class="emp-tag off">switched off</span>'}</b><small>${u.employeeNo ? 'No. ' + esc(u.employeeNo) + (u.username !== u.employeeNo ? ' · ' + esc(u.username) : '') : esc(u.username)}</small></div>
+          <div class="sp"><button class="btn sm" data-act="editemp">Edit</button><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm" data-act="toggleemp">${u.active ? 'Switch off' : 'Switch on'}</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>`).join('') || '<div class="empty">No employees yet. Add the people who will carry cameras.</div>'}</div>
+      ${(lastEmp[co.id] || []).length ? `<div class="credbox"><div class="head"><b>Logins to hand out (${lastEmp[co.id].length})</b><span class="muted">Shown only now. Save them.</span>
+        <button class="btn sm" data-act="copyemp">Copy</button><button class="btn sm" data-act="csvemp">Download CSV</button></div>
+        <table>${lastEmp[co.id].map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.employeeNo || '')}</td><td>${esc(c.username)}</td><td>${esc(c.password)}</td></tr>`).join('')}</table></div>` : ''}
+      <div class="addemp">
+        <input class="en" placeholder="Employee name" maxlength="60">
+        <input class="eno" placeholder="Employee no." maxlength="20">
+        <input class="eu" placeholder="Username (blank = the number)" maxlength="32" autocomplete="off">
+        <button class="btn pri" data-act="addemp">Add employee</button>
+      </div>
+      <details class="bulk"><summary>Add many employees at once</summary>
+        <textarea class="bulktxt" placeholder="One person per line:&#10;Ahmed Hassan, 0147&#10;Sara Ali, 0200&#10;Khaled Omar, 0311"></textarea>
+        <p>Name, then the employee number. The username becomes the number and every person gets a random password. You get a sheet of logins to print or hand out.</p>
+        <div style="margin-top:10px"><button class="btn pri" data-act="bulkemp">Create accounts</button></div></details>
+    </div></div>`).join('') : '<div class="empty">No companies yet. Add your first customer above.</div>';
 
   $('#regions').innerHTML = (data.regions || []).map((r) => `<span class="rgchip">${esc(r)}<button data-rg="${esc(r)}" title="Delete region" aria-label="Delete ${esc(r)}">✕</button></span>`).join('') || '<span class="muted" style="font-size:13px">No regions yet.</span>';
   $('#cams').innerHTML = data.cameras.length ? data.cameras.map((c) => `
@@ -148,12 +193,42 @@ $('#coName').onkeydown = (e) => { if (e.key === 'Enter') $('#coAdd').click(); };
 $('#companies').addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const co = b.closest('.co'), id = Number(co.dataset.id), act = b.dataset.act;
+  if (act === 'toggle') { co.classList.toggle('open'); if (co.classList.contains('open')) openCo.add(id); else openCo.delete(id); return; }
   if (act === 'gen') { co.querySelector('.np').value = genPw(); return; }
   if (act === 'copy') { const c = lastCred[id]; navigator.clipboard?.writeText(`Username: ${c.username}\nPassword: ${c.password}`).then(() => toast('Copied')); return; }
   if (act === 'adduser') {
     const username = co.querySelector('.nu').value.trim(), password = co.querySelector('.np').value, name = co.querySelector('.nn').value.trim();
-    api('POST', `/api/admin/companies/${id}/users`, { username, password, name })
+    api('POST', `/api/admin/companies/${id}/users`, { username, password, name, role: co.querySelector('.nr').value })
       .then(() => { lastCred[id] = { username, password }; toast('User created'); return load(); }).catch(fail);
+  } else if (act === 'addemp') {
+    const name = co.querySelector('.en').value.trim(), employeeNo = co.querySelector('.eno').value.trim(), username = co.querySelector('.eu').value.trim();
+    api('POST', `/api/admin/companies/${id}/employees`, { employees: [{ name, employeeNo, username }] }).then((r) => {
+      if (r.skipped.length) return toast(`Not added: ${r.skipped[0].reason}`);
+      lastEmp[id] = r.created; toast('Employee created'); return load();
+    }).catch(fail);
+  } else if (act === 'bulkemp') {
+    const lines = co.querySelector('.bulktxt').value.split('\n').map((l) => l.trim()).filter(Boolean);
+    const employees = lines.map((l) => { const p = l.split(/[,;\t]/).map((x) => x.trim()); return { name: p[0], employeeNo: p[1] || '', username: p[2] || '' }; });
+    if (!employees.length) return toast('Type at least one line.');
+    api('POST', `/api/admin/companies/${id}/employees`, { employees }).then((r) => {
+      lastEmp[id] = r.created; toast(`${r.created.length} created${r.skipped.length ? ', ' + r.skipped.length + ' skipped' : ''}`);
+      if (r.skipped.length) alert('Not created:\n' + r.skipped.map((x) => `${x.name || '(no name)'}: ${x.reason}`).join('\n'));
+      return load();
+    }).catch(fail);
+  } else if (act === 'copyemp') {
+    navigator.clipboard?.writeText(lastEmp[id].map((c) => `${c.name}\t${c.employeeNo || ''}\t${c.username}\t${c.password}`).join('\n')).then(() => toast('Copied'));
+  } else if (act === 'csvemp') {
+    const q = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const csv = 'name,employee_no,username,password\n' + lastEmp[id].map((c) => [c.name, c.employeeNo, c.username, c.password].map(q).join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'employee-logins.csv'; a.click();
+  } else if (act === 'toggleemp') {
+    const row = b.closest('.user'), off = row.classList.contains('is-off');
+    if (off || confirm('Switch this employee off? They are signed out at once and cannot take a camera. Their history stays.')) api('PATCH', `/api/admin/users/${row.dataset.uid}`, { active: off }).then(load).catch(fail);
+  } else if (act === 'editemp') {
+    const row = b.closest('.user'), u = data.companies.find((c) => c.id === id).users.find((x) => x.id === Number(row.dataset.uid));
+    const name = prompt('Employee name:', u.name); if (name === null) return;
+    const no = prompt('Employee number (blank for none):', u.employeeNo || ''); if (no === null) return;
+    api('PATCH', `/api/admin/users/${u.id}`, { name, employeeNo: no }).then(() => { toast('Saved'); return load(); }).catch(fail);
   } else if (act === 'deluser') {
     if (confirm('Remove this user? They will be signed out immediately.')) api('DELETE', `/api/admin/users/${b.closest('.user').dataset.uid}`).then(load).catch(fail);
   } else if (act === 'pw') {
@@ -166,6 +241,15 @@ $('#companies').addEventListener('click', (e) => {
 });
 
 $('#companies').addEventListener('change', (e) => {
+  const sb = e.target.closest('select.subsel');
+  if (sb) {
+    const id = Number(sb.closest('.co').dataset.id); let body;
+    if (sb.value === 'clear') body = { clear: true };
+    else if (sb.value === 'date') { const d = prompt('Subscription ends on (YYYY-MM-DD):'); if (!d) { sb.value = ''; return; } body = { end: d.trim() }; }
+    else if (sb.value) body = { months: Number(sb.value) }; else return;
+    api('PUT', `/api/admin/companies/${id}/subscription`, body).then(() => { toast('Subscription updated'); return load(); }).catch((err) => { fail(err); load(); });
+    return;
+  }
   const sel = e.target.closest('select.pkg'); if (!sel) return;
   const id = Number(sel.closest('.co').dataset.id);
   api('PUT', `/api/admin/companies/${id}/package`, { maxCameras: sel.value === '' ? null : Number(sel.value) })
@@ -221,6 +305,8 @@ $('#regions').addEventListener('click', (e) => {
   if (confirm(`Delete the region "${b.dataset.rg}"? Its cameras become "No region".`)) api('DELETE', `/api/admin/regions/${encodeURIComponent(b.dataset.rg)}`).then(load).catch(fail);
 });
 
+$('#openAll').onclick = () => { data.companies.forEach((c) => openCo.add(c.id)); render(); };
+$('#closeAll').onclick = () => { openCo.clear(); render(); };
 portalReady.then(load);
 </script>
 </body>

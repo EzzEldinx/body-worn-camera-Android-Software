@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="stylesheet" href="/portal.css">
+<style>
+.user{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;background:var(--raise);border:1px solid var(--line-soft);margin-bottom:8px;flex-wrap:wrap}
+.user.off{opacity:.6}
+.av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--sel),#ff8a00);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--sel-ink);flex:none}
+.user b{font-size:14.5px}.user small{display:block;color:var(--mut);font-size:12px}
+.sp{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--ok) 16%,var(--panel));color:var(--ok)}
+.tag.off{background:color-mix(in srgb,var(--rec) 14%,var(--panel));color:var(--rec)}
+.add{display:grid;grid-template-columns:1.3fr .8fr 1fr auto;gap:8px;margin-top:12px}
+@media (max-width:760px){.add{grid-template-columns:1fr}}
+textarea{width:100%;min-height:110px;margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace}
+details{margin-top:12px;border:1px solid var(--line-soft);border-radius:12px;background:var(--raise);padding:10px 14px}
+summary{cursor:pointer;font-weight:700}
+.cred{margin-top:14px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ok) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line))}
+.cred td{padding:4px 10px;font:13px Consolas,monospace}
+.empty{color:var(--mut);padding:14px 0}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <section class="card">
+    <h3>Dashboard users</h3>
+    <p class="muted" style="margin:0 0 14px;font-size:13.5px;line-height:1.5">People who sign in to watch the cameras. <b>Administrator</b>: everything in your company (users, employees, delete files). <b>Operator</b>: watch live, alarms, chat, choose what happens to files, but cannot delete. <b>Viewer</b>: read only.</p>
+    <div id="ulist"><div class="empty">Loading…</div></div>
+    <div class="add" style="grid-template-columns:1fr 1fr 1fr auto auto"><input id="uu" placeholder="Username" maxlength="32" autocomplete="off"><input id="un" placeholder="Name (optional)" maxlength="60"><input id="up" placeholder="Password (8+)" autocomplete="new-password"><select id="ur"><option value="manager">Administrator</option><option value="client" selected>Operator</option><option value="viewer">Viewer</option></select><button class="btn pri" id="addUser">Add user</button></div>
+  </section>
+  <section class="card" style="margin-top:18px">
+    <h3 id="ttl">Employees</h3>
+    <p class="muted" style="margin:0 0 14px;font-size:13.5px;line-height:1.5">Everyone who carries a camera has their own username and password. At the check-out station next to the docking station they sign in and the system gives them a camera that is charged and ready; their name and ID are stamped on what it records. These accounts cannot open the dashboard.</p>
+    <div id="list"><div class="empty">Loading…</div></div>
+    <div id="creds"></div>
+    <div class="add"><input id="en" placeholder="Employee name" maxlength="60"><input id="eno" placeholder="Employee no." maxlength="20"><input id="eu" placeholder="Username (blank = the number)" maxlength="32" autocomplete="off"><button class="btn pri" id="addOne">Add employee</button></div>
+    <details><summary>Add many employees at once</summary>
+      <textarea id="bulk" placeholder="One person per line:&#10;Ahmed Hassan, 0147&#10;Sara Ali, 0200"></textarea>
+      <p class="muted" style="font-size:12.5px;margin:8px 0 10px">Name, then employee number. The username becomes the number and each person gets a random password. You get a sheet of logins to hand out (shown once).</p>
+      <button class="btn pri" id="addMany">Create accounts</button></details>
+  </section>
+</main>
+<script src="/portal.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const api = (m, u, b) => fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) }).then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; });
+const fail = (e) => toast(e.message);
+const genPw = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (x) => c[x % c.length]).join(''); };
+let D = { employees: [] }, creds = [];
+let U = [];
+const ROLE = { manager: 'Administrator', client: 'Operator', viewer: 'Viewer' };
+const loadUsers = () => api('GET', '/api/company/users').then((d) => { U = d.users; renderUsers(); });
+function renderUsers() {
+  $('#ulist').innerHTML = U.map((u) => `<div class="user" data-uid="${u.id}"><div class="av">${esc(u.username[0].toUpperCase())}</div><div><b>${esc(u.username)}</b><small>${esc(u.name)}</small></div>
+    <div class="sp"><select data-u="role">${Object.entries(ROLE).map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn sm" data-u="pw">Reset password</button><button class="btn sm danger" data-u="del">Remove</button></div></div>`).join('');
+}
+$('#addUser').onclick = () => api('POST', '/api/company/users', { username: $('#uu').value.trim(), name: $('#un').value.trim(), password: $('#up').value, role: $('#ur').value }).then(() => { $('#uu').value = $('#un').value = $('#up').value = ''; toast('User added'); return loadUsers(); }).catch(fail);
+$('#ulist').addEventListener('change', (e) => { const s = e.target.closest('select[data-u]'); if (s) api('PATCH', `/api/company/users/${s.closest('.user').dataset.uid}`, { role: s.value }).then(() => toast('Saved')).catch((x) => { fail(x); loadUsers(); }); });
+$('#ulist').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-u]'); if (!b) return; const id = b.closest('.user').dataset.uid;
+  if (b.dataset.u === 'pw') { const pw = prompt('New password (8+ characters):', genPw()); if (pw) api('POST', `/api/company/users/${id}/password`, { password: pw }).then(() => toast('Password changed. Give it to the user.')).catch(fail); }
+  else if (confirm('Remove this user? They are signed out at once.')) api('DELETE', `/api/company/users/${id}`).then(loadUsers).catch(fail);
+});
+const load = () => api('GET', '/api/employees').then((d) => { D = d; render(); });
+function render() {
+  $('#ttl').textContent = `Employees · ${D.company || ''}`;
+  $('#list').innerHTML = D.employees.map((u) => `<div class="user ${u.active ? '' : 'off'}" data-id="${u.id}"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}</div>
+    <div><b>${esc(u.name)}${u.holding ? `<span class="tag">has ${esc(u.holding)}</span>` : ''}${u.active ? '' : '<span class="tag off">switched off</span>'}</b><small>${u.employeeNo ? 'No. ' + esc(u.employeeNo) + (u.username !== u.employeeNo ? ' · ' + esc(u.username) : '') : esc(u.username)}</small></div>
+    <div class="sp"><button class="btn sm" data-a="edit">Edit</button><button class="btn sm" data-a="pw">Reset password</button><button class="btn sm" data-a="tog">${u.active ? 'Switch off' : 'Switch on'}</button><button class="btn sm danger" data-a="del">Remove</button></div></div>`).join('') || '<div class="empty">No employees yet. Add the people who will carry cameras.</div>';
+  $('#creds').innerHTML = creds.length ? `<div class="cred"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b>Logins to hand out (${creds.length})</b><span class="muted" style="font-size:12.5px">Shown only now. Save them.</span><button class="btn sm" id="cp">Copy</button><button class="btn sm" id="csv">Download CSV</button></div>
+    <table>${creds.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.employeeNo || '')}</td><td>${esc(c.username)}</td><td>${esc(c.password)}</td></tr>`).join('')}</table></div>` : '';
+}
+function created(r) {
+  if (r.skipped.length) alert('Not created:\n' + r.skipped.map((x) => `${x.name || '(no name)'}: ${x.reason}`).join('\n'));
+  creds = r.created; toast(`${r.created.length} created`); return load();
+}
+$('#addOne').onclick = () => api('POST', '/api/employees', { employees: [{ name: $('#en').value.trim(), employeeNo: $('#eno').value.trim(), username: $('#eu').value.trim() }] }).then((r) => { if (!r.skipped.length) { $('#en').value = $('#eno').value = $('#eu').value = ''; } return created(r); }).catch(fail);
+$('#addMany').onclick = () => {
+  const employees = $('#bulk').value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const p = l.split(/[,;\t]/).map((x) => x.trim()); return { name: p[0], employeeNo: p[1] || '', username: p[2] || '' }; });
+  if (!employees.length) return toast('Type at least one line.');
+  api('POST', '/api/employees', { employees }).then((r) => { $('#bulk').value = ''; return created(r); }).catch(fail);
+};
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'cp') return navigator.clipboard?.writeText(creds.map((c) => `${c.name}\t${c.employeeNo || ''}\t${c.username}\t${c.password}`).join('\n')).then(() => toast('Copied'));
+  if (e.target.id === 'csv') { const q = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"'; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + 'name,employee_no,username,password\n' + creds.map((c) => [c.name, c.employeeNo, c.username, c.password].map(q).join(',')).join('\n')], { type: 'text/csv' })); a.download = 'employee-logins.csv'; a.click(); return; }
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const row = b.closest('.user'), id = row.dataset.id, u = D.employees.find((x) => String(x.id) === id);
+  if (b.dataset.a === 'edit') { const name = prompt('Employee name:', u.name); if (name === null) return; const no = prompt('Employee number (blank for none):', u.employeeNo || ''); if (no === null) return; api('PATCH', `/api/employees/${id}`, { name, employeeNo: no }).then(() => { toast('Saved'); return load(); }).catch(fail); }
+  else if (b.dataset.a === 'pw') { const pw = prompt('New password (8+ characters):', genPw()); if (pw) api('POST', `/api/employees/${id}/password`, { password: pw }).then(() => { creds = [{ name: u.name, employeeNo: u.employeeNo, username: u.username, password: pw }]; toast('Password changed'); render(); }).catch(fail); }
+  else if (b.dataset.a === 'tog') { if (!u.active || confirm('Switch this employee off? They are signed out at once and cannot take a camera. Their history stays.')) api('PATCH', `/api/employees/${id}`, { active: !u.active }).then(load).catch(fail); }
+  else if (b.dataset.a === 'del') { if (confirm('Remove this employee? Their history stays in the reports.')) api('DELETE', `/api/employees/${id}`).then(load).catch(fail); }
+});
+portalReady.then(() => { loadUsers(); load(); });
+</script>
+</body>
+</html>

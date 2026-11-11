@@ -18,9 +18,9 @@ function createMailer({ env = process.env, transport = null } = {}) {
     const from = env.SMTP_FROM || (env.SMTP_USER && env.SMTP_USER.includes('@') ? env.SMTP_USER : 'visionguard@smart-way.com.sa');
     return {
         to, configured,
-        async send(subject, text) {
+        async send(subject, text, recipients) {
             if (!tx) return { sent: false, reason: 'E-mail is not configured on the server (SMTP_HOST).' };
-            try { await tx.sendMail({ from: `VisionGuard <${from}>`, to, subject, text }); return { sent: true }; }
+            try { await tx.sendMail({ from: `VisionGuard <${from}>`, to: recipients || to, subject, text }); return { sent: true }; }
             catch (e) { return { sent: false, reason: String(e.message || e).slice(0, 200) }; }
         },
     };

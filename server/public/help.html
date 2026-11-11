@@ -135,7 +135,15 @@ $('#tf').onsubmit = async (e) => {
 
 portalReady.then(async (me) => {
   info = await (await fetch('/api/support/info')).json();
-  $('#mailTop').textContent = info.email; $('#mailTop').href = 'mailto:' + info.email;
+  if (info.staff) {   // Smart Way support answers tickets: an inbox, no form to open one
+    document.querySelector('.hero h1').innerHTML = 'Support <span>inbox</span>';
+    document.querySelector('.hero p').textContent = 'Tickets from your customers. Open one to read the conversation, answer, and set its status. Customers see your answer in their own Support page.';
+    document.getElementById('goNew').style.display = 'none';
+    document.getElementById('new').closest('section').style.display = 'none';
+    document.querySelector('main').appendChild(document.getElementById('mine'));
+    filter = 'open';
+  }
+  if ($('#mailTop')) { $('#mailTop').textContent = info.email; $('#mailTop').href = 'mailto:' + info.email; }
   if (info.staff && !info.emailConfigured) $('#tMsg').innerHTML = '<div class="note warn">E-mail to the support desk is not configured on the server (set SMTP_HOST in the server .env). Tickets are stored here meanwhile.</div>';
   try { const d = await (await fetch('/api/docks')).json(); $('#tCam').innerHTML = '<option value="">None</option>' + (d.cameras || []).map((c) => `<option>${esc(c.cameraId)}</option>`).join(''); } catch (e) { /* optional */ }
   await loadList();

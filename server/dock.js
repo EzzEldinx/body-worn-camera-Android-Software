@@ -10,7 +10,7 @@ const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 const MAX_BYTES = 8 * 1024 ** 3;
 
 function register(app, ctx) {
-    const { db, cams, needUser, needAdmin, canSee, isStaff, str, companyName, publish } = ctx;
+    const { db, cams, needUser, needAdmin, needWrite = needAdmin, needDelete = needAdmin, canSee, isStaff, str, companyName, publish, setBattery } = ctx;
     const DOCK_TOKEN = process.env.DOCK_TOKEN || '';
     const dir = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'recordings');
     fs.mkdirSync(dir, { recursive: true });
@@ -100,22 +100,42 @@ function register(app, ctx) {
             if (failed) return;
             const got = h.digest('hex');
             if (n !== size || got !== want) return fail(422, `Verification failed (size ${n}/${size}, hash ${got === want ? 'ok' : 'mismatch'}).`);
-            let final = path.join(camDir, name);
-            if (fs.existsSync(final)) final = path.join(camDir, `${got.slice(0, 8)}_${name}`);
-            fs.renameSync(tmp, final);
-            const r = db.prepare('INSERT INTO recordings(camera_id,filename,size,sha256,recorded_ts,uploaded_ts,dock_id) VALUES(?,?,?,?,?,?,?)')
-                .run(id, path.basename(final), size, got, rts, Date.now(), dockId);
-            db.prepare("UPDATE dock_files SET state='cloud', message=NULL, updated_ts=? WHERE camera_id=? AND sha256=?").run(Date.now(), id, got);
-            audit(`dock:${dockId}`, 'dock_file_uploaded_cloud', id, { file: name, size, verifiedSha256: true }, got);
-            res.json({ ok: true, id: Number(r.lastInsertRowid), sha256: got });
+            // The same file may have arrived on another connection while this one was still uploading (a retry racing the first attempt):
+            // it is stored once. Everything below runs in one go, so this second look cannot be overtaken.
+            const twin = db.prepare('SELECT id FROM recordings WHERE camera_id = ? AND sha256 = ?').get(id, got);
+            if (twin) { fs.rm(tmp, { force: true }, () => {}); return res.json({ ok: true, duplicate: true, id: twin.id }); }
+            let final = path.join(camDir, name), moved = false;
+            try {
+                if (fs.existsSync(final)) final = path.join(camDir, `${got.slice(0, 8)}_${name}`);
+                fs.renameSync(tmp, final); moved = true;
+                const r = db.prepare('INSERT INTO recordings(camera_id,filename,size,sha256,recorded_ts,uploaded_ts,dock_id) VALUES(?,?,?,?,?,?,?)')
+                    .run(id, path.basename(final), size, got, rts, Date.now(), dockId);
+                db.prepare("UPDATE dock_files SET state='cloud', message=NULL, updated_ts=? WHERE camera_id=? AND sha256=?").run(Date.now(), id, got);
+                audit(`dock:${dockId}`, 'dock_file_uploaded_cloud', id, { file: name, size, verifiedSha256: true }, got);
+                res.json({ ok: true, id: Number(r.lastInsertRowid), sha256: got });
+            } catch (e) {   // disk full, database busy...: no file without a row, no crash; the dock keeps its copy and sends it again
+                console.error(`dock upload ${id}/${name} could not be stored:`, e);
+                if (moved && !db.prepare('SELECT 1 FROM recordings WHERE camera_id = ? AND sha256 = ?').get(id, got)) fs.rm(final, { force: true }, () => {});
+                fail(500, 'Could not store the file. Try again.');
+            }
         });
     });
 
     // Agent reports what it sees on the docks (battery, storage, build) and what it is doing with each camera.
     const STATES = new Set(['connected', 'offloading', 'synced', 'error', 'updating']);
     const num = (v) => (Number.isFinite(v) ? v : null);
+    // Guided calibration: with the dock empty, plug a camera into bay 1, then bay 2 ... The first time a USB port is seen it becomes the next bay,
+    // so every bay (even ones never used) is learned from the real hardware. From then on the bay follows the port, whichever camera is in it.
+    const calibrating = new Map();   // dock id -> { next, started }
     app.post('/api/dock/report', needDock, (req, res) => {
         const dockId = String(req.body?.dockId || 'dock').slice(0, 40);
+        const cal = calibrating.get(dockId);
+        if (cal && Array.isArray(req.body?.cameras)) for (const c of req.body.cameras.slice(0, 200)) {
+            const port = String(c.port || c.serial || '').slice(0, 60);
+            if (!port || db.prepare('SELECT 1 FROM dock_slots WHERE dock_id = ? AND port = ?').get(dockId, port)) continue;
+            db.prepare('INSERT INTO dock_slots(dock_id,port,slot) VALUES(?,?,?)').run(dockId, port, cal.next++);
+            if (cal.next >= SLOTS) { calibrating.delete(dockId); audit('system', 'dock_calibrated', null, { dock: dockId }); break; }
+        }
         const list = Array.isArray(req.body?.cameras) ? req.body.cameras.slice(0, 200).map((c) => {
             const port = String(c.port || c.serial || '').slice(0, 60);
             const pr = c.progress && typeof c.progress === 'object' ? c.progress : null;
@@ -127,9 +147,9 @@ function register(app, ctx) {
                 synced: num(c.synced), failed: num(c.failed), lastSyncTs: num(c.lastSyncTs),
             };
         }) : [];
-        // A docked camera's battery is the only battery reading we have (cameras do not report it themselves yet):
-        // hand it to the fleet state so every dashboard and the mobile app show it, with the time it was read.
-        for (const c of list) if (c.cameraId && c.battery != null && cams.has(c.cameraId)) publish(c.cameraId, { battery: c.battery, batteryTs: Date.now() });
+        // The battery of every docked camera (read over USB while it charges): hand it to the fleet state so every dashboard and the app show it.
+        // A camera that reports its own battery keeps doing so; the newest reading wins.
+        for (const c of list) if (c.cameraId && c.battery != null && cams.has(c.cameraId)) (setBattery ? setBattery(c.cameraId, c.battery) : publish(c.cameraId, { battery: c.battery, batteryTs: Date.now() }));
         // A camera on the dock is indoors and cannot see the sky, so it has no GPS fix. The dock's own (fixed) location is the best
         // position there is: show the camera there (marked "at the docking station") until it reports a fresh fix of its own.
         const loc = req.body?.location && Number.isFinite(req.body.location.lat) && Number.isFinite(req.body.location.lng)
@@ -146,6 +166,57 @@ function register(app, ctx) {
             }
         }
         docks.set(dockId, { ts: Date.now(), storage: req.body?.storage && typeof req.body.storage === 'object' ? { dir: String(req.body.storage.dir || '').slice(0, 200), freeBytes: num(req.body.storage.freeBytes), usedBytes: num(req.body.storage.usedBytes) } : null, agent: String(req.body?.agent || '').slice(0, 20), mode: req.body?.deleteAfter ? 'move' : 'copy', cameras: list });
+        res.json({ ok: true });
+    });
+    // The bay a camera shows in follows the USB port it is plugged into. First sight puts it in the first free bay, which is rarely its real position:
+    // an administrator tells the system which physical bay a port is (the camera in the target bay swaps places).
+    app.put('/api/admin/dock/slot', needUser, needAdmin, (req, res) => {
+        const dockId = String(req.body?.dockId || '').slice(0, 40), port = String(req.body?.port || '').slice(0, 60), slot = Number(req.body?.slot);
+        if (!dockId || !port || !Number.isInteger(slot) || slot < 0 || slot >= SLOTS) return res.status(400).json({ error: 'Bad bay.' });
+        const mine = db.prepare('SELECT slot FROM dock_slots WHERE dock_id = ? AND port = ?').get(dockId, port);
+        const other = db.prepare('SELECT port FROM dock_slots WHERE dock_id = ? AND slot = ? AND port != ?').get(dockId, slot, port);
+        if (other) db.prepare('UPDATE dock_slots SET slot = ? WHERE dock_id = ? AND port = ?').run(mine ? mine.slot : SLOTS + db.prepare('SELECT COUNT(*) n FROM dock_slots WHERE dock_id = ?').get(dockId).n, dockId, other.port);
+        db.prepare('INSERT INTO dock_slots(dock_id,port,slot) VALUES(?,?,?) ON CONFLICT(dock_id,port) DO UPDATE SET slot = excluded.slot').run(dockId, port, slot);
+        const d = docks.get(dockId); if (d) for (const c of d.cameras) if (c.port) c.slot = slotFor(dockId, c.port);   // show it at once
+        audit(req.user.username, 'dock_bay_set', null, { dock: dockId, port, bay: slot + 1 });
+        res.json({ ok: true });
+    });
+    // Arrange every bay at once from what you see in front of the dock: two rows of five, camera numbers or names left to right, "-" for an empty bay.
+    //   { dockId, top: ['01','05','03','02','06'], bottom: ['-','-','-','-','04'] }
+    app.put('/api/admin/dock/layout', needUser, needAdmin, (req, res) => {
+        const d = docks.get(String(req.body?.dockId || '')); if (!d) return res.status(404).json({ error: 'That dock is not reporting.' });
+        const row = (r) => (Array.isArray(r) ? r : String(r || '').split(/[\s,;]+/)).map((x) => String(x).trim()).filter(Boolean);
+        const wanted = [...row(req.body?.top), ...row(req.body?.bottom)];
+        const half = Math.ceil(SLOTS / 2);
+        if (row(req.body?.top).length !== half || row(req.body?.bottom).length !== SLOTS - half) return res.status(400).json({ error: `Give ${half} entries for the top row and ${SLOTS - half} for the bottom row (use - for an empty bay).` });
+        const cams = d.cameras.filter((c) => c.port && c.cameraId), pick = [], used = new Set();
+        for (let i = 0; i < wanted.length; i++) {
+            const w = wanted[i]; if (w === '-' || w === '0') continue;
+            const num = /^\d+$/.test(w) ? new RegExp(`(^|\\D)0*${Number(w)}(\\D|$)`) : null;
+            const hits = cams.filter((c) => !used.has(c.port) && (num ? num.test(c.cameraId) : c.cameraId.toLowerCase().includes(w.toLowerCase())));
+            if (hits.length !== 1) return res.status(400).json({ error: hits.length ? `"${w}" matches more than one docked camera (${hits.map((h) => h.cameraId).join(', ')}).` : `No docked camera matches "${w}".` });
+            used.add(hits[0].port); pick.push([hits[0].port, i]);
+        }
+        const taken = new Set(pick.map((x) => x[1]));
+        db.prepare('DELETE FROM dock_slots WHERE dock_id = ?').run(d.id || String(req.body.dockId));
+        for (const [port, slot] of pick) db.prepare('INSERT INTO dock_slots(dock_id,port,slot) VALUES(?,?,?)').run(String(req.body.dockId), port, slot);
+        for (const c of d.cameras) if (c.port && !used.has(c.port)) { let n = 0; while (taken.has(n)) n++; taken.add(n); db.prepare('INSERT INTO dock_slots(dock_id,port,slot) VALUES(?,?,?)').run(String(req.body.dockId), c.port, n); }
+        for (const c of d.cameras) if (c.port) c.slot = slotFor(String(req.body.dockId), c.port);
+        audit(req.user.username, 'dock_bays_arranged', null, { dock: String(req.body.dockId), top: row(req.body?.top).join(' '), bottom: row(req.body?.bottom).join(' ') });
+        res.json({ ok: true });
+    });
+    app.post('/api/admin/dock/calibrate', needUser, needAdmin, (req, res) => {
+        const dockId = String(req.body?.dockId || '').slice(0, 40), d = docks.get(dockId);
+        if (req.body?.action === 'stop') { calibrating.delete(dockId); return res.json({ ok: true }); }
+        if (!d) return res.status(404).json({ error: 'That dock is not reporting.' });
+        if (d.cameras.length) return res.status(409).json({ error: 'Take every camera off the dock first, then start.' });
+        db.prepare('DELETE FROM dock_slots WHERE dock_id = ?').run(dockId);
+        calibrating.set(dockId, { next: 0, started: Date.now() });
+        audit(req.user.username, 'dock_calibration_started', null, { dock: dockId });
+        res.json({ ok: true });
+    });
+    app.delete('/api/admin/dock/slots', needUser, needAdmin, (req, res) => {   // forget every mapping: bays fill in order of arrival again
+        db.prepare('DELETE FROM dock_slots WHERE dock_id = ?').run(String(req.query.dockId || '').slice(0, 40));
         res.json({ ok: true });
     });
     app.get('/api/admin/docks', needUser, needAdmin, (req, res) => res.json({ docks: [...docks].map(([id, d]) => ({ id, ...d })) }));
@@ -172,7 +243,7 @@ function register(app, ctx) {
             recordings: db.prepare('SELECT COUNT(*) n FROM recordings WHERE camera_id = ?').get(id).n }));
         const fc = { awaiting: 0, local: 0, queued: 0, cloud: 0, failed: 0 };
         for (const r of db.prepare('SELECT camera_id,state,choice FROM dock_files').all()) if (mine(req.user, r.camera_id)) fc[r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued']++;
-        res.json({ slots: SLOTS, enabled: !!DOCK_TOKEN, policy: policy(), fileCounts: fc, docks: list, cameras: known,
+        res.json({ slots: SLOTS, calibration: [...calibrating].map(([id, c]) => ({ dock: id, next: c.next })), enabled: !!DOCK_TOKEN, policy: policy(), fileCounts: fc, docks: list, cameras: known,
             storage: { retentionDays: RETENTION_DAYS, recordings: rec.n, recordingsBytes: rec.bytes, todayCount: td.n, todayBytes: td.bytes, ...(disk || {}) } });
     });
 
@@ -236,7 +307,7 @@ function register(app, ctx) {
         res.json({ policy: policy(), counts, files });
     });
     // The user's decision: push to the cloud, or keep on the dock's own storage. Works on a list of files or on everything waiting.
-    app.post('/api/dock/files/choose', needUser, needAdmin, (req, res) => {
+    app.post('/api/dock/files/choose', needUser, needWrite, (req, res) => {
         const choice = String(req.body?.choice || '');
         if (!['cloud', 'local'].includes(choice)) return res.status(400).json({ error: 'choice must be cloud or local.' });
         const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger).slice(0, 5000) : null;
@@ -251,7 +322,7 @@ function register(app, ctx) {
 
     // "Delete from the camera": the user asks, the agent removes the file from the camera only when it is docked and a verified copy exists
     // (on the dock's storage or in the cloud). The copy is never touched by this.
-    app.post('/api/dock/files/delete-from-camera', needUser, needAdmin, (req, res) => {
+    app.post('/api/dock/files/delete-from-camera', needUser, needDelete, (req, res) => {
         const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger).slice(0, 5000) : [];
         const rows = ids.map((id) => db.prepare('SELECT * FROM dock_files WHERE id = ?').get(id)).filter((r) => r && mine(req.user, r.camera_id) && !r.cam_deleted_ts);
         const upd = db.prepare('UPDATE dock_files SET cam_delete = 1, message = NULL, updated_ts = ? WHERE id = ?');
@@ -289,5 +360,18 @@ function register(app, ctx) {
         audit(req.user.username, 'recording_downloaded', r.camera_id, { file: r.filename, size: r.size }, r.sha256);
         res.sendFile(path.join(dir, r.camera_id, r.filename));
     });
+
+    // What the check-out station needs to know: which cameras sit on a dock right now (its agent reported in the last 30 s) and in what state.
+    const FRESH = 30_000;
+    const anyDockOnline = (now = Date.now()) => [...docks.values()].some((d) => now - d.ts <= FRESH);
+    const docked = (now = Date.now()) => {
+        const out = new Map();
+        for (const [dockId, d] of docks) {
+            if (now - d.ts > FRESH) continue;
+            for (const c of d.cameras) if (c.cameraId) out.set(c.cameraId, { dockId, slot: c.slot, state: c.state, battery: c.battery, message: c.message, progress: c.progress, pendingMb: c.pendingMb, ts: d.ts });
+        }
+        return out;
+    };
+    return { docked, anyDockOnline, needDock };
 }
 module.exports = { register, NAME_RE };

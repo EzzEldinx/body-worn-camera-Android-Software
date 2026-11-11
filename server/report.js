@@ -17,7 +17,19 @@ const latin = (s, fb = '-') => {
 };
 const pad = (n) => String(n).padStart(2, '0');
 const hm = (ms) => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)}h ${pad(m % 60)}m`; };
-const clock = (ts) => { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// Clock times and dates in the reader's time zone (tz = Date.getTimezoneOffset(): minutes, UTC minus local) or, without it, the server's own.
+function zone(tz) {
+    const sh = (ts) => new Date(Number.isFinite(tz) ? ts - tz * 60000 : ts - new Date(ts).getTimezoneOffset() * 60000); // its UTC fields read as the local clock
+    const date = (ts) => { const d = sh(ts); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]}`; };
+    const clock = (ts) => { const d = sh(ts); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; };
+    return {
+        clock, date, hour: (ts) => sh(ts).getUTCHours(), dateClock: (ts) => `${date(ts)} ${clock(ts)}`,
+        long: (ts) => sh(ts).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
+        short: (ts) => { const d = sh(ts); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; },
+        weekday: (ts) => sh(ts).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }),
+    };
+}
 const km = (m) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`);
 const secs = (s) => (s == null ? '-' : s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${pad(s % 60)}s` : `${(s / 3600).toFixed(1)}h`);
 
@@ -31,13 +43,22 @@ function haversine(a, b) {
 // ---------------------------------------------------------------------------------------------
 // Data
 // ---------------------------------------------------------------------------------------------
-function gather(db, cameras, from, to) {
+function gather(db, cameras, from, to, Z) {
     const ids = cameras.map((c) => c.cameraId);
-    const byId = new Map(cameras.map((c) => [c.cameraId, c]));
     const end = Math.min(Date.now(), to);
+    const nDays = Math.max(1, Math.round((to - from) / 86400000));
+    const dayAt = (ts) => Math.min(nDays - 1, Math.max(0, Math.floor((ts - from) / 86400000)));
     const out = {
-        from, to, end, cameras, perCam: new Map(), alarms: [], recs: [], timeline: [], actions: [], hours: new Array(24).fill(0),
+        from, to, end, cameras, perCam: new Map(), alarms: [], recs: [], timeline: [], actions: [], hours: new Array(24).fill(0), shifts: [],
+        days: Array.from({ length: nDays }, (_, i) => ({ start: from + i * 86400000, sos: 0, recMs: 0, meters: 0, active: new Set() })),
         totals: { online: 0, recMs: 0, recSessions: 0, km: 0, msgs: 0, voice: 0, ptt: 0, active: 0 },
+    };
+    // a recording that crosses midnight counts toward each day it covers
+    const addRec = (start, stop) => {
+        for (let t = start; t < stop;) {
+            const i = dayAt(t), edge = from + (i + 1) * 86400000, cut = Math.min(stop, i === nDays - 1 ? stop : edge);
+            out.days[i].recMs += cut - t; t = cut;
+        }
     };
     ids.forEach((id) => out.perCam.set(id, { id, onlineMs: 0, recMs: 0, sessions: 0, meters: 0, alarms: 0, ptt: 0, msgs: 0, voice: 0, first: null, last: null, hours: new Set() }));
     if (!ids.length) return out;
@@ -52,7 +73,8 @@ function gather(db, cameras, from, to) {
         const p = out.perCam.get(id); if (!p) return;
         p.first = p.first == null ? ts : Math.min(p.first, ts);
         p.last = p.last == null ? ts : Math.max(p.last, ts);
-        const h = new Date(ts).getHours(); p.hours.add(h);
+        p.hours.add(Z.hour(ts));
+        out.days[dayAt(ts)].active.add(id);
     };
 
     // state before the day began (was the camera online / recording at 00:00?)
@@ -68,13 +90,13 @@ function gather(db, cameras, from, to) {
             if (e.type === 'online' && !on) { on = true; curOn = e.ts; }
             else if (e.type === 'offline' && on) { on = false; p.onlineMs += e.ts - curOn; }
             else if (e.type === 'rec_start' && !rec) { rec = true; curRec = e.ts; p.sessions++; }
-            else if (e.type === 'rec_stop' && rec) { rec = false; p.recMs += e.ts - curRec; out.recs.push({ cam: id, start: curRec, end: e.ts }); }
+            else if (e.type === 'rec_stop' && rec) { rec = false; p.recMs += e.ts - curRec; addRec(curRec, e.ts); out.recs.push({ cam: id, start: curRec, end: e.ts }); }
             else if (e.type === 'ptt_start') p.ptt++;
             else if (e.type === 'msg') p.msgs++;
             else if (e.type === 'voice') p.voice++;
         }
         if (on) p.onlineMs += end - curOn;
-        if (rec) { p.recMs += end - curRec; out.recs.push({ cam: id, start: curRec, end: null }); }
+        if (rec) { p.recMs += end - curRec; addRec(curRec, end); out.recs.push({ cam: id, start: curRec, end: null }); }
         if (on || rec) { /* still active at the end of the window */ }
     }
 
@@ -85,13 +107,14 @@ function gather(db, cameras, from, to) {
         touch(p.camera_id, p.ts);
         if (prev && prev.camera_id === p.camera_id) {
             const d = haversine(prev, p), dt = (p.ts - prev.ts) / 1000;
-            if (dt > 0 && d / dt < 42) st.meters += d;
+            if (dt > 0 && d / dt < 42) { st.meters += d; out.days[dayAt(p.ts)].meters += d; }
         }
         prev = p;
     }
     for (const a of alarms) {
         touch(a.camera_id, a.ts);
         out.perCam.get(a.camera_id).alarms++;
+        out.days[dayAt(a.ts)].sos++;
         out.alarms.push({ ...a, resp: a.ack_ts ? Math.round((a.ack_ts - a.ts) / 1000) : null });
     }
     for (const p of out.perCam.values()) p.hours.forEach((h) => { out.hours[h]++; });
@@ -119,9 +142,21 @@ function gather(db, cameras, from, to) {
         else if (e.type === 'offline') tl.push({ ts: e.ts, kind: 'off', cam: e.camera_id, text: 'Camera went offline' });
     }
     for (const r of out.recs) {
-        tl.push({ ts: r.start, kind: 'rec', cam: r.cam, text: r.end ? `Recording ${clock(r.start)} - ${clock(r.end)}  (${hm(r.end - r.start)})` : `Recording since ${clock(r.start)}  (in progress)` });
+        tl.push({ ts: r.start, kind: 'rec', cam: r.cam, text: r.end ? `Recording ${Z.clock(r.start)} - ${Z.clock(r.end)}  (${hm(r.end - r.start)})` : `Recording since ${Z.clock(r.start)}  (in progress)` });
     }
     for (const a of out.actions) tl.push({ ts: a.ts, kind: 'act', cam: a.camera, text: `${a.text} (${latin(a.who)})` });
+
+    // who carried which camera (the check-out station): table exists once the check-out feature has run
+    try {
+        const rows = db.prepare(`SELECT camera_id,username,name,employee_no,issued_ts,picked_ts,returned_ts,status FROM assignments
+            WHERE status != 'cancelled' AND issued_ts < ? AND COALESCE(returned_ts, ?) >= ? AND camera_id IN (${ph}) ORDER BY issued_ts`).all(to, Date.now(), from, ...ids);
+        for (const r of rows) {
+            const who = `${latin(r.name || r.username, 'employee')}${r.employee_no ? ' #' + latin(r.employee_no, '') : ''}`;
+            out.shifts.push({ cam: r.camera_id, who, out: r.picked_ts || r.issued_ts, back: r.returned_ts || null, status: r.status });
+            tl.push({ ts: r.picked_ts || r.issued_ts, kind: 'shift', cam: r.camera_id, text: `Camera taken by ${who}` });
+            if (r.returned_ts && r.returned_ts >= from && r.returned_ts < to) tl.push({ ts: r.returned_ts, kind: 'shift', cam: r.camera_id, text: `Camera returned by ${who}` });
+        }
+    } catch (e) { /* no assignments table yet */ }
     out.timeline = tl.sort((a, b) => a.ts - b.ts);
     return out;
 }
@@ -221,31 +256,35 @@ function donut(doc, cx, cy, r, thick, parts, centerTop, centerBottom) {
 // ---------------------------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------------------------
-function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf }, res) {
-    const d = gather(db, cameras, from, to);
-    const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true, info: { Title: `VisionGuard daily report - ${scopeLabel}`, Author: 'VisionGuard', Subject: title } });
+function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz, compress = true }, res) {
+    const Z = zone(tz);
+    const d = gather(db, cameras, from, to, Z);
+    const nDays = d.days.length, multi = nDays > 1;
+    const dayLabel = multi ? `${Z.short(from)}  to  ${Z.short(to - 1)}` : Z.long(from);
+    const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true, compress, info: { Title: `VisionGuard ${multi ? 'operations' : 'daily'} report - ${scopeLabel} - ${multi ? Z.short(from) + ' to ' + Z.short(to - 1) : Z.short(from)}`, Author: 'VisionGuard', Subject: title } });
     doc.pipe(res);
 
-    const dayLabel = new Date(from).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const isToday = to > Date.now() && from <= Date.now();
     const sos = d.alarms.length, acked = d.alarms.filter((a) => a.ack_ts).length;
     const resp = d.alarms.filter((a) => a.resp != null);
     const avgResp = resp.length ? Math.round(resp.reduce((s, a) => s + a.resp, 0) / resp.length) : null;
     const online = cameras.filter((c) => c.online).length;
+    const when = multi ? Z.dateClock : Z.clock;          // single day: 14:05, several days: 9 Nov 14:05
+    const period = multi ? 'in this period' : 'today';
 
     // ---- page 1: banner
     banner(doc, 215, true);
     try { doc.image(LOGO, M, 28, { height: 24 }); } catch (e) { /* logo optional */ }
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#FFFFFF').opacity(0.85).text('DAILY OPERATIONS REPORT', M, 78, { characterSpacing: 3, lineBreak: false }).opacity(1);
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#FFFFFF').opacity(0.85).text(multi ? 'OPERATIONS REPORT' : 'DAILY OPERATIONS REPORT', M, 78, { characterSpacing: 3, lineBreak: false }).opacity(1);
     doc.font('Helvetica-Bold').fontSize(30).fillColor('#FFFFFF').text(latin(scopeLabel, 'All companies'), M, 94, { width: W - 2 * M - 120, lineBreak: false, ellipsis: true });
     doc.font('Helvetica').fontSize(13).fillColor('#FFFFFF').opacity(0.92).text(dayLabel, M, 136, { lineBreak: false }).opacity(1);
-    doc.save().fillOpacity(0.18).roundedRect(M, 160, 168, 20, 10).fill('#FFFFFF').restore();
-    doc.font('Helvetica-Bold').fontSize(7.8).fillColor('#FFFFFF').text(`${isToday ? 'LIVE DAY, UP TO ' + clock(d.end) : 'FULL DAY 00:00 - 23:59'}`, M + 12, 166, { characterSpacing: 0.8, lineBreak: false });
+    doc.save().fillOpacity(0.18).roundedRect(M, 160, multi ? 226 : 168, 20, 10).fill('#FFFFFF').restore();
+    doc.font('Helvetica-Bold').fontSize(7.8).fillColor('#FFFFFF').text(multi ? `${nDays} DAYS${isToday ? ', LIVE UP TO ' + Z.clock(d.end) : ', FULL DAYS'}` : `${isToday ? 'LIVE DAY, UP TO ' + Z.clock(d.end) : 'FULL DAY 00:00 - 23:59'}`, M + 12, 166, { characterSpacing: 0.8, lineBreak: false });
 
     // ---- KPI cards
     const cw = (W - 2 * M - 3 * 10) / 4, ky = 188;
     kpi(doc, M, ky, cw, 78, 'Active cameras', `${d.totals.active}`, `of ${cameras.length} · ${online} online now`, 'cam', C.violet, C.blue);
-    kpi(doc, M + (cw + 10), ky, cw, 78, 'SOS alarms', `${sos}`, sos ? `${acked} answered · avg ${secs(avgResp)}` : 'no emergency today', 'sos', '#FF7A59', C.rec);
+    kpi(doc, M + (cw + 10), ky, cw, 78, 'SOS alarms', `${sos}`, sos ? `${acked} answered · avg ${secs(avgResp)}` : `no emergency ${period}`, 'sos', '#FF7A59', C.rec);
     kpi(doc, M + 2 * (cw + 10), ky, cw, 78, 'Recorded time', d.totals.recMs ? hm(d.totals.recMs) : '0h 00m', `${d.totals.recSessions} session${d.totals.recSessions === 1 ? '' : 's'}`, 'rec', C.rec, C.amber);
     kpi(doc, M + 3 * (cw + 10), ky, cw, 78, 'Distance covered', km(d.totals.km), `${d.totals.ptt} PTT · ${d.totals.msgs + d.totals.voice} messages`, 'pin', C.teal, C.ok);
 
@@ -263,15 +302,29 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf }, r
 
     const bx = M + 212, bw = W - M - bx;
     shadowCard(doc, bx, y, bw, 160);
-    heading(doc, bx + 14, y + 12, 'Cameras reporting by hour', 'distinct cameras with activity');
-    const maxH = Math.max(1, ...d.hours), cx0 = bx + 18, cwid = bw - 36, bwid = cwid / 24, base = y + 138, ch = 84;
+    const cx0 = bx + 18, cwid = bw - 36, base = y + 138, ch = 84;
     for (let g = 0; g <= 3; g++) doc.save().lineWidth(0.4).dash(2, { space: 2 }).moveTo(cx0, base - (ch * g) / 3).lineTo(cx0 + cwid, base - (ch * g) / 3).stroke('#E3E9F2').undash().restore();
-    d.hours.forEach((v, i) => {
-        const h = v ? Math.max(3, (v / maxH) * ch) : 1.5;
-        doc.roundedRect(cx0 + i * bwid + 1.5, base - h, bwid - 3, h, 2).fill(v ? grad(doc, 0, base - h, 0, base, [[0, C.violet], [1, C.blue]]) : '#E8EDF5');
-        if (i % 3 === 0) doc.font('Helvetica').fontSize(6.8).fillColor(C.mut).text(pad(i), cx0 + i * bwid - 2, base + 4, { width: bwid + 4, align: 'center', lineBreak: false });
-    });
-    if (d.hours.every((v) => v === 0)) doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text('No activity recorded for this day.', bx, y + 80, { width: bw, align: 'center', lineBreak: false });
+    if (!multi) {
+        heading(doc, bx + 14, y + 12, 'Cameras reporting by hour', 'distinct cameras with activity');
+        const maxH = Math.max(1, ...d.hours), bwid = cwid / 24;
+        d.hours.forEach((v, i) => {
+            const h = v ? Math.max(3, (v / maxH) * ch) : 1.5;
+            doc.roundedRect(cx0 + i * bwid + 1.5, base - h, bwid - 3, h, 2).fill(v ? grad(doc, 0, base - h, 0, base, [[0, C.violet], [1, C.blue]]) : '#E8EDF5');
+            if (i % 3 === 0) doc.font('Helvetica').fontSize(6.8).fillColor(C.mut).text(pad(i), cx0 + i * bwid - 2, base + 4, { width: bwid + 4, align: 'center', lineBreak: false });
+        });
+        if (d.hours.every((v) => v === 0)) doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text('No activity recorded for this day.', bx, y + 80, { width: bw, align: 'center', lineBreak: false });
+    } else {
+        // several days: one bar per day = time recorded, with the day's SOS count in red above it
+        heading(doc, bx + 14, y + 12, 'Recorded time by day', 'red = SOS alarms that day');
+        const maxR = Math.max(1, ...d.days.map((x) => x.recMs)), bwid = cwid / nDays, step = Math.max(1, Math.ceil(nDays / 12));
+        d.days.forEach((x, i) => {
+            const h = x.recMs ? Math.max(3, (x.recMs / maxR) * (ch - 10)) : 1.5;
+            doc.roundedRect(cx0 + i * bwid + Math.min(1.5, bwid * 0.15), base - h, Math.max(1, bwid - Math.min(3, bwid * 0.3)), h, Math.min(2, bwid / 3)).fill(x.recMs ? grad(doc, 0, base - h, 0, base, [[0, C.amber], [1, C.rec]]) : '#E8EDF5');
+            if (x.sos && bwid >= 5) doc.font('Helvetica-Bold').fontSize(7).fillColor(C.rec).text(String(x.sos), cx0 + i * bwid - 4, base - h - 10, { width: bwid + 8, align: 'center', lineBreak: false });
+            if (i % step === 0 || i === nDays - 1) doc.font('Helvetica').fontSize(6.6).fillColor(C.mut).text(Z.date(x.start).replace(/ .*/, ''), cx0 + i * bwid - 6, base + 4, { width: bwid + 12, align: 'center', lineBreak: false });
+        });
+        if (d.days.every((x) => !x.recMs && !x.sos)) doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text('No activity recorded in this period.', bx, y + 80, { width: bw, align: 'center', lineBreak: false });
+    }
 
     // ---- helper for flowing sections
     const bottom = H - 52;
@@ -287,30 +340,53 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf }, r
     // ---- SOS alarms
     y = 474;
     need(60);
-    heading(doc, M, y, 'SOS alarms', `${sos} today`);
+    heading(doc, M, y, 'SOS alarms', `${sos} ${period}`);
     y += 24;
     if (!d.alarms.length) {
         shadowCard(doc, M, y, W - 2 * M, 38);
         doc.circle(M + 22, y + 19, 8).fill(grad(doc, M + 14, y + 11, M + 30, y + 27, [[0, C.ok], [1, C.teal]]));
         doc.font('Helvetica-Bold').fontSize(9.5).fillColor(C.ink).text('No SOS alarms were raised.', M + 40, y + 11, { lineBreak: false });
-        doc.font('Helvetica').fontSize(8.5).fillColor(C.mut).text('A quiet day for your fleet.', M + 40, y + 24, { lineBreak: false });
+        doc.font('Helvetica').fontSize(8.5).fillColor(C.mut).text(multi ? 'A quiet period for your fleet.' : 'A quiet day for your fleet.', M + 40, y + 24, { lineBreak: false });
         y += 52;
     } else {
-        const colX = [M + 14, M + 70, M + 170, M + 290, M + 390];
+        const colX = multi ? [M + 14, M + 86, M + 186, M + 300, M + 394] : [M + 14, M + 70, M + 170, M + 290, M + 390];
         const head = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); ['TIME', 'CAMERA', 'REGION', 'RESPONSE', 'STATUS'].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.4).fillColor(C.mut).text(t, colX[i], y + 7, { characterSpacing: 0.8, lineBreak: false })); y += 24; };
         head();
-        d.alarms.slice(0, 60).forEach((a, i) => {
+        const cap = multi ? 150 : 60;
+        d.alarms.slice(0, cap).forEach((a, i) => {
             if (y + 22 > bottom) { newPage(); head(); }
             if (i % 2) doc.roundedRect(M, y - 3, W - 2 * M, 21, 5).fill('#F8FAFD');
             const cam = byIdSafe(cameras, a.camera_id);
-            doc.font('Helvetica-Bold').fontSize(8.8).fillColor(C.ink).text(clock(a.ts), colX[0], y + 2, { lineBreak: false });
-            doc.font('Helvetica').fontSize(8.8).fillColor(C.ink).text(latin(nameOf(cam), a.camera_id), colX[1], y + 2, { width: 95, lineBreak: false, ellipsis: true });
-            doc.fillColor(C.mut).text(latin(regionOf(cam), '-'), colX[2], y + 2, { width: 110, lineBreak: false, ellipsis: true });
+            doc.font('Helvetica-Bold').fontSize(8.8).fillColor(C.ink).text(when(a.ts), colX[0], y + 2, { lineBreak: false });
+            doc.font('Helvetica').fontSize(8.8).fillColor(C.ink).text(latin(nameOf(cam), a.camera_id), colX[1], y + 2, { width: 90, lineBreak: false, ellipsis: true });
+            doc.fillColor(C.mut).text(latin(regionOf(cam), '-'), colX[2], y + 2, { width: 106, lineBreak: false, ellipsis: true });
             doc.fillColor(C.ink).text(a.resp == null ? 'waiting' : secs(a.resp), colX[3], y + 2, { lineBreak: false });
             const ok = !!a.ack_ts;
             doc.roundedRect(colX[4], y - 0.5, 74, 14, 7).fill(ok ? '#DDF7EE' : '#FFE1E6');
             doc.font('Helvetica-Bold').fontSize(7.4).fillColor(ok ? '#008F62' : '#D01F3C').text(ok ? 'ACKNOWLEDGED' : 'OPEN', colX[4], y + 3.2, { width: 74, align: 'center', characterSpacing: 0.5, lineBreak: false });
             y += 21;
+        });
+        if (d.alarms.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(`+ ${d.alarms.length - cap} more alarms (see the audit trail)`, M + 14, y + 2, { lineBreak: false }); y += 18; }
+        y += 14;
+    }
+
+    // ---- day by day (only when the report covers several days)
+    if (multi) {
+        need(90);
+        heading(doc, M, y, 'Day by day', `${nDays} days`);
+        y += 24;
+        const dc = [M + 14, M + 104, M + 196, M + 290, M + 390];
+        const dayHead = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); ['DAY', 'ACTIVE CAMERAS', 'RECORDED', 'DISTANCE', 'SOS'].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.2).fillColor(C.mut).text(t, dc[i], y + 7, { characterSpacing: 0.7, lineBreak: false })); y += 24; };
+        dayHead();
+        d.days.forEach((x, i) => {
+            if (y + 19 > bottom) { newPage(); dayHead(); }
+            if (i % 2) doc.roundedRect(M, y - 3, W - 2 * M, 19, 5).fill('#F8FAFD');
+            doc.font('Helvetica-Bold').fontSize(8.6).fillColor(C.ink).text(`${Z.weekday(x.start)}  ${Z.date(x.start)}`, dc[0], y + 1, { lineBreak: false });
+            doc.font('Helvetica').fillColor(C.ink).text(x.active.size ? String(x.active.size) : '-', dc[1], y + 1, { lineBreak: false });
+            doc.text(x.recMs ? hm(x.recMs) : '-', dc[2], y + 1, { lineBreak: false });
+            doc.text(x.meters ? km(x.meters) : '-', dc[3], y + 1, { lineBreak: false });
+            doc.font('Helvetica-Bold').fillColor(x.sos ? C.rec : C.mut).text(String(x.sos || '-'), dc[4], y + 1, { lineBreak: false });
+            y += 19;
         });
         y += 14;
     }
@@ -346,18 +422,43 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf }, r
     });
     y += 12;
 
+    // ---- who carried which camera (check-out station)
+    if (d.shifts.length) {
+        need(80);
+        heading(doc, M, y, 'Camera custody', `${d.shifts.length} check-out${d.shifts.length === 1 ? '' : 's'}`);
+        y += 24;
+        const sc = [M + 14, M + 118, M + 270, M + 366, M + 462];
+        const shiftHead = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); ['CAMERA', 'EMPLOYEE', 'TAKEN', 'RETURNED', 'TIME OUT'].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.2).fillColor(C.mut).text(t, sc[i], y + 7, { characterSpacing: 0.7, lineBreak: false })); y += 24; };
+        shiftHead();
+        const cap = 150;
+        d.shifts.slice(0, cap).forEach((s, i) => {
+            if (y + 19 > bottom) { newPage(); shiftHead(); }
+            if (i % 2) doc.roundedRect(M, y - 3, W - 2 * M, 19, 5).fill('#F8FAFD');
+            doc.font('Helvetica-Bold').fontSize(8.6).fillColor(C.ink).text(latin(nameOf(byIdSafe(cameras, s.cam)), s.cam), sc[0], y + 1, { width: 98, lineBreak: false, ellipsis: true });
+            doc.font('Helvetica').fillColor(C.ink).text(s.who, sc[1], y + 1, { width: 148, lineBreak: false, ellipsis: true });
+            doc.text(Z.dateClock(s.out), sc[2], y + 1, { lineBreak: false });
+            doc.fillColor(s.back ? C.ink : C.rec).text(s.back ? Z.dateClock(s.back) : 'still out', sc[3], y + 1, { lineBreak: false });
+            doc.fillColor(C.mut).text(hm((s.back || d.end) - s.out), sc[4], y + 1, { lineBreak: false });
+            y += 19;
+        });
+        if (d.shifts.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(`+ ${d.shifts.length - cap} more check-outs`, M + 14, y + 2, { lineBreak: false }); y += 18; }
+        y += 12;
+    }
+
     // ---- control-room actions
     if (d.actions.length) {
         need(70);
-        heading(doc, M, y, 'Control-room actions', `${d.actions.length} today`);
+        heading(doc, M, y, 'Control-room actions', `${d.actions.length} ${period}`);
         y += 24;
-        d.actions.slice(0, 25).forEach((a) => {
+        const cap = multi ? 60 : 25;
+        d.actions.slice(0, cap).forEach((a) => {
             if (y + 16 > bottom) newPage();
-            doc.font('Helvetica-Bold').fontSize(8.4).fillColor(C.ink).text(clock(a.ts), M + 6, y, { lineBreak: false });
-            doc.font('Helvetica').fillColor(C.ink).text(`${a.text}`, M + 48, y, { width: 260, lineBreak: false, ellipsis: true });
-            doc.fillColor(C.mut).text(`${latin(nameOf(byIdSafe(cameras, a.camera)), a.camera || '-')}   by ${latin(a.who)}`, M + 300, y, { width: W - M - 300 - M, lineBreak: false, ellipsis: true });
+            doc.font('Helvetica-Bold').fontSize(8.4).fillColor(C.ink).text(when(a.ts), M + 6, y, { width: 70, lineBreak: false });
+            doc.font('Helvetica').fillColor(C.ink).text(`${a.text}`, M + 80, y, { width: 228, lineBreak: false, ellipsis: true });
+            doc.fillColor(C.mut).text(`${latin(nameOf(byIdSafe(cameras, a.camera)), a.camera || '-')}   by ${latin(a.who)}`, M + 310, y, { width: W - M - 310 - M, lineBreak: false, ellipsis: true });
             y += 16;
         });
+        if (d.actions.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(`+ ${d.actions.length - cap} more actions (see the audit trail)`, M + 6, y, { lineBreak: false }); y += 16; }
         y += 10;
     }
 
@@ -369,13 +470,12 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf }, r
         doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text('Events are logged from the moment this version of VisionGuard started recording them.', M + 6, y, { lineBreak: false });
         y += 20;
     } else {
-        const colors = { sos: C.rec, ack: C.ok, rec: C.amber, recstop: '#E0A100', on: C.blue, off: '#9AA8BD', act: C.violet };
-        const shown = d.timeline.slice(0, 70);
-        const top = y;
+        const colors = { sos: C.rec, ack: C.ok, rec: C.amber, recstop: '#E0A100', on: C.blue, off: '#9AA8BD', act: C.violet, shift: C.teal };
+        const shown = d.timeline.slice(0, multi ? 150 : 70);
         shown.forEach((e, i) => {
             if (y + 24 > bottom) { newPage(); }
             doc.save().lineWidth(1).moveTo(M + 68, y - 4).lineTo(M + 68, y + 20).stroke('#DDE4EE').restore();
-            doc.font('Helvetica-Bold').fontSize(8.4).fillColor(C.ink).text(clock(e.ts), M + 6, y + 3, { lineBreak: false });
+            doc.font('Helvetica-Bold').fontSize(multi ? 7.6 : 8.4).fillColor(C.ink).text(when(e.ts), M + 4, y + 3, { width: 62, lineBreak: false });
             doc.circle(M + 68, y + 6, 4.6).fill('#FFFFFF');
             doc.circle(M + 68, y + 6, 3.4).fill(colors[e.kind] || C.mut);
             doc.font('Helvetica').fontSize(8.8).fillColor(C.ink).text(e.text, M + 84, y + 2, { width: 250, lineBreak: false, ellipsis: true });
@@ -392,11 +492,11 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf }, r
         doc.rect(0, H - 34, W, 1.6).fill(grad(doc, 0, 0, W, 0, [[0, C.violet], [0.5, C.blue], [1, C.teal]]));
         doc.font('Helvetica').fontSize(7.6).fillColor(C.mut).text('VisionGuard  |  Powered by Smart Way Group  |  Confidential: for the named company only', M, H - 24, { lineBreak: false });
         doc.font('Helvetica-Bold').text(`${i + 1} / ${range.count}`, W - M - 60, H - 24, { width: 60, align: 'right', lineBreak: false });
-        doc.font('Helvetica').fillColor(C.mut).text(`Generated ${new Date().toLocaleString('en-GB')}`, M, H - 14, { lineBreak: false });
+        doc.font('Helvetica').fillColor(C.mut).text(`Generated ${Z.short(Date.now())} ${Z.clock(Date.now())}`, M, H - 14, { lineBreak: false });
     }
     doc.end();
 }
 
 function byIdSafe(cams, id) { return cams.find((c) => c.cameraId === id) || { cameraId: id, name: id }; }
 
-module.exports = { build };
+module.exports = { build, gather, zone };
