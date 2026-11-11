@@ -64,7 +64,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final labels = await c.addSymbols([
       for (final cam in cams) SymbolOptions(
         geometry: LatLng(cam.lat!, cam.lng!),
-        textField: cam.holder == null ? cam.name : '${cam.name}\n${cam.holder}',
+        textField: '${cam.name}${cam.battery != null ? '  ${cam.battery}%' : ''}${cam.holder == null ? '' : '\n${cam.holder}'}',
         textSize: 12, textColor: '#0F1B2D', textHaloColor: '#FFFFFF', textHaloWidth: 2.2, textHaloBlur: .4,
         textOffset: const Offset(0, -2.1), textAnchor: 'bottom', fontNames: const ['Noto Sans Bold'], textMaxWidth: 12,
         textJustify: 'center', zIndex: cam.id == _selected ? 1 : 0,
@@ -122,7 +122,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                   Text(cam.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                  if (cam.holder != null) Text(cam.holder!, style: TextStyle(color: v.mut, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  if (cam.holder != null) Text('${cam.holder}${cam.holderNo != null ? '  ·  ${cam.holderNo}' : ''}', style: TextStyle(color: v.mut, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  if (cam.battery != null) Text('${cam.charging ? '⚡ ' : ''}${ltr('${cam.battery}%')}', style: TextStyle(color: cam.lowBattery ? v.rec : v.mut, fontSize: 12.5, fontWeight: FontWeight.w800)),
                   Text('${stateLabel(context, cam.state)} · ${agoText(context, cam.fixTs ?? cam.ts)}', style: TextStyle(color: v.mut, fontSize: 12.5)),
                 ])),
                 TextButton(onPressed: () => context.push('/camera/${cam.id}'), child: Text(context.tr('open_alert'))),

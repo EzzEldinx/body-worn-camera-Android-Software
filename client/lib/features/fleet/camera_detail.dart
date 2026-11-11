@@ -87,8 +87,8 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
         SectionTitle(context.tr('status')),
         VgCard(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: Column(children: [
           _Row(context.tr('last_seen'), agoText(context, cam.ts)),
-          if (cam.holder != null) _Row(context.tr('holder'), cam.holder!),
-          if (cam.battery != null) _Row(context.tr('battery'), '${ltr('${cam.battery}%')}  ·  ${context.tr('battery_dock')}, ${agoText(context, cam.batteryTs)}'),
+          if (cam.holder != null) _Row(context.tr('holder'), '${cam.holder}${cam.holderNo != null ? '  ·  ${cam.holderNo}' : ''}${cam.custody == 'reserved' ? '  ·  ${context.tr('holder_reserved')}' : cam.custody == 'in_use' ? '  ·  ${context.tr('holder_carrying')}' : ''}'),
+          if (cam.battery != null) _Row(context.tr('battery'), '${cam.charging ? '⚡ ' : ''}${ltr('${cam.battery}%')}  ·  ${_batteryNote(context, cam)}'),
           _Row(context.tr('position'), gps),
           if (cam.speed != null && cam.speed! > 0.5) _Row(context.tr('speed'), '${(cam.speed! * 3.6).round()} km/h'),
           _Row(context.tr('company'), cam.company ?? context.tr('unassigned')),
@@ -117,6 +117,14 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
       ],
     );
   }
+}
+
+/// Where the battery figure comes from: the camera itself (live), or the dock it sits on, or the last time it was read.
+String _batteryNote(BuildContext context, Camera c) {
+  final age = c.batteryTs == null ? null : DateTime.now().millisecondsSinceEpoch - c.batteryTs!;
+  if (c.batterySrc == 'camera' && age != null && age < 300000) return context.tr('battery_live');
+  if (c.batterySrc == 'dock') return '${context.tr('battery_dock')}, ${agoText(context, c.batteryTs)}';
+  return '${context.tr('battery_last')} ${agoText(context, c.batteryTs)}';
 }
 
 class _Row extends StatelessWidget {

@@ -19,6 +19,10 @@ Code: `client/` (Flutter, one codebase for iPhone, iPad, Android phone and Andro
 * **Live without asking the officer.** The app emits `remote_stream {cameraId, action}`, exactly like the dashboard; the camera starts streaming by itself. Every start/stop is written to the audit log with the username. The package live-limit (`max_live`) applies.
 * **Push.** The app registers its FCM token (`POST /api/mobile/push`). On SOS the server notifies the camera's company users and Smart Way staff (`server/push.js`, FCM HTTP v1, high priority; time-sensitive on iOS). It stays off until `FCM_SERVICE_ACCOUNT` is set; the open app still gets SOS through the socket.
 
+* **Battery and alerts.** Every camera shows its battery (live from the camera, or read on the dock) with a bolt while charging. Under 20 % and not charging the server raises a *low battery* alert (`dashboard_alert` / `dashboard_alert_resolved` over the socket, `alerts` in the snapshot, `ack_alert` to dismiss): the Alerts tab lists it above the SOS alarms, a notice appears wherever the user is, and a push notice goes out when FCM is configured.
+* **Who carries the camera.** The holder shows with the employee number (and *reserved / carrying*); an SOS shows who carried the camera when it was pressed.
+* **Licence notice.** `GET /api/license/status` (and `license` in `/api/mobile/config`): the app shows an amber / red line above the tab bar when the licence is ending or ended (see docs/LICENSING.md).
+
 ## 2. Decisions
 
 | Topic | Choice | Why |

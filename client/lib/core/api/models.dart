@@ -1,18 +1,22 @@
 /// What the server sends to dashboards and apps (see dashboard_snapshot / dashboard_cam in server/server.js).
 enum CamState { rec, online, off }
 
+/// A battery under this percentage that is not charging is a "low battery" (the server raises an alert at the same level).
+const kBatteryLow = 20;
+String? _text(dynamic v) => v is String && v.trim().isNotEmpty ? v.trim() : null;
+
 class Camera {
   Camera({
     required this.id, required this.name, required this.group, required this.online, required this.recording, required this.remote,
-    required this.ptt, required this.ts, this.lat, this.lng, this.acc, this.fixTs, this.speed, this.company, this.region, this.quality, this.battery, this.batteryTs, this.holder, this.atDock = false, this.qualityAuto = false,
+    required this.ptt, required this.ts, this.lat, this.lng, this.acc, this.fixTs, this.speed, this.company, this.region, this.quality, this.battery, this.batteryTs, this.holder, this.holderNo, this.custody, this.batterySrc, this.charging = false, this.atDock = false, this.qualityAuto = false,
   });
 
   final String id, name, group;
-  final bool online, recording, remote, ptt, qualityAuto, atDock;
+  final bool online, recording, remote, ptt, qualityAuto, atDock, charging;
   final int ts;
   final double? lat, lng, acc, speed;
   final int? fixTs, battery, batteryTs;
-  final String? company, region, quality, holder;
+  final String? company, region, quality, holder, holderNo, custody, batterySrc; // holderNo = employee number, custody = reserved | in_use (check-out), batterySrc = camera | dock
 
   factory Camera.fromJson(Map j) => Camera(
         id: '${j['cameraId']}',
@@ -33,32 +37,68 @@ class Camera {
         quality: j['quality'] as String?,
         battery: (j['battery'] as num?)?.toInt(),
         batteryTs: (j['batteryTs'] as num?)?.toInt(),
+        batterySrc: j['batterySrc'] as String?,
+        charging: j['charging'] == true,
+        holderNo: _text(j['holderNo']),
+        custody: _text(j['custody']),
         qualityAuto: j['qualityAuto'] == true,
         atDock: j['posSrc'] == 'dock',
-        holder: (j['holder'] is String && (j['holder'] as String).trim().isNotEmpty) ? (j['holder'] as String).trim() : null,
+        holder: _text(j['holder']),
       );
 
   CamState get state => recording ? CamState.rec : (online ? CamState.online : CamState.off);
   bool get hasPosition => lat != null && lng != null;
+
+  /// Under 20 % and not on a charger: needs attention (the dashboards show the same).
+  bool get lowBattery => battery != null && battery! < kBatteryLow && !charging;
 
   /// A GPS fix older than two minutes is shown as "last known position", like on the web dashboard.
   bool get gpsFresh => fixTs != null && DateTime.now().millisecondsSinceEpoch - fixTs! < 120000;
 }
 
 class Alarm {
-  Alarm({required this.id, required this.cameraId, required this.ts, required this.ack, this.lat, this.lng});
+  Alarm({required this.id, required this.cameraId, required this.ts, required this.ack, this.lat, this.lng, this.holder, this.holderNo});
   final int id;
   final String cameraId;
   final int ts;
   final bool ack;
   final double? lat, lng;
+  final String? holder, holderNo; // who carried the camera when the SOS was pressed (check-out station)
 
   factory Alarm.fromJson(Map j) => Alarm(
         id: (j['id'] as num).toInt(), cameraId: '${j['cameraId']}', ts: (j['ts'] as num?)?.toInt() ?? 0, ack: j['ack'] == true,
-        lat: (j['lat'] as num?)?.toDouble(), lng: (j['lng'] as num?)?.toDouble(),
+        lat: (j['lat'] as num?)?.toDouble(), lng: (j['lng'] as num?)?.toDouble(), holder: _text(j['holder']), holderNo: _text(j['holderNo']),
       );
 
-  Alarm acked() => Alarm(id: id, cameraId: cameraId, ts: ts, ack: true, lat: lat, lng: lng);
+  Alarm acked() => Alarm(id: id, cameraId: cameraId, ts: ts, ack: true, lat: lat, lng: lng, holder: holder, holderNo: holderNo);
+}
+
+/// A low-battery alert (under 20 % and not charging; critical under 10 %). The server clears it when the camera charges or recovers.
+class BatteryAlert {
+  BatteryAlert({required this.id, required this.cameraId, required this.level, required this.value, required this.ts, required this.ack});
+  final int id, value, ts;
+  final String cameraId, level; // level: warning | critical
+  final bool ack;
+  bool get critical => level == 'critical';
+
+  factory BatteryAlert.fromJson(Map j) => BatteryAlert(
+        id: (j['id'] as num).toInt(), cameraId: '${j['cameraId']}', level: '${j['level']}', value: (j['value'] as num?)?.toInt() ?? 0, ts: (j['ts'] as num?)?.toInt() ?? 0, ack: j['ack'] == true,
+      );
+  BatteryAlert acked() => BatteryAlert(id: id, cameraId: cameraId, level: level, value: value, ts: ts, ack: true);
+}
+
+/// The licence notice of a self-hosted server (server/license.js). Only shown when the server says `show`.
+class LicenseInfo {
+  const LicenseInfo({required this.state, required this.show, this.daysLeft, this.expires, this.graceUntil, this.canManage = false, this.clock = false});
+  final String state; // off | trial | valid | expiring | grace | restricted | locked
+  final bool show, canManage, clock;
+  final int? daysLeft, expires, graceUntil;
+  bool get bad => clock || state == 'grace' || state == 'restricted' || state == 'locked';
+
+  factory LicenseInfo.fromJson(Map j) => LicenseInfo(
+        state: '${j['state'] ?? 'off'}', show: j['show'] == true, daysLeft: (j['daysLeft'] as num?)?.toInt(), expires: (j['expires'] as num?)?.toInt(),
+        graceUntil: (j['graceUntil'] as num?)?.toInt(), canManage: j['canManage'] == true, clock: j['clock'] == true,
+      );
 }
 
 class User {

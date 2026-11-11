@@ -15,28 +15,33 @@ class StreamResult {
 
 @immutable
 class FleetState {
-  const FleetState({this.cams = const {}, this.alarms = const [], this.connected = false, this.loaded = false, this.error});
+  const FleetState({this.cams = const {}, this.alarms = const [], this.alerts = const [], this.connected = false, this.loaded = false, this.error});
   final Map<String, Camera> cams;
   final List<Alarm> alarms;
+  final List<BatteryAlert> alerts; // low-battery alerts that are still open
   final bool connected, loaded;
   final String? error; // why the live connection is not up (shown next to "Reconnecting")
 
   int get online => cams.values.where((c) => c.online).length;
   int get streaming => cams.values.where((c) => c.recording).length;
   int get openAlarms => alarms.where((a) => !a.ack).length;
+  int get openAlerts => alerts.where((a) => !a.ack).length;
+  int get lowBattery => cams.values.where((c) => c.lowBattery).length;
 
-  FleetState copy({Map<String, Camera>? cams, List<Alarm>? alarms, bool? connected, bool? loaded, String? error, bool clearError = false}) =>
-      FleetState(cams: cams ?? this.cams, alarms: alarms ?? this.alarms, connected: connected ?? this.connected, loaded: loaded ?? this.loaded, error: clearError ? null : (error ?? this.error));
+  FleetState copy({Map<String, Camera>? cams, List<Alarm>? alarms, List<BatteryAlert>? alerts, bool? connected, bool? loaded, String? error, bool clearError = false}) =>
+      FleetState(cams: cams ?? this.cams, alarms: alarms ?? this.alarms, alerts: alerts ?? this.alerts, connected: connected ?? this.connected, loaded: loaded ?? this.loaded, error: clearError ? null : (error ?? this.error));
 }
 
 /// One socket.io connection (same events as the web dashboard) that keeps the fleet and the alarms live.
 class FleetController extends Notifier<FleetState> {
   io.Socket? _s;
   final _sos = StreamController<Alarm>.broadcast();
+  final _battery = StreamController<BatteryAlert>.broadcast();
   final _results = StreamController<StreamResult>.broadcast();
   final _streamUp = StreamController<String>.broadcast();
 
   Stream<Alarm> get sosEvents => _sos.stream;
+  Stream<BatteryAlert> get batteryEvents => _battery.stream; // a camera fell under 20 % (or under 10 %)
   Stream<StreamResult> get results => _results.stream;
   Stream<String> get streamUps => _streamUp.stream;
 
@@ -70,11 +75,19 @@ class FleetController extends Notifier<FleetState> {
       state = state.copy(
         cams: {for (final c in (m['cams'] as List)) '${(c as Map)['cameraId']}': Camera.fromJson(c)},
         alarms: (m['alarms'] as List).map((a) => Alarm.fromJson(a as Map)).toList(),
+        alerts: ((m['alerts'] as List?) ?? const []).map((a) => BatteryAlert.fromJson(a as Map)).toList(),
         loaded: true, connected: true,
       );
     });
     s.on('dashboard_cam', (d) { final c = Camera.fromJson(d as Map); state = state.copy(cams: {...state.cams, c.id: c}); });
-    s.on('dashboard_cam_removed', (d) { final id = '${(d as Map)['cameraId']}'; state = state.copy(cams: {...state.cams}..remove(id)); });
+    s.on('dashboard_cam_removed', (d) { final id = '${(d as Map)['cameraId']}'; state = state.copy(cams: {...state.cams}..remove(id), alerts: state.alerts.where((a) => a.cameraId != id).toList()); });
+    s.on('dashboard_alert', (d) {
+      final a = BatteryAlert.fromJson(d as Map);
+      final was = state.alerts.where((x) => x.id == a.id).firstOrNull;
+      state = state.copy(alerts: [a, ...state.alerts.where((x) => x.id != a.id)]);
+      if (was == null || (a.critical && !was.critical)) _battery.add(a); // new, or it just got worse (an acknowledgement alone is silent)
+    });
+    s.on('dashboard_alert_resolved', (d) { final id = ((d as Map)['id'] as num).toInt(); state = state.copy(alerts: state.alerts.where((a) => a.id != id).toList()); });
     s.on('dashboard_sos', (d) { final a = Alarm.fromJson(d as Map); state = state.copy(alarms: [a, ...state.alarms.where((x) => x.id != a.id)]); _sos.add(a); });
     s.on('dashboard_alarm_ack', (d) {
       final id = ((d as Map)['id'] as num).toInt();
@@ -89,6 +102,10 @@ class FleetController extends Notifier<FleetState> {
   void startLive(String id) => _s?.emit('remote_stream', {'cameraId': id, 'action': 'start'});
   void stopLive(String id) => _s?.emit('remote_stream', {'cameraId': id, 'action': 'stop'});
   void setQuality(String id, String q) => _s?.emit('set_quality', {'cameraId': id, 'quality': q});
+  void ackAlert(int id) {
+    _s?.emit('ack_alert', id);
+    state = state.copy(alerts: [for (final a in state.alerts) a.id == id ? a.acked() : a]);
+  }
   void ack(int id) {
     _s?.emit('ack_alarm', id);
     state = state.copy(alarms: [for (final a in state.alarms) a.id == id ? a.acked() : a]);

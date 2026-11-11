@@ -90,7 +90,7 @@ class _FleetScreenState extends ConsumerState<FleetScreen> {
               return CameraTile(
                 cam: c, sos: sosIds.contains(c.id), selected: wide && selected == c.id,
                 onTap: () { if (wide) { ref.read(selectedCamProvider.notifier).select(c.id); } else { context.push('/camera/${c.id}'); } },
-                onWatch: () { ref.read(watchProvider.notifier).add(c.id, max: wide ? 4 : 1); if (wide) { ref.read(selectedCamProvider.notifier).select(c.id); } else { context.push('/watch/${c.id}'); } },
+                onWatch: () { ref.read(watchProvider.notifier).add(c.id, max: ref.read(wallLayoutProvider)); if (wide) { ref.read(selectedCamProvider.notifier).select(c.id); } else { context.push('/watch/${c.id}'); } },
               );
             },
           ),

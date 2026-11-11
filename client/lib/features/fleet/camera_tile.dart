@@ -42,14 +42,18 @@ class CameraTile extends StatelessWidget {
               ]),
               const SizedBox(height: 3),
               Text('${stateLabel(context, cam.state)}  ·  ${agoText(context, cam.ts)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.mut, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              if (cam.holder != null) Row(children: [
+                Icon(Icons.person_outline_rounded, size: 14, color: v.mut), const SizedBox(width: 3),
+                Flexible(child: Text('${cam.holder}${cam.holderNo != null ? '  ·  ${cam.holderNo}' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.text.withValues(alpha: .85), fontSize: 12.5, fontWeight: FontWeight.w700))),
+              ]),
               const SizedBox(height: 2),
               Row(children: [
                 Flexible(child: Text(gps, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.mut.withValues(alpha: .8), fontSize: 12))),
                 if (cam.battery != null) ...[
                   const SizedBox(width: 8),
-                  Icon(cam.battery! < 20 ? Icons.battery_alert_rounded : Icons.battery_full_rounded, size: 14, color: cam.battery! < 20 ? v.rec : v.mut),
+                  Icon(cam.charging ? Icons.battery_charging_full_rounded : (cam.lowBattery ? Icons.battery_alert_rounded : Icons.battery_full_rounded), size: 14, color: cam.lowBattery ? v.rec : (cam.charging ? v.ok : v.mut)),
                   const SizedBox(width: 2),
-                  Text(ltr('${cam.battery}%'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: cam.battery! < 20 ? v.rec : v.mut)),
+                  Text(ltr('${cam.battery}%'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: cam.lowBattery ? v.rec : (cam.charging ? v.ok : v.mut))),
                 ],
               ]),
             ]),

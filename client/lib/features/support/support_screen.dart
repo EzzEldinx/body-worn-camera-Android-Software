@@ -29,7 +29,7 @@ class SupportScreen extends ConsumerWidget {
     final data = ref.watch(ticketsProvider);
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('support'))),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: (ref.watch(sessionProvider)?.user.staff ?? false) ? null : FloatingActionButton.extended(   // Smart Way staff answer tickets: an inbox, not a form
         onPressed: () async { if (await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const NewTicketScreen())) == true) ref.invalidate(ticketsProvider); },
         icon: const Icon(Icons.add_rounded), label: Text(context.tr('sp_new')),
       ),

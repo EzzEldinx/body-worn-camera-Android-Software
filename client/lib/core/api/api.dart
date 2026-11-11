@@ -70,6 +70,15 @@ class Api {
   }
   Future<void> logout() async { try { await _post('/api/mobile/logout'); } catch (_) {} }
   Future<User> me() async => User.fromJson((await _get('/api/me')) as Map);
+  // generic calls for the screens that mirror the web pages (Reports, Check-out, Team, Admin panel)
+  Future<dynamic> getJson(String p, [Map<String, String>? q]) => _get(p, q);
+  Future<dynamic> postJson(String p, [Object? b]) => _post(p, b);
+  Future<dynamic> putJson(String p, [Object? b]) => _put(p, b);
+  Future<dynamic> patchJson(String p, Object b) => _send(() => http.patch(_u(p), headers: headers, body: jsonEncode(b)));
+  Future<dynamic> deleteJson(String p) => _send(() => http.delete(_u(p), headers: headers));
+  /// A one-use link (two minutes) the browser can open to download a report, since a browser cannot send our login header.
+  Future<String> downloadLink(String path) async => server + (((await _post('/api/dl', {'path': path})) as Map)['url'] as String);
+  Future<LicenseInfo> licenseStatus() async => LicenseInfo.fromJson((await _get('/api/license/status')) as Map);
 
   /// Short-lived signature for the live URL (the server only grants it for cameras this user may see).
   Future<String> streamSign(String cameraId) async => ((await _get('/api/stream/${Uri.encodeComponent(cameraId)}')) as Map)['sign'] as String;
