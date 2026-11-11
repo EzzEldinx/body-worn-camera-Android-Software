@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VisionGuard — Client Guide</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 18mm; @bottom-center { content: counter(page); font: 9pt Helvetica, Arial, sans-serif; color: #8a94a8; } @bottom-left { content: "VisionGuard · Client Guide"; font: 8pt Helvetica, Arial, sans-serif; color: #8a94a8; } }
+  @page :first { margin: 0; @bottom-center { content: none } @bottom-left { content: none } }
+  :root { --ink:#16203a; --mut:#5b6680; --line:#e3e7f0; --brand:#3b2a8f; --amber:#ffb300; --soft:#f4f6fb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 10.5pt/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  h1 { font-size: 24pt; margin: 0 0 4mm; letter-spacing: -.3pt; }
+  h2 { font-size: 15pt; margin: 7mm 0 2mm; color: var(--brand); }
+  h3 { font-size: 11.5pt; margin: 5mm 0 1.5mm; }
+  p { margin: 0 0 3mm; }
+  .lead { font-size: 12pt; color: var(--mut); }
+  .page { page-break-after: always; break-after: page; }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+  .kicker { text-transform: uppercase; letter-spacing: 1.6pt; font-size: 8.5pt; font-weight: 700; color: var(--amber); margin-bottom: 2mm; }
+  /* cover */
+  .cover { height: 297mm; padding: 26mm 20mm; color: #fff; background: radial-gradient(120% 80% at 80% 10%, #4a3bb5 0%, #1c1457 45%, #0b0a2a 100%); position: relative; overflow: hidden; }
+  .cover .logo { width: 70mm; }
+  .cover h1 { font-size: 36pt; line-height: 1.1; margin-top: 38mm; }
+  .cover .sub { font-size: 14pt; color: #cfd3ff; max-width: 120mm; }
+  .cover .cam { position: absolute; right: 12mm; bottom: 34mm; width: 78mm; filter: drop-shadow(0 8mm 10mm rgba(0,0,0,.5)); }
+  .cover .foot { position: absolute; left: 20mm; bottom: 18mm; font-size: 9.5pt; color: #aab0e8; }
+  .cover .bar { width: 22mm; height: 1.6mm; background: var(--amber); margin: 6mm 0; border-radius: 1mm; }
+  /* helpers */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+  .card { background: var(--soft); border: 1px solid var(--line); border-radius: 3mm; padding: 4mm 4.5mm; break-inside: avoid; }
+  .card h3 { margin-top: 0; }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; } li { margin-bottom: 1.2mm; }
+  figure { margin: 3mm 0 4mm; break-inside: avoid; }
+  figure img { width: 100%; display: block; border: 1px solid var(--line); border-radius: 2.5mm; box-shadow: 0 1.5mm 4mm rgba(22,32,58,.10); }
+  figcaption { font-size: 8.5pt; color: var(--mut); margin-top: 1.5mm; }
+  .phones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .w80 { width: 80%; margin-left: auto; margin-right: auto; } .w75 { width: 75%; margin-left: auto; margin-right: auto; } .w40 { width: 40%; margin-left: auto; margin-right: auto; } .w60 { width: 60%; margin-left: auto; margin-right: auto; } .w50 { width: 50%; margin-left: auto; margin-right: auto; } .w70 { width: 70%; margin-left: auto; margin-right: auto; }
+  h2 { break-after: avoid; }
+  .phones figure { margin: 0; } .phones img { border-radius: 5mm; }
+  .tag { display: inline-block; font-size: 8pt; font-weight: 700; padding: .6mm 2.4mm; border-radius: 10mm; background: #fff3d1; color: #8a5a00; }
+  .flow { display: flex; align-items: stretch; gap: 2mm; margin: 4mm 0 5mm; }
+  .flow .step { flex: 1; background: #fff; border: 1px solid var(--line); border-radius: 3mm; padding: 3.5mm; text-align: center; font-size: 9.5pt; }
+  .flow .step b { display: block; color: var(--brand); margin-bottom: 1mm; font-size: 10.5pt; }
+  .flow .arrow { align-self: center; color: var(--amber); font-size: 16pt; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin: 2mm 0 4mm; break-inside: avoid; }
+  th, td { text-align: left; padding: 2mm 2.5mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--soft); font-size: 8.5pt; text-transform: uppercase; letter-spacing: .6pt; color: var(--mut); }
+  .toc { columns: 2; column-gap: 10mm; font-size: 10.5pt; } .toc div { break-inside: avoid; padding: 1.6mm 0; border-bottom: 1px dotted var(--line); }
+  .toc span { color: var(--mut); float: right; }
+  .note { border-left: 1.2mm solid var(--amber); background: #fffaf0; padding: 3mm 4mm; border-radius: 0 2mm 2mm 0; font-size: 9.5pt; margin: 3mm 0 4mm; break-inside: avoid; }
+  .camrow { display: flex; gap: 4mm; align-items: flex-end; justify-content: center; background: linear-gradient(180deg,#eef1fa,#fff); border: 1px solid var(--line); border-radius: 3mm; padding: 5mm; margin: 3mm 0 4mm; }
+  .camrow figure { margin: 0; text-align: center; } .camrow img { border: 0; box-shadow: none; border-radius: 0; height: 46mm; width: auto; filter: drop-shadow(0 2mm 3mm rgba(0,0,0,.25)); }
+  .camrow figcaption { font-weight: 600; }
+  .brand-foot { display:flex; align-items:center; gap:3mm; margin-top: 6mm; font-size: 9pt; color: var(--mut); }
+</style>
+</head>
+<body>
+
+<!-- 1 · COVER -->
+<section class="page cover">
+  <img class="logo" src="img/logo.png" alt="VisionGuard">
+  <h1>See every camera.<br>Hear every SOS.<br>Keep every file safe.</h1>
+  <div class="bar"></div>
+  <div class="sub">The complete body-worn camera platform: cameras, docking stations, live control room, mobile app and reports, in one system.</div>
+  <img class="cam" src="img/cam_front_b.png" alt="">
+  <div class="foot">Client Guide · Powered by Smart Way Group · Saudi Arabia</div>
+</section>
+
+<!-- 2 · CONTENTS -->
+<section class="page">
+  <div class="kicker">Welcome</div>
+  <h1>What is in this guide</h1>
+  <p class="lead">This guide shows what VisionGuard does for your organisation, in plain language and with pictures of the real system. No technical knowledge is needed.</p>
+  <div class="toc">
+    <div>1 · How VisionGuard works<span>3</span></div>
+    <div>2 · The body-worn camera<span>4</span></div>
+    <div>3 · The docking station<span>5</span></div>
+    <div>4 · Live control room<span>7</span></div>
+    <div>5 · SOS alarms and battery alerts<span>9</span></div>
+    <div>6 · Who carries which camera<span>10</span></div>
+    <div>7 · Analytics<span>11</span></div>
+    <div>8 · Reports<span>12</span></div>
+    <div>9 · The mobile app<span>13</span></div>
+    <div>10 · Your team and your account<span>14</span></div>
+    <div>11 · Trust, security and evidence<span>15</span></div>
+    <div>12 · Getting started<span>16</span></div>
+  </div>
+  <h2>VisionGuard at a glance</h2>
+  <div class="grid3">
+    <div class="card"><h3>Live</h3><p>Watch any camera live from the control room or from your phone, and see every officer on the map.</p></div>
+    <div class="card"><h3>Safe</h3><p>One press on the SOS button alerts your control room at once, with the camera's name, location and the person carrying it.</p></div>
+    <div class="card"><h3>Proven</h3><p>Every recording is copied, checked and logged, so it can be trusted as evidence.</p></div>
+    <div class="card"><h3>Organised</h3><p>Employees take a charged camera at the docking station with their own login. You always know who had what.</p></div>
+    <div class="card"><h3>Informed</h3><p>Dashboards and one-click reports for every day, week or month, in PDF or Excel.</p></div>
+    <div class="card"><h3>Everywhere</h3><p>Works in a browser on any computer, and as an app on iPhone, iPad and Android, in English and Arabic.</p></div>
+  </div>
+  <div class="brand-foot"><span>Everything in this guide is part of the system you receive. The screenshots use sample data.</span></div>
+</section>
+
+<!-- 3 · HOW IT WORKS -->
+<section class="page">
+  <div class="kicker">1 · The big picture</div>
+  <h1>How VisionGuard works</h1>
+  <p class="lead">Your officers wear the cameras. Everything they record, and every alarm they raise, reaches one secure place that you can open from anywhere.</p>
+  <div class="flow">
+    <div class="step"><b>Camera</b>Worn by your officer. Records video, knows its location and battery.</div><div class="arrow">›</div>
+    <div class="step"><b>Network</b>Wi-Fi or mobile data while out. USB cable at the dock.</div><div class="arrow">›</div>
+    <div class="step"><b>VisionGuard</b>Secure server that stores, checks and organises everything.</div><div class="arrow">›</div>
+    <div class="step"><b>You</b>Control room screen, reports and the mobile app.</div>
+  </div>
+  <h2>A day in the life</h2>
+  <table>
+    <tr><th style="width:24mm">When</th><th>What happens</th></tr>
+    <tr><td>Start of shift</td><td>The employee signs in at the check-out station. The system gives them a charged, ready camera and lights up its bay.</td></tr>
+    <tr><td>During the shift</td><td>The camera records and reports its position and battery. The control room sees it on the map and can open the live view at any time.</td></tr>
+    <tr><td>In an emergency</td><td>The officer holds the SOS button for two seconds. The alarm appears on every screen of your company, with a sound, and on the phones of your supervisors.</td></tr>
+    <tr><td>End of shift</td><td>The camera goes back on the dock. The shift closes by itself, the recordings are copied and verified, and the battery is charged.</td></tr>
+    <tr><td>Afterwards</td><td>Recordings are in your cloud library. Reports show who carried which camera, every alarm and how fast it was answered.</td></tr>
+  </table>
+  <h2>Who uses what</h2>
+  <div class="grid3">
+    <div class="card"><h3>Officers</h3><p>Wear the camera. Take and return it at the station. Press SOS or talk to the control room.</p></div>
+    <div class="card"><h3>Control room</h3><p>Watches the live dashboard, answers alarms, talks to officers, chooses what happens to recordings.</p></div>
+    <div class="card"><h3>Managers</h3><p>See analytics and reports, manage the team and employees, and follow the evidence.</p></div>
+  </div>
+</section>
+
+<!-- 4 · CAMERA -->
+<section class="page">
+  <div class="kicker">2 · Hardware</div>
+  <h1>The body-worn camera</h1>
+  <p class="lead">A rugged camera that clips on the uniform. Large physical buttons are easy to press with gloves, and each important action has its own button.</p>
+  <div class="camrow">
+    <figure><img src="img/cam_front_a.png" alt=""><figcaption>Front</figcaption></figure>
+    <figure><img src="img/cam_front_b.png" alt=""><figcaption>Angled view</figcaption></figure>
+    <figure><img src="img/cam_top_a.png" alt=""><figcaption>Top, with the buttons</figcaption></figure>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Buttons</h3>
+      <ul>
+        <li><b>Record</b> (green): start and stop recording</li>
+        <li><b>SOS</b> (orange): emergency alarm</li>
+        <li><b>Talk</b>: push-to-talk to the control room</li>
+        <li><b>Photo</b> and <b>flashlight</b></li>
+        <li><b>Power</b> (red)</li>
+      </ul></div>
+    <div class="card"><h3>Built in</h3>
+      <ul>
+        <li>Wide-angle camera with <b>night vision</b> (infrared lights)</li>
+        <li><b>GPS</b> position, shown on your map</li>
+        <li>Microphone and loudspeaker for talking and voice messages</li>
+        <li>Wi-Fi and mobile data for live video and alerts</li>
+        <li>Metal contacts for charging and copying files on the dock</li>
+      </ul></div>
+  </div>
+  <h2>What it does for you</h2>
+  <ul>
+    <li><b>Records and streams.</b> Records in high definition and saves the video on the camera, even with no network. When the network is available it also streams live.</li>
+    <li><b>Raises the alarm.</b> Hold SOS for two seconds: the control room sees the camera, the place and the officer.</li>
+    <li><b>Knows who carries it.</b> It prints the date, time, camera number and employee number on the video.<sup>*</sup></li>
+    <li><b>Stays up to date.</b> New software is sent from VisionGuard. Cameras on the dock update themselves.</li>
+    <li><b>Clips on securely.</b> A strong clip on the back keeps it in place on the uniform.</li>
+  </ul>
+  <p style="font-size:8.5pt;color:var(--mut)">* Employee stamp and the battery reading on the video are part of the latest camera software. Ask us for the technical datasheet with exact camera specifications.</p>
+</section>
+
+<!-- 5 · DOCK 1 -->
+<section class="page">
+  <div class="kicker">3 · Hardware</div>
+  <h1>The docking station</h1>
+  <p class="lead">Put the camera on the dock and everything happens by itself: it charges, its recordings are copied and checked, and its software is kept up to date.</p>
+  <figure class="w80"><img src="img/docks.jpg" alt=""><figcaption>The docking screen. Each bay shows its camera, battery, free space and progress. Here one camera is synced, one is ready and one is copying files (41 %).</figcaption></figure>
+  <div class="grid2">
+    <div class="card"><h3>What the dock does</h3>
+      <ul><li>Charges the cameras</li><li>Copies every recording and photo from the camera</li><li>Checks each file is perfect (a digital fingerprint is compared)</li><li>Updates the camera software when needed</li><li>Shows the real battery of every camera</li></ul></div>
+    <div class="card"><h3>What you see</h3>
+      <ul><li>Which camera is in which bay</li><li>Progress, for example 4 of 9 files</li><li>Free space on each camera</li><li>"Synced" when everything is safely copied</li><li>A dock marked online or offline</li></ul></div>
+  </div>
+  <div class="note">The dock station runs with a small program on the PC next to it. If the PC loses the internet, nothing is lost: files stay on the dock and go to the cloud as soon as the connection returns.</div>
+</section>
+
+<!-- 6 · DOCK 2 -->
+<section class="page">
+  <div class="kicker">3 · Hardware</div>
+  <h1>Files: you decide what happens</h1>
+  <p class="lead">After a camera is copied, its files wait for your choice. This protects both your storage and your privacy.</p>
+  <figure class="w60"><img src="img/docks_files.jpg" alt=""><figcaption>Files copied from the cameras, waiting for a decision. Select some or all, then send them to the cloud or keep them on the dock.</figcaption></figure>
+  <div class="grid3">
+    <div class="card"><h3>Push to cloud</h3><p>The file goes to your secure cloud library, where authorised people can play and download it.</p></div>
+    <div class="card"><h3>Keep on dock</h3><p>The file stays on the dock PC. You can still push it to the cloud later.</p></div>
+    <div class="card"><h3>Automatic</h3><p>Choose "ask me", "always cloud" or "always keep on dock" for new files.</p></div>
+  </div>
+  <h2>The cloud library</h2>
+  <figure class="w60"><img src="img/docks_data.jpg" alt=""><figcaption>Every recording in the cloud: camera, time, size and its unique fingerprint. Play or download with one click. Once a file is safe you can also ask the dock to remove it from the camera, so there is always room to record.</figcaption></figure>
+</section>
+
+<!-- 7 · LIVE 1 -->
+<section class="page">
+  <div class="kicker">4 · Control room</div>
+  <h1>The live dashboard</h1>
+  <p class="lead">One screen with everything: the list of cameras, the map, the live video wall, the alarms and a chat with your officers.</p>
+  <figure><img src="img/dash.jpg" alt=""><figcaption>The live dashboard. Left: cameras with battery and recording status. Centre: the live map. Right: live wall, alarms and chat.</figcaption></figure>
+  <div class="grid2">
+    <div class="card"><h3>At the top</h3><p>Counters show how many cameras are online, recording, registered, how many alarms are open and how many cameras have a low battery. Switch the language between English and Arabic, or between light and dark, with one click.</p></div>
+    <div class="card"><h3>Cameras list</h3><p>Filter by region, by online, recording or low battery, or search by name. The play button opens the live video. Cameras are grouped by region (for example Riyadh, Jeddah, Dammam).</p></div>
+  </div>
+</section>
+
+<!-- 8 · LIVE 2 -->
+<section class="page">
+  <div class="kicker">4 · Control room</div>
+  <h1>Live wall, map and talking</h1>
+  <figure><img src="img/real_wall.jpg" alt="" style="max-width:100mm;margin:auto"><figcaption>Live wall with real footage from four cameras (test cameras).</figcaption></figure>
+  <div class="grid2">
+    <div class="card"><h3>Live wall</h3>
+      <ul><li>Show 1, 4, 9 or 16 cameras at once</li><li>Full screen, or open the wall in its own window to put it on a second monitor</li><li>Drag a picture onto another to swap them</li><li>Listen to a camera's sound</li><li>Enlarge any camera</li></ul></div>
+    <div class="card"><h3>Start live from the control room</h3>
+      <p>Press play next to any online camera. The camera starts streaming by itself, the officer does not need to do anything. Stop the stream just as easily; a recording the officer started is never interrupted.</p></div>
+    <div class="card"><h3>Talk to your officers</h3>
+      <p>Send a message or a voice note to one camera or to everyone. Officers can also talk to the control room using the Talk button.</p></div>
+    <div class="card"><h3>Video quality</h3>
+      <p>If the network is weak, reduce the video quality for one camera from 1080p down to 480p with one click, then raise it again.</p></div>
+  </div>
+  
+</section>
+
+<!-- 9 · SOS + BATTERY -->
+<section class="page">
+  <div class="kicker">5 · Safety</div>
+  <h1>SOS alarms and battery alerts</h1>
+  <p class="lead">The two things that matter most in the field are an officer asking for help and a camera that runs out of power. VisionGuard watches both for you.</p>
+  <figure class="w80"><img src="img/dash_battery.jpg" alt=""><figcaption>An SOS (red) and a low-battery alert (amber) shown at the same time. The camera with a low battery is highlighted in the list.</figcaption></figure>
+  <div class="grid2">
+    <div class="card"><h3>SOS alarm</h3>
+      <ul><li>Appears on every screen of your company with a sound</li><li>Shows the camera, the officer, the time and the place on the map</li><li>One click to open the live video</li><li>Supervisors with the mobile app are notified on their phones, even locked</li><li>Press "Acknowledge" and the time you took to answer is recorded</li></ul></div>
+    <div class="card"><h3>Low battery</h3>
+      <ul><li>Every camera shows its battery everywhere in the system</li><li>Under 20 % and not charging: an alert, a soft beep and a message on the phone</li><li>Under 10 %: a critical alert</li><li>The alert clears by itself when the camera is charged</li></ul></div>
+  </div>
+  <div class="note">An SOS is never lost. Even if the screen is closed or the internet drops for a moment, the alarm is saved and shown as soon as the control room connects.</div>
+</section>
+
+<!-- 10 · CHECK-OUT -->
+<section class="page">
+  <div class="kicker">6 · Accountability</div>
+  <h1>Who carries which camera</h1>
+  <p class="lead">Every employee has a personal login. At the check-out station they receive a ready camera, and VisionGuard records who took which camera, when and for how long.</p>
+  <div class="grid2">
+    <figure><img src="img/station_login.jpg" alt=""><figcaption>The check-out station: the employee signs in.</figcaption></figure>
+    <figure><img src="img/station_pick.jpg" alt=""><figcaption>The station offers a charged camera and lights up its bay on the dock.</figcaption></figure>
+  </div>
+  <figure class="w80"><img src="img/docks_shifts.jpg" alt=""><figcaption>Who is on shift now, and the full history, which can be filtered and exported to Excel.</figcaption></figure>
+  <div class="grid2">
+    <div class="card"><h3>Simple for employees</h3><p>Sign in, press "Take", pick the camera from the lit bay. Put it back at the end of the shift and the shift closes by itself. The station signs out after 90 seconds without a touch.</p></div>
+    <div class="card"><h3>Clear for you</h3><p>The camera shows its holder on the map and in the app. An SOS remembers who carried the camera when it was pressed. Managers can close a shift manually at any time.</p></div>
+  </div>
+</section>
+
+<!-- 11 · ANALYTICS -->
+<section class="page">
+  <div class="kicker">7 · Insight</div>
+  <h1>Analytics</h1>
+  <p class="lead">See how your fleet is doing at a glance, and what needs your attention.</p>
+  <figure class="w70"><img src="img/analytics_top.jpg" alt=""><figcaption>Daily overview: cameras online, recording, open alarms, average response time, battery, fleet health, files waiting for you, files in the cloud and who is on duty.</figcaption></figure>
+  
+  <ul>
+    <li>A <b>"needs attention"</b> line tells you what to do first, for example a battery at 18 %.</li>
+    <li><b>Average response time</b> shows how fast alarms are acknowledged.</li>
+    <li>An automatic <b>written summary</b> explains the day in a few sentences.</li>
+  </ul>
+</section>
+
+<!-- 12 · REPORTS -->
+<section class="page">
+  <div class="kicker">8 · Reports</div>
+  <h1>Reports</h1>
+  <p class="lead">Choose the dates once, then download any report as a PDF to read and print, or as an Excel file.</p>
+  <figure class="w80"><img src="img/full_reports.jpg" alt=""><figcaption>The Reports page. Quick buttons for today, yesterday, last 7 days, last 30 days, this month and last month.</figcaption></figure>
+  <table>
+    <tr><th style="width:42mm">Report</th><th>What it contains</th></tr>
+    <tr><td><b>Operations report</b> (PDF)</td><td>Alarms, recorded time, distance, activity by hour, who carried which camera and a timeline. For one day or up to 92 days.</td></tr>
+    <tr><td><b>SOS alarms</b></td><td>Every SOS: when, which camera, who carried it, who answered and how fast.</td></tr>
+    <tr><td><b>Cameras right now</b></td><td>Every camera: online, recording, battery, who has it, last seen and position.</td></tr>
+    <tr><td><b>Low-battery history</b></td><td>Every time a camera fell under 20 %, how low, and when it recovered.</td></tr>
+    <tr><td><b>Recordings</b></td><td>The recordings in the cloud: camera, file, size and time.</td></tr>
+    <tr><td><b>Who carried which camera</b></td><td>Check-outs: employee, camera, time taken and returned, battery.</td></tr>
+    <tr><td><b>Audit trail</b></td><td>Every step of every file and every change in the system, protected against editing.</td></tr>
+  </table>
+</section>
+
+<!-- 13 · MOBILE -->
+<section class="page">
+  <div class="kicker">9 · Mobile</div>
+  <h1>The mobile app</h1>
+  <p class="lead">For owners and supervisors. Open the app and see every camera of your company, watch any of them live, and receive SOS alerts even on a locked phone. It works on iPhone, iPad and Android phones and tablets, in English and Arabic.</p>
+  <div class="phones" style="grid-template-columns:repeat(5,1fr);gap:3mm">
+    <figure><img src="img/m_cameras.jpg" alt=""><figcaption>Cameras</figcaption></figure>
+    <figure><img src="img/m_map.jpg" alt=""><figcaption>Map</figcaption></figure>
+    <figure><img src="img/m_alerts.jpg" alt=""><figcaption>Alarms</figcaption></figure>
+    <figure><img src="img/m_docking.jpg" alt=""><figcaption>Docking</figcaption></figure>
+    <figure><img src="img/m_more.jpg" alt=""><figcaption>More</figcaption></figure>
+  </div>
+  <div class="grid2" style="margin-top:4mm">
+    <div class="card"><h3>On the go</h3><ul><li>Live video of any camera</li><li>A live wall of 1 to 16 cameras, also in full screen</li><li>Acknowledge alarms</li><li>Recordings and reports</li></ul></div>
+    <div class="card"><h3>Same account, same rules</h3><p>You sign in with the same account as on the computer, and you only see what you are allowed to see.</p></div>
+  </div>
+</section>
+
+<!-- 14 · TEAM -->
+<section class="page">
+  <div class="kicker">10 · Your organisation</div>
+  <h1>Your team and your account</h1>
+  <p class="lead">You manage your own people. Each person gets only the access they need.</p>
+  <figure class="w40"><img src="img/full_employees.jpg" alt=""><figcaption>Team page: dashboard users with their role, and employees who take cameras at the station.</figcaption></figure>
+  <table>
+    <tr><th style="width:36mm">Role</th><th>What they can do</th></tr>
+    <tr><td><b>Administrator</b></td><td>Everything in your company: watch, answer alarms, manage users and employees, delete files.</td></tr>
+    <tr><td><b>Operator</b></td><td>Watch live, answer alarms, chat, choose what happens to files. Cannot delete.</td></tr>
+    <tr><td><b>Viewer</b></td><td>Watch only.</td></tr>
+    <tr><td><b>Employee</b></td><td>Takes and returns a camera at the station. Cannot open the dashboard.</td></tr>
+  </table>
+  <h2>Support, when you need it</h2>
+  <figure class="w40"><img src="img/full_help.jpg" alt=""><figcaption>Help and Support: quick answers and a ticket system. Open a ticket, follow the conversation, reply or close it. Your subscription end date is always shown at the top of the screen, with a reminder 30 days before it ends.</figcaption></figure>
+</section>
+
+<!-- 15 · TRUST -->
+<section class="page">
+  <div class="kicker">11 · Trust</div>
+  <h1>Security and evidence you can rely on</h1>
+  <p class="lead">Video is only useful if it can be trusted. VisionGuard protects it from the camera to the cloud, and shows who touched what.</p>
+  <div class="grid2">
+    <div class="card"><h3>Every file is checked</h3><p>A unique digital fingerprint is calculated on the camera, on the dock and again on the server. A file is accepted only if all of them match, so a damaged or changed file is never stored as good.</p></div>
+    <div class="card"><h3>A sealed audit trail</h3><p>Every step is recorded: file copied, who decided what to do with it, uploaded, downloaded, deleted from the camera, settings changed. The record cannot be edited or erased, and any tampering is detected.</p></div>
+    <div class="card"><h3>Your data is yours</h3><p>Your users see only your cameras, alarms, recordings and messages. Access is checked on the server for every request.</p></div>
+    <div class="card"><h3>Protected access</h3><p>Personal logins with roles. Passwords are stored securely, repeated wrong attempts are blocked, and a person's access ends immediately when their account is switched off.</p></div>
+    <div class="card"><h3>Secure connection</h3><p>The system is reached over an encrypted connection. Video links are time-limited, so a copied link stops working.</p></div>
+    <div class="card"><h3>Always recording, never blocked</h3><p>Alarms and recordings keep arriving even if a subscription has ended, so safety never depends on a payment date.</p></div>
+  </div>
+  <div class="note">You decide how long recordings are kept. Files can stay forever, or be removed automatically after a number of days.</div>
+</section>
+
+<!-- 16 · START -->
+<section class="page">
+  <div class="kicker">12 · Getting started</div>
+  <h1>Getting started</h1>
+  <p class="lead">Smart Way sets everything up for you. You can be working within days.</p>
+  <table>
+    <tr><th style="width:12mm">#</th><th style="width:48mm">Step</th><th>What happens</th></tr>
+    <tr><td>1</td><td><b>Your account</b></td><td>We create your company, your administrator account and your regions (for example Riyadh, Jeddah, Dammam).</td></tr>
+    <tr><td>2</td><td><b>Your cameras</b></td><td>Each camera is prepared and given its own secure identity, then assigned to your company and region.</td></tr>
+    <tr><td>3</td><td><b>The dock</b></td><td>The docking station is installed next to a PC, and each bay is matched to its physical position.</td></tr>
+    <tr><td>4</td><td><b>Your people</b></td><td>Add your supervisors and employees. Employees receive a sheet with their logins.</td></tr>
+    <tr><td>5</td><td><b>Training</b></td><td>A short session for officers (SOS, recording, talk) and for the control room (live, alarms, reports).</td></tr>
+    <tr><td>6</td><td><b>Go live</b></td><td>Start with a few cameras, then grow. The system scales as you add cameras and users.</td></tr>
+  </table>
+  <h2>What you need</h2>
+  <div class="grid3">
+    <div class="card"><h3>Cameras</h3><p>Body-worn cameras from Smart Way, with their clip and charging contacts.</p></div>
+    <div class="card"><h3>A dock and a PC</h3><p>A docking station with a PC next to it and an internet connection.</p></div>
+    <div class="card"><h3>Screens</h3><p>Any computer with a browser for the control room, and phones or tablets for supervisors.</p></div>
+  </div>
+  <h2>We are with you</h2>
+  <p>Questions, a new camera, a new employee, a report you need? Open a ticket from the Support page in the system, or contact your Smart Way account manager.</p>
+  <div class="brand-foot"><img src="img/smartway-light.png" alt="Smart Way" style="height:9mm"><span>VisionGuard is a product of Smart Way Group.</span></div>
+</section>
+
+</body>
+</html>
