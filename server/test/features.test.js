@@ -155,3 +155,13 @@ test('a company can be created together with its administrator account', async (
     assert.strictEqual((await json('/api/admin/companies', { method: 'POST', sid: admin, body: { name: 'Half Co', adminUsername: 'half.admin', adminPassword: 'short' } })).status, 400);
     assert.ok(!(await json('/api/admin/companies', { sid: admin })).body.companies.some((c) => c.name === 'Half Co'));
 });
+
+test('a camera is told its company name together with the assignment (it writes it into the picture)', () => {
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE assignments(id INTEGER PRIMARY KEY, camera_id TEXT, status TEXT)');
+    const co = require('./../checkout').create({ db, cams: new Map([['C1', { companyId: 7 }]]), publish() {}, dock: {}, audit() {}, companyName: (id) => (id === 7 ? 'Al Noor' : null) });
+    assert.equal(co.payload('C1').company, 'Al Noor');
+    assert.equal(co.payload('C1').active, false);
+    assert.equal(co.payload('NOPE').company, '');
+});

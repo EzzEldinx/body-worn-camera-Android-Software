@@ -839,7 +839,7 @@ const dockApi = require('./dock').register(app, { db, cams, needUser, needAdmin,
 // Employees take a camera at the check-out station; the camera is told who carries it (see checkout.js)
 const checkoutMod = require('./checkout');
 const checkout = checkoutMod.create({
-    db, cams, publish, dock: dockApi,
+    db, cams, publish, dock: dockApi, companyName,
     audit: (user, action, cam, detail) => auditlog.add(db, user, action, cam || null, detail || null),
     tellCamera: (id, event, data) => io.to(`room:camera_${id}`).emit(event, data),
 });
