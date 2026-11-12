@@ -87,6 +87,8 @@ const _t = <String, List<String>>{
   'mute': ['Mute', 'كتم'],
   'live_wall': ['Live wall (full screen)', 'شاشة العرض الكاملة'],
   'show_all': ['Show all cameras again', 'إظهار كل الكاميرات'],
+  'no_feature': ['Not included in your account', 'غير متاح في حسابك'],
+  'no_feature_sub': ['Ask your administrator if you need it.', 'اطلب من المسؤول عندك إذا كنت تحتاجه.'],
   'no_online_cams': ['No camera is online', 'لا توجد كاميرا متصلة'],
   'no_online_cams_sub': ['Online cameras appear here by themselves.', 'تظهر الكاميرات المتصلة هنا تلقائيا.'],
   'wall_layout': ['Wall layout', 'تخطيط الشاشات'],

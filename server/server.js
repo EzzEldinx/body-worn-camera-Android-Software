@@ -11,6 +11,7 @@ const { db, hashPassword, verifyPassword, verifyPasswordAsync } = require('./db'
 const { safeCookies, guard, tokenBucket, loginLimiter, securityHeaders, housekeeping, processGuards } = require('./hardening');
 const packages = require('./packages');
 const auditlog = require('./auditlog');
+const features = require('./features');
 const insights = require('./insights');
 const support = require('./support');
 const deviceTokens = require('./tokens');
@@ -55,11 +56,12 @@ const SUB_GRACE_DAYS = process.env.SUBSCRIPTION_GRACE_DAYS === undefined ? 7 : M
 const subLocked = (subEnd) => !!subEnd && Date.now() > subEnd + SUB_GRACE_DAYS * 86400000;
 const SUB_LOCK_MSG = 'Your subscription has ended. Contact Smart Way to renew it.';
 const userBySession = (t) => {
-    const u = !t || typeof t !== 'string' ? null : db.prepare(`SELECT u.id,u.username,u.name,u.role,u.company_id AS companyId,c.name AS company,c.sub_end AS subEnd
+    const u = !t || typeof t !== 'string' ? null : db.prepare(`SELECT u.id,u.username,u.name,u.role,u.company_id AS companyId,c.name AS company,c.sub_end AS subEnd,c.features AS coFeatures,u.perms AS perms,u.avatar_ts AS avatarTs,c.logo_ts AS logoTs
         FROM sessions s JOIN users u ON u.id = s.user_id LEFT JOIN companies c ON c.id = u.company_id
         WHERE s.token = ? AND s.exp > ? AND u.active != 0`).get(t, Date.now());
     if (!u || (u.companyId && subLocked(u.subEnd))) return null;
-    delete u.subEnd; return u;
+    u.features = features.effective({ staff: !u.companyId, manager: u.role === 'manager', role: u.role, companyFeatures: u.coFeatures, perms: u.perms });   // what this person may use (see features.js)
+    delete u.subEnd; delete u.coFeatures; delete u.perms; return u;
 };
 const userFromCookie = (header) => userBySession(parseCookie(header).sid);
 // Web uses the sid cookie; the mobile apps send the same session as "Authorization: Bearer <token>".
@@ -70,10 +72,12 @@ const isStaff = (u) => !u.companyId;
 const isSuper = (u) => u.role === 'admin' && !u.companyId;
 // Company users: manager = everything in their company (employees, users, delete files); client = operator (watch, alarms, chat, choose what happens to files, no delete); viewer = read only.
 const ROLES = ['manager', 'client', 'viewer'];
+const can = (u, f) => u.features.includes(f);
 const isManager = (u) => isSuper(u) || u.role === 'manager';
 const canWrite = (u) => u.role !== 'viewer';
 const needWrite = (req, res, next) => (canWrite(req.user) ? next() : res.status(403).json({ error: 'Your account is read only.' }));
-const needDelete = (req, res, next) => (isManager(req.user) ? next() : res.status(403).json({ error: 'Only an administrator can delete.' }));
+const needDelete = (req, res, next) => (isManager(req.user) || (canWrite(req.user) && can(req.user, 'delete')) ? next() : res.status(403).json({ error: 'You are not allowed to delete files.' }));
+const needFiles = (req, res, next) => (canWrite(req.user) && can(req.user, 'files') ? next() : res.status(403).json({ error: 'You are not allowed to decide on recordings.' }));
 // A company's subscription: notice 30 days before it ends, and after.
 const subscriptionOf = (companyId) => {
     const e = companyId ? db.prepare('SELECT sub_end FROM companies WHERE id = ?').get(companyId)?.sub_end : null;
@@ -178,6 +182,12 @@ const license = require('./license').create({
     notify: (subject, text) => mailer.send(subject, text, [process.env.SUPPORT_EMAIL || 'sdpt@smart-way.com.sa', ...String(process.env.LICENSE_NOTIFY || '').split(',').map((x) => x.trim()).filter(Boolean)].join(',')),
 });
 app.use(license.guard);                                               // an expired licence cannot grow the system or export from it; cameras, SOS and evidence are never touched
+// A feature the company does not have, or the user was not given, is refused here for every route that needs it (the menus hide it too, but this is the real lock).
+app.use((req, res, next) => {
+    const f = features.ruleFor(req.path); if (!f) return next();
+    const u = userFromRequest(req);
+    return !u || can(u, f) ? next() : res.status(403).json({ error: 'This feature is not included in your account.', code: 'feature' });
+});
 app.use('/api/station', license.gate('checkout')); app.use('/api/assignments', license.gate('checkout'));
 app.use('/api/dock', license.gate('docking')); app.use('/api/docks', license.gate('docking'));
 app.use('/api/mobile', (req, res, next) => (req.path === '/config' ? next() : license.gate('mobile')(req, res, next)));
@@ -282,14 +292,27 @@ app.delete('/api/mobile/push', needUser, (req, res) => {
 });
 const needCompanyManager = (req, res, next) => (req.user.companyId && req.user.role === 'manager' ? next() : res.status(403).json({ error: 'Only your company\'s administrators manage users.' }));
 const ownUser = (req) => db.prepare("SELECT * FROM users WHERE id = ? AND company_id = ? AND role IN ('manager','client','viewer')").get(Number(req.params.id), req.user.companyId);
-app.get('/api/company/users', needUser, needCompanyManager, (req, res) => res.json({ users: db.prepare("SELECT id,username,name,role FROM users WHERE company_id = ? AND role IN ('manager','client','viewer') ORDER BY username").all(req.user.companyId) }));
+const companyFeaturesRaw = (companyId) => db.prepare('SELECT features FROM companies WHERE id = ?').get(companyId)?.features ?? null;
+const companyAvail = (companyId) => features.parse(companyFeaturesRaw(companyId)) || [...features.KEYS];   // the features a company has
+// What an administrator ticked for a user: features only if the company has them, any action; the same as the role's default = nothing stored (NULL).
+const permsToStore = (list, companyId, role) => {
+    if (!Array.isArray(list)) return undefined;
+    const avail = companyAvail(companyId), l = features.clean(list.filter((k) => features.ACTION_KEYS.includes(k) || avail.includes(k)));
+    const dflt = features.effective({ role, companyFeatures: companyFeaturesRaw(companyId), perms: null });
+    return l.length === dflt.length && l.every((k) => dflt.includes(k)) ? null : JSON.stringify(l);
+};
+// A user row as the administrators see it: `access` = everything the person may see and do right now.
+const withAccess = ({ perms, ...u }, companyId) => ({ ...u, access: features.effective({ manager: u.role === 'manager', role: u.role, companyFeatures: companyFeaturesRaw(companyId), perms }), custom: perms != null });
+app.get('/api/company/users', needUser, needCompanyManager, (req, res) => res.json({ users: db.prepare("SELECT id,username,name,role,perms,avatar_ts AS avatarTs FROM users WHERE company_id = ? AND role IN ('manager','client','viewer') ORDER BY username").all(req.user.companyId).map((u) => withAccess(u, req.user.companyId)),
+    available: [...companyAvail(req.user.companyId), ...features.ACTION_KEYS], catalog: features.ALL, defaults: Object.fromEntries(['manager', 'client', 'viewer'].map((r) => [r, features.effective({ manager: r === 'manager', role: r, companyFeatures: companyFeaturesRaw(req.user.companyId) })])) }));
 app.post('/api/company/users', needUser, needCompanyManager, (req, res) => {
     const username = String(req.body?.username ?? '').trim(), password = String(req.body?.password ?? ''), name = String(req.body?.name ?? '').trim().slice(0, 60) || username, role = String(req.body?.role || 'client');
     if (!ROLES.includes(role)) return res.status(400).json({ error: 'Pick Administrator, Operator or Viewer.' });
     if (!/^[\w.-]{3,32}$/.test(username)) return res.status(400).json({ error: 'Username: 3-32 letters, numbers, . _ -' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const lic = license.allow('user'); if (!lic.ok) return res.status(402).json({ error: lic.error, code: lic.code });
-    try { db.prepare('INSERT INTO users(username,name,pass,role,company_id) VALUES(?,?,?,?,?)').run(username, name, hashPassword(password), role, req.user.companyId); }
+    const perms = permsToStore(req.body?.perms, req.user.companyId, role) ?? null;
+    try { db.prepare('INSERT INTO users(username,name,pass,role,company_id,perms) VALUES(?,?,?,?,?,?)').run(username, name, hashPassword(password), role, req.user.companyId, perms); }
     catch (e) { return res.status(409).json({ error: 'This username is already taken.' }); }
     auditlog.add(db, req.user.username, 'user_created', null, { user: name, role, company: req.user.company });
     res.json({ ok: true });
@@ -299,9 +322,10 @@ app.patch('/api/company/users/:id', needUser, needCompanyManager, (req, res) => 
     const role = req.body?.role !== undefined ? String(req.body.role) : u.role;
     if (!ROLES.includes(role)) return res.status(400).json({ error: 'Pick Administrator, Operator or Viewer.' });
     if (u.id === req.user.id && role !== 'manager') return res.status(409).json({ error: 'You cannot lower your own access.' });
-    db.prepare('UPDATE users SET role = ?, name = ? WHERE id = ?').run(role, req.body?.name !== undefined ? String(req.body.name).trim().slice(0, 60) || u.name : u.name, u.id);
-    auditlog.add(db, req.user.username, 'user_role_set', null, { user: u.username, role });
-    if (role !== u.role) kickUsers([u.id]);   // their open pages reconnect and get the new role (a live connection used to keep the old one)
+    const perms = permsToStore(req.body?.perms, req.user.companyId, role), permsNew = perms === undefined ? u.perms : perms;
+    db.prepare('UPDATE users SET role = ?, name = ?, perms = ? WHERE id = ?').run(role, req.body?.name !== undefined ? String(req.body.name).trim().slice(0, 60) || u.name : u.name, permsNew, u.id);
+    auditlog.add(db, req.user.username, perms !== undefined ? 'user_access_set' : 'user_role_set', null, { user: u.username, role, access: perms === undefined ? undefined : perms === null ? 'all' : JSON.parse(perms).join(',') });
+    if (role !== u.role || permsNew !== u.perms) kickUsers([u.id]);   // their open pages reconnect and get the new role (a live connection used to keep the old one)
     res.json({ ok: true });
 });
 app.post('/api/company/users/:id/password', needUser, needCompanyManager, (req, res) => {
@@ -317,7 +341,7 @@ app.delete('/api/company/users/:id', needUser, needCompanyManager, (req, res) =>
     auditlog.add(db, req.user.username, 'user_removed', null, { user: u.name, company: req.user.company });
     res.json({ ok: true });
 });
-app.get('/api/me', needUser, (req, res) => res.json({ ...req.user, staff: isStaff(req.user), super: isSuper(req.user), license: license.summary(req.user), subscription: subscriptionOf(req.user.companyId) }));
+app.get('/api/me', needUser, (req, res) => res.json({ ...req.user, featureList: features.FEATURES, staff: isStaff(req.user), super: isSuper(req.user), license: license.summary(req.user), subscription: subscriptionOf(req.user.companyId) }));
 
 app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     const id = str(req.params.id);
@@ -542,18 +566,43 @@ app.post('/api/analytics/ai', needUser, license.gate('ai'), async (req, res) => 
     } catch (e) { res.status(502).json({ error: 'The analysis could not be generated.' }); }
 });
 
+// ---------- Pictures: a profile picture for every user and a logo for every company (shown instead of the initial letter) ----------
+// The browser shrinks the picture to 256 px first; the server still checks that it really is a small JPEG, PNG or WebP before keeping it.
+const imageType = (b) => (b.length > 12 && b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b.length > 12 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ? 'image/png'
+    : b.length > 12 && b.subarray(0, 4).toString() === 'RIFF' && b.subarray(8, 12).toString() === 'WEBP' ? 'image/webp' : null);
+const rawImage = express.raw({ type: () => true, limit: '300kb' });
+const sendImage = (res, blob, ts) => { const b = Buffer.from(blob || []), t = imageType(b); if (!t) return res.status(404).end(); res.set({ 'content-type': t, 'cache-control': 'private, max-age=86400', 'x-content-type-options': 'nosniff' }).end(b); };
+const userTarget = (id) => db.prepare('SELECT id,username,company_id AS companyId,avatar,avatar_ts FROM users WHERE id = ?').get(Number(id));
+const mayEditUser = (me, t) => !!t && (t.id === me.id || isSuper(me) || (me.role === 'manager' && me.companyId && t.companyId === me.companyId));
+const maySeeCompany = (me, id) => isStaff(me) || me.companyId === id;
+app.get('/api/avatar/user/:id', needUser, (req, res) => { const t = userTarget(req.params.id); return t && t.avatar && (t.id === req.user.id || isStaff(req.user) || t.companyId === req.user.companyId) ? sendImage(res, t.avatar) : res.status(404).end(); });
+app.put('/api/avatar/user/:id', needUser, rawImage, (req, res) => {
+    const t = userTarget(req.params.id); if (!mayEditUser(req.user, t)) return res.status(403).json({ error: 'You cannot change this picture.' });
+    if (!Buffer.isBuffer(req.body) || !imageType(req.body)) return res.status(400).json({ error: 'Send a JPEG, PNG or WebP picture (up to 300 KB).' });
+    db.prepare('UPDATE users SET avatar = ?, avatar_ts = ? WHERE id = ?').run(req.body, Date.now(), t.id); res.json({ ok: true });
+});
+app.delete('/api/avatar/user/:id', needUser, (req, res) => { const t = userTarget(req.params.id); if (!mayEditUser(req.user, t)) return res.status(403).json({ error: 'You cannot change this picture.' }); db.prepare('UPDATE users SET avatar = NULL, avatar_ts = NULL WHERE id = ?').run(t.id); res.json({ ok: true }); });
+app.get('/api/avatar/company/:id', needUser, (req, res) => { const id = Number(req.params.id), c = maySeeCompany(req.user, id) && db.prepare('SELECT logo FROM companies WHERE id = ?').get(id); return c && c.logo ? sendImage(res, c.logo) : res.status(404).end(); });
+const mayEditCompany = (me, id) => isSuper(me) || (me.role === 'manager' && me.companyId === id);
+app.put('/api/avatar/company/:id', needUser, rawImage, (req, res) => {
+    const id = Number(req.params.id); if (!mayEditCompany(req.user, id) || !db.prepare('SELECT 1 FROM companies WHERE id = ?').get(id)) return res.status(403).json({ error: 'You cannot change this logo.' });
+    if (!Buffer.isBuffer(req.body) || !imageType(req.body)) return res.status(400).json({ error: 'Send a JPEG, PNG or WebP picture (up to 300 KB).' });
+    db.prepare('UPDATE companies SET logo = ?, logo_ts = ? WHERE id = ?').run(req.body, Date.now(), id); res.json({ ok: true });
+});
+app.delete('/api/avatar/company/:id', needUser, (req, res) => { const id = Number(req.params.id); if (!mayEditCompany(req.user, id)) return res.status(403).json({ error: 'You cannot change this logo.' }); db.prepare('UPDATE companies SET logo = NULL, logo_ts = NULL WHERE id = ?').run(id); res.json({ ok: true }); });
+
 // ---------- Company management (Smart Way administrators only) ----------
 const adminOnly = [needUser, needAdmin];
 app.get('/api/admin/companies', adminOnly, (req, res) => {
     const tokenIds = new Set(db.prepare('SELECT id FROM cameras WHERE token_hash IS NOT NULL').all().map((r) => r.id));
-    const companies = db.prepare('SELECT id,name,max_cameras AS maxCameras,max_live AS maxLive,sub_end AS subEnd FROM companies ORDER BY name').all().map((c) => ({
-        ...c, subscription: subscriptionOf(c.id), camerasUsed: cameraCount(c.id), liveNow: liveCount(c.id),
-        users: db.prepare('SELECT id,username,name,role,employee_no AS employeeNo,active FROM users WHERE company_id = ? ORDER BY role = \'officer\', username').all(c.id)
-            .map((u) => ({ ...u, active: u.active !== 0, holding: u.role === 'officer' || u.role === 'client' ? (checkout.openOf(u.id) ? cams.get(checkout.openOf(u.id).camera_id)?.name || checkout.openOf(u.id).camera_id : null) : null })),
+    const companies = db.prepare('SELECT id,name,max_cameras AS maxCameras,max_live AS maxLive,sub_end AS subEnd,features,logo_ts AS logoTs FROM companies ORDER BY name').all().map(({ features: f, ...c }) => ({
+        ...c, features: companyAvail(c.id), allFeatures: f === null, subscription: subscriptionOf(c.id), camerasUsed: cameraCount(c.id), liveNow: liveCount(c.id),
+        users: db.prepare('SELECT id,username,name,role,employee_no AS employeeNo,active,perms,avatar_ts AS avatarTs FROM users WHERE company_id = ? ORDER BY role = \'officer\', username').all(c.id)
+            .map((u0) => withAccess(u0, c.id)).map((u) => ({ ...u, active: u.active !== 0, holding: u.role === 'officer' || u.role === 'client' ? (checkout.openOf(u.id) ? cams.get(checkout.openOf(u.id).camera_id)?.name || checkout.openOf(u.id).camera_id : null) : null })),
     }));
     const cameras = [...cams.values()].map((c) => ({ id: c.cameraId, name: c.name, companyId: c.companyId, region: c.region || null, online: c.online, hasToken: tokenIds.has(c.cameraId) }));
     const regions = db.prepare('SELECT name FROM regions ORDER BY created').all().map((r) => r.name);
-    res.json({ companies, cameras, regions, packages: packages.PACKAGES });
+    res.json({ companies, cameras, regions, packages: packages.PACKAGES, catalog: features.ALL });
 });
 app.post('/api/admin/regions', adminOnly, (req, res) => {
     const name = String(req.body?.name ?? '').trim().slice(0, 40);
@@ -586,8 +635,16 @@ app.post('/api/admin/companies', adminOnly, (req, res) => {
     try {
         const pkg = packages.parsePackage(req.body?.maxCameras, req.body?.maxLive);
         if (pkg.error) return res.status(400).json({ error: pkg.error });
-        const r = db.prepare('INSERT INTO companies(name,created,max_cameras,max_live) VALUES(?,?,?,?)').run(name, Date.now(), pkg.maxCameras, pkg.maxLive);
-        res.json({ ok: true, id: Number(r.lastInsertRowid) });
+        const r = db.prepare('INSERT INTO companies(name,created,max_cameras,max_live,features) VALUES(?,?,?,?,?)').run(name, Date.now(), pkg.maxCameras, pkg.maxLive, Array.isArray(req.body?.features) ? features.store(req.body.features) : null);
+        const id = Number(r.lastInsertRowid);
+        // optionally with the company's administrator account (the person who manages its users, employees and pictures)
+        const au = String(req.body?.adminUsername ?? '').trim(), ap = String(req.body?.adminPassword ?? '');
+        if (au) {
+            if (!/^[\w.-]{3,32}$/.test(au) || ap.length < 8) { db.prepare('DELETE FROM companies WHERE id = ?').run(id); return res.status(400).json({ error: 'Administrator username: 3-32 letters, numbers, . _ -   Password: 8+ characters.' }); }
+            try { db.prepare('INSERT INTO users(username,name,pass,role,company_id) VALUES(?,?,?,?,?)').run(au, name + ' Administrator', hashPassword(ap), 'manager', id); auditlog.add(db, req.user.username, 'user_created', null, { user: au, role: 'manager', company: name }); }
+            catch (e) { db.prepare('DELETE FROM companies WHERE id = ?').run(id); return res.status(409).json({ error: 'This administrator username is already taken.' }); }
+        }
+        res.json({ ok: true, id });
     } catch (e) { res.status(409).json({ error: 'A company with this name already exists.' }); }
 });
 // Change a company's package (camera cap) and live-stream cap. Cannot shrink below what it already uses.
@@ -614,6 +671,27 @@ app.put('/api/admin/companies/:id/package', adminOnly, (req, res) => {
     db.prepare('UPDATE companies SET max_cameras = ?, max_live = ? WHERE id = ?').run(pkg.maxCameras, pkg.maxLive, id);
     auditlog.add(db, req.user.username, `package_${pkg.maxCameras || 'unlimited'}`, null);
     res.json({ ok: true });
+});
+// Which parts of the system a company has. Taking one away also takes it from every user of that company (their permissions are cut to what is left).
+app.put('/api/admin/companies/:id/features', adminOnly, (req, res) => {
+    const id = Number(req.params.id), c = db.prepare('SELECT name FROM companies WHERE id = ?').get(id);
+    if (!c) return res.status(404).json({ error: 'Company not found.' });
+    if (!Array.isArray(req.body?.features)) return res.status(400).json({ error: 'Send the list of features.' });
+    const list = features.clean(req.body.features);
+    db.prepare('UPDATE companies SET features = ? WHERE id = ?').run(list.length === features.KEYS.length ? null : JSON.stringify(list), id);
+    auditlog.add(db, req.user.username, 'company_features_set', null, { company: c.name, features: list.join(',') || 'none' });
+    kickUsers(db.prepare('SELECT id FROM users WHERE company_id = ?').all(id).map((r) => r.id));   // their open pages reload with the new menu
+    res.json({ ok: true, features: list });
+});
+// What one user may see and do (Smart Way sets it for any user of any company; a company's own administrator does the same from the Team page).
+app.put('/api/admin/users/:id/access', adminOnly, (req, res) => {
+    const u = db.prepare("SELECT id,username,role,company_id AS companyId FROM users WHERE id = ? AND company_id IS NOT NULL AND role != 'officer'").get(Number(req.params.id));
+    if (!u) return res.status(404).json({ error: 'User not found.' });
+    if (u.role === 'manager') return res.status(409).json({ error: 'An administrator can use everything the company has. Make the user an Operator or a Viewer first.' });
+    const perms = permsToStore(req.body?.perms, u.companyId, u.role); if (perms === undefined) return res.status(400).json({ error: 'Send the list.' });
+    db.prepare('UPDATE users SET perms = ? WHERE id = ?').run(perms, u.id);
+    auditlog.add(db, req.user.username, 'user_access_set', null, { user: u.username, access: perms === null ? 'default' : JSON.parse(perms).join(',') });
+    kickUsers([u.id]); res.json({ ok: true });
 });
 function kickUsers(userIds) {
     for (const s of io.sockets.sockets.values()) if (userIds.includes(s.data.user?.id)) s.disconnect(true);
@@ -643,8 +721,8 @@ app.post('/api/admin/companies/:id/users', adminOnly, (req, res) => {
     if (employeeNo && db.prepare('SELECT 1 FROM users WHERE company_id = ? AND employee_no = ?').get(id, employeeNo)) return res.status(409).json({ error: `Employee number ${employeeNo} is already used in this company.` });
     const lic = license.allow(role === 'officer' ? 'employee' : 'user'); if (!lic.ok) return res.status(402).json({ error: lic.error, code: lic.code });
     try {
-        db.prepare('INSERT INTO users(username,name,pass,role,company_id,employee_no) VALUES(?,?,?,?,?,?)')
-            .run(username, name, hashPassword(password), role, id, employeeNo);
+        db.prepare('INSERT INTO users(username,name,pass,role,company_id,employee_no,perms) VALUES(?,?,?,?,?,?,?)')
+            .run(username, name, hashPassword(password), role, id, employeeNo, role === 'officer' ? null : permsToStore(req.body?.perms, id, role) ?? null);
         auditlog.add(db, req.user.username, role === 'officer' ? 'employee_created' : 'user_created', null, { user: name, employeeNo, company: companyName(id) });
         res.json({ ok: true });
     } catch (e) { res.status(409).json({ error: 'This username is already taken.' }); }
@@ -756,7 +834,7 @@ support.register(app, { db, needUser, isStaff, str, cams, canSee, companyName, m
 require('./license').register(app, { license, needUser, needAdmin, audit: (user, action, cam, detail) => auditlog.add(db, user, action, cam || null, detail || null) });
 
 // Docking stations: offload recordings from cameras (see dock.js)
-const dockApi = require('./dock').register(app, { db, cams, needUser, needAdmin, needWrite, needDelete, canSee, isStaff, str, companyName, publish, setBattery: (id, b) => battery.set(id, { battery: b, src: 'dock' }) });
+const dockApi = require('./dock').register(app, { db, cams, needUser, needAdmin, needWrite: needFiles, needDelete, canSee, isStaff, str, companyName, publish, setBattery: (id, b) => battery.set(id, { battery: b, src: 'dock' }) });
 
 // Employees take a camera at the check-out station; the camera is told who carries it (see checkout.js)
 const checkoutMod = require('./checkout');
@@ -787,15 +865,17 @@ app.get(/^\/live\/([\w.-]+\.flv)$/, (req, res) => {
 
 // ---------- Pages ----------
 const page = (file) => (req, res) => res.sendFile(path.join(__dirname, 'public', file));
-app.get(['/', '/index.html'], needUser, page('index.html'));
-app.get('/analytics.html', needUser, page('analytics.html'));
-app.get('/docks.html', needUser, page('docks.html'));
+const home = (u) => (isStaff(u) ? '/admin.html' : ['/', '/analytics.html', '/reports.html', '/docks.html', '/help.html'].find((p) => !features.PAGE_RULES[p] || can(u, features.PAGE_RULES[p])) || '/help.html');
+const featPage = (file) => (req, res) => { const f = features.PAGE_RULES[req.path]; return f && !can(req.user, f) ? res.redirect(home(req.user)) : page(file)(req, res); };
+app.get(['/', '/index.html'], needUser, featPage('index.html'));
+app.get('/analytics.html', needUser, featPage('analytics.html'));
+app.get('/docks.html', needUser, featPage('docks.html'));
 app.get('/help.html', needUser, page('help.html'));
-app.get('/reports.html', needUser, page('reports.html'));
+app.get('/reports.html', needUser, featPage('reports.html'));
 app.get('/employees.html', needUser, (req, res) => (req.user.companyId && req.user.role === 'manager' ? page('employees.html')(req, res) : res.redirect(isStaff(req.user) ? '/admin.html' : '/analytics.html')));
 app.get('/license.html', needUser, (req, res) => (isSuper(req.user) ? page('license.html')(req, res) : res.redirect('/analytics.html')));
 app.get('/station.html', page('station.html'));   // the check-out station: public page, employees sign in on it
-app.get('/wall.html', needUser, page('wall.html'));
+app.get('/wall.html', needUser, featPage('wall.html'));
 app.get('/updates.html', needUser, (req, res) => (isSuper(req.user) ? page('updates.html')(req, res) : res.redirect('/analytics.html')));
 app.get('/admin.html', needUser, (req, res, next) => (isSuper(req.user) ? page('admin.html')(req, res) : res.redirect('/analytics.html')));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
@@ -900,7 +980,7 @@ io.on('connection', (socket) => {
     });
 
     on('send_message', (payload) => {
-        if (isDash && !canWrite(user)) return;
+        if (isDash && (!canWrite(user) || !can(user, 'talk'))) return;
         if (!payload || !['PUBLIC', 'PRIVATE', 'GROUP'].includes(payload.chatType)) return;
         const senderId = isDash ? 'ADMIN' : (socket.data.cameraId || 'UNKNOWN');
         const senderName = isDash ? (user.name || 'Admin') : senderId;
@@ -935,9 +1015,10 @@ io.on('connection', (socket) => {
     if (isDash) {
         socket.emit('dashboard_snapshot', { cams: visibleCams(user), alarms: recentAlarms(user), alerts: battery.open((id) => canSee(user, id)) });
         on('ack_alert', (id) => {
-            if (!canWrite(user)) return; battery.ack(id, user.username, (camId) => canSee(user, camId)); });
+            if (!canWrite(user) || !can(user, 'ack')) return; battery.ack(id, user.username, (camId) => canSee(user, camId)); });
         // Control room starts/stops a camera's live stream without the officer doing anything (like PTT, but remote).
         on('remote_stream', (d) => {
+            if (!can(user, 'stream')) return;
             const id = str(d?.cameraId), action = d?.action;
             if (!id || !['start', 'stop'].includes(action) || !canSee(user, id)) return;
             const c = cams.get(id);
@@ -971,14 +1052,14 @@ io.on('connection', (socket) => {
         });
         // Control room changes a camera's video quality (e.g. weak network -> 480p).
         on('set_quality', (d) => {
-            if (!canWrite(user)) return;
+            if (!canWrite(user) || !can(user, 'quality')) return;
             const id = str(d?.cameraId), quality = d?.quality;
             if (!id || !['auto', '480p', '720p', '1080p'].includes(quality) || !canSee(user, id) || !cams.get(id)?.online) return;   // 240p/4k removed: not worth the failures
             auditlog.add(db, user.username, `set_quality_${quality}`, id);
             io.to(`room:camera_${id}`).emit('set_quality', { quality });
         });
         on('ack_alarm', (id) => {
-            if (!canWrite(user)) return;
+            if (!canWrite(user) || !can(user, 'ack')) return;
             id = Number(id);
             if (!Number.isInteger(id)) return;
             const a = db.prepare('SELECT camera_id FROM alarms WHERE id = ?').get(id);

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/auth_controller.dart';
 import '../api/models.dart';
 import '../l10n/strings.dart';
 import '../theme/vg_theme.dart';
@@ -232,4 +234,27 @@ String fmtBytes(int b) {
   if (b >= 1e9) return ltr('${(b / 1e9).toStringAsFixed(1)} GB');
   if (b >= 1e6) return ltr('${(b / 1e6).round()} MB');
   return ltr('${(b / 1e3).round()} KB');
+}
+
+/// Shows [child] only when the signed-in person may use [feature]; otherwise a short "not included" page (the server refuses it as well).
+class FeatureGate extends ConsumerWidget {
+  const FeatureGate({super.key, required this.feature, required this.child});
+  final String feature;
+  final Widget child;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(sessionProvider)?.user;
+    if (user == null || user.can(feature)) return child;
+    final v = context.vg;
+    return Scaffold(
+      appBar: AppBar(),
+      body: Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.lock_outline_rounded, size: 48, color: v.mut),
+        const SizedBox(height: 14),
+        Text(context.tr('no_feature'), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        const SizedBox(height: 6),
+        Text(context.tr('no_feature_sub'), textAlign: TextAlign.center, style: TextStyle(color: v.mut)),
+      ]))),
+    );
+  }
 }

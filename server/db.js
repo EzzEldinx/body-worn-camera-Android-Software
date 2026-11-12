@@ -33,6 +33,12 @@ addColumn('cameras', 'holder', 'TEXT');               // who carries the camera 
 addColumn('cameras', 'token_hash', 'TEXT');           // sha256 of the camera's own device token
 addColumn('companies', 'max_cameras', 'INTEGER');   // package size (NULL = unlimited / legacy)
 addColumn('companies', 'max_live', 'INTEGER');
+addColumn('companies', 'features', 'TEXT');          // JSON list of what the company may use (NULL = everything)
+addColumn('users', 'perms', 'TEXT');
+addColumn('users', 'avatar', 'BLOB');                // profile picture (a small JPEG/PNG/WebP), shown instead of the initial letter
+addColumn('users', 'avatar_ts', 'INTEGER');
+addColumn('companies', 'logo', 'BLOB');              // the company's logo
+addColumn('companies', 'logo_ts', 'INTEGER');                 // JSON list of what this user may use (NULL = everything the company has)
 addColumn('companies', 'sub_end', 'INTEGER');       // end of the company's subscription (NULL = no end date)      // max cameras streaming live at once (NULL = unlimited)
 addColumn('cameras', 'company_id', 'INTEGER');
 addColumn('cameras', 'region', 'TEXT');

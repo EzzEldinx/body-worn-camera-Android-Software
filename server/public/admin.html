@@ -58,6 +58,20 @@ td select{width:100%}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;background:var(--off)}
 .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
 .empty{color:var(--mut);font-size:13.5px;padding:14px 0}
+.fgroup{margin-top:10px}.fgroup>h4{margin:0 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--mut)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.fopt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:11px;background:var(--raise);border:1px solid var(--line-soft);cursor:pointer;transition:border-color .12s,background .12s}
+.fopt:hover{border-color:var(--line)}
+.fopt input{width:17px;height:17px;margin-top:2px;accent-color:var(--brand);flex:none;cursor:pointer}
+.fopt b{display:block;font-size:13.5px}.fopt small{display:block;color:var(--mut);font-size:12px;line-height:1.35;margin-top:1px}
+.fopt.on{border-color:color-mix(in srgb,var(--brand) 55%,var(--line));background:color-mix(in srgb,var(--brand) 7%,var(--raise))}
+.fopt.dim{opacity:.5;cursor:not-allowed}
+.kind{margin:16px 0 0;font-size:13px;font-weight:800;color:var(--text);padding-bottom:4px;border-bottom:1px solid var(--line-soft)}
+.co-head .logo.has{background:var(--panel);border:1px solid var(--line);box-shadow:none}.co-head .logo .avimg{object-fit:contain;padding:3px}
+.uw{display:grid;gap:6px}.uacc{display:none;padding:2px 14px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line-soft)}.uw.open .uacc{display:block}
+.piccell{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px}
+.fbar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.fcount{font-size:12.5px;color:var(--mut)}
 </style>
 </head>
 <body>
@@ -70,6 +84,9 @@ td select{width:100%}
       <select id="coPkg" aria-label="Package"></select>
       <button class="btn pri" id="coAdd">Add company</button>
     </div>
+    <div class="newco" style="margin-top:10px"><input id="coAdmin" placeholder="Administrator username (the company's own login, e.g. alnoor.admin)" maxlength="32" autocomplete="off">
+      <span class="muted" style="font-size:12.5px;align-self:center;flex:2;min-width:220px">Leave empty to add the administrator later. A strong password is made for you and shown once.</span></div>
+    <details class="bulk" style="margin-top:12px"><summary>Choose what this company can use <span class="muted" style="font-weight:500">(all selected by default)</span></summary><div id="newFeat"></div></details>
   </section>
   <div class="layout">
     <section class="card">
@@ -119,15 +136,36 @@ const genPw = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ
 const pkgOptions = (sel) => '<option value="">Unlimited (legacy)</option>' + (data.packages || []).map((p) =>
   `<option value="${p.maxCameras}" ${sel === p.maxCameras ? 'selected' : ''}>${p.maxCameras} cameras · ${p.maxLive} live</option>`).join('');
 
-const openCo = new Set();   // companies that are expanded (the rest are collapsed into one line each)
+// Feature checkboxes, grouped. sel = what is ticked, avail = what may be ticked at all (a user cannot get what the company does not have).
+function featBoxes(sel, avail, attr, kinds = ['feature']) {
+  const all = data.catalog || [], opt = (f) => {
+    const on = sel.includes(f.key), ok = avail.includes(f.key);
+    return `<label class="fopt ${on ? 'on' : ''} ${ok ? '' : 'dim'}" title="${ok ? '' : 'Not included in this company'}"><input type="checkbox" ${attr}="${f.key}" ${on ? 'checked' : ''} ${ok ? '' : 'disabled'}><span><b>${esc(f.label)}</b><small>${esc(f.hint)}</small></span></label>`;
+  };
+  return kinds.map((k) => {
+    const cat = all.filter((f) => (f.kind || 'feature') === k), groups = [...new Set(cat.map((f) => f.group))];
+    return (kinds.length > 1 ? `<div class="kind">${k === 'feature' ? 'Can see' : 'Can do'}</div>` : '') + groups.map((g) => `<div class="fgroup"><h4>${esc(g)}</h4><div class="fgrid">${cat.filter((f) => f.group === g).map(opt).join('')}</div></div>`).join('');
+  }).join('');
+}
+// Ticking something that needs another one (Live wall needs Live dashboard) ticks that one too; unticking it unticks them.
+function fixNeeds(box, attr, changed) {
+  const cat = data.catalog || [], on = (k) => box.querySelector(`[${attr}="${k}"]`);
+  const cb = on(changed.dataset[attr.replace('data-', '')]); if (!cb) return;
+  const f = cat.find((x) => x.key === cb.getAttribute(attr));
+  if (cb.checked) (f.needs || []).forEach((n) => { const x = on(n); if (x && !x.disabled) x.checked = true; });
+  else cat.filter((x) => (x.needs || []).includes(f.key)).forEach((x) => { const y = on(x.key); if (y) y.checked = false; });
+}
+const ticked = (box, attr) => [...box.querySelectorAll(`[${attr}]:checked`)].map((c) => c.getAttribute(attr));
+const openCo = new Set(), openU = new Set();   // companies that are expanded (the rest are collapsed into one line each)
 function render() {
   $('#coCount').textContent = data.companies.length ? `· ${data.companies.length}` : '';
   $('#coPkg').innerHTML = pkgOptions(20).replace('Unlimited (legacy)', 'Unlimited');
+  if (!$('#newFeat').children.length) { const all = (data.catalog || []).filter((f) => f.kind === 'feature').map((f) => f.key); $('#newFeat').innerHTML = featBoxes(all, all, 'data-nf'); }
   const byCo = (id) => data.cameras.filter((c) => c.companyId === id);
   $('#companies').innerHTML = data.companies.length ? data.companies.map((co) => `
     <div class="co ${openCo.has(co.id) ? 'open' : ''}" data-id="${co.id}">
       <div class="co-head" data-act="toggle" style="cursor:pointer">
-        <i class="chev">▸</i><div class="logo">${esc(co.name[0].toUpperCase())}</div>
+        <i class="chev">▸</i><div class="logo ${co.logoTs ? 'has' : ''}">${avatarInner('company', co.id, co.logoTs, co.name[0].toUpperCase())}</div>
         <div><h2>${esc(co.name)}</h2><div class="meta">${co.users.filter((u) => u.role !== 'officer').length} user${co.users.filter((u) => u.role !== 'officer').length === 1 ? '' : 's'} · ${co.users.filter((u) => u.role === 'officer').length} employee${co.users.filter((u) => u.role === 'officer').length === 1 ? '' : 's'} · ${byCo(co.id).length}${co.maxCameras ? ' / ' + co.maxCameras : ''} camera${byCo(co.id).length === 1 ? '' : 's'}${co.maxLive ? ` · live ${co.liveNow} / ${co.maxLive}` : ''}</div></div>
         <select class="pkg" data-act="pkg" aria-label="Package">${pkgOptions(co.maxCameras)}</select>
         <span class="subbox" title="Subscription: the company is told 30 days before it ends"><span class="chip-s ${co.subscription ? co.subscription.state : 'none'}">${co.subscription ? (co.subscription.state === 'locked' ? 'LOCKED since ' + new Date(co.subscription.lockOn).toISOString().slice(0, 10) : co.subscription.daysLeft < 0 ? 'Ended ' + new Date(co.subEnd).toISOString().slice(0, 10) : 'Until ' + new Date(co.subEnd).toISOString().slice(0, 10) + ' · ' + co.subscription.daysLeft + ' d') : 'No end date'}</span>
@@ -135,14 +173,23 @@ function render() {
         <button class="btn sm danger sp" data-act="delco">Delete company</button>
       </div>
       <div class="co-body">
+      <div class="sub">Company logo</div>
+      <div class="piccell"><div class="logo ${co.logoTs ? 'has' : ''}" style="width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--blue));overflow:hidden">${avatarInner('company', co.id, co.logoTs, co.name[0].toUpperCase())}</div>
+        <button class="btn sm" data-act="logo">${co.logoTs ? 'Change logo' : 'Upload logo'}</button>${co.logoTs ? '<button class="btn sm" data-act="logorm">Remove</button>' : ''}<span class="muted" style="font-size:12.5px">Shown next to the company name. PNG, JPEG or WebP.</span></div>
+      <div class="sub">What this company can use <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(safety alarms and Support are always on)</span></div>
+      <div class="feat" data-feat="${co.id}">${featBoxes(co.features, (data.catalog || []).map((f) => f.key), 'data-f')}
+        <div class="fbar"><span class="fcount">${co.features.length} of ${(data.catalog || []).filter((f) => f.kind === 'feature').length} selected</span><button class="btn sm" data-act="fall">Select all</button><button class="btn sm" data-act="fnone">Clear</button><button class="btn sm pri" data-act="fsave">Save features</button></div></div>
       <div class="sub">Assigned cameras</div>
       <div class="chips">${byCo(co.id).map((c) => `<span class="cam">${esc(c.id)}</span>`).join('') || '<span class="muted" style="font-size:13px">None yet. Assign cameras from the list on the right.</span>'}</div>
 
+      ${co.users.some((u) => u.role === 'manager') ? '' : `<div class="cred" style="margin-top:14px"><b>This company has no administrator yet.</b> Its administrator gets the Employees tab: users, access, pictures and employees.<button class="btn pri sm" data-act="mkadmin">Create administrator account</button></div>`}
       <div class="sub">Dashboard users <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(watch the live wall and the map)</span></div>
       <div class="users">${co.users.filter((u) => u.role !== 'officer').map((u) => `
-        <div class="user" data-uid="${u.id}"><div class="av">${esc(u.username[0].toUpperCase())}</div>
+        <div class="uw ${openU.has(u.id) ? 'open' : ''}" data-uid="${u.id}"><div class="user" data-uid="${u.id}"><div class="av">${avatarInner('user', u.id, u.avatarTs, u.username[0].toUpperCase())}</div>
           <div><b>${esc(u.username)}</b><small>${esc(u.name)} · ${({ manager: 'Administrator', client: 'Operator', viewer: 'Viewer' })[u.role] || u.role}</small></div>
-          <div class="sp"><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>`).join('') || '<div class="empty">No users yet.</div>'}</div>
+          <div class="sp"><button class="btn sm" data-act="upic">Photo</button><button class="btn sm" data-act="uacc">Access · ${u.role === 'manager' ? 'full' : u.access.filter((k) => co.features.includes(k) || (data.catalog.find((f) => f.key === k) || {}).kind === 'action').length + ' on'}</button><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>
+          <div class="uacc">${u.role === 'manager' ? '<div class="muted" style="padding-top:12px;font-size:13px">An administrator can use everything the company has. Make the user an Operator or a Viewer to limit what they can see and do.</div>'
+            : `<div data-ubox>${featBoxes(u.access, [...co.features, ...data.catalog.filter((f) => f.kind === 'action').map((f) => f.key)], 'data-up', ['feature', 'action'])}<div class="fbar"><span class="fcount">${u.access.length} selected</span><button class="btn sm" data-act="uall">Select all</button><button class="btn sm" data-act="unone">Clear</button><button class="btn sm pri" data-act="usave">Save access</button></div></div>`}</div></div>`).join('') || '<div class="empty">No users yet.</div>'}</div>
       ${lastCred[co.id] ? `<div class="cred">Login to give to the customer: <code>${esc(lastCred[co.id].username)}</code> <code>${esc(lastCred[co.id].password)}</code>
         <button class="btn sm" data-act="copy">Copy</button><span class="muted" style="font-size:12px">Shown only now. Save it.</span></div>` : ''}
       <div class="adduser">
@@ -155,9 +202,9 @@ function render() {
 
       <div class="sub">Employees <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(each has a username and password and takes a camera at the docking station)</span></div>
       <div class="users">${co.users.filter((u) => u.role === 'officer').map((u) => `
-        <div class="user ${u.active ? '' : 'is-off'}" data-uid="${u.id}"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}</div>
+        <div class="user ${u.active ? '' : 'is-off'}" data-uid="${u.id}"><div class="av">${avatarInner('user', u.id, u.avatarTs, (u.name || u.username)[0].toUpperCase())}</div>
           <div><b>${esc(u.name)}${u.holding ? `<span class="emp-tag on">has ${esc(u.holding)}</span>` : ''}${u.active ? '' : '<span class="emp-tag off">switched off</span>'}</b><small>${u.employeeNo ? 'No. ' + esc(u.employeeNo) + (u.username !== u.employeeNo ? ' · ' + esc(u.username) : '') : esc(u.username)}</small></div>
-          <div class="sp"><button class="btn sm" data-act="editemp">Edit</button><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm" data-act="toggleemp">${u.active ? 'Switch off' : 'Switch on'}</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>`).join('') || '<div class="empty">No employees yet. Add the people who will carry cameras.</div>'}</div>
+          <div class="sp"><button class="btn sm" data-act="upic">Photo</button><button class="btn sm" data-act="editemp">Edit</button><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm" data-act="toggleemp">${u.active ? 'Switch off' : 'Switch on'}</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>`).join('') || '<div class="empty">No employees yet. Add the people who will carry cameras.</div>'}</div>
       ${(lastEmp[co.id] || []).length ? `<div class="credbox"><div class="head"><b>Logins to hand out (${lastEmp[co.id].length})</b><span class="muted">Shown only now. Save them.</span>
         <button class="btn sm" data-act="copyemp">Copy</button><button class="btn sm" data-act="csvemp">Download CSV</button></div>
         <table>${lastEmp[co.id].map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.employeeNo || '')}</td><td>${esc(c.username)}</td><td>${esc(c.password)}</td></tr>`).join('')}</table></div>` : ''}
@@ -186,7 +233,8 @@ function render() {
 $('#coAdd').onclick = () => {
   const name = $('#coName').value.trim();
   if (!name) return;
-  api('POST', '/api/admin/companies', { name, maxCameras: $('#coPkg').value === '' ? null : Number($('#coPkg').value) }).then(() => { $('#coName').value = ''; toast('Company added'); return load(); }).catch(fail);
+  const adminUsername = $('#coAdmin').value.trim(), adminPassword = adminUsername ? genPw() : '';
+  api('POST', '/api/admin/companies', { name, maxCameras: $('#coPkg').value === '' ? null : Number($('#coPkg').value), features: ticked($('#newFeat'), 'data-nf'), adminUsername, adminPassword }).then((r) => { if (adminUsername) { lastCred[r.id] = { username: adminUsername, password: adminPassword }; openCo.add(r.id); } $('#coName').value = $('#coAdmin').value = ''; $('#newFeat').innerHTML = ''; toast('Company added'); return load(); }).catch(fail);
 };
 $('#coName').onkeydown = (e) => { if (e.key === 'Enter') $('#coAdd').click(); };
 
@@ -194,6 +242,18 @@ $('#companies').addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const co = b.closest('.co'), id = Number(co.dataset.id), act = b.dataset.act;
   if (act === 'toggle') { co.classList.toggle('open'); if (co.classList.contains('open')) openCo.add(id); else openCo.delete(id); return; }
+  if (act === 'fall' || act === 'fnone') { const box = co.querySelector('.feat'); box.querySelectorAll('[data-f]').forEach((c) => { c.checked = act === 'fall'; }); syncBox(box, 'data-f'); return; }
+  if (act === 'fsave') { api('PUT', `/api/admin/companies/${id}/features`, { features: ticked(co.querySelector('.feat'), 'data-f') }).then(() => { toast('Saved. The company\'s users see the change at once.'); return load(); }).catch(fail); return; }
+  if (act === 'logo') { pickPicture('company', id).then((ok) => ok && (toast('Logo saved'), load())).catch(fail); return; }
+  if (act === 'logorm') { removePicture('company', id).then(() => { toast('Logo removed'); return load(); }).catch(fail); return; }
+  if (act === 'upic') { const uid = Number(b.closest('.user').dataset.uid); pickPicture('user', uid).then((ok) => ok && (toast('Picture saved'), load())).catch(fail); return; }
+  if (act === 'uacc') { const w = b.closest('.uw'), uid = Number(w.dataset.uid); w.classList.toggle('open'); w.classList.contains('open') ? openU.add(uid) : openU.delete(uid); return; }
+  if (act === 'uall' || act === 'unone') { const box = b.closest('[data-ubox]'); box.querySelectorAll('[data-up]:not(:disabled)').forEach((c) => { c.checked = act === 'uall'; }); syncBox(box, 'data-up'); return; }
+  if (act === 'usave') { const w = b.closest('.uw'); api('PUT', `/api/admin/users/${w.dataset.uid}/access`, { perms: ticked(w.querySelector('[data-ubox]'), 'data-up') }).then(() => { toast('Access saved. It applies at once.'); return load(); }).catch(fail); return; }
+  if (act === 'mkadmin') {
+    const base = (co.querySelector('h2').textContent.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 18) || 'company'), username = base + '.admin', password = genPw();
+    api('POST', `/api/admin/companies/${id}/users`, { username, password, name: co.querySelector('h2').textContent + ' Administrator', role: 'manager' })
+      .then(() => { lastCred[id] = { username, password }; toast('Administrator created'); return load(); }).catch(fail); return; }
   if (act === 'gen') { co.querySelector('.np').value = genPw(); return; }
   if (act === 'copy') { const c = lastCred[id]; navigator.clipboard?.writeText(`Username: ${c.username}\nPassword: ${c.password}`).then(() => toast('Copied')); return; }
   if (act === 'adduser') {
@@ -240,6 +300,16 @@ $('#companies').addEventListener('click', (e) => {
   }
 });
 
+function syncBox(box, attr, changed) {
+  if (changed) fixNeeds(box, attr, changed);
+  box.querySelectorAll('.fopt').forEach((l) => l.classList.toggle('on', l.querySelector('input').checked));
+  const n = box.querySelector('.fcount'); if (n) n.textContent = attr === 'data-up' ? `${ticked(box, attr).length} selected` : `${ticked(box, attr).length} of ${(data.catalog || []).filter((f) => (f.kind || 'feature') === 'feature').length} selected`;
+}
+document.addEventListener('change', (e) => {
+  const c = e.target.closest('[data-f],[data-nf],[data-up]'); if (!c) return;
+  const attr = c.hasAttribute('data-f') ? 'data-f' : c.hasAttribute('data-nf') ? 'data-nf' : 'data-up';
+  syncBox(c.closest('.feat, #newFeat, [data-ubox]'), attr, c);
+});
 $('#companies').addEventListener('change', (e) => {
   const sb = e.target.closest('select.subsel');
   if (sb) {

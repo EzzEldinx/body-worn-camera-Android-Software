@@ -102,19 +102,23 @@ class LicenseInfo {
 }
 
 class User {
-  User({required this.id, required this.username, required this.name, required this.role, required this.staff, required this.superAdmin, this.company, this.companyId});
+  User({required this.id, required this.username, required this.name, required this.role, required this.staff, required this.superAdmin, this.company, this.companyId, this.features});
   final int id;
   final String username, name, role;
   final bool staff, superAdmin;
   final String? company;
   final int? companyId;
+  /// What this person may use (set by Smart Way per company and by the company's administrator per user). null = unknown (older server): everything.
+  final List<String>? features;
+  bool can(String f) => features == null || features!.contains(f);
 
   factory User.fromJson(Map j) => User(
         id: (j['id'] as num).toInt(), username: '${j['username']}', name: '${j['name']}', role: '${j['role']}',
         staff: j['staff'] == true, superAdmin: j['super'] == true, company: j['company'] as String?, companyId: (j['companyId'] as num?)?.toInt(),
+        features: j['features'] is List ? [for (final f in j['features'] as List) '$f'] : null,
       );
 
-  Map<String, dynamic> toJson() => {'id': id, 'username': username, 'name': name, 'role': role, 'staff': staff, 'super': superAdmin, 'company': company, 'companyId': companyId};
+  Map<String, dynamic> toJson() => {'id': id, 'username': username, 'name': name, 'role': role, 'staff': staff, 'super': superAdmin, 'company': company, 'companyId': companyId, 'features': features};
 }
 
 class Recording {

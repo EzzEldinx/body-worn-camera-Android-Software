@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../auth/auth_controller.dart';
 import '../../core/api/fleet.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
@@ -54,7 +55,7 @@ class LiveScreen extends ConsumerWidget {
           itemBuilder: (_) => [for (final n in options) CheckedPopupMenuItem(value: n, checked: n == layout, child: Text('$n'))],
         ),
         if (dismissed.isNotEmpty) IconButton(tooltip: context.tr('show_all'), icon: const Icon(Icons.visibility_rounded, size: 20), onPressed: () => ref.read(dismissedProvider.notifier).clear()),
-        IconButton(tooltip: context.tr('live_wall'), icon: const Icon(Icons.fit_screen_rounded, size: 20), onPressed: order.isEmpty ? null : () { HapticFeedback.selectionClick(); context.push('/wall'); }),
+        if (ref.watch(sessionProvider)?.user.can('wall') ?? true) IconButton(tooltip: context.tr('live_wall'), icon: const Icon(Icons.fit_screen_rounded, size: 20), onPressed: order.isEmpty ? null : () { HapticFeedback.selectionClick(); context.push('/wall'); }),
       ]),
       body: shown.isEmpty
           ? EmptyState(icon: Icons.live_tv_rounded, title: context.tr('no_online_cams'), subtitle: context.tr('no_online_cams_sub'))
