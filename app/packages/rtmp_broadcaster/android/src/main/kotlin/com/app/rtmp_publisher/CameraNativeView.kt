@@ -51,6 +51,11 @@ class CameraNativeView(
     // started together and used the camcorder profile's bitrate (~18 Mbps at 1080p), which floods Wi-Fi.
     private var targetBitrate: Int? = null
 
+    // The camera sensor is mounted sideways, so the UPRIGHT picture (preview, photos, recording) needs rotation 90 (tested on the SDJW-S1).
+    // The recording and the live stream are encoded as a 16:9 landscape file: the upright frame is cropped top and bottom, full width
+    // (the encoder size is passed swapped to prepareVideo: with rotation 90 the library swaps it back).
+    private val pictureRotation: Int = 90
+
     init {
         glView.setAspectRatioMode(AspectRatioMode.Adjust)
         glView.holder.addCallback(this)
@@ -173,18 +178,20 @@ class CameraNativeView(
 
         if (!rtmpCamera.isStreaming()) {
             if (rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
-                    enc.width,
                     enc.height,
+                    enc.width,
                     30,
                     targetBitrate ?: streamingSize.videoBitRate,
                     1, // keyframe every second: a viewer joins (and recovers from loss) within a second
-                    com.pedro.encoder.input.video.CameraHelper.getCameraOrientation(glView.context)
+                    pictureRotation
                 )
             ) {
                 rtmpCamera.startRecord(filePath)
+                forgetStamp()
             }
         } else {
             rtmpCamera.startRecord(filePath)
+            forgetStamp()
         }
     }
 
@@ -201,16 +208,17 @@ class CameraNativeView(
                 val streamingSize = CameraUtils.getBestAvailableCamcorderProfileForResolutionPreset(cameraName, preset)
                 val enc = CameraUtils.encoderSize(cameraName, preset)
                 if (rtmpCamera.isRecording || rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
-                        enc.width,
                         enc.height,
+                        enc.width,
                         30,
                         bitrate ?: streamingSize.videoBitRate,
                         1,
-                        com.pedro.encoder.input.video.CameraHelper.getCameraOrientation(glView.context)
+                        pictureRotation
                     )
                 ) {
                     // ready to start streaming
                     rtmpCamera.startStream(url)
+                    forgetStamp()
                 } else {
                     result.error("videoStreamingFailed", "Error preparing stream, This device cant do it", null)
                     return
@@ -309,6 +317,12 @@ class CameraNativeView(
     // The date, time, camera ID and employee ID written INTO the picture (bottom right), so every frame of the live stream, the recording and photos carries it.
     private var stampFilter: ImageObjectFilterRender? = null
 
+    // Starting the preview, the stream or a recording rebuilds the GL pipeline and drops its filters. Forget the old filter object
+    // so the next update (every second) creates and attaches a new one; otherwise the stamp stays on screen only until recording starts.
+    private fun forgetStamp() {
+        stampFilter = null
+    }
+
     private fun renderStamp(text: String, frameH: Int): Bitmap {
         val lines = text.split("\n")
         val size = (frameH * 0.034f).coerceIn(14f, 48f)
@@ -401,7 +415,8 @@ class CameraNativeView(
                     rtmpCamera.stopPreview()
                 }
 
-                rtmpCamera.startPreview(if (isFrontFacing(targetCamera)) FRONT else BACK, previewSize.width, previewSize.height)
+                rtmpCamera.startPreview(if (isFrontFacing(targetCamera)) FRONT else BACK, previewSize.width, previewSize.height, pictureRotation)
+                forgetStamp()
             } catch (e: CameraAccessException) {
 //                close()
                 activity?.runOnUiThread { dartMessenger?.send(DartMessenger.EventType.ERROR, "CameraAccessException") }

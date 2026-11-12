@@ -40,6 +40,22 @@ object Kiosk {
         }
     }
 
+    /**
+     * Maintenance: stop being the Home app, so that after the administrator leaves with the PIN nothing starts the camera app again
+     * (Android would otherwise relaunch it at once). Opening the app again calls [applyHome] and everything is back.
+     */
+    fun suspendHome(ctx: Context) {
+        if (!AppInstaller.isDeviceOwner(ctx)) return
+        try {
+            val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            dpm.clearPackagePersistentPreferredActivities(ComponentName(ctx, BwcAdminReceiver::class.java), ctx.packageName)
+            ctx.packageManager.setComponentEnabledSetting(alias(ctx), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
+            Log.i("BWC", "kiosk: Home app released for maintenance")
+        } catch (e: Exception) {
+            Log.w("BWC", "kiosk home release failed: $e")
+        }
+    }
+
     /** Undo everything provisioning did. */
     fun release(ctx: Context) {
         val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager

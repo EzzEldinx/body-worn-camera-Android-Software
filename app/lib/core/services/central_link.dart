@@ -73,13 +73,22 @@ class CentralLink {
   int clockOffsetMs = 0; // server time minus this device's clock: the stamp on the picture is right even if the device clock is wrong
   DateTime get serverNow => DateTime.now().add(Duration(milliseconds: clockOffsetMs));
 
-  /// What is written into the picture, bottom right: date and time, camera ID, employee ID.
+  /// The company this camera belongs to, told by the server together with the assignment (empty until the first message).
+  String company = '';
+
+  /// What is written into the picture, bottom right: date and time, camera ID, employee ID, GPS position and the company.
   String stampText() {
     String two(int n) => n.toString().padLeft(2, '0');
     final t = serverNow;
     final a = assignment.value;
     final who = a == null ? 'NO USER' : 'USER ${(a['employeeNo'] ?? '').toString().isNotEmpty ? a['employeeNo'] : a['username']}';
-    return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}:${two(t.second)}\nCAM ${CentralConfig.cameraId}  $who';
+    final p = _last, at = _lastFixAt;
+    final gps = (p != null && at != null && DateTime.now().difference(at) < const Duration(seconds: 120))
+        ? 'GPS ${p.latitude.toStringAsFixed(5)}, ${p.longitude.toStringAsFixed(5)}'
+        : 'GPS NO FIX';
+    return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}:${two(t.second)}\n'
+        'CAM ${CentralConfig.cameraId}  $who\n'
+        '$gps${company.isEmpty ? '' : '\n$company'}';
   }
 
   static const _device = MethodChannel('com.swg.bwc/device');
@@ -87,14 +96,18 @@ class CentralLink {
   bool? _lastChg;
   DateTime? _lastBatAt;
 
-  /// The camera's own battery, so the dashboard shows it wherever the camera is (under 20 % and not charging raises an alert there).
+  /// The camera's own battery, shown on its own screen at all times and reported to the dashboard (under 20 % and not charging raises an alert there).
+  final ValueNotifier<({int level, bool charging})?> battery = ValueNotifier(null);
+  Timer? _batTimer;
+
   Future<void> _sendBattery() async {
-    if (!_online) return;
     try {
       final m = await _device.invokeMapMethod<String, dynamic>('battery');
       final level = m?['level'] as int?;
       if (level == null || level < 0) return;
       final charging = m?['charging'] == true, now = DateTime.now();
+      battery.value = (level: level, charging: charging);
+      if (!_online) return;
       if (level == _lastBat && charging == _lastChg && _lastBatAt != null && now.difference(_lastBatAt!) < const Duration(seconds: 120)) return;
       _lastBat = level; _lastChg = charging; _lastBatAt = now;
       _socket!.emit('camera_battery', {'cameraId': CentralConfig.cameraId, 'battery': level, 'charging': charging});
@@ -191,6 +204,9 @@ class CentralLink {
   }
 
   void start() {
+    _batTimer?.cancel();
+    _sendBattery();
+    _batTimer = Timer.periodic(const Duration(seconds: 15), (_) => _sendBattery());
     _socket = io.io(
       CentralConfig.serverUrl,
       io.OptionBuilder()
@@ -266,6 +282,7 @@ class CentralLink {
         if (d is! Map) return;
         final st = (d['serverTime'] as num?)?.toInt();
         if (st != null) clockOffsetMs = st - DateTime.now().millisecondsSinceEpoch;
+        if (d['company'] is String) company = d['company'] as String;
         assignment.value = d['active'] == true ? Map<String, dynamic>.from(d) : null;
       })
       ..on('update_app', (d) {
@@ -440,6 +457,7 @@ class CentralLink {
   void dispose() {
     _gpsRetry?.cancel();
     _heartbeat?.cancel();
+    _batTimer?.cancel();
     _gpsSub?.cancel();
     _socket?.dispose();
     _msgs.close();

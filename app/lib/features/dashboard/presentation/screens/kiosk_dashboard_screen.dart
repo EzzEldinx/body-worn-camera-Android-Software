@@ -12,6 +12,7 @@ import 'chat_screen.dart';
 import '../widgets/hud.dart';
 import '../../../../core/theme/bwc_tokens.dart';
 import '../widgets/hidden_admin_door.dart';
+import '../providers/kiosk_controller.dart';
 import '../../../../hardware/hardware_key_listener.dart';
 import '../../../../core/services/central_link.dart';
 import '../../../../core/services/video_quality.dart';
@@ -35,6 +36,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   // Seconds of the current recording: a notifier so the timer repaints only itself, not the whole screen.
   final ValueNotifier<int> _recSecs = ValueNotifier<int>(0);
   double _framePixelRatio = 1.0;
+  final ValueNotifier<String> _stampLabel = ValueNotifier<String>(''); // the stamp text, drawn upright over the preview window
   Timer? _timer;
   Timer? _sosTick;
   Timer? _stampTimer; // writes date/time, camera ID and employee ID into the picture every second
@@ -44,9 +46,6 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   String? _toastMsg;
   bool _toastErr = false;
   bool _zoomHinted = false;
-  bool _wide = false; // false: full-screen picture with the controls on top; true: 16:9 window
-  static const bool _showKeyCodes = false; // shows the last hardware key code; set false when done
-  String _lastKey = '-';
   DateTime _lastZoomKey = DateTime(2000);
   DateTime _lastPhotoAt = DateTime(2000);
   DateTime _lastStopAt = DateTime(2000);
@@ -251,9 +250,6 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
 
       final code = event.keyCode;
       final action = event.action;
-      if (_showKeyCodes && mounted) {
-        setState(() => _lastKey = '$code ${action == 0 ? 'down' : 'up'}');
-      }
 
       if (code == 1002) {
         _handleSosKey(action);
@@ -448,6 +444,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     Future<void> put() async {
       final c = _controller;
       if (c == null || !mounted) return;
+      _stampLabel.value = link.stampText();
       try { await c.setOverlayText(link.stampText()); } catch (_) {/* camera is being reopened: the next second retries */}
     }
     put();
@@ -920,13 +917,15 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   }
 
   // دالة فك التجميد الفعلية
-  void _unlockKiosk() {
-    _kioskChannel.invokeMethod('disableKiosk');
+  Future<void> _unlockKiosk() async {
+    // Disarm in the app first, so coming back to the foreground never locks the screen again by itself.
+    await ref.read(kioskControllerProvider.notifier).disarm();
+    if (isRecording) await _toggleRecording(silent: true); // never leave a recording running behind a closed app
     _toast('Kiosk unlocked');
-    // هنستنى ثانية واحدة ونخرج من التطبيق خالص
-    Future.delayed(const Duration(seconds: 1), () {
-      SystemNavigator.pop(); 
-    });
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    // Native side: unpins the screen, stops being the Home app (otherwise Android starts the app again at once) and closes the app.
+    // It stays out of the way until somebody opens it again.
+    await _kioskChannel.invokeMethod('adminExit');
   }
 
   @override
@@ -1064,6 +1063,19 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
             HudChip(CentralConfig.cameraId),
             HudChip(isFront ? 'FRONT' : 'REAR', color: Bwc.blue),
             HudChip(_quality.id.toUpperCase(), color: Bwc.amber),
+            // The camera's own battery, always on screen (a bolt while it charges); red under 20 %.
+            ValueListenableBuilder<({int level, bool charging})?>(
+              valueListenable: link.battery,
+              builder: (_, b, __) {
+                if (b == null) return const HudChip('--%');
+                final low = b.level < 20 && !b.charging;
+                return HudChip(
+                  '${b.charging ? '⚡ ' : ''}${b.level}%',
+                  dot: low ? Bwc.rec : (b.level < 40 && !b.charging ? Bwc.amber : Bwc.ok),
+                  color: low ? Bwc.rec : Bwc.text,
+                );
+              },
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -1071,7 +1083,6 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
           children: [
             const HudClock(),
             const Spacer(),
-            if (_showKeyCodes) Text('key: $_lastKey', style: const TextStyle(color: Colors.white54, fontSize: 11)),
           ],
         ),
         if (isRecording)
@@ -1130,7 +1141,6 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
             );
           },
         ),
-        HudIconButton(icon: _wide ? Icons.crop_portrait : Icons.crop_16_9, color: Bwc.text, onTap: _toggleView),
         HudIconButton(icon: Icons.flashlight_on_rounded, color: Bwc.amber, active: _isFlashOn, onTap: _toggleFlashLight),
         HudIconButton(icon: Icons.nightlight_round, color: Bwc.brand, active: _isNightModeOn, onTap: _toggleNightMode),
         HudIconButton(icon: Icons.flip_camera_android_rounded, color: Bwc.blue, onTap: _switchCamera),
@@ -1263,70 +1273,74 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     await File(path).writeAsBytes(data.buffer.asUint8List());
   }
 
-  void _toggleView() {
-    setState(() => _wide = !_wide);
-    _toast(_wide ? 'Wide view' : 'Full view');
-  }
-
-  // Preview keeps its true proportions. Wide view crops the centre of the
-  // upright frame into a 16:9 window (black bars above and below hold the
-  // buttons); full view shows the whole frame.
+  // A 16:9 window in the upper-middle of the screen showing the picture UPRIGHT and at full width, exactly like the recording and the
+  // stream (the camera sensor is mounted sideways, so the upright frame is tall; the window shows its middle part, top and bottom cut).
+  // Nothing is zoomed (the zoom slider is the only magnifier and starts at 1.0x). The date, camera, user, GPS and company are drawn on
+  // it by Flutter here, and burned into the recording and the photos by the camera plugin.
   Widget _previewLayer(bool isFront) {
     if (!_isCameraInitialized || _controller == null) {
       return const Center(child: CircularProgressIndicator(color: Colors.red));
     }
     final size = _controller!.value.previewSize;
-    final a = size?.width ?? 1280.0;
-    final b = size?.height ?? 720.0;
+    final a = size?.width ?? 1920.0;
+    final b = size?.height ?? 1080.0;
     final pw = a < b ? a : b; // upright (portrait) frame, in camera pixels
     final ph = a < b ? b : a;
     final ar = pw / ph;
 
-    // The native preview is laid out at the size it is DISPLAYED, never at the camera's pixel size.
-    // Laying out a 1080x1920 (or 4K) view and scaling it down made the GPU copy a huge surface every frame,
-    // which is what made the picture on the camera itself lag while the stream stayed smooth.
-    Widget frameOf(double w, double h) {
-      _framePixelRatio = pw / w;
-      return SizedBox(
-        width: w,
-        height: h,
-        child: Transform.scale(
-          scale: _currentZoomLevel,
-          child: RepaintBoundary(
-            key: _frameKey,
-            // The stream (and the dashboard) shows the front camera upright; so must this preview.
-            child: KeyedSubtree(
-              key: ObjectKey(_controller),
-              child: _controller!.buildPreview(),
-            ),
-          ),
-        ),
-      );
-    }
-
     return LayoutBuilder(
       builder: (context, box) {
-        if (!_wide) {
-          var w = box.maxWidth;
-          var h = w / ar;
-          if (h < box.maxHeight) {
-            h = box.maxHeight;
-            w = h * ar;
-          }
-          return ClipRect(
-            child: OverflowBox(minWidth: w, maxWidth: w, minHeight: h, maxHeight: h, child: frameOf(w, h)),
-          );
-        }
-        final ww = box.maxWidth - 16;
-        final wh = ww * 9 / 16;
-        final fh = ww / ar;
-        return Center(
-          child: SizedBox(
-            width: ww,
-            height: wh,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: OverflowBox(minWidth: ww, maxWidth: ww, minHeight: fh, maxHeight: fh, child: frameOf(ww, fh)),
+        final w = box.maxWidth;
+        final h = w * 9 / 16; // the window
+        final fh = w / ar; // the whole upright frame, taller than the window
+        // The native preview is laid out at the size it is DISPLAYED, never at the camera's pixel size
+        // (a 4K surface scaled down made the picture on the camera itself lag while the stream stayed smooth).
+        _framePixelRatio = pw / w;
+        return Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: EdgeInsets.only(top: box.maxHeight * 0.2),
+            child: ClipRect(
+              child: SizedBox(
+                width: w,
+                height: h,
+                child: Stack(
+                  children: [
+                    // The native view is laid out 16:9 (that is how it draws the whole upright frame without zooming it, centred with black
+                    // sides); it is as tall as the upright frame is, so the frame is exactly the window's width and the window shows its middle.
+                    OverflowBox(
+                      minWidth: fh * 16 / 9,
+                      maxWidth: fh * 16 / 9,
+                      minHeight: fh,
+                      maxHeight: fh,
+                      child: Transform.scale(
+                        scale: _currentZoomLevel,
+                        child: RepaintBoundary(
+                          key: _frameKey,
+                          child: KeyedSubtree(
+                            key: ObjectKey(_controller),
+                            child: _controller!.buildPreview(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: IgnorePointer(
+                        child: ValueListenableBuilder<String>(
+                          valueListenable: _stampLabel,
+                          builder: (_, t, __) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                            decoration: BoxDecoration(color: const Color(0x99000000), borderRadius: BorderRadius.circular(4)),
+                            child: Text(t, style: const TextStyle(color: Colors.white, fontSize: 8.5, height: 1.25, fontFamily: 'monospace', fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         );

@@ -138,6 +138,7 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "enableKiosk" -> { runOnUiThread { enableKiosk() }; result.success(null) }
                     "disableKiosk" -> { runOnUiThread { disableKiosk() }; result.success(null) }
+                    "adminExit" -> { runOnUiThread { adminExit() }; result.success(null) }
                     
                     // دوال النداء من أزرار الشاشة في فلاتر
                     "toggleIR" -> { toggleIR(); result.success(null) }
@@ -340,6 +341,16 @@ class MainActivity : FlutterActivity() {
         kioskArmed = false
         try { stopLockTask() } catch (_: Exception) {}
         restoreSystemBars()
+    }
+
+    /**
+     * The administrator entered the PIN: unpin the screen, give the system bars back, stop being the Home app and close the app.
+     * Nothing brings it back until somebody opens it again (the next start makes it the Home app again).
+     */
+    private fun adminExit() {
+        disableKiosk()
+        Kiosk.suspendHome(this)
+        finishAndRemoveTask()
     }
 
     private fun startLockTaskQuietly() {

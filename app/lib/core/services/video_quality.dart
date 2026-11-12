@@ -19,15 +19,15 @@ enum VideoQuality {
   final ResolutionPreset preset;
   final int bitrate; // bits per second for the RTMP stream / recording
 
-  static const VideoQuality defaultQuality = VideoQuality.p720;
+  static const VideoQuality defaultQuality = VideoQuality.p1080; // the best the camera offers reliably (4K failed in the field)
 
   /// The control room can pick only these; 240p and 4K are no longer offered (they caused failures, saved
   /// 'auto' means "decide from the network").
   static const String autoId = 'auto';
   static const List<VideoQuality> selectable = [p480, p720, p1080];
 
-  /// Auto policy: Wi-Fi/ethernet carries 720p comfortably, mobile data gets 480p. Anything unknown stays safe at 480p.
-  static VideoQuality forNetwork({required bool fast}) => fast ? p720 : p480;
+  /// Auto policy: Wi-Fi/ethernet carries 1080p, mobile data gets 720p. The recording on the camera itself is always made at this quality.
+  static VideoQuality forNetwork({required bool fast}) => fast ? p1080 : p720;
 
   static VideoQuality? fromId(Object? id) {
     for (final q in values) {
