@@ -240,6 +240,7 @@ function register(app, ctx) {
         let disk = null; try { const f = fs.statfsSync(dir); disk = { totalBytes: f.blocks * f.bsize, freeBytes: f.bavail * f.bsize }; } catch (e) { /* not supported */ }
         const known = [...cams].filter(([id]) => visible(req.user, id)).map(([id, c]) => ({
             cameraId: id, company: companyName(c.companyId), region: c.region || null, online: !!c.online, recording: !!c.recording, ts: c.ts || null, quality: c.quality || null,
+            updateMode: c.updateMode || 'off', canWifi: Array.isArray(c.caps) && c.caps.includes('update-net'),   // how the camera may be updated (the Registered tab, super administrator)
             recordings: db.prepare('SELECT COUNT(*) n FROM recordings WHERE camera_id = ?').get(id).n }));
         const fc = { awaiting: 0, local: 0, queued: 0, cloud: 0, failed: 0 };
         for (const r of db.prepare('SELECT camera_id,state,choice FROM dock_files').all()) if (mine(req.user, r.camera_id)) fc[r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued']++;

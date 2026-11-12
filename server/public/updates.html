@@ -8,7 +8,8 @@
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="stylesheet" href="/portal.css">
 <style>
-.top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px}
+.top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px;margin-bottom:18px}
+.top.one{grid-template-columns:1fr}
 @media (max-width:1000px){.top{grid-template-columns:1fr}}
 .build{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .build code{font-family:Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:1px;padding:6px 14px;border-radius:10px;background:var(--raise);border:1px solid var(--line)}
@@ -23,7 +24,7 @@
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mut)}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);padding:8px 8px;border-bottom:1px solid var(--line)}
-td{padding:10px 8px;border-bottom:1px solid var(--line-soft);font-size:14px}
+td{padding:10px 8px;border-bottom:1px solid var(--line-soft);font-size:14px;vertical-align:top}
 tr:last-child td{border-bottom:0}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;background:var(--off)}
 .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
@@ -37,42 +38,93 @@ tr:last-child td{border-bottom:0}
 .prog i{display:block;height:100%;background:var(--blue)}
 .muted{color:var(--mut)}
 .hint{font-size:12.5px;color:var(--mut);margin-top:10px;line-height:1.5}
+.hint.bad{color:var(--rec)}
+.small{font-size:12px}
+/* what customers see */
+.nt{margin:0 0 4px;font-size:19px}
+.news p{margin:10px 0 0;line-height:1.55;font-size:14.5px}
+.news p.ar{direction:rtl;text-align:right;font-size:15.5px}
+.meterhead{font-size:15px;margin-bottom:8px}
+.meter{height:10px;border-radius:7px;background:var(--line-soft);overflow:hidden}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--ok),#8be9c7);transition:width .4s}
+.ask{margin:14px 0 4px;padding:11px 14px;border-radius:12px;background:color-mix(in srgb,var(--sel) 16%,transparent);line-height:1.5;font-size:14px}
+.allok{margin:14px 0 0;padding:11px 14px;border-radius:12px;background:color-mix(in srgb,var(--ok) 14%,transparent);font-weight:700;color:var(--ok)}
+.hist{padding:12px 0;border-bottom:1px solid var(--line-soft)}
+.hist:last-child{border-bottom:0}
+.hist b{display:block;margin-bottom:2px}
+label.f{display:block;font-size:12px;font-weight:700;color:var(--mut);margin:10px 0 4px}
+textarea{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit;resize:vertical}
+input.t{width:100%;box-sizing:border-box}
+.kpis{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--mut)}
+.kpis b{color:var(--text);font-size:17px;display:block}
+select.umode{max-width:180px}
 </style>
 </head>
 <body>
 <header id="top"></header>
 <main>
-  <section class="top">
-    <div class="card">
-      <h3>Latest build on the server</h3>
-      <div class="build" id="latest"><span class="muted">No build uploaded yet.</span></div>
-      <div class="hint">Cameras compare their installed app with this build. After every <code>flutter build apk --release</code>, upload the new file here.</div>
-    </div>
-    <div class="card">
-      <h3>Upload a new build</h3>
-      <div class="drop" id="drop"><b>Drop app-release.apk here</b> or click to choose it<br><span style="font-size:12px">app\build\app\outputs\flutter-apk\app-release.apk</span></div>
-      <input type="file" id="file" accept=".apk" hidden>
-      <div class="bar" id="bar"><i></i></div>
-    </div>
+  <!-- everybody: what is new, and which of my cameras still wait -->
+  <section class="top" id="clientTop">
+    <div class="card"><h3>What's new</h3><div class="news" id="news"><span class="muted">Loading...</span></div></div>
+    <div class="card" id="camCard"><h3>Your cameras</h3><div id="cams"></div></div>
   </section>
+  <section class="card" id="histCard" hidden style="margin-bottom:18px"><h3>Earlier updates</h3><div id="hist"></div></section>
 
-  <section class="card">
-    <h3>Cameras</h3>
-    <div class="tools">
-      <select id="fRegion"><option value="">All regions</option></select>
-      <select id="fCompany"><option value="">All companies</option></select>
-      <label class="chk"><input type="checkbox" id="fOnline" checked> Online only</label>
-      <label class="chk"><input type="checkbox" id="fForce"> Update even while recording</label>
-      <span class="sp" id="count"></span>
-      <button class="btn" id="bOld">Update all outdated</button>
-      <button class="btn pri" id="bSel">Update selected</button>
-    </div>
-    <table>
-      <thead><tr><th style="width:34px"><input type="checkbox" id="all"></th><th>Camera</th><th>Region</th><th>Company</th><th>Build</th><th>Status</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
-    <div class="hint">A camera that is recording waits until it stops (unless you tick "even while recording"), downloads the APK from this server, checks it, installs it and restarts. Offline cameras are skipped.</div>
-  </section>
+  <!-- Smart Way super administrator -->
+  <div id="admin" hidden>
+    <section class="top">
+      <div class="card">
+        <h3>Latest build on the server</h3>
+        <div class="build" id="latest"><span class="muted">No build uploaded yet.</span></div>
+        <div class="hint">Cameras compare their installed app with this build. After every <code>flutter build apk --release</code>, upload the new file here. Docking stations then update every docked camera by themselves.</div>
+      </div>
+      <div class="card">
+        <h3>Upload a new build</h3>
+        <div class="drop" id="drop"><b>Drop app-release.apk here</b> or click to choose it<br><span style="font-size:12px">app\build\app\outputs\flutter-apk\app-release.apk</span></div>
+        <input type="file" id="file" accept=".apk" hidden>
+        <div class="bar" id="bar"><i></i></div>
+      </div>
+    </section>
+
+    <section class="top">
+      <div class="card">
+        <h3>Tell your customers</h3>
+        <div class="hint" style="margin-top:0">Every user of every company gets this as a window, and a heart beats on their Updates tab until they have seen it. Send it when the build is ready for them: a test build needs no notice.</div>
+        <label class="f" for="nTitle">Title</label><input class="t" id="nTitle" maxlength="80">
+        <label class="f" for="nBody">Message</label><textarea id="nBody" rows="4" maxlength="700"></textarea>
+        <label class="f" for="nAr">الرسالة بالعربية</label><textarea id="nAr" rows="4" maxlength="700" dir="rtl"></textarea>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap"><button class="btn pri" id="bNotify">Notify all users</button><span class="muted small" id="nLast"></span></div>
+      </div>
+      <div class="card">
+        <h3>Automatic updates over the network</h3>
+        <div id="roll"><span class="muted">Upload a build first.</span></div>
+        <div class="hint">For cameras that are not near a docking station: set them to <b>Over Wi-Fi</b> or <b>Over Wi-Fi and SIM</b> below, or on the Docking page (Registered). The server sends the update to one camera first and only continues when that camera has run the new build for a few minutes (a camera updated on a docking station counts too). A camera that is recording waits; a camera on a dock is left to the dock. If the first cameras refuse the build, everything stops until you press Resume.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Cameras</h3>
+      <div class="tools">
+        <select id="fRegion"><option value="">All regions</option></select>
+        <select id="fCompany"><option value="">All companies</option></select>
+        <label class="chk"><input type="checkbox" id="fOnline" checked> Online only</label>
+        <label class="chk"><input type="checkbox" id="fForce"> Update even while recording</label>
+        <span class="sp" id="count"></span>
+        <button class="btn" id="bOld">Update all outdated</button>
+        <button class="btn pri" id="bSel">Update selected</button>
+      </div>
+      <div class="tools">
+        <span class="muted small">Network updates for the selected cameras:</span>
+        <select id="bMode"><option value="">Choose...</option><option value="off">Docking station only</option><option value="wifi">Over Wi-Fi</option><option value="any">Over Wi-Fi and SIM</option></select>
+        <button class="btn" id="bModeGo">Apply</button>
+      </div>
+      <table>
+        <thead><tr><th style="width:34px"><input type="checkbox" id="all"></th><th>Camera</th><th>Region</th><th>Company</th><th>Build</th><th>Status</th><th>Network updates</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="hint">"Update selected" sends the update now, over whatever network the camera has. A camera that is recording waits until it stops (unless you tick "even while recording"), downloads the APK from this server, checks it, installs it and restarts. Offline cameras are skipped. "Network updates" decides whether the server does this by itself for a camera: Over Wi-Fi only works once the camera runs the newest app (put it on a docking station once); over the SIM uses mobile data, about 55 MB each time.</div>
+    </section>
+  </div>
 </main>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -80,17 +132,56 @@ tr:last-child td{border-bottom:0}
 <script>
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let data = { latest: null, cameras: [] }; const picked = new Set();
-
 const ago = (ts) => { const s = Math.floor((Date.now() - ts) / 1000); return s < 60 ? 'just now' : s < 3600 ? Math.floor(s / 60) + ' min ago' : s < 86400 ? Math.floor(s / 3600) + ' h ago' : Math.floor(s / 86400) + ' d ago'; };
+const when = (ts) => new Date(ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+let ME = null;
+
+/* ---------- everybody ---------- */
+async function loadClient() {
+  const r = await fetch('/api/updates');
+  if (!r.ok) return;
+  const v = await r.json(), n = v.notice;
+  $('#news').innerHTML = n
+    ? `<h4 class="nt">${esc(n.title)}</h4><div class="muted small">${when(n.created)}${n.by ? ' · sent by ' + esc(n.by) : ''}</div><p>${esc(n.body)}</p>${n.bodyAr ? `<p class="ar" lang="ar">${esc(n.bodyAr)}</p>` : ''}`
+    : '<p class="muted" style="margin:0">Nothing new. When an update is ready for your cameras you will read about it here.</p>';
+  if (!ME.super) $('#cams').innerHTML = camsHtml(v);
+  const old = (v.notices || []).slice(1);
+  $('#histCard').hidden = !old.length;
+  $('#hist').innerHTML = old.map((x) => `<div class="hist"><b>${esc(x.title)}</b><span class="muted small">${when(x.created)}</span><div style="margin-top:6px;font-size:14px;line-height:1.5">${esc(x.body)}</div></div>`).join('');
+  if (n && ME.companyId) {   // reading it here is seeing it: the heart stops
+    fetch('/api/updates/seen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: n.id }) }).then(() => window.refreshUpdatesBadge && window.refreshUpdatesBadge()).catch(() => { });
+  }
+}
+function camsHtml(v) {
+  const c = v.cameras;
+  if (!c.total) return '<p class="muted" style="margin:0">No cameras yet.</p>';
+  if (!v.announced) return '<p class="muted" style="margin:0">No update is waiting for your cameras.</p>';
+  const pct = Math.round(c.current * 100 / c.total);
+  let h = `<div class="meterhead"><b>${c.current}</b> of <b>${c.total}</b> camera${c.total === 1 ? ' is' : 's are'} up to date</div><div class="meter"><i style="width:${pct}%"></i></div>`;
+  if (!v.list.length) return h + '<div class="allok">All your cameras are up to date.</div>';
+  if (c.dock) h += `<div class="ask"><b>Put ${c.dock === 1 ? 'this camera' : 'these cameras'} on the docking station.</b> ${c.dock === 1 ? 'It updates' : 'They update'} by themselves as soon as ${c.dock === 1 ? 'it is' : 'they are'} connected. There is nothing else to do.</div>`;
+  if (c.network) h += `<p class="muted" style="margin:12px 0 0">${c.network} camera${c.network === 1 ? ' updates' : 's update'} over the network by themselves.</p>`;
+  h += '<table style="margin-top:8px"><thead><tr><th>Camera</th><th>How it updates</th><th>Now</th></tr></thead><tbody>' + v.list.map((x) => `<tr>
+      <td><span class="dot ${x.online ? 'on' : ''}"></span><b>${esc(x.name)}</b></td>
+      <td><span class="pill ${x.how === 'dock' ? 'old' : 'busy'}">${x.how === 'dock' ? 'Docking station' : 'Over the network'}</span></td>
+      <td>${esc(x.detail)}${x.pct != null ? `<span class="prog"><i style="width:${x.pct}%"></i></span>` : ''}${!x.online && x.lastSeen ? `<div class="muted small">last seen ${ago(x.lastSeen)}</div>` : ''}</td></tr>`).join('') + '</tbody></table>';
+  return h;
+}
+
+/* ---------- Smart Way super administrator ---------- */
+let data = { latest: null, cameras: [], rollout: null }; const picked = new Set();
 const load = () => fetch('/api/admin/update').then((r) => r.json()).then((d) => { data = d; render(); });
+const WHY = { unknown: 'Build unknown', offline: 'Offline: updates when it is online', recording: 'Recording: waits', docked: 'On a dock: the dock updates it', 'needs-app': 'Needs the newest app first: put it on a dock once', battery: 'Low battery: waits', 'retry-later': 'Failed: will try again', 'gave-up': 'Gave up: put it on a dock', refused: 'Refused the build: put it on a dock' };
+const BUSY = ['downloading', 'installing', 'queued', 'waiting', 'waiting_wifi', 'waiting_battery'];
 
 function status(c) {
   const u = c.update;
-  if (c.current && !(u && ['downloading', 'installing', 'queued', 'waiting'].includes(u.state))) return '<span class="pill ok">Up to date</span>';
+  if (c.current && !(u && BUSY.includes(u.state))) return '<span class="pill ok">Up to date</span>';
   if (u && u.state === 'downloading') return `<span class="pill busy">Downloading ${u.pct || 0}%</span><span class="prog"><i style="width:${u.pct || 0}%"></i></span>`;
   if (u && u.state === 'installing') return '<span class="pill busy">Installing…</span>';
   if (u && u.state === 'waiting') return '<span class="pill busy">Waiting (recording)</span>';
+  if (u && u.state === 'waiting_wifi') return '<span class="pill busy">Waiting for Wi-Fi</span>';
+  if (u && u.state === 'waiting_battery') return '<span class="pill busy">Waiting for battery</span>';
   if (u && u.state === 'queued') return '<span class="pill busy">Queued</span>';
   if (u && u.state === 'failed') return `<span class="pill bad" title="${esc(u.error)}">Failed: ${esc(u.error || '')}</span>`;
   if (!c.build) return '<span class="pill na">Unknown build</span>';
@@ -100,20 +191,38 @@ function status(c) {
 function render() {
   const l = data.latest;
   $('#latest').innerHTML = l ? `<code>${esc(l.short)}</code><div class="meta">${(l.size / 1048576).toFixed(1)} MB<br>uploaded ${ago(l.uploaded)} by ${esc(l.by)}</div>` : '<span class="muted">No build uploaded yet.</span>';
+  $('#bNotify').disabled = !l;
+  $('#nLast').textContent = data.notice ? `Last notice: "${data.notice.title}", ${when(data.notice.created)}` : 'No notice sent yet.';
+  if (data.defaults && !$('#nTitle').dataset.filled) { $('#nTitle').value = data.defaults.title; $('#nBody').value = data.defaults.body; $('#nAr').value = data.defaults.bodyAr; $('#nTitle').dataset.filled = '1'; }
+  renderRoll();
+  if (document.activeElement && document.activeElement.classList.contains('umode')) return;   // do not close a menu the person is choosing from
   const regs = [...new Set(data.cameras.map((c) => c.region).filter(Boolean))].sort();
   const cos = [...new Set(data.cameras.map((c) => c.company).filter(Boolean))].sort();
   const keep = (id, vals, label) => { const cur = $(id).value; $(id).innerHTML = `<option value="">${label}</option>` + vals.map((v) => `<option ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join(''); };
   keep('#fRegion', regs, 'All regions'); keep('#fCompany', cos, 'All companies');
   const rows = shown();
   $('#rows').innerHTML = rows.map((c) => `<tr data-id="${esc(c.id)}">
-      <td><input type="checkbox" class="pk" ${picked.has(c.id) ? 'checked' : ''} ${c.online ? '' : 'disabled'}></td>
+      <td><input type="checkbox" class="pk" ${picked.has(c.id) ? 'checked' : ''}></td>
       <td><span class="dot ${c.online ? 'on' : ''}"></span><b>${esc(c.id)}</b>${c.recording ? ' <span class="pill bad">REC</span>' : ''}</td>
       <td>${esc(c.region || '—')}</td><td>${esc(c.company || '—')}</td>
-      <td><code>${esc(c.build || '—')}</code></td><td>${status(c)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted" style="padding:20px">No cameras match.</td></tr>';
+      <td><code>${esc(c.build || '—')}</code></td>
+      <td>${status(c)}${c.mode !== 'off' && WHY[c.why] ? `<div class="muted small" style="margin-top:4px">${esc(WHY[c.why])}</div>` : ''}</td>
+      <td><select class="umode" data-id="${esc(c.id)}"><option value="off" ${c.mode === 'off' ? 'selected' : ''}>Docking station only</option><option value="wifi" ${c.mode === 'wifi' ? 'selected' : ''}>Over Wi-Fi</option><option value="any" ${c.mode === 'any' ? 'selected' : ''}>Over Wi-Fi and SIM</option></select></td></tr>`).join('') || '<tr><td colspan="7" class="muted" style="padding:20px">No cameras match.</td></tr>';
   const outdated = rows.filter((c) => c.online && !c.current).length;
   $('#count').textContent = `${rows.length} cameras · ${rows.filter((c) => c.online).length} online · ${outdated} outdated`;
   $('#bOld').textContent = `Update all outdated (${outdated})`;
   $('#bSel').textContent = `Update selected (${[...picked].filter((id) => rows.some((c) => c.id === id)).length})`;
+}
+function renderRoll() {
+  const r = data.rollout;
+  if (!r) { $('#roll').innerHTML = '<span class="muted">Upload a build first.</span>'; return; }
+  const st = { proving: ['busy', 'Proving the build on one camera first'], rolling: ['ok', 'Rolling out'], halted: ['bad', 'Stopped'] }[r.state] || ['na', r.state];
+  let h = `<span class="pill ${st[0]}">${st[1]}</span> <span class="muted small">build ${esc(r.short)}</span>`;
+  if (r.state === 'proving') h += `<div class="hint">${r.canary ? `Camera <b>${esc(r.canary)}</b> goes first. The others follow once a camera has run the new build for a few minutes.` : 'Waiting for a camera that may be updated over the network right now.'}</div>`;
+  if (r.state === 'halted') h += `<div class="hint bad">${esc(r.note || 'Stopped.')}</div>`;
+  h += `<div class="kpis"><span><b>${r.remote}</b>set to update over the network</span><span><b>${r.current}</b>up to date</span><span><b>${r.updating}</b>updating</span><span><b>${r.waiting}</b>waiting</span><span><b>${r.failed}</b>failed</span></div>`;
+  h += `<div style="margin-top:14px">${r.state === 'halted' ? '<button class="btn pri" data-roll="resume">Resume</button>' : '<button class="btn" data-roll="halt">Pause automatic updates</button>'}</div>`;
+  $('#roll').innerHTML = h;
 }
 function shown() {
   const r = $('#fRegion').value, co = $('#fCompany').value, on = $('#fOnline').checked;
@@ -121,43 +230,70 @@ function shown() {
     .sort((a, b) => (b.online - a.online) || a.id.localeCompare(b.id));
 }
 
-['#fRegion', '#fCompany', '#fOnline'].forEach((s) => $(s).addEventListener('change', render));
-$('#all').addEventListener('change', (e) => { shown().filter((c) => c.online).forEach((c) => (e.target.checked ? picked.add(c.id) : picked.delete(c.id))); render(); });
-$('#rows').addEventListener('change', (e) => { const cb = e.target.closest('.pk'); if (!cb) return; const id = cb.closest('tr').dataset.id; cb.checked ? picked.add(id) : picked.delete(id); render(); });
-
 let socket;
 function send(ids) {
   if (!data.latest) return toast('Upload a build first.');
   if (!ids.length) return toast('Nothing to update.');
   socket.emit('update_cameras', { cameraIds: ids, force: $('#fForce').checked });
 }
-$('#bSel').onclick = () => send([...picked].filter((id) => shown().some((c) => c.id === id)));
-$('#bOld').onclick = () => send(shown().filter((c) => c.online && !c.current).map((c) => c.id));
+const call = (method, url, body) => fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Failed'); return j; });
+function initAdmin() {
+  ['#fRegion', '#fCompany', '#fOnline'].forEach((s) => $(s).addEventListener('change', render));
+  $('#all').addEventListener('change', (e) => { shown().forEach((c) => (e.target.checked ? picked.add(c.id) : picked.delete(c.id))); render(); });
+  $('#rows').addEventListener('change', (e) => {
+    const s = e.target.closest('.umode');
+    if (s) { s.blur(); call('PUT', '/api/admin/update/mode', { cameraId: s.dataset.id, mode: s.value }).then(() => { toast('Saved'); load(); }).catch((x) => toast(x.message)); return; }
+    const cb = e.target.closest('.pk'); if (!cb) return;
+    const id = cb.closest('tr').dataset.id; cb.checked ? picked.add(id) : picked.delete(id); render();
+  });
+  $('#bSel').onclick = () => send([...picked].filter((id) => shown().some((c) => c.id === id && c.online)));
+  $('#bOld').onclick = () => send(shown().filter((c) => c.online && !c.current).map((c) => c.id));
+  $('#bModeGo').onclick = () => {
+    const mode = $('#bMode').value, ids = [...picked].filter((id) => shown().some((c) => c.id === id));
+    if (!mode) return toast('Choose how the cameras are updated.');
+    if (!ids.length) return toast('Select cameras first.');
+    call('PUT', '/api/admin/update/mode', { cameraIds: ids, mode }).then((j) => { toast(`Saved for ${j.changed} camera${j.changed === 1 ? '' : 's'}`); load(); }).catch((x) => toast(x.message));
+  };
+  $('#roll').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-roll]'); if (!b) return;
+    call('POST', '/api/admin/update/rollout', { action: b.dataset.roll }).then(() => { toast(b.dataset.roll === 'resume' ? 'Automatic updates resumed' : 'Automatic updates paused'); load(); }).catch((x) => toast(x.message));
+  });
+  $('#bNotify').onclick = () => {
+    if (!confirm('Send this notice to every user of every company?')) return;
+    call('POST', '/api/admin/update/notice', { title: $('#nTitle').value, body: $('#nBody').value, bodyAr: $('#nAr').value })
+      .then(() => { toast('Notice sent to all users'); load(); loadClient(); }).catch((x) => toast(x.message));
+  };
 
-// upload
-const bar = $('#bar'), fill = bar.querySelector('i');
-function upload(file) {
-  if (!file) return;
-  bar.style.display = 'block'; fill.style.width = '0';
-  const xhr = new XMLHttpRequest();
-  xhr.open('PUT', '/api/admin/update/apk');
-  xhr.upload.onprogress = (e) => { if (e.lengthComputable) fill.style.width = (e.loaded / e.total * 100) + '%'; };
-  xhr.onload = () => { bar.style.display = 'none'; let j = {}; try { j = JSON.parse(xhr.responseText); } catch (e) { } if (xhr.status === 200) { toast('Build uploaded'); load(); } else toast(j.error || 'Upload failed'); };
-  xhr.onerror = () => { bar.style.display = 'none'; toast('Upload failed'); };
-  xhr.send(file);
-}
-$('#drop').onclick = () => $('#file').click();
-$('#file').onchange = (e) => upload(e.target.files[0]);
-['dragover', 'dragenter'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.add('over'); }));
-['dragleave', 'drop'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.remove('over'); }));
-$('#drop').addEventListener('drop', (e) => upload(e.dataTransfer.files[0]));
+  // upload
+  const bar = $('#bar'), fill = bar.querySelector('i');
+  function upload(file) {
+    if (!file) return;
+    bar.style.display = 'block'; fill.style.width = '0';
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', '/api/admin/update/apk');
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) fill.style.width = (e.loaded / e.total * 100) + '%'; };
+    xhr.onload = () => { bar.style.display = 'none'; let j = {}; try { j = JSON.parse(xhr.responseText); } catch (e) { } if (xhr.status === 200) { toast('Build uploaded'); load(); } else toast(j.error || 'Upload failed'); };
+    xhr.onerror = () => { bar.style.display = 'none'; toast('Upload failed'); };
+    xhr.send(file);
+  }
+  $('#drop').onclick = () => $('#file').click();
+  $('#file').onchange = (e) => upload(e.target.files[0]);
+  ['dragover', 'dragenter'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => $('#drop').addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.remove('over'); }));
+  $('#drop').addEventListener('drop', (e) => upload(e.dataTransfer.files[0]));
 
-portalReady.then(() => {
   load();
   socket = io();
   socket.on('update_result', (r) => toast(r.sent ? `Update sent to ${r.sent} camera${r.sent === 1 ? '' : 's'}` : 'No online camera to update.'));
   let t; socket.on('dashboard_cam', () => { clearTimeout(t); t = setTimeout(load, 400); }); // live progress
   setInterval(load, 15000);
+}
+
+portalReady.then((me) => {
+  ME = me;
+  if (me.super) { $('#admin').hidden = false; $('#camCard').hidden = true; $('#clientTop').classList.add('one'); initAdmin(); }
+  loadClient();
+  setInterval(() => { if (!document.hidden) loadClient(); }, 20000);
 });
 </script>
 </body>

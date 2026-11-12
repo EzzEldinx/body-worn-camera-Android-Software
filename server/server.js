@@ -94,7 +94,7 @@ for (const r of db.prepare('SELECT * FROM cameras').all()) {
     const p = db.prepare('SELECT lat,lng,ts FROM positions WHERE camera_id=? ORDER BY ts DESC LIMIT 1').get(r.id);
     cams.set(r.id, {
         cameraId: r.id, name: r.name || r.id, grp: r.grp || '', holder: r.holder || '', online: false, recording: false,
-        lat: p ? p.lat : null, lng: p ? p.lng : null, ts: p ? p.ts : 0, companyId: r.company_id || null, region: r.region || null,
+        lat: p ? p.lat : null, lng: p ? p.lng : null, ts: p ? p.ts : 0, companyId: r.company_id || null, region: r.region || null, updateMode: r.update_mode || 'off',
         ...(r.battery != null ? { battery: r.battery, batteryTs: r.battery_ts || null, charging: !!r.charging } : {}),   // last reading, shown until the camera reports again
     });
 }
@@ -131,6 +131,7 @@ function publish(id, patch) {
         cameraId: id, name: id, grp: '', online: false, recording: false, lat: null, lng: null, ts: 0, companyId: null,
         ...cams.get(id), ...patch,
     };
+    if (state.online && !prev?.online) state.onlineSince = Date.now();   // how long it has stayed connected (a new build only counts as proven on a camera that does)
     if (!!prev?.online !== !!state.online) logEvent(id, state.online ? 'online' : 'offline');
     if (!!prev?.recording !== !!state.recording) logEvent(id, state.recording ? 'rec_start' : 'rec_stop');
     if (!!prev?.ptt !== !!state.ptt) logEvent(id, state.ptt ? 'ptt_start' : 'ptt_end');
@@ -341,7 +342,7 @@ app.delete('/api/company/users/:id', needUser, needCompanyManager, (req, res) =>
     auditlog.add(db, req.user.username, 'user_removed', null, { user: u.name, company: req.user.company });
     res.json({ ok: true });
 });
-app.get('/api/me', needUser, (req, res) => res.json({ ...req.user, featureList: features.FEATURES, staff: isStaff(req.user), super: isSuper(req.user), license: license.summary(req.user), subscription: subscriptionOf(req.user.companyId) }));
+app.get('/api/me', needUser, (req, res) => res.json({ ...req.user, featureList: features.FEATURES, staff: isStaff(req.user), super: isSuper(req.user), license: license.summary(req.user), subscription: subscriptionOf(req.user.companyId), updates: updatesMod.badge(req.user) }));
 
 app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     const id = str(req.params.id);
@@ -796,6 +797,9 @@ const UPD_DIR = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 
 const UPD_APK = path.join(UPD_DIR, 'app.apk');
 const UPD_META = path.join(UPD_DIR, 'meta.json');
 const readMeta = () => { try { return JSON.parse(fs.readFileSync(UPD_META, 'utf8')); } catch (e) { return null; } };
+// The same, remembered for two seconds: every camera that reports in asks "what is the latest build?" and the file should not be read each time.
+let metaCache = { at: 0, v: null };
+const latestMeta = () => { if (Date.now() - metaCache.at > 2000) metaCache = { at: Date.now(), v: readMeta() }; return metaCache.v; };
 
 app.put('/api/admin/update/apk', needUser, needAdmin, express.raw({ type: () => true, limit: '200mb' }), (req, res) => {
     const buf = req.body;
@@ -808,17 +812,21 @@ app.put('/api/admin/update/apk', needUser, needAdmin, express.raw({ type: () => 
     fs.renameSync(UPD_APK + '.tmp', UPD_APK);
     const meta = { build, size: buf.length, uploaded: Date.now(), by: req.user.username };
     fs.writeFileSync(UPD_META, JSON.stringify(meta));
+    metaCache = { at: 0, v: null };
     auditlog.add(db, req.user.username, `update_upload_${build.slice(0, 12)}`, null);
+    rollout.publish(meta);   // cameras that may be updated over the network start now, carefully (see rollout.js)
     res.json({ ok: true, ...meta });
 });
 app.get('/api/admin/update', adminOnly, (req, res) => {
     const meta = readMeta();
     res.json({
         latest: meta ? { ...meta, short: meta.build.slice(0, 12) } : null,
+        rollout: rollout.status(), notice: updatesMod.latestNotice(true), defaults: updatesMod.DEFAULT_NOTICE,
         cameras: [...cams.values()].map((c) => ({
             id: c.cameraId, name: c.name, region: c.region || null, company: companyName(c.companyId), online: !!c.online,
             recording: !!c.recording, build: c.appBuild ? c.appBuild.slice(0, 12) : null,
             current: !!(meta && c.appBuild && c.appBuild === meta.build), update: c.update || null,
+            mode: c.updateMode || 'off', why: rollout.why(c), canWifi: Array.isArray(c.caps) && c.caps.includes('update-net'), battery: c.battery ?? null, charging: !!c.charging,
         })),
     });
 });
@@ -845,6 +853,21 @@ const checkout = checkoutMod.create({
 });
 checkout.restore();
 setInterval(() => { try { checkout.sweep(); } catch (e) { console.error('check-out sweep failed:', e.message); } }, 5000).unref();
+// Camera updates as people see them (notices, which of a company's cameras still wait) and the careful automatic updates over the network
+// for cameras that are not near a docking station (see updates.js, rollout.js)
+const rollout = require('./rollout').create({
+    db, cams, latest: latestMeta, docked: (t) => dockApi.docked(t),
+    send: (id, payload) => {
+        io.to(`room:camera_${id}`).emit('update_app', payload);
+        publish(id, { update: { state: 'queued', ts: Date.now(), auto: true } });
+    },
+    audit: (user, action, cam, detail) => auditlog.add(db, user, action, cam || null, detail || null),
+});
+setInterval(() => { try { rollout.tick(); } catch (e) { console.error('update rollout failed:', e.message); } }, 30_000).unref();
+const updatesLib = require('./updates');
+const updatesMod = updatesLib.create({ db, cams, latest: latestMeta, rollout, docked: (t) => dockApi.docked(t) });
+updatesLib.register(app, { updates: updatesMod, rollout, db, cams, needUser, adminOnly, isSuper, publish, str, audit: (user, action, cam, detail) => auditlog.add(db, user, action, cam || null, detail || null) });
+
 checkoutMod.register(app, { db, checkout, subscriptionLocked: (cid) => !!cid && subLocked(db.prepare('SELECT sub_end FROM companies WHERE id = ?').get(cid)?.sub_end), needUser, needAdmin, needDock: dockApi.needDock, dock: dockApi, isStaff, canSee, str, hashPassword, verifyPassword, auditlog, kickUsers, companyName, cams, license });
 
 // Live video over the dashboard's own port: the browser asks /live/<camera>.flv?sign=... here and we relay it from the media
@@ -876,7 +899,7 @@ app.get('/employees.html', needUser, (req, res) => (req.user.companyId && req.us
 app.get('/license.html', needUser, (req, res) => (isSuper(req.user) ? page('license.html')(req, res) : res.redirect('/analytics.html')));
 app.get('/station.html', page('station.html'));   // the check-out station: public page, employees sign in on it
 app.get('/wall.html', needUser, featPage('wall.html'));
-app.get('/updates.html', needUser, (req, res) => (isSuper(req.user) ? page('updates.html')(req, res) : res.redirect('/analytics.html')));
+app.get('/updates.html', needUser, page('updates.html'));   // everybody: what is new and which cameras wait; the super administrator's tools are on the same page
 app.get('/admin.html', needUser, (req, res, next) => (isSuper(req.user) ? page('admin.html')(req, res) : res.redirect('/analytics.html')));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 // Whatever a route throws ends here: a short JSON answer, the details only in the server log (never a stack trace to the caller).
@@ -1117,19 +1140,23 @@ io.on('connection', (socket) => {
         bind(id);
         // the camera is back after an update and reports the latest build: the update is finished
         const upd = cams.get(id)?.update;
-        if (upd && ['installing', 'queued', 'waiting'].includes(upd.state) && typeof d.build === 'string' && d.build === readMeta()?.build) {
+        if (upd && ['installing', 'queued', 'waiting', 'waiting_wifi', 'waiting_battery', 'downloading'].includes(upd.state) && typeof d.build === 'string' && d.build === latestMeta()?.build) {
             publish(id, { update: { state: 'done', ts: Date.now() } });
         }
-        publish(id, { recording: !!d.recording, online: true, ...(typeof d.build === 'string' && /^[0-9a-f]{64}$/.test(d.build) ? { appBuild: d.build } : {}), ...(['240p', '480p', '720p', '1080p', '4k'].includes(d.quality) ? { quality: d.quality } : {}), ...(typeof d.qualityAuto === 'boolean' ? { qualityAuto: d.qualityAuto } : {}), ...(d.recording ? (typeof d.remote === 'boolean' ? { remote: d.remote } : {}) : { remote: false }) });
+        const build = typeof d.build === 'string' && /^[0-9a-f]{64}$/.test(d.build) ? d.build : null;
+        publish(id, { recording: !!d.recording, online: true, ...(build ? { appBuild: build, ...(build !== cams.get(id)?.appBuild ? { buildTs: Date.now() } : {}) } : {}),
+            ...(Array.isArray(d.caps) ? { caps: d.caps.filter((x) => typeof x === 'string' && x.length <= 24).slice(0, 8) } : {}),...(['240p', '480p', '720p', '1080p', '4k'].includes(d.quality) ? { quality: d.quality } : {}), ...(typeof d.qualityAuto === 'boolean' ? { qualityAuto: d.qualityAuto } : {}), ...(d.recording ? (typeof d.remote === 'boolean' ? { remote: d.remote } : {}) : { remote: false }) });
         if (d.battery !== undefined) battery.set(id, { battery: d.battery, charging: d.charging });
+        rollout.seen(id);   // a camera that may be updated over the network is asked the moment it is its turn
     });
 
-    // Progress of a remote update: queued / downloading (pct) / installing / failed (error) / done
+    // Progress of a remote update: queued / downloading (pct) / installing / waiting (recording, wifi, battery) / failed (error) / done
     on('camera_update', (d) => {
         const id = str(d?.cameraId);
-        if (!id || deleted.has(id) || !['downloading', 'installing', 'waiting', 'failed', 'done'].includes(d.state)) return;
+        if (!id || deleted.has(id) || !['downloading', 'installing', 'waiting', 'waiting_wifi', 'waiting_battery', 'failed', 'done'].includes(d.state)) return;
         bind(id);
         publish(id, { update: { state: d.state, pct: Math.min(100, Math.max(0, Number(d.pct) || 0)), error: d.error ? String(d.error).slice(0, 160) : undefined, ts: Date.now() } });
+        rollout.progress(id, d.state, d.error);
     });
 
     on('camera_ptt', (d) => {
