@@ -22,22 +22,14 @@ object CameraUtils {
     fun computeBestPreviewSize(cameraName: String, presetArg: ResolutionPreset): Size = cameraCaptureSize(cameraName)
 
     /**
-     * The camera ALWAYS captures at its best real 16:9 size. On this device the camera hardware returns only a
-     * 640x480 picture (a 4:3 crop of the scene) for any smaller request, which was then stretched to the chosen
-     * quality: soft, cropped and distorted. Only the 4K request gives real pixels and the full field of view.
+     * The camera ALWAYS captures at 1920x1080 through the legacy Camera API, exactly like the factory camera app (it shows the wide, full
+     * field of view). Smaller requests give a cropped 4:3 picture on this device, and the Camera2 route rotated the picture sideways.
      */
-    fun cameraCaptureSize(cameraName: String): Size {
-        val id = cameraName.toInt()
-        return when {
-            CamcorderProfile.hasProfile(id, CamcorderProfile.QUALITY_2160P) -> Size(3840, 2160)
-            CamcorderProfile.hasProfile(id, CamcorderProfile.QUALITY_1080P) -> Size(1920, 1080)
-            else -> Size(1280, 720)
-        }
-    }
+    fun cameraCaptureSize(cameraName: String): Size = Size(1920, 1080)   // what the factory camera app uses; the legacy API offers 1920x1440 at most
 
     /**
      * Size the stream/recording is encoded at for a quality. Always 16:9 like the camera frame (so nothing is
-     * stretched) and never above what the camera captures; smaller sizes are scaled down from the real 4K frame.
+     * stretched) and never above what the camera captures; smaller sizes are scaled down from the 1080p frame.
      */
     fun encoderSize(cameraName: String, preset: ResolutionPreset): Size {
         val cam = cameraCaptureSize(cameraName)

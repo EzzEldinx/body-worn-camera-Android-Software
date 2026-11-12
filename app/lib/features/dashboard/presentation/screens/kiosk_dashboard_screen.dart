@@ -36,7 +36,6 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   // Seconds of the current recording: a notifier so the timer repaints only itself, not the whole screen.
   final ValueNotifier<int> _recSecs = ValueNotifier<int>(0);
   double _framePixelRatio = 1.0;
-  final ValueNotifier<String> _stampLabel = ValueNotifier<String>(''); // the stamp text, drawn upright over the preview window
   Timer? _timer;
   Timer? _sosTick;
   Timer? _stampTimer; // writes date/time, camera ID and employee ID into the picture every second
@@ -444,7 +443,6 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     Future<void> put() async {
       final c = _controller;
       if (c == null || !mounted) return;
-      _stampLabel.value = link.stampText();
       try { await c.setOverlayText(link.stampText()); } catch (_) {/* camera is being reopened: the next second retries */}
     }
     put();
@@ -1273,28 +1271,20 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     await File(path).writeAsBytes(data.buffer.asUint8List());
   }
 
-  // A 16:9 window in the upper-middle of the screen showing the picture UPRIGHT and at full width, exactly like the recording and the
-  // stream (the camera sensor is mounted sideways, so the upright frame is tall; the window shows its middle part, top and bottom cut).
-  // Nothing is zoomed (the zoom slider is the only magnifier and starts at 1.0x). The date, camera, user, GPS and company are drawn on
-  // it by Flutter here, and burned into the recording and the photos by the camera plugin.
+  // A 16:9 window in the upper-middle of the screen showing the whole wide picture, exactly as the camera sees it (no crop, no zoom;
+  // the zoom slider is the only magnifier and starts at 1.0x). The black space around it holds the buttons.
   Widget _previewLayer(bool isFront) {
     if (!_isCameraInitialized || _controller == null) {
       return const Center(child: CircularProgressIndicator(color: Colors.red));
     }
     final size = _controller!.value.previewSize;
-    final a = size?.width ?? 1920.0;
-    final b = size?.height ?? 1080.0;
-    final pw = a < b ? a : b; // upright (portrait) frame, in camera pixels
-    final ph = a < b ? b : a;
-    final ar = pw / ph;
+    final pw = (size?.width ?? 1920.0) > (size?.height ?? 1080.0) ? (size?.width ?? 1920.0) : (size?.height ?? 1080.0);
 
     return LayoutBuilder(
       builder: (context, box) {
         final w = box.maxWidth;
-        final h = w * 9 / 16; // the window
-        final fh = w / ar; // the whole upright frame, taller than the window
-        // The native preview is laid out at the size it is DISPLAYED, never at the camera's pixel size
-        // (a 4K surface scaled down made the picture on the camera itself lag while the stream stayed smooth).
+        final h = w * 9 / 16;
+        // The native preview is laid out at the size it is DISPLAYED, never at the camera's pixel size.
         _framePixelRatio = pw / w;
         return Align(
           alignment: Alignment.topCenter,
@@ -1304,41 +1294,15 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
               child: SizedBox(
                 width: w,
                 height: h,
-                child: Stack(
-                  children: [
-                    // The native view is laid out 16:9 (that is how it draws the whole upright frame without zooming it, centred with black
-                    // sides); it is as tall as the upright frame is, so the frame is exactly the window's width and the window shows its middle.
-                    OverflowBox(
-                      minWidth: fh * 16 / 9,
-                      maxWidth: fh * 16 / 9,
-                      minHeight: fh,
-                      maxHeight: fh,
-                      child: Transform.scale(
-                        scale: _currentZoomLevel,
-                        child: RepaintBoundary(
-                          key: _frameKey,
-                          child: KeyedSubtree(
-                            key: ObjectKey(_controller),
-                            child: _controller!.buildPreview(),
-                          ),
-                        ),
-                      ),
+                child: Transform.scale(
+                  scale: _currentZoomLevel,
+                  child: RepaintBoundary(
+                    key: _frameKey,
+                    child: KeyedSubtree(
+                      key: ObjectKey(_controller),
+                      child: _controller!.buildPreview(),
                     ),
-                    Positioned(
-                      right: 4,
-                      bottom: 4,
-                      child: IgnorePointer(
-                        child: ValueListenableBuilder<String>(
-                          valueListenable: _stampLabel,
-                          builder: (_, t, __) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                            decoration: BoxDecoration(color: const Color(0x99000000), borderRadius: BorderRadius.circular(4)),
-                            child: Text(t, style: const TextStyle(color: Colors.white, fontSize: 8.5, height: 1.25, fontFamily: 'monospace', fontWeight: FontWeight.w700)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
