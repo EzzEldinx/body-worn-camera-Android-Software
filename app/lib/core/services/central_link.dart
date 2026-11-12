@@ -68,6 +68,10 @@ class ChatMessage {
 }
 
 class CentralLink {
+  /// What this camera app can do for the server, reported with the status. 'update-net': it keeps an update to Wi-Fi when told to (see
+  /// AppUpdater); the server only updates a "Wi-Fi only" camera over the network when it knows this.
+  static const List<String> capabilities = <String>['update-net'];
+
   // Who carries this camera (told by the server after the employee took it at the check-out station) and the server's clock.
   final ValueNotifier<Map<String, dynamic>?> assignment = ValueNotifier(null);
   int clockOffsetMs = 0; // server time minus this device's clock: the stamp on the picture is right even if the device clock is wrong
@@ -430,6 +434,7 @@ class CentralLink {
       if (qualityAuto != null) 'qualityAuto': qualityAuto,
       if (_statusRemote != null) 'remote': _statusRemote,
       if (appBuild != null) 'build': appBuild,
+      'caps': capabilities,
     });
   }
 
