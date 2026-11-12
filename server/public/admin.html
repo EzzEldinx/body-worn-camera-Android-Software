@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin panel - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="stylesheet" href="/portal.css">
+<style>
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+.stack{display:grid;gap:18px}
+.rgchip{display:inline-flex;align-items:center;gap:8px;padding:5px 6px 5px 13px;border-radius:99px;font-size:13px;font-weight:600;background:var(--raise);border:1px solid var(--line)}
+.rgchip button{border:0;background:none;color:var(--mut);cursor:pointer;width:22px;height:22px;border-radius:50%}
+.rgchip button:hover{background:var(--rec);color:#fff}
+.newco{display:flex;gap:10px;flex-wrap:wrap}
+.newco input{flex:1;min-width:200px}
+.co{margin-top:10px;padding:12px 16px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.co-body{display:none;margin-top:12px;padding-top:6px;border-top:1px solid var(--line-soft)}.co.open .co-body{display:block}
+.chev{font-style:normal;color:var(--mut);transition:transform .15s;width:14px}.co.open .chev{transform:rotate(90deg)}
+.co-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.co-head .logo{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--blue));box-shadow:0 4px 14px rgba(94,74,158,.4);flex:none}
+.co-head h2{margin:0;font-size:18px}
+.co-head .meta{color:var(--mut);font-size:12.5px}
+.co-head .sp{margin-left:auto}
+.sub{margin:16px 0 8px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--mut)}
+.users{display:grid;gap:8px}
+.user{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:11px;background:var(--raise);border:1px solid var(--line-soft)}
+.user .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--sel),#ff8a00);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--sel-ink);flex:none}
+.user b{font-size:14px}.user small{color:var(--mut);display:block;font-size:12px}
+.user .sp{margin-left:auto;display:flex;gap:6px}
+.subbox{display:flex;gap:8px;align-items:center}.chip-s{padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--raise);border:1px solid var(--line)}.chip-s.expiring{background:color-mix(in srgb,var(--sel) 22%,var(--panel))}.chip-s.locked{background:var(--rec);color:#fff;border-color:transparent}.chip-s.expired{background:color-mix(in srgb,var(--rec) 22%,var(--panel))}.chip-s.active{background:color-mix(in srgb,var(--ok) 16%,var(--panel))}
+.adduser{display:grid;grid-template-columns:1fr 1fr 1.2fr auto auto;gap:8px;margin-top:10px}
+.adduser .pw{display:flex;gap:6px}.adduser .pw input{flex:1;min-width:0}
+@media (max-width:760px){.adduser{grid-template-columns:1fr}}
+.emp-tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--blue) 14%,var(--panel));color:var(--blue);vertical-align:middle}
+.emp-tag.on{background:color-mix(in srgb,var(--ok) 16%,var(--panel));color:var(--ok)}
+.emp-tag.off{background:color-mix(in srgb,var(--rec) 14%,var(--panel));color:var(--rec)}
+.user.is-off{opacity:.6}
+.addemp{display:grid;grid-template-columns:1.3fr .8fr 1fr auto;gap:8px;margin-top:10px}
+@media (max-width:760px){.addemp{grid-template-columns:1fr}}
+details.bulk{margin-top:10px;border:1px solid var(--line-soft);border-radius:12px;background:var(--raise);padding:10px 14px}
+details.bulk summary{cursor:pointer;font-weight:700;font-size:13.5px}
+details.bulk textarea{width:100%;min-height:110px;margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace}
+details.bulk p{margin:8px 0 0;color:var(--mut);font-size:12.5px;line-height:1.5}
+.credbox{margin-top:12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ok) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line))}
+.credbox table td{padding:5px 8px;font-size:13px;font-family:Consolas,monospace}
+.credbox .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.cam{padding:5px 12px;border-radius:99px;font-size:12.5px;font-weight:600;background:color-mix(in srgb,var(--blue) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--blue) 35%,var(--line))}
+.cred{margin-top:12px;padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--ok) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line));font-size:13.5px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cred code{font-family:Consolas,monospace;font-size:13.5px;background:var(--panel);padding:3px 8px;border-radius:7px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse}
+td{padding:10px 6px;border-bottom:1px solid var(--line-soft);font-size:14px}
+tr:last-child td{border-bottom:0}
+td select{width:100%}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;background:var(--off)}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.empty{color:var(--mut);font-size:13.5px;padding:14px 0}
+.fgroup{margin-top:10px}.fgroup>h4{margin:0 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--mut)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.fopt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:11px;background:var(--raise);border:1px solid var(--line-soft);cursor:pointer;transition:border-color .12s,background .12s}
+.fopt:hover{border-color:var(--line)}
+.fopt input{width:17px;height:17px;margin-top:2px;accent-color:var(--brand);flex:none;cursor:pointer}
+.fopt b{display:block;font-size:13.5px}.fopt small{display:block;color:var(--mut);font-size:12px;line-height:1.35;margin-top:1px}
+.fopt.on{border-color:color-mix(in srgb,var(--brand) 55%,var(--line));background:color-mix(in srgb,var(--brand) 7%,var(--raise))}
+.fopt.dim{opacity:.5;cursor:not-allowed}
+.kind{margin:16px 0 0;font-size:13px;font-weight:800;color:var(--text);padding-bottom:4px;border-bottom:1px solid var(--line-soft)}
+.co-head .logo.has{background:var(--panel);border:1px solid var(--line);box-shadow:none}.co-head .logo .avimg{object-fit:contain;padding:3px}
+.uw{display:grid;gap:6px}.uacc{display:none;padding:2px 14px 14px;border-radius:11px;background:var(--panel);border:1px solid var(--line-soft)}.uw.open .uacc{display:block}
+.piccell{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:6px}
+.fbar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.fcount{font-size:12.5px;color:var(--mut)}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <section class="card" style="margin-bottom:18px" id="newCompany">
+    <h3>Add a new company</h3>
+    <div class="newco">
+      <input id="coName" placeholder="New company name, e.g. Al Rajhi Security" maxlength="60">
+      <select id="coPkg" aria-label="Package"></select>
+      <button class="btn pri" id="coAdd">Add company</button>
+    </div>
+    <div class="newco" style="margin-top:10px"><input id="coAdmin" placeholder="Administrator username (the company's own login, e.g. alnoor.admin)" maxlength="32" autocomplete="off">
+      <span class="muted" style="font-size:12.5px;align-self:center;flex:2;min-width:220px">Leave empty to add the administrator later. A strong password is made for you and shown once.</span></div>
+    <details class="bulk" style="margin-top:12px"><summary>Choose what this company can use <span class="muted" style="font-weight:500">(all selected by default)</span></summary><div id="newFeat"></div></details>
+  </section>
+  <div class="layout">
+    <section class="card">
+      <h3>Companies <span class="muted" id="coCount" style="text-transform:none;letter-spacing:0;font-weight:500"></span></h3>
+      <div style="display:flex;gap:8px;margin-bottom:6px"><button class="btn sm" id="openAll">Open all</button><button class="btn sm" id="closeAll">Close all</button></div>
+      <div id="companies"></div>
+    </section>
+
+    <div class="stack">
+    <section class="card">
+      <h3>Regions</h3>
+      <div class="newco">
+        <input id="rgName" placeholder="New region, e.g. Medina" maxlength="40">
+        <button class="btn pri" id="rgAdd">Add</button>
+      </div>
+      <div class="chips" id="regions" style="margin-top:12px"></div>
+    </section>
+
+    <section class="card">
+      <h3>Camera assignment</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:13px">Choose which company owns each camera. That company's users see only their cameras.</p>
+      <div style="margin-bottom:10px"><button class="btn sm danger" id="rmOffline">Remove all offline cameras</button></div>
+      <div class="newco" style="margin-bottom:12px">
+        <input id="newCamId" placeholder="New camera ID, e.g. BWC-08-RIY" maxlength="32">
+        <button class="btn pri" id="newCamBtn">Create + issue token</button>
+      </div>
+      <table><tbody id="cams"></tbody></table>
+    </section>
+    </div>
+  </div>
+</main>
+
+<script src="/portal.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let data = { companies: [], cameras: [] };
+const lastCred = {};   // companyId -> { username, password } shown once after creating a user
+const lastEmp = {};    // companyId -> [{ name, employeeNo, username, password }] shown once after creating employees
+
+const api = (method, url, body) => fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
+  .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; });
+const load = () => api('GET', '/api/admin/companies').then((d) => { data = d; render(); });
+const fail = (e) => toast(e.message);
+const genPw = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (x) => c[x % c.length]).join(''); };
+
+const pkgOptions = (sel) => '<option value="">Unlimited (legacy)</option>' + (data.packages || []).map((p) =>
+  `<option value="${p.maxCameras}" ${sel === p.maxCameras ? 'selected' : ''}>${p.maxCameras} cameras · ${p.maxLive} live</option>`).join('');
+
+// Feature checkboxes, grouped. sel = what is ticked, avail = what may be ticked at all (a user cannot get what the company does not have).
+function featBoxes(sel, avail, attr, kinds = ['feature']) {
+  const all = data.catalog || [], opt = (f) => {
+    const on = sel.includes(f.key), ok = avail.includes(f.key);
+    return `<label class="fopt ${on ? 'on' : ''} ${ok ? '' : 'dim'}" title="${ok ? '' : 'Not included in this company'}"><input type="checkbox" ${attr}="${f.key}" ${on ? 'checked' : ''} ${ok ? '' : 'disabled'}><span><b>${esc(f.label)}</b><small>${esc(f.hint)}</small></span></label>`;
+  };
+  return kinds.map((k) => {
+    const cat = all.filter((f) => (f.kind || 'feature') === k), groups = [...new Set(cat.map((f) => f.group))];
+    return (kinds.length > 1 ? `<div class="kind">${k === 'feature' ? 'Can see' : 'Can do'}</div>` : '') + groups.map((g) => `<div class="fgroup"><h4>${esc(g)}</h4><div class="fgrid">${cat.filter((f) => f.group === g).map(opt).join('')}</div></div>`).join('');
+  }).join('');
+}
+// Ticking something that needs another one (Live wall needs Live dashboard) ticks that one too; unticking it unticks them.
+function fixNeeds(box, attr, changed) {
+  const cat = data.catalog || [], on = (k) => box.querySelector(`[${attr}="${k}"]`);
+  const cb = on(changed.dataset[attr.replace('data-', '')]); if (!cb) return;
+  const f = cat.find((x) => x.key === cb.getAttribute(attr));
+  if (cb.checked) (f.needs || []).forEach((n) => { const x = on(n); if (x && !x.disabled) x.checked = true; });
+  else cat.filter((x) => (x.needs || []).includes(f.key)).forEach((x) => { const y = on(x.key); if (y) y.checked = false; });
+}
+const ticked = (box, attr) => [...box.querySelectorAll(`[${attr}]:checked`)].map((c) => c.getAttribute(attr));
+const openCo = new Set(), openU = new Set();   // companies that are expanded (the rest are collapsed into one line each)
+function render() {
+  $('#coCount').textContent = data.companies.length ? `· ${data.companies.length}` : '';
+  $('#coPkg').innerHTML = pkgOptions(20).replace('Unlimited (legacy)', 'Unlimited');
+  if (!$('#newFeat').children.length) { const all = (data.catalog || []).filter((f) => f.kind === 'feature').map((f) => f.key); $('#newFeat').innerHTML = featBoxes(all, all, 'data-nf'); }
+  const byCo = (id) => data.cameras.filter((c) => c.companyId === id);
+  $('#companies').innerHTML = data.companies.length ? data.companies.map((co) => `
+    <div class="co ${openCo.has(co.id) ? 'open' : ''}" data-id="${co.id}">
+      <div class="co-head" data-act="toggle" style="cursor:pointer">
+        <i class="chev">▸</i><div class="logo ${co.logoTs ? 'has' : ''}">${avatarInner('company', co.id, co.logoTs, co.name[0].toUpperCase())}</div>
+        <div><h2>${esc(co.name)}</h2><div class="meta">${co.users.filter((u) => u.role !== 'officer').length} user${co.users.filter((u) => u.role !== 'officer').length === 1 ? '' : 's'} · ${co.users.filter((u) => u.role === 'officer').length} employee${co.users.filter((u) => u.role === 'officer').length === 1 ? '' : 's'} · ${byCo(co.id).length}${co.maxCameras ? ' / ' + co.maxCameras : ''} camera${byCo(co.id).length === 1 ? '' : 's'}${co.maxLive ? ` · live ${co.liveNow} / ${co.maxLive}` : ''}</div></div>
+        <select class="pkg" data-act="pkg" aria-label="Package">${pkgOptions(co.maxCameras)}</select>
+        <span class="subbox" title="Subscription: the company is told 30 days before it ends"><span class="chip-s ${co.subscription ? co.subscription.state : 'none'}">${co.subscription ? (co.subscription.state === 'locked' ? 'LOCKED since ' + new Date(co.subscription.lockOn).toISOString().slice(0, 10) : co.subscription.daysLeft < 0 ? 'Ended ' + new Date(co.subEnd).toISOString().slice(0, 10) : 'Until ' + new Date(co.subEnd).toISOString().slice(0, 10) + ' · ' + co.subscription.daysLeft + ' d') : 'No end date'}</span>
+          <select class="subsel" data-act="sub" aria-label="Extend subscription"><option value="">Extend by…</option><option value="1">+1 month</option><option value="3">+3 months</option><option value="6">+6 months</option><option value="12">+1 year</option><option value="24">+2 years</option><option value="36">+3 years</option><option value="date">Pick a date…</option><option value="clear">No end date</option></select></span>
+        <button class="btn sm danger sp" data-act="delco">Delete company</button>
+      </div>
+      <div class="co-body">
+      <div class="sub">Company logo</div>
+      <div class="piccell"><div class="logo ${co.logoTs ? 'has' : ''}" style="width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--blue));overflow:hidden">${avatarInner('company', co.id, co.logoTs, co.name[0].toUpperCase())}</div>
+        <button class="btn sm" data-act="logo">${co.logoTs ? 'Change logo' : 'Upload logo'}</button>${co.logoTs ? '<button class="btn sm" data-act="logorm">Remove</button>' : ''}<span class="muted" style="font-size:12.5px">Shown next to the company name. PNG, JPEG or WebP.</span></div>
+      <div class="sub">What this company can use <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(safety alarms and Support are always on)</span></div>
+      <div class="feat" data-feat="${co.id}">${featBoxes(co.features, (data.catalog || []).map((f) => f.key), 'data-f')}
+        <div class="fbar"><span class="fcount">${co.features.length} of ${(data.catalog || []).filter((f) => f.kind === 'feature').length} selected</span><button class="btn sm" data-act="fall">Select all</button><button class="btn sm" data-act="fnone">Clear</button><button class="btn sm pri" data-act="fsave">Save features</button></div></div>
+      <div class="sub">Assigned cameras</div>
+      <div class="chips">${byCo(co.id).map((c) => `<span class="cam">${esc(c.id)}</span>`).join('') || '<span class="muted" style="font-size:13px">None yet. Assign cameras from the list on the right.</span>'}</div>
+
+      ${co.users.some((u) => u.role === 'manager') ? '' : `<div class="cred" style="margin-top:14px"><b>This company has no administrator yet.</b> Its administrator gets the Employees tab: users, access, pictures and employees.<button class="btn pri sm" data-act="mkadmin">Create administrator account</button></div>`}
+      <div class="sub">Dashboard users <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(watch the live wall and the map)</span></div>
+      <div class="users">${co.users.filter((u) => u.role !== 'officer').map((u) => `
+        <div class="uw ${openU.has(u.id) ? 'open' : ''}" data-uid="${u.id}"><div class="user" data-uid="${u.id}"><div class="av">${avatarInner('user', u.id, u.avatarTs, u.username[0].toUpperCase())}</div>
+          <div><b>${esc(u.username)}</b><small>${esc(u.name)} · ${({ manager: 'Administrator', client: 'Operator', viewer: 'Viewer' })[u.role] || u.role}</small></div>
+          <div class="sp"><button class="btn sm" data-act="upic">Photo</button><button class="btn sm" data-act="uacc">Access · ${u.role === 'manager' ? 'full' : u.access.filter((k) => co.features.includes(k) || (data.catalog.find((f) => f.key === k) || {}).kind === 'action').length + ' on'}</button><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>
+          <div class="uacc">${u.role === 'manager' ? '<div class="muted" style="padding-top:12px;font-size:13px">An administrator can use everything the company has. Make the user an Operator or a Viewer to limit what they can see and do.</div>'
+            : `<div data-ubox>${featBoxes(u.access, [...co.features, ...data.catalog.filter((f) => f.kind === 'action').map((f) => f.key)], 'data-up', ['feature', 'action'])}<div class="fbar"><span class="fcount">${u.access.length} selected</span><button class="btn sm" data-act="uall">Select all</button><button class="btn sm" data-act="unone">Clear</button><button class="btn sm pri" data-act="usave">Save access</button></div></div>`}</div></div>`).join('') || '<div class="empty">No users yet.</div>'}</div>
+      ${lastCred[co.id] ? `<div class="cred">Login to give to the customer: <code>${esc(lastCred[co.id].username)}</code> <code>${esc(lastCred[co.id].password)}</code>
+        <button class="btn sm" data-act="copy">Copy</button><span class="muted" style="font-size:12px">Shown only now. Save it.</span></div>` : ''}
+      <div class="adduser">
+        <input class="nu" placeholder="Username" maxlength="32" autocomplete="off">
+        <input class="nn" placeholder="Display name (optional)" maxlength="60">
+        <div class="pw"><input class="np" placeholder="Password (8+)" autocomplete="new-password"><button class="btn sm" data-act="gen" type="button">Generate</button></div>
+        <select class="nr" aria-label="Role" title="Administrator: everything in the company. Operator: watch, alarms, chat, no delete. Viewer: read only."><option value="manager">Administrator</option><option value="client" selected>Operator</option><option value="viewer">Viewer (read only)</option></select>
+        <button class="btn pri" data-act="adduser">Add user</button>
+      </div>
+
+      <div class="sub">Employees <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">(each has a username and password and takes a camera at the docking station)</span></div>
+      <div class="users">${co.users.filter((u) => u.role === 'officer').map((u) => `
+        <div class="user ${u.active ? '' : 'is-off'}" data-uid="${u.id}"><div class="av">${avatarInner('user', u.id, u.avatarTs, (u.name || u.username)[0].toUpperCase())}</div>
+          <div><b>${esc(u.name)}${u.holding ? `<span class="emp-tag on">has ${esc(u.holding)}</span>` : ''}${u.active ? '' : '<span class="emp-tag off">switched off</span>'}</b><small>${u.employeeNo ? 'No. ' + esc(u.employeeNo) + (u.username !== u.employeeNo ? ' · ' + esc(u.username) : '') : esc(u.username)}</small></div>
+          <div class="sp"><button class="btn sm" data-act="upic">Photo</button><button class="btn sm" data-act="editemp">Edit</button><button class="btn sm" data-act="pw">Reset password</button><button class="btn sm" data-act="toggleemp">${u.active ? 'Switch off' : 'Switch on'}</button><button class="btn sm danger" data-act="deluser">Remove</button></div></div>`).join('') || '<div class="empty">No employees yet. Add the people who will carry cameras.</div>'}</div>
+      ${(lastEmp[co.id] || []).length ? `<div class="credbox"><div class="head"><b>Logins to hand out (${lastEmp[co.id].length})</b><span class="muted">Shown only now. Save them.</span>
+        <button class="btn sm" data-act="copyemp">Copy</button><button class="btn sm" data-act="csvemp">Download CSV</button></div>
+        <table>${lastEmp[co.id].map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.employeeNo || '')}</td><td>${esc(c.username)}</td><td>${esc(c.password)}</td></tr>`).join('')}</table></div>` : ''}
+      <div class="addemp">
+        <input class="en" placeholder="Employee name" maxlength="60">
+        <input class="eno" placeholder="Employee no." maxlength="20">
+        <input class="eu" placeholder="Username (blank = the number)" maxlength="32" autocomplete="off">
+        <button class="btn pri" data-act="addemp">Add employee</button>
+      </div>
+      <details class="bulk"><summary>Add many employees at once</summary>
+        <textarea class="bulktxt" placeholder="One person per line:&#10;Ahmed Hassan, 0147&#10;Sara Ali, 0200&#10;Khaled Omar, 0311"></textarea>
+        <p>Name, then the employee number. The username becomes the number and every person gets a random password. You get a sheet of logins to print or hand out.</p>
+        <div style="margin-top:10px"><button class="btn pri" data-act="bulkemp">Create accounts</button></div></details>
+    </div></div>`).join('') : '<div class="empty">No companies yet. Add your first customer above.</div>';
+
+  $('#regions').innerHTML = (data.regions || []).map((r) => `<span class="rgchip">${esc(r)}<button data-rg="${esc(r)}" title="Delete region" aria-label="Delete ${esc(r)}">✕</button></span>`).join('') || '<span class="muted" style="font-size:13px">No regions yet.</span>';
+  $('#cams').innerHTML = data.cameras.length ? data.cameras.map((c) => `
+    <tr data-cam="${esc(c.id)}"><td style="width:46%"><span class="dot ${c.online ? 'on' : ''}"></span><b>${esc(c.id)}</b>${c.name && c.name !== c.id ? `<div class="muted" style="font-size:12px;margin-left:17px">${esc(c.name)}</div>` : ''}</td>
+      <td><select data-k="company">${'<option value="">No company</option>' + data.companies.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select></td>
+      <td><select data-k="region">${'<option value="">No region</option>' + (data.regions || []).map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></td>
+      <td style="white-space:nowrap"><button class="btn sm" data-tok="${esc(c.id)}" title="${c.hasToken ? 'Rotate device token' : 'Issue device token'}">${c.hasToken ? '🔑 Rotate' : '🔑 Issue'}</button></td>
+      <td style="width:34px"><button class="btn sm danger" data-delcam="${esc(c.id)}" title="Remove camera" aria-label="Remove ${esc(c.id)}">✕</button></td></tr>`).join('')
+    : '<tr><td class="empty">No cameras have connected yet. They appear here as soon as one connects.</td></tr>';
+}
+
+$('#coAdd').onclick = () => {
+  const name = $('#coName').value.trim();
+  if (!name) return;
+  const adminUsername = $('#coAdmin').value.trim(), adminPassword = adminUsername ? genPw() : '';
+  api('POST', '/api/admin/companies', { name, maxCameras: $('#coPkg').value === '' ? null : Number($('#coPkg').value), features: ticked($('#newFeat'), 'data-nf'), adminUsername, adminPassword }).then((r) => { if (adminUsername) { lastCred[r.id] = { username: adminUsername, password: adminPassword }; openCo.add(r.id); } $('#coName').value = $('#coAdmin').value = ''; $('#newFeat').innerHTML = ''; toast('Company added'); return load(); }).catch(fail);
+};
+$('#coName').onkeydown = (e) => { if (e.key === 'Enter') $('#coAdd').click(); };
+
+$('#companies').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const co = b.closest('.co'), id = Number(co.dataset.id), act = b.dataset.act;
+  if (act === 'toggle') { co.classList.toggle('open'); if (co.classList.contains('open')) openCo.add(id); else openCo.delete(id); return; }
+  if (act === 'fall' || act === 'fnone') { const box = co.querySelector('.feat'); box.querySelectorAll('[data-f]').forEach((c) => { c.checked = act === 'fall'; }); syncBox(box, 'data-f'); return; }
+  if (act === 'fsave') { api('PUT', `/api/admin/companies/${id}/features`, { features: ticked(co.querySelector('.feat'), 'data-f') }).then(() => { toast('Saved. The company\'s users see the change at once.'); return load(); }).catch(fail); return; }
+  if (act === 'logo') { pickPicture('company', id).then((ok) => ok && (toast('Logo saved'), load())).catch(fail); return; }
+  if (act === 'logorm') { removePicture('company', id).then(() => { toast('Logo removed'); return load(); }).catch(fail); return; }
+  if (act === 'upic') { const uid = Number(b.closest('.user').dataset.uid); pickPicture('user', uid).then((ok) => ok && (toast('Picture saved'), load())).catch(fail); return; }
+  if (act === 'uacc') { const w = b.closest('.uw'), uid = Number(w.dataset.uid); w.classList.toggle('open'); w.classList.contains('open') ? openU.add(uid) : openU.delete(uid); return; }
+  if (act === 'uall' || act === 'unone') { const box = b.closest('[data-ubox]'); box.querySelectorAll('[data-up]:not(:disabled)').forEach((c) => { c.checked = act === 'uall'; }); syncBox(box, 'data-up'); return; }
+  if (act === 'usave') { const w = b.closest('.uw'); api('PUT', `/api/admin/users/${w.dataset.uid}/access`, { perms: ticked(w.querySelector('[data-ubox]'), 'data-up') }).then(() => { toast('Access saved. It applies at once.'); return load(); }).catch(fail); return; }
+  if (act === 'mkadmin') {
+    const base = (co.querySelector('h2').textContent.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 18) || 'company'), username = base + '.admin', password = genPw();
+    api('POST', `/api/admin/companies/${id}/users`, { username, password, name: co.querySelector('h2').textContent + ' Administrator', role: 'manager' })
+      .then(() => { lastCred[id] = { username, password }; toast('Administrator created'); return load(); }).catch(fail); return; }
+  if (act === 'gen') { co.querySelector('.np').value = genPw(); return; }
+  if (act === 'copy') { const c = lastCred[id]; navigator.clipboard?.writeText(`Username: ${c.username}\nPassword: ${c.password}`).then(() => toast('Copied')); return; }
+  if (act === 'adduser') {
+    const username = co.querySelector('.nu').value.trim(), password = co.querySelector('.np').value, name = co.querySelector('.nn').value.trim();
+    api('POST', `/api/admin/companies/${id}/users`, { username, password, name, role: co.querySelector('.nr').value })
+      .then(() => { lastCred[id] = { username, password }; toast('User created'); return load(); }).catch(fail);
+  } else if (act === 'addemp') {
+    const name = co.querySelector('.en').value.trim(), employeeNo = co.querySelector('.eno').value.trim(), username = co.querySelector('.eu').value.trim();
+    api('POST', `/api/admin/companies/${id}/employees`, { employees: [{ name, employeeNo, username }] }).then((r) => {
+      if (r.skipped.length) return toast(`Not added: ${r.skipped[0].reason}`);
+      lastEmp[id] = r.created; toast('Employee created'); return load();
+    }).catch(fail);
+  } else if (act === 'bulkemp') {
+    const lines = co.querySelector('.bulktxt').value.split('\n').map((l) => l.trim()).filter(Boolean);
+    const employees = lines.map((l) => { const p = l.split(/[,;\t]/).map((x) => x.trim()); return { name: p[0], employeeNo: p[1] || '', username: p[2] || '' }; });
+    if (!employees.length) return toast('Type at least one line.');
+    api('POST', `/api/admin/companies/${id}/employees`, { employees }).then((r) => {
+      lastEmp[id] = r.created; toast(`${r.created.length} created${r.skipped.length ? ', ' + r.skipped.length + ' skipped' : ''}`);
+      if (r.skipped.length) alert('Not created:\n' + r.skipped.map((x) => `${x.name || '(no name)'}: ${x.reason}`).join('\n'));
+      return load();
+    }).catch(fail);
+  } else if (act === 'copyemp') {
+    navigator.clipboard?.writeText(lastEmp[id].map((c) => `${c.name}\t${c.employeeNo || ''}\t${c.username}\t${c.password}`).join('\n')).then(() => toast('Copied'));
+  } else if (act === 'csvemp') {
+    const q = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const csv = 'name,employee_no,username,password\n' + lastEmp[id].map((c) => [c.name, c.employeeNo, c.username, c.password].map(q).join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' })); a.download = 'employee-logins.csv'; a.click();
+  } else if (act === 'toggleemp') {
+    const row = b.closest('.user'), off = row.classList.contains('is-off');
+    if (off || confirm('Switch this employee off? They are signed out at once and cannot take a camera. Their history stays.')) api('PATCH', `/api/admin/users/${row.dataset.uid}`, { active: off }).then(load).catch(fail);
+  } else if (act === 'editemp') {
+    const row = b.closest('.user'), u = data.companies.find((c) => c.id === id).users.find((x) => x.id === Number(row.dataset.uid));
+    const name = prompt('Employee name:', u.name); if (name === null) return;
+    const no = prompt('Employee number (blank for none):', u.employeeNo || ''); if (no === null) return;
+    api('PATCH', `/api/admin/users/${u.id}`, { name, employeeNo: no }).then(() => { toast('Saved'); return load(); }).catch(fail);
+  } else if (act === 'deluser') {
+    if (confirm('Remove this user? They will be signed out immediately.')) api('DELETE', `/api/admin/users/${b.closest('.user').dataset.uid}`).then(load).catch(fail);
+  } else if (act === 'pw') {
+    const pw = prompt('New password (8+ characters):', genPw());
+    if (pw) api('POST', `/api/admin/users/${b.closest('.user').dataset.uid}/password`, { password: pw })
+      .then(() => { toast('Password changed. Share it with the customer.'); }).catch(fail);
+  } else if (act === 'delco') {
+    if (confirm('Delete this company and all of its users? Its cameras become unassigned.')) api('DELETE', `/api/admin/companies/${id}`).then(() => { delete lastCred[id]; return load(); }).catch(fail);
+  }
+});
+
+function syncBox(box, attr, changed) {
+  if (changed) fixNeeds(box, attr, changed);
+  box.querySelectorAll('.fopt').forEach((l) => l.classList.toggle('on', l.querySelector('input').checked));
+  const n = box.querySelector('.fcount'); if (n) n.textContent = attr === 'data-up' ? `${ticked(box, attr).length} selected` : `${ticked(box, attr).length} of ${(data.catalog || []).filter((f) => (f.kind || 'feature') === 'feature').length} selected`;
+}
+document.addEventListener('change', (e) => {
+  const c = e.target.closest('[data-f],[data-nf],[data-up]'); if (!c) return;
+  const attr = c.hasAttribute('data-f') ? 'data-f' : c.hasAttribute('data-nf') ? 'data-nf' : 'data-up';
+  syncBox(c.closest('.feat, #newFeat, [data-ubox]'), attr, c);
+});
+$('#companies').addEventListener('change', (e) => {
+  const sb = e.target.closest('select.subsel');
+  if (sb) {
+    const id = Number(sb.closest('.co').dataset.id); let body;
+    if (sb.value === 'clear') body = { clear: true };
+    else if (sb.value === 'date') { const d = prompt('Subscription ends on (YYYY-MM-DD):'); if (!d) { sb.value = ''; return; } body = { end: d.trim() }; }
+    else if (sb.value) body = { months: Number(sb.value) }; else return;
+    api('PUT', `/api/admin/companies/${id}/subscription`, body).then(() => { toast('Subscription updated'); return load(); }).catch((err) => { fail(err); load(); });
+    return;
+  }
+  const sel = e.target.closest('select.pkg'); if (!sel) return;
+  const id = Number(sel.closest('.co').dataset.id);
+  api('PUT', `/api/admin/companies/${id}/package`, { maxCameras: sel.value === '' ? null : Number(sel.value) })
+    .then(() => { toast('Package updated'); return load(); }).catch((err) => { fail(err); load(); });
+});
+
+$('#cams').addEventListener('change', (e) => {
+  const sel = e.target.closest('select'); if (!sel) return;
+  const id = encodeURIComponent(sel.closest('tr').dataset.cam);
+  const req = sel.dataset.k === 'region'
+    ? api('PUT', `/api/admin/cameras/${id}/region`, { region: sel.value === '' ? null : sel.value })
+    : api('PUT', `/api/admin/cameras/${id}/company`, { companyId: sel.value === '' ? null : Number(sel.value) });
+  req.then(() => { toast('Saved'); return load(); }).catch((err) => { fail(err); load(); });
+});
+$('#newCamBtn').onclick = () => {
+  const id = $('#newCamId').value.trim();
+  if (!/^[\w.-]{1,32}$/.test(id)) return toast('Use letters, numbers, - . _ (max 32)');
+  api('POST', `/api/admin/cameras/${encodeURIComponent(id)}/token`).then((r) => {
+    prompt('Device token (shown only once). Copy this config.json content, then press OK:', JSON.stringify({ id, token: r.token }));
+    $('#newCamId').value = ''; toast('Camera created'); return load();
+  }).catch(fail);
+};
+$('#cams').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-tok]');
+  if (t) {
+    const id = t.dataset.tok;
+    if (!confirm(`Issue a new device token for ${id}? Any token it already has stops working and the camera disconnects until it is updated.`)) return;
+    api('POST', `/api/admin/cameras/${encodeURIComponent(id)}/token`).then((r) => {
+      const cfg = JSON.stringify({ id, token: r.token });
+      prompt('Device token (shown only once). Copy this config.json content, then press OK:', cfg);
+      toast('Token issued'); return load();
+    }).catch(fail);
+    return;
+  }
+  const b = e.target.closest('[data-delcam]'); if (!b) return;
+  const id = b.dataset.delcam;
+  if (confirm(`Remove ${id}? It reappears if the camera starts recording again.`)) api('DELETE', `/api/cameras/${encodeURIComponent(id)}`).then(() => { toast('Removed'); return load(); }).catch(fail);
+});
+$('#rmOffline').onclick = async () => {
+  const off = data.cameras.filter((c) => !c.online);
+  if (!off.length) return toast('No offline cameras.');
+  if (!confirm(`Remove ${off.length} offline camera(s)?\n\n${off.map((c) => c.id).join(', ')}\n\nThey reappear if a camera starts recording again.`)) return;
+  for (const c of off) await api('DELETE', `/api/cameras/${encodeURIComponent(c.id)}`).catch(() => { });
+  toast('Removed ' + off.length); load();
+};
+$('#rgAdd').onclick = () => {
+  const name = $('#rgName').value.trim(); if (!name) return;
+  api('POST', '/api/admin/regions', { name }).then(() => { $('#rgName').value = ''; toast('Region added'); return load(); }).catch(fail);
+};
+$('#rgName').onkeydown = (e) => { if (e.key === 'Enter') $('#rgAdd').click(); };
+$('#regions').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rg]'); if (!b) return;
+  if (confirm(`Delete the region "${b.dataset.rg}"? Its cameras become "No region".`)) api('DELETE', `/api/admin/regions/${encodeURIComponent(b.dataset.rg)}`).then(load).catch(fail);
+});
+
+$('#openAll').onclick = () => { data.companies.forEach((c) => openCo.add(c.id)); render(); };
+$('#closeAll').onclick = () => { openCo.clear(); render(); };
+portalReady.then(load);
+</script>
+</body>
+</html>

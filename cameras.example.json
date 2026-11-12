@@ -1,0 +1,10 @@
+{
+  "server": "https://visionguard.smartwaygroup.com.sa",
+  "token": "legacy-shared-token-optional",
+  "tokens": {
+    "BWC-04-RIY": "paste the per-camera token issued in the dashboard (Companies page > Issue token)"
+  },
+  "cameras": {
+    "KS16255032500221": "BWC-04-RIY"
+  }
+}

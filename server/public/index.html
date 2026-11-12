@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vision Guard - Digital Evidence Management System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
 
@@ -16,202 +19,371 @@
 </script>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="https://cdn.bootcdn.net/ajax/libs/flv.js/1.6.2/flv.min.js"></script>
+<script src="/vendor/flv.min.js"></script>
 <style>
-:root{--bg:#0f1828;--panel:#162238;--raise:#1d2c47;--line:#2a3b5a;--text:#e8eef7;--mut:#8a9bb5;
---ok:#3ddc97;--rec:#ff5d73;--off:#5b6b86;--sel:#ffc857;--blue:#5aa9ff;
-font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+/* =====================================================================
+   VisionGuard - Command Center design system
+   Tokens are mirrored in the Flutter client (app/lib/core/theme).
+   ===================================================================== */
+:root{
+  --bg:#E9EEF5;--panel:#F8FAFC;--raise:#EEF2F8;--line:#DAE2EC;--line-soft:#E6ECF3;
+  --text:#0F1B2D;--mut:#62738C;
+  --brand:#5E4A9E;
+  --ok:#00B87C;--rec:#FF3355;--off:#9AA8BD;--blue:#2F7BFF;
+  --sel:#FFB300;--sel-ink:#1A1405;--accent-text:#9A6400;
+  --mine:#DCE9FF;--track:#C9D4E3;--flash:#FFD3DA;--hover:#E4EBF5;
+  --glass:rgba(10,16,28,.46);
+  --shadow-sm:0 1px 2px rgba(15,27,45,.05),0 2px 6px rgba(15,27,45,.06);
+  --shadow-md:0 10px 30px rgba(15,27,45,.12);
+  --glow-amber:0 0 0 1px rgba(255,179,0,.55),0 4px 18px rgba(255,179,0,.38);
+  --glow-blue:0 0 0 1px rgba(47,123,255,.5),0 4px 18px rgba(47,123,255,.32);
+  --glow-rec:0 0 0 1px rgba(255,51,85,.5),0 4px 18px rgba(255,51,85,.38);
+  --glow-ok:0 0 0 1px rgba(0,184,124,.5),0 4px 16px rgba(0,184,124,.34);
+  --canvas:radial-gradient(900px 420px at 8% -8%,rgba(94,74,158,.13),transparent 70%),radial-gradient(800px 420px at 100% 0,rgba(47,123,255,.12),transparent 70%),#E9EEF5;
+  --r:16px;--gap:14px;--header-h:78px;
+  font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums;color-scheme:light}
+:root[data-theme="dark"]{
+  --bg:#0B1322;--panel:#131E33;--raise:#1A2842;--line:#273A5B;--line-soft:#1F3050;
+  --text:#E8EEF7;--mut:#8A9BB5;
+  --brand:#9B86E0;
+  --ok:#2EE6A6;--rec:#FF5D77;--off:#5B6B86;--blue:#5AA9FF;
+  --sel:#FFC857;--accent-text:#FFC857;
+  --mine:rgba(90,169,255,.24);--track:rgba(255,255,255,.2);--flash:#5A2030;--hover:#1A2842;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.35);--shadow-md:0 10px 30px rgba(0,0,0,.45);
+  --canvas:radial-gradient(900px 420px at 8% -8%,rgba(155,134,224,.16),transparent 70%),radial-gradient(800px 420px at 100% 0,rgba(90,169,255,.12),transparent 70%),#0B1322;
+  color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;height:100vh;background:var(--bg);color:var(--text);display:grid;grid-template-rows:56px 1fr;overflow:hidden}
+body{margin:0;height:100vh;background:var(--canvas);color:var(--text);display:grid;grid-template-rows:var(--header-h) 1fr;overflow:hidden}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,.cam:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
-header{display:flex;align-items:center;gap:28px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600;letter-spacing:.2px}
-.brand svg{width:26px;height:26px}
-.stats{display:flex;gap:22px;margin-left:12px;color:var(--mut);font-size:14px}
-.stats b{color:var(--text);font-size:18px;margin-right:5px}
-.stats .alert b{color:var(--rec)}
-.clock{margin-left:auto;font-size:15px;color:var(--mut)}
-main{display:grid;grid-template-columns:300px 1fr minmax(420px,38vw);min-height:0}
-aside,#right{background:var(--panel);display:flex;flex-direction:column;min-height:0}
-aside{border-right:1px solid var(--line)}
-#right{border-left:1px solid var(--line)}
-.sec{padding:14px 16px 10px;font-weight:600;font-size:15px;display:flex;align-items:center;justify-content:space-between}
-.sec small{color:var(--mut);font-weight:400}
-#q{margin:0 14px 10px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
-.chips{display:flex;gap:6px;padding:0 14px 10px}
-.chip{padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:none;font-size:13px;color:var(--mut)}
-.chip.on{background:var(--sel);border-color:var(--sel);color:#1a1405;font-weight:600}
-#list{flex:1;overflow:auto;padding:0 8px 12px}
-.cam{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border-left:3px solid transparent}
-.cam:hover{background:var(--raise)}
-.cam.sel{background:var(--raise);border-left-color:var(--sel)}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--off);flex:none}
-.online .dot{background:var(--ok)}.rec .dot{background:var(--rec)}
-.meta{flex:1;min-width:0;display:flex;flex-direction:column}
-.meta small{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.badge{font-size:11px;font-weight:700;color:#fff;background:var(--rec);border-radius:4px;padding:2px 6px}
-.cam button{width:30px;height:30px;border-radius:6px;border:1px solid var(--line);background:none}
-.cam button:hover{background:var(--sel);color:#1a1405;border-color:var(--sel)}
-.none{padding:24px 14px;color:var(--mut);font-size:14px;line-height:1.5}
-#mapwrap{position:relative;min-height:0;direction:ltr;}
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:var(--off)}
+::-webkit-scrollbar-track{background:transparent}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- cards ---------- */
+.card,aside,#mapwrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm)}
+.sec{padding:14px 16px 10px;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sec>span:first-child{display:flex;align-items:center;gap:8px}
+.sec>span:first-child::before{content:"";width:4px;height:14px;border-radius:2px;background:linear-gradient(var(--sel),var(--brand))}
+.sec small{color:var(--text);background:var(--raise);border:1px solid var(--line-soft);border-radius:99px;padding:2px 10px;font-weight:600;text-transform:none;letter-spacing:0;font-size:11.5px}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:center;gap:18px;padding:0 20px;margin:0;background:linear-gradient(180deg,var(--panel),var(--raise));border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm);position:relative;z-index:5}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:linear-gradient(90deg,var(--brand),var(--blue) 45%,var(--sel));opacity:.9}
+.brand{display:flex;align-items:center;gap:14px;flex:none}
+.brand img{height:38px;width:auto;display:block}
+.logo-dark{display:none!important}
+:root[data-theme="dark"] .logo-light{display:none!important}
+:root[data-theme="dark"] .logo-dark{display:block!important}
+.brand-sep{width:1px;height:38px;background:var(--line)}
+.brand-text{display:flex;flex-direction:column;line-height:1.2}
+.brand-text strong{font-size:17px;font-weight:700;letter-spacing:.4px}
+.brand-text small{font-size:11px;color:var(--mut);letter-spacing:.8px;text-transform:uppercase}
+.vg-logo{height:34px;width:auto;display:block}
+.brand-text{display:flex;flex-direction:column;line-height:1.15}
+.brand-text strong{font-size:18px;font-weight:800;letter-spacing:.3px}
+.pw{white-space:nowrap;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut);letter-spacing:.6px;text-transform:uppercase}
+.pw img{height:11px!important;width:auto}
+
+.stats{display:flex;gap:12px;margin-left:10px}
+.stat{display:flex;align-items:center;gap:12px;min-width:150px;padding:8px 16px 8px 10px;background:linear-gradient(135deg,var(--panel),var(--raise));border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);transition:.2s}
+.stat .si{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 38%,transparent)}
+.stat .si svg{width:19px;height:19px}
+.stat div{display:flex;flex-direction:column;line-height:1.05}
+.stat b{font-size:26px;font-weight:700;color:var(--text);letter-spacing:.3px}
+.stat div>span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;margin-top:3px}
+.stat.ok{--c:var(--ok)}.stat.rec{--c:var(--rec)}.stat.all{--c:var(--blue)}.stat.alert{--c:var(--sel)}
+.stat.alert.hot{--c:var(--rec);border-color:color-mix(in srgb,var(--rec) 45%,var(--line));box-shadow:var(--glow-rec)}
+.stat.alert.hot b{color:var(--rec)}
+.stat.low{--c:var(--sel)}
+.stat.low.hot{border-color:color-mix(in srgb,var(--sel) 55%,var(--line));box-shadow:var(--glow-amber)}
+.stat.low.hot b{color:var(--accent-text)}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.lic-chip{white-space:nowrap;padding:7px 13px;border-radius:99px;font-size:12.5px;font-weight:800;text-decoration:none;color:var(--text);background:color-mix(in srgb,var(--sel) 24%,var(--panel));border:1px solid color-mix(in srgb,var(--sel) 55%,var(--line))}
+.lic-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:900px){.lic-long{display:none}.lic-chip{padding:5px 9px;font-size:11px}}
+.lic-chip.ok{background:var(--raise);border-color:var(--line);color:var(--mut)}
+.lic-chip.bad{background:color-mix(in srgb,var(--rec) 22%,var(--panel));border-color:color-mix(in srgb,var(--rec) 55%,var(--line))}
+.clock{font-size:14px;font-weight:600;padding:8px 14px;background:var(--raise);border:1px solid var(--line);border-radius:10px;letter-spacing:.3px;white-space:nowrap}
+.icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);display:flex;align-items:center;justify-content:center;flex:none;transition:.15s}
+.icon-btn:hover{background:var(--hover);color:var(--text);box-shadow:var(--glow-amber)}
+.icon-btn svg{width:18px;height:18px}
+:root[data-theme="dark"] .ico-moon,:root:not([data-theme="dark"]) .ico-sun{display:none}
+.user{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;padding-left:14px;border-left:1px solid var(--line)}
+.user::before{content:"";width:34px;height:34px;border-radius:50%;flex:none;background:center/17px no-repeat url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1405'><path d='M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z'/></svg>"),linear-gradient(135deg,var(--sel),#ff8a00);box-shadow:var(--glow-amber)}
+.user .btn{flex:none;padding:7px 13px;font-weight:500}
+
+.lang-switch{display:flex;align-items:center;background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex:none}
+.lang-btn{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:7px;border:none;background:transparent;color:var(--mut);font-size:12px;font-weight:600;transition:.2s}
+.lang-btn svg{width:18px;height:13px;border-radius:2px;flex:none}
+.lang-btn.active{background:var(--panel);color:var(--text);box-shadow:var(--shadow-sm)}
+
+/* ---------- layout (bento) ---------- */
+main{display:grid;grid-template-columns:clamp(290px,19vw,340px) minmax(0,1fr) clamp(540px,42vw,820px);gap:var(--gap);padding:var(--gap);min-height:0}
+aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#mapwrap{position:relative;min-height:0;direction:ltr;overflow:hidden}
 #map{position:absolute;inset:0}
+.map-chip{position:absolute;top:14px;left:14px;z-index:3;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:99px;font-size:11.5px;font-weight:700;letter-spacing:1px;color:var(--text);background:color-mix(in srgb,var(--panel) 80%,transparent);backdrop-filter:blur(10px);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.map-chip::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(0,184,124,.6);animation:pulseOnline 1.6s infinite}
+#right{display:grid;grid-template-rows:minmax(0,1.3fr) minmax(250px,1fr);gap:var(--gap);min-height:0}
+#wallCard{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.bottom{display:grid;grid-template-columns:minmax(190px,.8fr) minmax(0,1.35fr);gap:var(--gap);min-height:0}
+#alarmCard{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 
-.mk {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--off);
-  border: 3px solid var(--bg);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.25);
-  cursor: pointer;
-  position: absolute;
-  z-index: 9999 !important;
-  transform: translate(-50%, -50%);
-}
+/* ---------- fleet sidebar ---------- */
+.regions{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto;flex:none}
+.reg{flex:none;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:12.5px;font-weight:700;color:var(--mut);transition:.15s;white-space:nowrap}
+.reg:hover{background:var(--hover);color:var(--text)}
+.reg.on{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink);box-shadow:0 3px 12px rgba(255,179,0,.4)}
+.reg small{font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:99px;background:color-mix(in srgb,currentColor 14%,transparent)}
+.cohead{display:flex;align-items:center;gap:8px;padding:10px 6px 6px;font-size:11.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--mut);cursor:pointer;user-select:none}
+.cohead:hover{color:var(--text)}
+.cohead i{font-style:normal;display:inline-block;transition:transform .15s;font-size:10px}
+.cohead.shut i{transform:rotate(-90deg)}
+.cohead .cnt{margin-left:auto;font-size:10.5px;padding:2px 8px;border-radius:99px;background:var(--raise);border:1px solid var(--line-soft);letter-spacing:0;text-transform:none;color:var(--text)}
+.cohead .cnt b{color:var(--ok)}
+.search{position:relative;margin:0 14px 10px}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--mut);width:15px;height:15px}
+#q{width:100%;padding:10px 12px 10px 34px;border-radius:12px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit;font-size:14px}
+#q:focus{background:var(--panel);border-color:var(--sel);box-shadow:var(--glow-amber)}
+.chips{display:flex;gap:4px;margin:0 14px 12px;padding:3px;background:var(--raise);border:1px solid var(--line-soft);border-radius:12px}
+.chip{flex:1;padding:6px 8px;border-radius:9px;border:0;background:none;font-size:12.5px;color:var(--mut);font-weight:600;transition:.15s}
+.chip:hover{color:var(--text)}
+.chip.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow-sm),inset 0 -2px 0 var(--sel)}
+#list{flex:1;overflow:auto;padding:0 10px 12px}
+.cam{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:13px;cursor:pointer;margin-bottom:8px;background:var(--panel);border:1px solid var(--line-soft);transition:.15s}
+.cam:hover{background:var(--hover);transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.cam.sel{border-color:var(--sel);box-shadow:var(--glow-amber);background:color-mix(in srgb,var(--sel) 7%,var(--panel))}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--off);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--off) 22%,transparent)}
+.online .dot{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent),0 0 10px var(--ok)}
+.rec .dot{background:var(--rec);box-shadow:0 0 0 3px color-mix(in srgb,var(--rec) 25%,transparent),0 0 10px var(--rec)}
+.meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.meta b{font-size:14px;line-height:1.25}
+.meta small{color:var(--mut);font-size:11.5px;line-height:1.3}
+.badge{font-size:10.5px;font-weight:800;letter-spacing:.6px;color:#fff;background:var(--rec);border-radius:6px;padding:3px 7px;box-shadow:0 0 10px color-mix(in srgb,var(--rec) 55%,transparent);flex:none}
+.batt{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--raise);border:1px solid var(--line);flex:none;color:var(--mut)}
+.batt.low{color:#fff;background:var(--rec);border-color:transparent}
+.batt.chg{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.cam.lowbat{border-color:color-mix(in srgb,var(--sel) 60%,var(--line-soft))}
+.badge.talk{background:var(--ok);color:#042a1d;box-shadow:0 0 10px color-mix(in srgb,var(--ok) 55%,transparent)}
+.cam button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--panel);flex:none;color:var(--blue);font-size:12px;transition:.15s}
+.cam button:hover{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:var(--glow-blue)}
+.none{padding:24px 14px;color:var(--mut);font-size:14px;line-height:1.5}
 
+/* ---------- map ---------- */
+.mk{width:22px;height:22px;border-radius:50%;background:var(--off);border:3px solid #fff;box-shadow:0 0 0 1px rgba(15,27,45,.35),0 3px 8px rgba(15,27,45,.35);cursor:pointer;position:absolute;z-index:9999 !important;transform:translate(-50%,-50%)}
+.mk-l{position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);background:#fff;color:#0F1B2D;border-radius:9px;padding:4px 9px;font:600 12px/1.25 system-ui,sans-serif;white-space:nowrap;text-align:center;box-shadow:0 2px 10px rgba(15,27,45,.28);pointer-events:none}
+.mk-l::after{content:"";position:absolute;left:50%;top:100%;margin-left:-5px;border:5px solid transparent;border-top-color:#fff}
+.mk-l b{display:block;font-weight:800}.mk-l span{display:block;color:#5B6B82;font-weight:600;font-size:11px}
+.mk-l .mk-bat{display:inline-block;margin-left:5px;padding:0 5px;border-radius:5px;background:#E9EEF5;color:#41526B;font-size:10.5px;font-weight:800}
+.mk-l .mk-bat.low{background:#FF3355;color:#fff}
+.mk.sel .mk-l{z-index:2;box-shadow:0 0 0 2px var(--sel),0 2px 10px rgba(15,27,45,.3)}
+#map.far .mk-l{display:none}
 .mk.online{background:var(--ok);animation:pulseOnline 1.5s infinite}
 .mk.rec{background:var(--rec);animation:pulseRec 1.5s infinite}
 .mk.off{background:var(--off)}
-.mk.sel{box-shadow:0 0 0 3px var(--sel)}
-@keyframes pulseRec{0%{box-shadow:0 0 0 0 rgba(255,93,115,.7)}100%{box-shadow:0 0 0 16px rgba(255,93,115,0)}}
-@keyframes pulseOnline{0%{box-shadow:0 0 0 0 rgba(61,220,151,.7)}100%{box-shadow:0 0 0 16px rgba(61,220,151,0)}}
-#info{position:absolute;left:16px;bottom:16px;width:280px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:none}
+.mk.sel{box-shadow:0 0 0 4px var(--sel),0 0 18px var(--sel)}
+.mk.stale{opacity:.5;filter:grayscale(.7);animation:none!important;border-style:dashed}
+@keyframes pulseRec{0%{box-shadow:0 0 0 0 rgba(255,51,85,.65)}100%{box-shadow:0 0 0 16px rgba(255,51,85,0)}}
+@keyframes pulseOnline{0%{box-shadow:0 0 0 0 rgba(0,184,124,.6)}100%{box-shadow:0 0 0 16px rgba(0,184,124,0)}}
+#info{position:absolute;left:14px;bottom:14px;width:300px;background:color-mix(in srgb,var(--panel) 84%,transparent);backdrop-filter:blur(14px) saturate(150%);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:none;box-shadow:var(--shadow-md);z-index:3}
 #info h3{margin:0 0 4px;font-size:18px}
-#info p{margin:2px 0;color:var(--mut);font-size:13px}
+#info p{margin:3px 0;color:var(--mut);font-size:13px}
 #info .row{display:flex;gap:8px;margin-top:12px}
-.btn{flex:1;padding:8px 10px;border-radius:7px;border:1px solid var(--line);background:var(--raise);font-size:14px}
-.btn.pri{background:var(--sel);border-color:var(--sel);color:#1a1405;font-weight:600}
-.btn.on{border-color:var(--sel);color:var(--sel)}
-.lay{display:flex;gap:6px}
-.lay button{padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:none;font-size:13px;color:var(--mut)}
-.lay button.on{background:var(--raise);color:var(--text);border-color:var(--sel)}
-#wall{flex:1;display:grid;gap:6px;padding:0 10px 10px;min-height:0}
-.tile{position:relative;background:#070c15;border-radius:6px;overflow:hidden;border:1px solid var(--line);min-height:0}
-.tile video{width:100%;height:100%;object-fit:cover;display:block}
-.tile.fit video{object-fit:contain}
-.tile.talking{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok)}
-.tag{position:absolute;top:6px;left:6px;right:6px;display:flex;align-items:center;gap:7px;font-size:13px;pointer-events:none}
-.tag span{background:rgba(7,12,21,.78);padding:3px 9px;border-radius:5px}
-.tag button{margin-left:auto;pointer-events:auto;width:24px;height:24px;border-radius:5px;border:0;background:rgba(7,12,21,.78)}
-.wait,.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--mut);font-size:14px;text-align:center;padding:12px}
-.empty small{font-size:12px}
+.btn{flex:1;padding:8px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);font-size:14px;transition:.15s}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink);font-weight:700;box-shadow:0 3px 12px rgba(255,179,0,.4)}
+.btn.pri:hover{filter:brightness(1.05)}
+.btn.on{border-color:var(--sel);color:var(--accent-text);box-shadow:var(--glow-amber)}
+.lay{display:flex;gap:3px;padding:3px;background:var(--raise);border:1px solid var(--line-soft);border-radius:10px}
+.lay button{padding:3px 11px;border-radius:7px;border:1px solid transparent;background:none;font-size:12.5px;color:var(--mut);font-weight:600;text-transform:none;letter-spacing:0}
+.lay button.on{background:var(--panel);color:var(--text);border-color:var(--line);box-shadow:var(--shadow-sm)}
+.wallctl{display:flex;align-items:center;gap:8px}
+.icon-btn.sm{width:30px;height:30px;border-radius:8px}
+.icon-btn.sm svg{width:15px;height:15px}
+.tile.dragging{opacity:.45}
+.tile.dropping{outline:3px dashed var(--sel);outline-offset:-3px}
+.cam[draggable=true]{-webkit-user-drag:element}
+#wallCard:fullscreen{background:#070C16;border-radius:0;border:0;padding:6px;box-shadow:none}
+#wallCard:fullscreen .sec{padding:6px 10px;color:#8FA2BF}
+#wallCard:fullscreen #wall{padding:0 6px 6px;overflow:hidden;grid-template-rows:repeat(var(--rows,2),minmax(0,1fr))}
+#wallCard:fullscreen .tile{aspect-ratio:auto}
+#wallBanner{display:none;margin:0 14px 10px;padding:9px 12px;border-radius:10px;background:color-mix(in srgb,var(--blue) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--blue) 35%,var(--line));font-size:12.5px;align-items:center;gap:10px}
+#wallBanner.on{display:flex}
+#wallBanner button{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:3px 10px;font-weight:700;font-size:12px}
+
+/* ---------- live wall: glass tiles ---------- */
+#wall{flex:1;display:grid;gap:10px;padding:0 14px 14px;min-height:0;overflow:auto;align-content:start}
+.tile{position:relative;container-type:inline-size;background:radial-gradient(120% 100% at 50% 0,#16233a,#0A111D);border-radius:14px;overflow:hidden;border:1px solid rgba(120,140,175,.28);min-height:0;aspect-ratio:16/9;box-shadow:var(--shadow-sm);color:#EAF0FA;transition:box-shadow .2s,border-color .2s}
+.tile:hover{border-color:rgba(255,179,0,.55);box-shadow:0 6px 22px rgba(15,27,45,.28)}
+.tile video{width:100%;height:100%;object-fit:contain;display:block;background:#0A111D}
+.tile:not(.expanded) [data-f]{display:none}
+.tile.expanded.port{height:auto}
+.tile.port video{object-fit:contain}
+.tile.talking{border-color:var(--ok);box-shadow:var(--glow-ok)}
+.tag{position:absolute;top:8px;left:8px;right:8px;display:flex;align-items:center;gap:6px;padding:5px;border-radius:12px;pointer-events:none;z-index:2;color:#fff;font-size:12.5px;background:var(--glass);backdrop-filter:blur(12px) saturate(150%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.tag .nm{font-weight:700;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pill{flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;letter-spacing:.8px;background:rgba(154,168,189,.25);color:#C5D0E2}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:#9AA8BD}
+.pill::after{content:"WAITING"}
+body[dir="rtl"] .pill::after{content:"انتظار"}
+.tile.live .pill{background:rgba(255,51,85,.22);color:#FFB3C0;box-shadow:0 0 12px rgba(255,51,85,.45)}
+.tile.live .pill::before{background:var(--rec);animation:pulseRec 1.4s infinite}
+.tile.live .pill::after{content:"REC"}
+body[dir="rtl"] .tile.live .pill::after{content:"تسجيل"}
+.tag button{pointer-events:auto;height:26px;min-width:26px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.1);color:#fff;font-size:11.5px;font-weight:600;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:.15s;flex:none}
+.tag button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.4)}
+.tag button.on{background:rgba(0,184,124,.35);border-color:rgba(46,230,166,.7);box-shadow:0 0 12px rgba(0,184,124,.5)}
+.tag button[data-x]:hover{background:rgba(255,51,85,.6);border-color:rgba(255,51,85,.9)}
+.tbat{flex:none;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.14);color:#fff;white-space:nowrap}
+.tbat.low{background:var(--rec)}
+.tbat:empty{display:none}
+@container (max-width:240px){.tbat{display:none}}
+.tag .pill+button{margin-left:auto}
+body[dir="rtl"] .tag .pill+button{margin-left:0;margin-right:auto}
+.tag button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+@container (max-width:330px){.tag .lbl{display:none}.tag button{padding:0 6px}}
+@container (max-width:240px){.tag .pill{display:none}}
+.wait,.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#8FA2BF;font-size:13px;text-align:center;padding:12px}
+.wait{padding-top:44px}
+.qrow{align-items:center;justify-content:space-between;font-size:13px;color:var(--mut)}
+.qrow select{padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--raise);font:inherit;color:var(--text)}
+.reqbtn{pointer-events:auto;margin-top:6px;padding:7px 16px;border-radius:99px;border:0;font-weight:700;font-size:12.5px;color:var(--sel-ink);background:linear-gradient(135deg,var(--sel),#ff9d00);box-shadow:0 4px 14px rgba(255,179,0,.45)}
+.flash-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:30000;padding:11px 20px;border-radius:12px;background:var(--text);color:var(--bg);font-weight:600;box-shadow:var(--shadow-md)}
+.wait::before{content:"";width:24px;height:24px;border-radius:50%;border:2px solid rgba(143,162,191,.3);border-top-color:var(--sel);animation:spin 1s linear infinite}
+.empty{inset:8px;border:1.5px dashed rgba(143,162,191,.35);border-radius:10px}
+.empty small{font-size:11.5px;opacity:.8}
 .tile.live .wait{display:none}
-#alarms{height:130px;overflow:auto;border-top:1px solid var(--line);padding:0 8px 8px}
-.al{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:8px;cursor:pointer;border-left:3px solid var(--rec);margin-bottom:4px;background:rgba(255,93,115,.12)}
-.al.ack{border-left-color:var(--off);background:none;color:var(--mut)}
-.al b{flex:1}
+@keyframes spin{to{transform:rotate(360deg)}}
+body.theater::before{content:"";position:fixed;inset:0;background:rgba(8,13,24,.8);backdrop-filter:blur(5px);z-index:20000}
+.tile.expanded{position:fixed;z-index:20001;top:50%;left:50%;transform:translate(-50%,-50%);width:min(92vw,calc(86vh*16/9));height:auto;aspect-ratio:16/9;max-height:86vh;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.65);border-color:rgba(255,255,255,.28)}
+.tile.expanded .tag{font-size:14px;top:12px;left:12px;right:12px}
+.tile.expanded .tag button{height:32px;min-width:32px;font-size:13px}
+.tile.expanded .tag .lbl{display:inline}
+.tile.expanded .tag .pill{display:inline-flex}
+
+/* ---------- alarms ---------- */
+#alarms{flex:1;overflow:auto;padding:0 10px 10px;min-height:0}
+.al{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:12px;cursor:pointer;border:1px solid color-mix(in srgb,var(--rec) 35%,var(--line));margin-bottom:8px;background:color-mix(in srgb,var(--rec) 9%,var(--panel));box-shadow:inset 3px 0 0 var(--rec)}
+.al.ack{box-shadow:inset 3px 0 0 var(--off);border-color:var(--line-soft);background:none;color:var(--mut)}
+.al b{flex:1;min-width:110px;font-size:13px}
 .al small{color:var(--mut)}
+.al.bat{border-color:color-mix(in srgb,var(--sel) 50%,var(--line));background:color-mix(in srgb,var(--sel) 11%,var(--panel));box-shadow:inset 3px 0 0 var(--sel)}
+.al.bat.crit{border-color:color-mix(in srgb,var(--rec) 40%,var(--line));background:color-mix(in srgb,var(--rec) 8%,var(--panel));box-shadow:inset 3px 0 0 var(--rec)}
+.al.bat.ack{box-shadow:inset 3px 0 0 var(--off);border-color:var(--line-soft);background:none;color:var(--mut)}
+.al .ackb{flex:none;padding:3px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:11.5px;font-weight:700;color:var(--mut)}
+.al .ackb:hover{background:var(--hover);color:var(--text)}
 
-/* Multi-Tab Chat & WhatsApp Voice Note UI */
-#chat-section{height:270px;display:flex;flex-direction:column;border-top:1px solid var(--line);background:var(--raise)}
-.chat-tabs{display:flex;gap:6px;padding:12px 10px 8px 10px;background:var(--panel);border-bottom:1px solid var(--line);align-items:center;overflow-x:auto;overflow-y:visible;white-space:nowrap}
-.chat-tab{padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:none;font-size:12px;color:var(--mut);position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;flex:none;margin-top:6px}
-.chat-tab.active{background:var(--sel);color:#1a1405;border-color:var(--sel);font-weight:600}
-.chat-tab .close-tab{font-size:11px;opacity:0.7;border:none;background:none;padding:0 2px;color:inherit}
+/* ---------- chat & voice notes ---------- */
+#chat-section{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.chat-tabs{display:flex;gap:6px;padding:12px 12px 8px;border-bottom:1px solid var(--line-soft);align-items:center;overflow-x:auto;overflow-y:visible;white-space:nowrap;flex:none}
+.chat-tab{padding:5px 13px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:12px;font-weight:600;color:var(--mut);position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;flex:none;margin-top:6px;transition:.15s}
+.chat-tab:hover{background:var(--hover)}
+.chat-tab.active{background:linear-gradient(135deg,var(--sel),#ff9d00);color:var(--sel-ink);border-color:transparent;box-shadow:0 3px 12px rgba(255,179,0,.4)}
+.chat-tab .close-tab{font-size:11px;opacity:.7;border:none;background:none;padding:0 2px;color:inherit}
 .chat-tab .close-tab:hover{opacity:1;color:var(--rec)}
-.chat-badge {
-  position: absolute;
-  top: -9px;
-  right: -6px;
-  background: var(--rec);
-  color: #fff;
-  border-radius: 50%;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  font-size: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-  border: 2px solid var(--panel);
-  z-index: 10;
-}
-#chat-msgs{flex:1;overflow:auto;padding:8px 12px;display:flex;flex-direction:column;gap:6px}
-.chat-msg{font-size:13px;padding:6px 10px;border-radius:8px;max-width:85%}
-.chat-msg.mine{background:rgba(90,169,255,0.25);align-self:flex-end}
-.chat-msg.other{background:var(--panel);align-self:flex-start}
-.chat-msg b{color:var(--sel);font-size:11px;display:block;margin-bottom:2px}
-.chat-composer{display:flex;align-items:center;padding:8px 10px;gap:6px;border-top:1px solid var(--line);background:var(--panel)}
-.mic-btn { background: none; border: none; color: var(--mut); padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-.mic-btn:hover { color: var(--sel); background: var(--raise); }
-.mic-btn.recording { color: var(--rec); animation: pulseRec 1s infinite; }
+.chat-badge{position:absolute;top:-9px;right:-6px;background:var(--rec);color:#fff;border-radius:50%;min-width:18px;height:18px;padding:0 4px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;box-shadow:var(--glow-rec);border:2px solid var(--panel);z-index:10}
+#chat-msgs{flex:1;overflow:auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px;min-height:0;background:var(--raise)}
+.chat-msg{font-size:13px;padding:7px 11px;border-radius:14px;max-width:88%;box-shadow:var(--shadow-sm)}
+.chat-msg.mine{background:var(--mine);align-self:flex-end;border-bottom-right-radius:4px}
+.chat-msg.other{background:var(--panel);align-self:flex-start;border:1px solid var(--line-soft);border-bottom-left-radius:4px}
+.chat-msg b{color:var(--accent-text);font-size:11px;display:block;margin-bottom:2px}
+.chat-composer{display:flex;align-items:center;padding:10px 12px;gap:8px;border-top:1px solid var(--line-soft);background:var(--panel);flex:none}
+.mic-btn{background:var(--raise);border:1px solid var(--line);color:var(--mut);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;flex:none}
+.mic-btn:hover{color:var(--accent-text);box-shadow:var(--glow-amber)}
+.mic-btn.recording{color:#fff;background:var(--rec);border-color:var(--rec);animation:pulseRec 1s infinite}
+.chat-composer input{flex:1;min-width:0;padding:9px 14px;border-radius:99px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit;font-size:13px}
+.chat-composer input:focus{background:var(--panel);border-color:var(--sel);box-shadow:var(--glow-amber)}
+.chat-composer button.send-btn{padding:9px 18px;border-radius:99px;border:none;background:linear-gradient(135deg,var(--sel),#ff9d00);color:var(--sel-ink);font-weight:700;font-size:13px;box-shadow:0 3px 12px rgba(255,179,0,.4)}
 
-.voice-msg { display: flex; align-items: center; gap: 10px; min-width: 180px; }
-.voice-play-btn { width: 32px; height: 32px; border-radius: 50%; background: var(--sel); border: none; color: #1a1405; display: flex; align-items: center; justify-content: center; font-weight: bold; flex: none; cursor: pointer; }
-.voice-wave { flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; position: relative; overflow: hidden; }
-.voice-wave-progress { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--sel); }
-.voice-duration { font-size: 11px; color: var(--mut); flex: none; }
-
-.chat-composer input{flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;font-size:13px}
-.chat-composer button.send-btn{padding:6px 14px;border-radius:6px;border:none;background:var(--sel);color:#1a1405;font-weight:600;font-size:13px}
+.voice-msg{display:flex;align-items:center;gap:10px;min-width:200px}
+.voice-play-btn{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--sel),#ff9d00);border:none;color:var(--sel-ink);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;cursor:pointer;box-shadow:0 3px 10px rgba(255,179,0,.45)}
+.voice-wave{flex:1;height:28px;display:flex;align-items:center;gap:2px;cursor:pointer}
+.voice-wave i{flex:1;max-width:4px;min-width:2px;border-radius:2px;background:var(--track);transition:background .1s}
+.voice-wave i.on{background:var(--sel)}
+.voice-duration{font-size:11px;color:var(--mut);flex:none;min-width:30px;text-align:right}
 
 header.flash{animation:fl 1s 3}
-@keyframes fl{50%{background:#5a2030}}
-.user{display:flex;align-items:center;gap:12px;color:var(--mut);font-size:14px}
-.user .btn{flex:none;padding:6px 12px}
-.in{width:100%;margin-top:8px;padding:8px 10px;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit}
-.badge.talk{background:var(--ok);color:#06231a}
-.tag button+button{margin-left:6px}
-.tag button[data-s],.tag button[data-f]{width:auto;padding:0 10px;font-size:12px}
-#snd{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:50;background:var(--sel);color:#1a1405;font-size:14px;font-weight:600;padding:6px 16px;border-radius:0 0 8px 8px}
+@keyframes fl{50%{background:var(--flash)}}
+.in{width:100%;margin-top:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit}
+#snd{position:fixed;top:var(--header-h);left:50%;transform:translateX(-50%);z-index:50;background:var(--sel);color:var(--sel-ink);font-size:14px;font-weight:600;padding:6px 16px;border-radius:0 0 10px 10px;box-shadow:var(--shadow-md)}
 
-.lang-switch {
-  display: flex;
-  align-items: center;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 3px;
-  gap: 3px;
-  flex: none;
-}
-.lang-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--mut);
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-.lang-btn svg {
-  width: 18px;
-  height: 13px;
-  border-radius: 2px;
-  object-fit: cover;
-  flex: none;
-}
-.lang-btn.active {
-  background: var(--raise);
-  color: var(--text);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
+@media (max-width:1100px){.brand-text small{display:none}}
+@media (max-width:1800px){.brand-sep,.clock{display:none}.stat{min-width:0;padding-right:12px}}
+@media (max-width:1500px){.stat div>span{display:none}}
+@media (max-width:1280px){.stats{display:none}}
+@media (prefers-reduced-motion:reduce){.mk.rec,.mk.online,header.flash,.wait::before,.tile.live .pill::before,.map-chip::before{animation:none}}
 
-@media (prefers-reduced-motion:reduce){.mk.rec,header.flash{animation:none}}
+/* ---------- phones: one screen at a time, bottom tab bar ---------- */
+#mnav{display:none}
+@media (max-width:900px){
+  :root{--header-h:54px;--gap:8px}
+  body{height:100vh;height:100dvh;grid-template-rows:var(--header-h) minmax(0,1fr) auto}
+  header{padding:0 10px;gap:8px}
+  .vg-logo{height:22px}
+  a.icon-btn[href="/analytics.html"],a.icon-btn[href="/docks.html"],a.icon-btn[href="/help.html"]{display:none}
+  .lang-switch{padding:2px;gap:2px}
+  .pw{display:none}
+  .stats,.clock,.brand-sep,.user span#who{display:none}
+  .hdr-right{gap:6px}
+  .icon-btn{width:34px;height:34px}
+  .lang-btn{padding:4px 6px;font-size:11px}
+  .lang-btn svg{display:none}
+  .user{padding-left:8px}
+  .user::before{display:none}
+  .user .btn{padding:6px 10px;font-size:12.5px}
+  main{display:block;padding:8px;overflow:hidden}
+  main>*,main>#right,main>#mapwrap{display:none;height:100%}
+  body[data-tab="cams"] main>aside{display:flex}
+  body[data-tab="map"] main>#mapwrap{display:block}
+  body[data-tab="live"] main>#right,body[data-tab="alerts"] main>#right{display:grid;grid-template-rows:minmax(0,1fr)}
+  body[data-tab="live"] .bottom{display:none}
+  body[data-tab="alerts"] #wallCard{display:none}
+  .bottom{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(110px,36%) minmax(0,1fr)}
+  #wall{grid-template-columns:minmax(0,1fr)!important;padding:0 8px 10px}
+  .lay,#wallPop,#wallFs{display:none}
+  #info{left:8px;right:8px;bottom:8px;width:auto;max-height:70%;overflow:auto}
+  #q,.chat-composer input,.in,.qrow select{font-size:16px}
+  .cam{padding:12px}
+  .cam button{width:42px;height:42px;font-size:14px}
+  .chip{padding:9px 8px}
+  .reg{padding:8px 14px}
+  .btn{padding:11px 12px}
+  .tag button{height:32px;min-width:32px}
+  .mic-btn{width:42px;height:42px}
+  .chat-composer button.send-btn{padding:11px 18px}
+  .tile.expanded{width:96vw;max-height:92vh}
+  #snd{display:none!important}
+  #mnav{display:grid;grid-template-columns:repeat(4,1fr);background:linear-gradient(180deg,var(--panel),var(--raise));border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+  #mnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 4px 8px;border:0;background:none;color:var(--mut);font-size:11px;font-weight:700;letter-spacing:.3px;min-height:56px;position:relative}
+  #mnav button svg{width:22px;height:22px}
+  #mnav button.on{color:var(--text)}
+  #mnav button.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,var(--sel),var(--brand))}
+  #mnav .nb{position:absolute;top:5px;left:calc(50% + 8px);min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--rec);color:#fff;font-size:10px;line-height:17px;text-align:center;display:none}
+}
 </style>
+
+
 </head>
 <body dir="ltr">
 <div id="snd">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
 <header id="top">
   <div class="brand">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#ffc857" stroke-width="1.8"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><circle cx="12" cy="11" r="2.6"/></svg>
-    Vision Guard - Digital Evidence Management System
+    <div class="brand-text"><img class="vg-logo logo-light" src="/brand/visionguard-logo-sm.png" alt="VisionGuard"><img class="vg-logo logo-dark" src="/brand/visionguard-logo-light.png" alt="VisionGuard"><small class="pw">Powered by <img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"></small></div>
   </div>
   <div class="stats">
-    <span><b id="sOn">0</b><span id="txtOnline">online</span></span>
-    <span><b id="sRec">0</b><span id="txtRec">recording</span></span>
-    <span><b id="sAll">0</b><span id="txtReg">registered</span></span>
-    <span class="alert"><b id="sAl">0</b><span id="txtAlarms">open alarms</span></span>
+    <div class="stat ok"><i class="si"><svg class="i" viewBox="0 0 24 24"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg></i><div><b id="sOn">0</b><span id="txtOnline">online</span></div></div>
+    <div class="stat rec"><i class="si"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg></i><div><b id="sRec">0</b><span id="txtRec">recording</span></div></div>
+    <div class="stat all"><i class="si"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/></svg></i><div><b id="sAll">0</b><span id="txtReg">registered</span></div></div>
+    <div class="stat alert"><i class="si"><svg class="i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg></i><div><b id="sAl">0</b><span id="txtAlarms">open alarms</span></div></div>
+    <div class="stat low" id="statLow" title="Cameras below 20% battery that are not charging"><i class="si"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="8" width="17" height="8" rx="2"/><path d="M22 11v2M6 11v2"/></svg></i><div><b id="sLow">0</b><span id="txtLow">low battery</span></div></div>
   </div>
+  <div class="hdr-right">
+  <a class="lic-chip" id="licChip" href="/license.html" style="display:none"></a>
   <div class="clock" id="clock"></div>
-
   <div class="lang-switch" id="langToggle">
     <button class="lang-btn" data-l="ar">
       <svg viewBox="0 0 900 600">
@@ -236,37 +408,56 @@ header.flash{animation:fl 1s 3}
       EN
     </button>
   </div>
-
+ <a class="icon-btn" href="/docks.html" title="Docking station" aria-label="Docking station"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h16v4a1 1 0 01-1 1H5a1 1 0 01-1-1zM7 15V9a5 5 0 0110 0v6M12 4v5M9 9h6"/></svg></a>
+ <a class="icon-btn" href="/analytics.html" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></a>
+ <a class="icon-btn" href="/help.html" title="Support" aria-label="Support"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0116 0v2M4 14a2 2 0 002 2h1v-5H6a2 2 0 00-2 2zM20 14a2 2 0 01-2 2h-1v-5h1a2 2 0 012 2zM18 18a4 4 0 01-4 3h-2"/></svg></a>
+  <a class="icon-btn" id="adminLink" href="/admin.html" title="Companies" aria-label="Companies" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l7-4v17M10 21V10l11 4v7M7 11v.01M7 15v.01M15 15v.01M15 18v.01"/></svg></a>
+  <button class="icon-btn" id="themeBtn" title="Toggle light / dark theme" aria-label="Toggle theme">
+    <svg class="ico-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+    <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+  </button>
   <div class="user"><span id="who"></span><button class="btn" id="out">Sign out</button></div>
+  </div>
 </header>
 <main>
   <aside>
     <div class="sec"><span id="secCameras">Cameras</span> <small id="cnt"></small></div>
-    <input id="q" type="search" placeholder="Search by name, group or ID" aria-label="Search cameras">
+    <div class="regions" id="regions"></div>
+    <div class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search by name, group or ID" aria-label="Search cameras"></div>
     <div class="chips" id="chips">
       <button class="chip on" data-f="all" id="chipAll">All</button>
       <button class="chip" data-f="online" id="chipOnline">Online</button>
       <button class="chip" data-f="rec" id="chipRec">Recording</button>
+      <button class="chip" data-f="low" id="chipLow">Low battery</button>
     </div>
     <div id="list"></div>
   </aside>
   <section id="mapwrap" dir="ltr">
     <div id="map"></div>
+    <div class="map-chip">LIVE MAP</div>
     <div id="info"></div>
   </section>
-  
-  <section id="right">
-    <div class="sec"><span id="secWall">Live wall</span>
-      <div class="lay" id="lay">
-        <button data-n="1">1</button><button data-n="4" class="on">2×2</button><button data-n="9">3×3</button>
-      </div>
-    </div>
-    <div id="wall"></div>
-    <div class="sec" style="border-top:1px solid var(--line)"><span id="secAlarmTitle">Alarms</span> <small id="aSub"></small></div>
-    <div id="alarms"></div>
 
-    <!-- Multi-Tab Chat Panel -->
-    <div id="chat-section">
+  <section id="right">
+    <div class="card" id="wallCard">
+      <div class="sec"><span id="secWall">Live wall</span>
+        <div class="wallctl">
+          <div class="lay" id="lay">
+            <button data-n="1">1</button><button data-n="4" class="on">2×2</button><button data-n="9">3×3</button><button data-n="16">4×4</button>
+          </div>
+          <button class="icon-btn sm" id="wallFs" title="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+          <button class="icon-btn sm" id="wallPop" title="Open the wall in its own window: drag it onto a second screen and press Full screen there" aria-label="Open the wall in its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg></button>
+        </div>
+      </div>
+      <div id="wallBanner"><span id="wallBannerTxt">The live wall is open in its own window. Cameras you pick here appear there.</span><button id="wallBack">Bring it back here</button></div>
+      <div id="wall"></div>
+    </div>
+    <div class="bottom">
+      <div class="card" id="alarmCard">
+        <div class="sec"><span id="secAlarmTitle">Alarms</span> <small id="aSub"></small></div>
+        <div id="alarms"></div>
+      </div>
+      <div class="card" id="chat-section">
       <div class="chat-tabs" id="chatTabs">
         <div class="chat-tab active" data-type="PUBLIC" data-target="ALL" id="tabPublic">
           <span>Public Chat</span>
@@ -282,8 +473,16 @@ header.flash{animation:fl 1s 3}
         <button id="chatSend" class="send-btn">Send</button>
       </div>
     </div>
+    </div>
   </section>
 </main>
+<nav id="mnav" aria-label="Sections">
+  <button data-t="cams" class="on"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/></svg><span data-en="Cameras" data-ar="الكاميرات">Cameras</span></button>
+  <button data-t="map"><svg class="i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span data-en="Map" data-ar="الخريطة">Map</span></button>
+  <button data-t="live"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg><span data-en="Live" data-ar="مباشر">Live</span></button>
+  <button data-t="alerts"><svg class="i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg><span data-en="Alerts" data-ar="تنبيهات">Alerts</span><i class="nb" id="nbAl"></i></button>
+</nav>
+
 
 <script>
 const lang = {
@@ -298,6 +497,16 @@ const lang = {
     all: "All",
     onlineChip: "Online",
     recChip: "Recording",
+    lowChip: "Low battery",
+    lowStat: "low battery",
+    battery: "Battery",
+    batLive: "live from the camera",
+    batDock: "read on the dock, charging",
+    batLast: "last read",
+    batCharging: "charging",
+    batAlert: "Low battery",
+    batCritical: "Battery critical",
+    dismiss: "Dismiss",
     watchLive: "Watch live",
     noGps: "No GPS fix yet",
     noCamerasMatch: "No cameras match. Turn on a body camera and it will appear here automatically.",
@@ -327,6 +536,16 @@ const lang = {
     all: "الكل",
     onlineChip: "متصل",
     recChip: "تسجيل",
+    lowChip: "بطارية منخفضة",
+    lowStat: "بطارية منخفضة",
+    battery: "البطارية",
+    batLive: "مباشر من الكاميرا",
+    batDock: "قراءة القاعدة، قيد الشحن",
+    batLast: "آخر قراءة",
+    batCharging: "قيد الشحن",
+    batAlert: "بطارية منخفضة",
+    batCritical: "بطارية حرجة",
+    dismiss: "إخفاء",
     watchLive: "متابعة البث",
     noGps: "لا يوجد إحداثيات GPS",
     noCamerasMatch: "لا توجد كاميرات مطابقة. قم بتشغيل كاميرا الجسم وستظهر هنا تلقائياً.",
@@ -353,11 +572,24 @@ const t = (key) => lang[currentLang][key] || key;
 const $ = (s) => document.querySelector(s);
 const host = location.hostname;
 const cams = new Map(), markers = new Map(), players = new Map();
-let alarms = [], selected = null, filter = 'all', term = '', follow = false;
+let alarms = [], alerts = [], selected = null, filter = 'all', term = '', follow = false;
+let region = 'all', regionList = [], companyList = [];
+let shut = new Set(JSON.parse((() => { try { return localStorage.getItem('bwc-shut') || '[]'; } catch (e) { return '[]'; } })()));
+const saveShut = () => { try { localStorage.setItem('bwc-shut', JSON.stringify([...shut])); } catch (e) { } };
 let me = { role: 'viewer' }, editing = false, currentUser = null;
 let layout = 4, slots = [null, null, null, null];
 
 const stateOf = (c) => (c.recording ? 'rec' : c.online ? 'online' : 'off');
+/* Battery: every camera reports its own (or the dock reads it while charging). Low = under 20 % and not on a charger. */
+const battLow = (c) => !!c && c.battery != null && c.battery < 20 && !c.charging;
+const battTxt = (c) => (c.battery == null ? '' : (c.charging ? '⚡' : '') + c.battery + '%');
+function battNote(c) {
+  if (c.battery == null) return '';
+  const age = c.batteryTs ? Date.now() - c.batteryTs : null;
+  if (c.batterySrc === 'camera' && age != null && age < 300000) return t('batLive');
+  if (c.batterySrc === 'dock') return t('batDock') + (age != null ? ', ' + agoShort(c.batteryTs) : '');
+  return t('batLast') + (c.batteryTs ? ' ' + agoShort(c.batteryTs) : '');
+}
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 function resolveCameraId(id) {
@@ -418,18 +650,44 @@ function syncMarker(c) {
   if (!m) {
     const el = document.createElement('div');
     el.addEventListener('click', (e) => { e.stopPropagation(); select(c.cameraId, false); });
+    const lb = document.createElement('div'); lb.className = 'mk-l'; el.appendChild(lb);
     m = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
     markers.set(c.cameraId, m);
   }
   m.setLngLat([lng, lat]);
-  m.getElement().className = 'mk ' + stateOf(c) + (selected === c.cameraId ? ' sel' : '');
+  const lb = m.getElement().querySelector('.mk-l');
+  if (lb) { lb.innerHTML = '<b>' + esc(c.name || c.cameraId) + (c.battery != null ? '<i class="mk-bat' + (battLow(c) ? ' low' : '') + '" style="font-style:normal">' + battTxt(c) + '</i>' : '') + '</b>' + (c.holder ? '<span>' + esc(c.holder) + '</span>' : ''); }
+  m.getElement().className = 'mk ' + stateOf(c) + (selected === c.cameraId ? ' sel' : '') + (gpsStale(c) ? ' stale' : '');
 }
+// A position is only "live" if the camera reported a fresh fix in the last 2 minutes; otherwise it is the last known place.
+const gpsStale = (c) => !c.fixTs || Date.now() - c.fixTs > 120000;
+const agoShort = (ts) => { const s = Math.floor((Date.now() - ts) / 1000); return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + ' min' : s < 86400 ? Math.floor(s / 3600) + ' h' : Math.floor(s / 86400) + ' d'; };
+function circlePoly(lng, lat, r) {
+  const pts = [];
+  for (let i = 0; i <= 64; i++) { const a = i / 64 * 2 * Math.PI; pts.push([lng + (r * Math.cos(a)) / (111320 * Math.cos(lat * Math.PI / 180)), lat + (r * Math.sin(a)) / 111320]); }
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Polygon', coordinates: [pts] } }] };
+}
+// accuracy circle around the selected camera
+function drawAcc() {
+  const src = map.getSource && map.getSource('acc'); if (!src) return;
+  const c = cams.get(selected);
+  src.setData(c && c.acc && c.lat != null && !gpsStale(c) ? circlePoly(Number(c.lng), Number(c.lat), Math.max(c.acc, 3)) : { type: 'FeatureCollection', features: [] });
+}
+const farCheck = () => document.getElementById('map').classList.toggle('far', map.getZoom() < 10);
+map.on('zoom', farCheck); map.on('load', farCheck);
+map.on('load', () => {
+  map.addSource('acc', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'acc-fill', type: 'fill', source: 'acc', paint: { 'fill-color': '#2F7BFF', 'fill-opacity': 0.14 } });
+  map.addLayer({ id: 'acc-line', type: 'line', source: 'acc', paint: { 'line-color': '#2F7BFF', 'line-width': 1.5, 'line-opacity': 0.7 } });
+  drawAcc();
+});
 
 /* ---------- Fleet list ---------- */
 function visible() {
   return [...cams.values()]
     .filter((c) => (getOfficerLabel(c.cameraId) + ' ' + (c.grp || '') + ' ' + c.cameraId).toLowerCase().includes(term))
-    .filter((c) => filter === 'all' || (filter === 'online' ? c.online : c.recording))
+    .filter((c) => filter === 'all' || (filter === 'online' ? c.online : filter === 'low' ? battLow(c) : c.recording))
+    .filter((c) => region === 'all' || (region === '_none' ? !c.region : c.region === region))
     .sort((a, b) => ({ rec: 0, online: 1, off: 2 }[stateOf(a)] - { rec: 0, online: 1, off: 2 }[stateOf(b)]) || a.cameraId.localeCompare(b.cameraId));
 }
 let queued = false;
@@ -444,6 +702,8 @@ function renderList() {
     $('#chipAll').textContent = t('all');
     $('#chipOnline').textContent = t('onlineChip');
     $('#chipRec').textContent = t('recChip');
+    $('#chipLow').textContent = t('lowChip');
+    $('#txtLow').textContent = t('lowStat');
     $('#secCameras').textContent = t('cameras');
     $('#secWall').textContent = t('liveWall');
     $('#secAlarmTitle').textContent = t('alarmsTitle');
@@ -455,21 +715,44 @@ function renderList() {
     const pubTabSpan = $('#tabPublic span');
     if (pubTabSpan) pubTabSpan.textContent = t('publicChat');
 
-    $('#list').innerHTML = rows.length ? rows.map((c) => {
+    // Region tabs: super admin sees every configured region; a company only the regions of its cameras.
+    const all = [...cams.values()];
+    const names = me.staff ? regionList : [...new Set(all.map((c) => c.region).filter(Boolean))];
+    const hasNone = all.some((c) => !c.region);
+    const tab = (key, label) => {
+      const set = all.filter((c) => key === 'all' || (key === '_none' ? !c.region : c.region === key));
+      return `<button class="reg ${region === key ? 'on' : ''}" data-r="${esc(key)}">${esc(label)} <small>${set.filter((c) => c.online).length}/${set.length}</small></button>`;
+    };
+    $('#regions').innerHTML = tab('all', t('all')) + names.map((n) => tab(n, n)).join('') + (hasNone && names.length ? tab('_none', currentLang === 'ar' ? 'بدون منطقة' : 'No region') : '');
+
+    const card = (c) => {
       const resolved = resolveCameraId(c.cameraId);
       const unreadCount = unreadChats[c.cameraId] || unreadChats[resolved] || 0;
       return `
-      <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''}" data-id="${c.cameraId}" tabindex="0">
+      <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''} ${battLow(c) ? 'lowbat' : ''}" data-id="${c.cameraId}" tabindex="0" draggable="true">
         <span class="dot"></span>
         <div class="meta"><b>${esc(getOfficerLabel(c.cameraId))}</b>
-          <small>${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
+          <small>${c.region ? esc(c.region) + ', ' : ''}${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
         ${unreadCount > 0 ? `<span class="badge" style="background:var(--rec); margin-right:4px;">${unreadCount}</span>` : ''}
+        ${c.battery != null ? `<span class="batt ${battLow(c) ? 'low' : ''} ${c.charging ? 'chg' : ''}" title="${esc(t('battery') + ': ' + battNote(c))}">${battTxt(c)}</span>` : ''}
         ${c.recording ? '<span class="badge">REC</span>' : ''}
         ${c.ptt ? '<span class="badge talk">TALK</span>' : ''}
         <button data-w="${c.cameraId}" title="${t('watchLive')}" aria-label="${t('watchLive')}">▶</button>
       </div>`;
-    }).join('')
-      : `<div class="none">${t('noCamerasMatch')}</div>`;
+    };
+    if (!rows.length) {
+      $('#list').innerHTML = `<div class="none">${t('noCamerasMatch')}</div>`;
+    } else {
+      // Group by company (collapsible). A single group (a company user) needs no header.
+      const noCo = currentLang === 'ar' ? 'بدون شركة' : 'No company';
+      const groups = new Map();
+      rows.forEach((c) => { const k = c.company || noCo; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); });
+      const keys = [...groups.keys()].sort((x, y) => (x === noCo) - (y === noCo) || x.localeCompare(y));
+      $('#list').innerHTML = keys.length === 1 && !me.staff ? rows.map(card).join('') : keys.map((k) => {
+        const list = groups.get(k), closed = shut.has(k);
+        return `<div class="cohead ${closed ? 'shut' : ''}" data-co="${esc(k)}"><i>▼</i>${esc(k)}<span class="cnt"><b>${list.filter((c) => c.online).length}</b>/${list.length}</span></div>${closed ? '' : list.map(card).join('')}`;
+      }).join('');
+    }
     stats();
   });
 }
@@ -478,11 +761,23 @@ function stats() {
   $('#sOn').textContent = all.filter((c) => c.online).length;
   $('#sRec').textContent = all.filter((c) => c.recording).length;
   $('#sAll').textContent = all.length;
-  $('#sAl').textContent = alarms.filter((a) => !a.ack).length;
+  const open = alarms.filter((a) => !a.ack).length;
+  $('#sAl').textContent = open;
+  const low = all.filter(battLow).length, newBat = alerts.filter((a) => !a.ack).length;
+  $('#sLow').textContent = low;
+  $('#statLow').classList.toggle('hot', low > 0);
+  { const nb = $('#nbAl'); if (nb) { nb.textContent = open + newBat; nb.style.display = open + newBat ? 'block' : 'none'; } }
+  $('#sAl').closest('.stat').classList.toggle('hot', open > 0);
 }
+$('#regions').addEventListener('click', (e) => {
+  const b = e.target.closest('.reg'); if (!b) return;
+  region = b.dataset.r; renderList();
+});
 $('#list').addEventListener('click', (e) => {
+  const h = e.target.closest('.cohead');
+  if (h) { const k = h.dataset.co; if (shut.has(k)) shut.delete(k); else shut.add(k); saveShut(); return renderList(); }
   const w = e.target.closest('[data-w]');
-  if (w) return watch(w.dataset.w);
+  if (w) return openLive(w.dataset.w);
   const row = e.target.closest('.cam');
   if (row) select(row.dataset.id, true);
 });
@@ -512,7 +807,7 @@ function select(id, fly) {
   }
 
   openPrivateTab(resolvedId, true);
-  renderList(); renderInfo();
+  renderList(); renderInfo(); drawAcc();
 }
 
 function openPrivateTab(rawCamId, autoActivate = false) {
@@ -611,35 +906,89 @@ function renderInfo() {
   if (!c) { box.style.display = 'none'; return; }
   const label = c.recording ? t('recording') : c.online ? t('online') : t('offline');
   box.style.display = 'block';
+  // The camera sends an update every second or two. While the edit form is open it must NOT be rebuilt, or every
+  // letter typed disappears (the inputs are recreated empty). It is only drawn once per edit session.
+  if (editing && me.role === 'admin' && box.dataset.editing === c.cameraId && box.querySelector('#eN')) return;
+  box.dataset.editing = '';
   if (editing && me.role === 'admin') {
+    box.dataset.editing = c.cameraId;
     box.innerHTML = `<h3>Edit ${c.cameraId}</h3>
       <input class="in" id="eN" maxlength="40" placeholder="Display name" value="${esc(c.name || '')}" aria-label="Display name">
+      <input class="in" id="eH" maxlength="60" placeholder="Camera holder (who carries it)" value="${esc(c.holder || '')}" aria-label="Camera holder" ${c.custody ? 'disabled title="An employee has this camera checked out: the holder is set by the check-out station."' : ''}>
       <input class="in" id="eG" maxlength="40" placeholder="Group" value="${esc(c.grp || '')}" aria-label="Group">
+      <select class="in" id="eR" aria-label="Region"><option value="">No region</option>${regionList.map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
+      ${me.super ? `<select class="in" id="eC2" aria-label="Company"><option value="">No company</option>${companyList.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select>` : ''}
       <div class="row"><button class="btn pri" id="eS">Save changes</button><button class="btn" id="eC">Cancel</button></div>
       <div class="row"><button class="btn" id="eD">Remove camera</button></div>`;
     const call = (method, body) => fetch('/api/cameras/' + c.cameraId, { method, headers: { 'Content-Type': 'application/json' }, body });
-    $('#eS').onclick = () => call('PATCH', JSON.stringify({ name: $('#eN').value, grp: $('#eG').value })).then(() => { editing = false; renderInfo(); });
+    $('#eS').onclick = async () => {
+      // read every field first: the panel re-renders as soon as the first save comes back
+      const v = { name: $('#eN').value, holder: $('#eH').value, grp: $('#eG').value, region: $('#eR').value, company: $('#eC2') ? $('#eC2').value : null };
+      if (v.company !== null && String(v.company) !== String(c.companyId || '')) {
+        await fetch('/api/admin/cameras/' + encodeURIComponent(c.cameraId) + '/company', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ companyId: v.company === '' ? null : Number(v.company) }) });
+      }
+      await call('PATCH', JSON.stringify({ name: v.name, holder: v.holder, grp: v.grp, region: v.region }));
+      editing = false; renderInfo();
+    };
     $('#eC').onclick = () => { editing = false; renderInfo(); };
-    $('#eD').onclick = () => { if (confirm('Remove ' + nm(c) + '?')) call('DELETE'); };
+    $('#eD').onclick = () => { if (confirm((currentLang === 'ar' ? 'حذف ' : 'Remove ') + getOfficerLabel(c.cameraId) + (currentLang === 'ar' ? '؟ ستظهر من جديد عندما تبدأ الكاميرا تسجيلاً.' : '? It reappears if the camera starts recording again.'))) call('DELETE').then(() => { editing = false; }); };
     return;
   }
   box.innerHTML = `<h3>${esc(getOfficerLabel(c.cameraId))}</h3>
+    ${c.holder ? `<p>${currentLang === 'ar' ? 'حامل الكاميرا' : 'Holder'}: <b>${esc(c.holder)}</b>${c.holderNo ? ' · ' + esc(c.holderNo) : ''}${c.custody ? ` <span style="color:var(--mut)">(${c.custody === 'reserved' ? (currentLang === 'ar' ? 'محجوزة، ما زالت على القاعدة' : 'reserved, still on the dock') : (currentLang === 'ar' ? 'مستلمة' : 'carrying it')})</span>` : ''}</p>` : ''}
     <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
+    <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || (currentLang === 'ar' ? 'غير معيّنة' : 'Unassigned')}</p>
     <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
+    ${c.lat == null ? '' : (c.posSrc === 'dock' && !gpsStale(c)) ? `<p style="color:var(--ok)">${currentLang === 'ar' ? 'على قاعدة الشحن (موقع القاعدة)' : 'At the docking station (dock location)'}</p>` : gpsStale(c) ? `<p style="color:var(--sel)">${currentLang === 'ar' ? 'لا يوجد تحديد موقع حي. آخر موقع معروف' + (c.ts ? ' منذ ' + agoShort(c.ts) : '') : 'No live GPS fix. Last known position' + (c.ts ? ', ' + agoShort(c.ts) + ' ago' : '')}</p>` : `<p style="color:var(--ok)">${currentLang === 'ar' ? 'GPS دقيق' : 'GPS fix'} ${c.acc ? '±' + Math.round(c.acc) + ' m' : ''} · ${agoShort(c.fixTs)} ${currentLang === 'ar' ? '' : 'ago'}</p>`}
+    ${c.battery != null ? `<p>${t('battery')}: <b${battLow(c) ? ' style="color:var(--rec)"' : c.charging ? ' style="color:var(--ok)"' : ''}>${battTxt(c)}</b> <span style="color:var(--mut)">(${battNote(c)})</span></p>` : ''}
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
-    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>`;
-  $('#bW').onclick = () => watch(c.cameraId);
+    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
+    ${c.online ? `<div class="row qrow"><span>${currentLang === 'ar' ? 'جودة الفيديو' : 'Video quality'}</span><select id="qSel">${['auto', '480p', '720p', '1080p'].map((q) => `<option value="${q}" ${(c.qualityAuto ? 'auto' : c.quality) === q ? 'selected' : ''}>${q === 'auto' ? (currentLang === 'ar' ? 'تلقائي (حسب الشبكة)' : 'Auto (by network)') : q}${q === 'auto' && c.qualityAuto && c.quality ? ' · ' + c.quality : ''}</option>`).join('')}</select></div>` : ''}
+    ${c.remote ? `<div class="row"><button class="btn" id="bX">${currentLang === 'ar' ? 'إيقاف البث عن بُعد' : 'Stop remote stream'}</button></div>` : ''}`;
+  $('#bW').onclick = () => openLive(c.cameraId);
+  if ($('#qSel')) $('#qSel').onchange = (e) => { socket.emit('set_quality', { cameraId: c.cameraId, quality: e.target.value }); flash(currentLang === 'ar' ? 'تم إرسال تغيير الجودة' : 'Quality change sent'); };
+  if ($('#bX')) $('#bX').onclick = () => requestStream(c.cameraId, 'stop');
   if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };
   $('#bF').onclick = () => { follow = !follow; renderInfo(); if (follow && c.lat != null) map.easeTo({ center: [c.lng, c.lat] }); };
 }
 map.on('click', () => { selected = null; markers.forEach((m) => m.getElement().classList.remove('sel')); renderList(); renderInfo(); });
 
 /* ---------- Video wall ---------- */
+/* ---------- Remote live view (control room starts a camera's stream, the officer does nothing) ---------- */
+function flash(msg) {
+  const d = document.createElement('div'); d.className = 'flash-toast'; d.textContent = msg;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 3200);
+}
+// Opening a camera's live view starts its stream if it is online but not recording (the officer does nothing).
+/* ---------- phone tabs ---------- */
+const phone = window.matchMedia('(max-width:900px)');
+function setTab(t) {
+  document.body.dataset.tab = t;
+  document.querySelectorAll('#mnav button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+  if (t === 'map') setTimeout(() => { try { map.resize(); } catch (e) { } }, 60);
+}
+function showLive() { if (phone.matches) setTab('live'); }
+$('#mnav').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setTab(b.dataset.t); });
+function phoneInit() {
+  if (!phone.matches) return;
+  if (!document.body.dataset.tab) setTab('cams');
+  if (layout !== 1) { layout = 1; slots = [null]; document.querySelectorAll('#lay button').forEach((x) => x.classList.toggle('on', x.dataset.n === '1')); buildWall(); }
+}
+phone.addEventListener?.('change', () => { if (phone.matches) phoneInit(); else { document.body.removeAttribute('data-tab'); try { map.resize(); } catch (e) { } } });
+function openLive(id) {
+  showLive();
+  const c = cams.get(id);
+  if (c?.online && !c.recording) requestStream(id, 'start'); else watch(id);
+}
+function requestStream(id, action) {
+  socket.emit('remote_stream', { cameraId: id, action });
+  if (action === 'start') watch(id);
+}
 function buildWall() {
   const w = $('#wall'), cols = Math.sqrt(layout);
   w.style.gridTemplateColumns = `repeat(${cols},1fr)`;
-  w.style.gridTemplateRows = `repeat(${cols},1fr)`;
+  w.style.setProperty('--rows', cols);   // full screen: the rows share the screen height
   players.forEach((p) => p.destroy()); players.clear();
   slots = slots.slice(0, layout); while (slots.length < layout) slots.push(null);
   w.innerHTML = slots.map((_, i) => `<div class="tile" data-i="${i}"></div>`).join('');
@@ -649,14 +998,24 @@ function renderTile(i) {
   const t = document.querySelector(`.tile[data-i="${i}"]`), id = slots[i];
   if (players.has(i)) { players.get(i).destroy(); players.delete(i); }
   t.classList.remove('live');
+  t.draggable = !!id;   // drag a picture onto another one to swap them
   if (!id) { t.innerHTML = `<div class="empty">${currentLang === 'ar' ? 'خانة فارغة' : 'Empty slot'}<small>${currentLang === 'ar' ? 'اضغط ▶ بجوار الكاميرا لعرضها هنا' : 'Press ▶ next to a camera to show it here'}</small></div>`; return; }
   t.innerHTML = `<video muted autoplay playsinline></video>
-    <div class="tag"><span>${tagOf(id)}</span><button data-s="${i}" aria-label="Toggle sound">${currentLang === 'ar' ? 'استماع' : 'Listen'}</button><button data-f="${i}" aria-label="Toggle fit">Fit</button><button data-x="${i}" aria-label="Close ${id}">✕</button></div>
-    <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}</div>`;
+    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="tbat"></span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'طولي' : 'Portrait'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}<button class="reqbtn" data-r="${id}">${currentLang === 'ar' ? 'بدء البث عن بُعد' : 'Start live view'}</button></div>`;
   start(i, id, t.querySelector('video'));
+  if (dbgText.has(i)) dbg(i, dbgText.get(i));
   applySound(i);
+  syncTileBattery(i);
 }
-const retry = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
+// the battery chip in a tile's header follows the camera (refreshed on every update of that camera)
+function syncTileBattery(i) {
+  const id = slots[i], b = document.querySelector(`.tile[data-i="${i}"] .tbat`); if (!b) return;
+  const c = cams.get(id);
+  b.textContent = c && c.battery != null ? battTxt(c) : '';
+  b.classList.toggle('low', battLow(c));
+}
+const retry = new Map(), stall = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
 const waitMsg = (id) => currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…';
 
 function stopTile(i, msg) {
@@ -667,13 +1026,34 @@ function stopTile(i, msg) {
   const w = t.querySelector('.wait');
   if (w && msg) w.innerHTML = msg;
 }
+// Streams are only playable with a short-lived signature that the server grants to users allowed to see the camera.
 function start(i, id, v) {
   if (!flvjs.isSupported()) return;
   if (!cams.get(id)?.recording) { stopTile(i, waitMsg(id)); return; }
+  startedAt.set(i, Date.now());
+  fetch('/api/stream/' + encodeURIComponent(id))
+    .then((r) => (r.ok ? r.json() : Promise.reject()))
+    .then(({ sign }) => { if (slots[i] === id && v.isConnected && !players.has(i)) begin(i, id, v, sign); })
+    .catch(() => setTimeout(() => {
+      const el = document.querySelector(`.tile[data-i="${i}"] video`);
+      if (slots[i] === id && el && cams.get(id)?.recording) start(i, id, el);
+    }, 3000));
+}
+// Small status line under "Waiting..." so a phone that cannot play tells us why (network, codec, status code).
+const dbgText = new Map();
+function dbg(i, txt) {
+  dbgText.set(i, txt);
+  const w = document.querySelector(`.tile[data-i="${i}"] .wait`); if (!w) return;
+  let d = w.querySelector('.dbg');
+  if (!d) { d = document.createElement('small'); d.className = 'dbg'; d.style.cssText = 'opacity:.8;max-width:92%;word-break:break-word;font-size:11px'; w.appendChild(d); }
+  d.textContent = txt;
+}
+function begin(i, id, v, sign) {
   const p = flvjs.createPlayer(
-    { type: 'flv', isLive: true, url: `http://${host}:8000/live/${encodeURIComponent(id)}.flv` },
-    { enableStashBuffer: false, autoCleanupSourceBuffer: true,
-      liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 1.5, liveBufferLatencyMinRemain: 0.3 });
+    { type: 'flv', isLive: true, url: `${location.origin}/live/${encodeURIComponent(id)}.flv?sign=${sign}` },
+    // Over the internet (Wi-Fi/SIM) packets arrive in bursts: keep a small cushion instead of chasing zero latency.
+    { enableStashBuffer: true, stashInitialSize: 64 * 1024, autoCleanupSourceBuffer: true,
+      liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 2.0, liveBufferLatencyMinRemain: 0.4 });
   p.attachMediaElement(v);
   const again = () => {
     if (players.get(i) !== p) return;
@@ -684,9 +1064,12 @@ function start(i, id, v) {
       if (slots[i] === id && el && cams.get(id)?.recording) start(i, id, el);
     }, Math.min(500 * n, 4000));
   };
-  p.on(flvjs.Events.ERROR, again);
+  p.on(flvjs.Events.ERROR, (t, d, info) => { dbg(i, 'player: ' + t + ' / ' + d + (info && info.code ? ' (' + info.code + ')' : '') + (info && info.msg ? ' ' + info.msg : '')); again(); });
+  p.on(flvjs.Events.METADATA_ARRIVED, () => dbg(i, 'stream connected, waiting for picture…'));
+  p.on(flvjs.Events.STATISTICS_INFO, (si) => { if (!v.parentElement.classList.contains('live')) dbg(i, 'receiving ' + Math.round(si.speed || 0) + ' KB/s'); });
   p.on(flvjs.Events.LOADING_COMPLETE, again);
-  v.addEventListener('playing', () => { v.parentElement.classList.add('live'); retry.set(i, 0); }, { once: true });
+  v.addEventListener('playing', () => { v.parentElement.classList.add('live'); retry.set(i, 0); dbgText.delete(i); }, { once: true });
+  v.addEventListener('error', () => dbg(i, 'video element error ' + (v.error ? v.error.code + ' ' + (v.error.message || '') : '')), { once: true });
   startedAt.set(i, Date.now());
   players.set(i, p); p.load(); Promise.resolve(p.play()).catch(() => {});
 }
@@ -698,7 +1081,7 @@ function applySound(i) {
   const open = !!t.dataset.listen || !!cams.get(id)?.ptt || pttHold.has(id);
   t.classList.toggle('talking', !!cams.get(id)?.ptt);
   if (v) { v.muted = !open; if (open) Promise.resolve(v.play()).catch(() => {}); }
-  if (b) b.textContent = open ? (currentLang === 'ar' ? 'كتم' : 'Mute') : (currentLang === 'ar' ? 'استماع' : 'Listen');
+  if (b) { b.classList.toggle('on', open); b.querySelector('.lbl').textContent = open ? (currentLang === 'ar' ? 'كتم' : 'Mute') : (currentLang === 'ar' ? 'استماع' : 'Listen'); }
 }
 const applySoundFor = (id) => slots.forEach((s, i) => { if (s === id) applySound(i); });
 
@@ -707,13 +1090,18 @@ setInterval(() => {
     if (!id || !cams.get(id)?.recording || !players.has(i)) return;
     const v = document.querySelector(`.tile[data-i="${i}"] video`); if (!v) return;
     const live = v.parentElement.classList.contains('live');
-    if (!live && Date.now() - (startedAt.get(i) || 0) > 8000) { lastT.delete(i); return renderTile(i); }
-    if (live && lastT.get(i) === v.currentTime) { lastT.delete(i); return renderTile(i); }
+    if (!live && Date.now() - (startedAt.get(i) || 0) > 20000) { lastT.delete(i); stall.delete(i); return renderTile(i); }
+    // restart only after the picture has been frozen for ~10 s (3 checks), not on one slow burst
+    if (live && lastT.get(i) === v.currentTime) {
+      const n = (stall.get(i) || 0) + 1; stall.set(i, n);
+      if (n >= 4) { lastT.delete(i); stall.delete(i); return renderTile(i); }
+    } else stall.delete(i);
     lastT.set(i, v.currentTime);
   });
-}, 4000);
+}, 2500);
 
 function watch(id) {
+  if (wallOpen() && bc) { bc.postMessage({ type: 'watch', id }); return; }   // the wall lives in its own window: show it there
   if (slots.includes(id)) return;
   let i = slots.indexOf(null); if (i < 0) i = slots.length - 1;
   slots[i] = id; renderTile(i);
@@ -726,15 +1114,47 @@ $('#wall').addEventListener('click', (e) => {
     applySound(+t.dataset.i);
     return;
   }
+  const rb = e.target.closest('[data-r]');
+  if (rb) { requestStream(rb.dataset.r, 'start'); rb.textContent = currentLang === 'ar' ? 'جارٍ الطلب…' : 'Requesting…'; return; }
+  const eb = e.target.closest('[data-e]');
+  if (eb) { toggleTheater(eb.closest('.tile')); return; }
   const fb = e.target.closest('[data-f]');
   if (fb) {
     const t = fb.closest('.tile');
-    t.classList.toggle('fit'); fb.textContent = t.classList.contains('fit') ? (currentLang === 'ar' ? 'ملء' : 'Fill') : (currentLang === 'ar' ? 'احتواء' : 'Fit');
+    // switch the tile between landscape (16:9) and portrait (9:16); the picture is never cropped or stretched
+    t.classList.toggle('port');
+    if (t.classList.contains('expanded')) {
+      const ar = t.classList.contains('port') ? 9 / 16 : 16 / 9;
+      t.style.aspectRatio = String(ar); t.style.height = 'auto';
+      t.style.width = `min(92vw, calc(86vh * ${ar}))`;
+    } else { t.style.aspectRatio = ''; t.style.width = ''; }
+    fb.querySelector('.lbl').textContent = t.classList.contains('port') ? (currentLang === 'ar' ? 'عرضي' : 'Landscape') : (currentLang === 'ar' ? 'طولي' : 'Portrait');
     return;
   }
   const x = e.target.closest('[data-x]'); if (!x) return;
   slots[+x.dataset.x] = null; renderTile(+x.dataset.x);
 });
+/* theater (expanded) mode for one tile; Esc or a click outside closes it */
+function toggleTheater(t) {
+  const on = t && !t.classList.contains('expanded');
+  document.querySelectorAll('.tile.expanded').forEach((x) => { x.classList.remove('expanded', 'port'); x.style.aspectRatio = ''; x.style.width = ''; const l = x.querySelector('[data-f] .lbl'); if (l) l.textContent = currentLang === 'ar' ? 'طولي' : 'Portrait'; });
+  document.body.classList.toggle('theater', !!on);
+  if (on) {
+    const ar = 16 / 9; // opens wide; the Portrait button switches to the upright view
+    t.style.aspectRatio = String(ar);
+    t.style.width = `min(92vw, calc(86vh * ${ar}))`;
+    t.classList.add('expanded');
+  }
+}
+addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleTheater(null); });
+document.addEventListener('click', (e) => {
+  if (document.body.classList.contains('theater') && !e.target.closest('.tile.expanded') && !e.target.closest('[data-e]')) toggleTheater(null);
+});
+$('#themeBtn').onclick = () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('bwc-theme', next); } catch (e) { }
+};
 $('#lay').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   layout = +b.dataset.n;
@@ -742,20 +1162,86 @@ $('#lay').addEventListener('click', (e) => {
   buildWall();
 });
 
+/* ---------- drag & drop: swap two pictures, or drag a camera from the list onto a tile ---------- */
+function swapSlots(a, b) { if (a === b) return; [slots[a], slots[b]] = [slots[b], slots[a]]; renderTile(a); renderTile(b); }
+function dropCam(id, i) {
+  const old = slots.indexOf(id);
+  if (old >= 0 && old !== i) { slots[old] = null; renderTile(old); }
+  slots[i] = id; renderTile(i);
+  const c = cams.get(id); if (c?.online && !c.recording) socket.emit('remote_stream', { cameraId: id, action: 'start' });
+}
+$('#wall').addEventListener('dragstart', (e) => {
+  const t = e.target.closest?.('.tile'); if (!t || !slots[+t.dataset.i]) return e.preventDefault();
+  e.dataTransfer.setData('text/vg-slot', t.dataset.i); e.dataTransfer.effectAllowed = 'move'; t.classList.add('dragging');
+});
+$('#wall').addEventListener('dragend', () => document.querySelectorAll('.tile').forEach((t) => t.classList.remove('dragging', 'dropping')));
+$('#wall').addEventListener('dragover', (e) => { const t = e.target.closest?.('.tile'); if (!t) return; e.preventDefault(); document.querySelectorAll('.tile.dropping').forEach((x) => x !== t && x.classList.remove('dropping')); t.classList.add('dropping'); });
+$('#wall').addEventListener('dragleave', (e) => { const t = e.target.closest?.('.tile'); if (t && !t.contains(e.relatedTarget)) t.classList.remove('dropping'); });
+$('#wall').addEventListener('drop', (e) => {
+  const t = e.target.closest?.('.tile'); if (!t) return; e.preventDefault(); t.classList.remove('dropping');
+  const to = +t.dataset.i, from = e.dataTransfer.getData('text/vg-slot'), cam = e.dataTransfer.getData('text/vg-cam');
+  if (from !== '') swapSlots(+from, to); else if (cam && cams.has(cam)) dropCam(cam, to);
+});
+$('#list').addEventListener('dragstart', (e) => {
+  const row = e.target.closest?.('.cam'); if (!row) return;
+  e.dataTransfer.setData('text/vg-cam', row.dataset.id); e.dataTransfer.effectAllowed = 'copy';
+});
+
+/* ---------- the wall in its own window (drag it onto a second screen, then Full screen) ---------- */
+let bc = null, wallAliveAt = 0;
+try {
+  bc = new BroadcastChannel('vg-wall');
+  bc.onmessage = (e) => { if (e.data?.type === 'alive') wallAliveAt = Date.now(); else if (e.data?.type === 'closed') wallAliveAt = 0; syncWallBanner(); };
+  bc.postMessage({ type: 'ping' });
+} catch (e) { bc = null; }
+const wallOpen = () => !!bc && Date.now() - wallAliveAt < 8000;
+function syncWallBanner() { $('#wallBanner').classList.toggle('on', wallOpen()); }
+setInterval(syncWallBanner, 2000);
+async function popOutWall() {
+  if (wallOpen()) { const w = window.open('', 'vg-live-wall'); if (w) { w.focus(); return; } }
+  const url = '/wall.html#' + new URLSearchParams({ l: String(layout), c: slots.filter(Boolean).join(',') });
+  const w = window.open(url, 'vg-live-wall', 'popup=yes,width=1280,height=720');   // opened first, inside the click, so no pop-up blocker objects
+  if (!w) { flash(currentLang === 'ar' ? 'المتصفح منع النافذة الجديدة. اسمح بالنوافذ المنبثقة لهذا الموقع.' : 'The browser blocked the new window. Allow pop-ups for this site.'); return; }
+  slots = slots.map(() => null); buildWall();    // the cameras move to the new window, so nothing is streamed twice
+  wallAliveAt = Date.now(); syncWallBanner();
+  try {   // two or more screens: put the window on the other one and let it fill that screen (the browser asks once)
+    if (window.screen.isExtended && window.getScreenDetails) {
+      const d = await window.getScreenDetails(), s = d.screens.find((x) => x !== d.currentScreen) || d.currentScreen;
+      w.moveTo(s.availLeft, s.availTop); w.resizeTo(s.availWidth, s.availHeight);
+    }
+  } catch (e) { /* permission refused: the window stays where it opened and can be dragged */ }
+}
+$('#wallPop').onclick = popOutWall;
+$('#wallBack').onclick = () => { if (bc) bc.postMessage({ type: 'close' }); wallAliveAt = 0; syncWallBanner(); };
+$('#wallFs').onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else $('#wallCard').requestFullscreen?.().catch(() => { }); };
+
 /* ---------- Alarms ---------- */
+// A low-battery alert (below 20 % and not charging; critical below 10 %). It clears by itself once the camera is charging or recovered.
+function batAlertRow(a) {
+  const c = cams.get(a.cameraId), crit = a.level === 'critical', v = c && c.battery != null ? c.battery : a.value;
+  const off = c && !c.online ? (currentLang === 'ar' ? ' · غير متصلة' : ' · offline') : '';
+  return `<div class="al bat ${crit ? 'crit' : ''} ${a.ack ? 'ack' : ''}" data-al="${a.id}"><b>🔋 ${crit ? t('batCritical') : t('batAlert')} · ${tagOf(a.cameraId)}</b>
+    <small>${v}%${off} · ${new Date(a.ts).toLocaleTimeString()}</small>${a.ack ? '' : `<button class="ackb" data-ackal="${a.id}">${t('dismiss')}</button>`}</div>`;
+}
 function renderAlarms() {
-  $('#aSub').textContent = alarms.length ? alarms.filter((a) => !a.ack).length + (currentLang === 'ar' ? ' مفتوح' : ' open') : '';
-  $('#alarms').innerHTML = alarms.length ? alarms.map((a) => `
-    <div class="al ${a.ack ? 'ack' : ''}" data-a="${a.id}"><b>${t('sosFrom')} ${tagOf(a.cameraId)}</b>
-    <small>${new Date(a.ts).toLocaleTimeString()}</small></div>`).join('')
-    : `<div class="none">${t('noAlarms')}</div>`;
+  const openSos = alarms.filter((a) => !a.ack).length, openBat = alerts.filter((a) => !a.ack).length;
+  $('#aSub').textContent = alarms.length || alerts.length ? (openSos + openBat) + (currentLang === 'ar' ? ' مفتوح' : ' open') : '';
+  const bats = [...alerts].sort((a, b) => (a.ack - b.ack) || ((b.level === 'critical') - (a.level === 'critical')) || b.ts - a.ts).map(batAlertRow).join('');
+  const sos = alarms.map((a) => `
+    <div class="al ${a.ack ? 'ack' : ''}" data-a="${a.id}"><b>${t('sosFrom')} ${tagOf(a.cameraId)}${a.holder ? ' · ' + esc(a.holder) + (a.holderNo ? ' #' + esc(a.holderNo) : '') : ''}</b>
+    <small>${new Date(a.ts).toLocaleTimeString()}</small></div>`).join('');
+  $('#alarms').innerHTML = bats || sos ? bats + sos : `<div class="none">${t('noAlarms')}</div>`;
   stats();
 }
 $('#alarms').addEventListener('click', (e) => {
+  const ab = e.target.closest('[data-ackal]');
+  if (ab) { socket.emit('ack_alert', +ab.dataset.ackal); return; }
+  const br = e.target.closest('.al.bat');
+  if (br) { const a = alerts.find((x) => x.id === +br.dataset.al); if (a) select(a.cameraId, true); return; }
   const row = e.target.closest('.al'); if (!row) return;
   const a = alarms.find((x) => x.id === +row.dataset.a); if (!a) return;
   socket.emit('ack_alarm', a.id);
-  select(a.cameraId, true); watch(a.cameraId);
+  select(a.cameraId, true); watch(a.cameraId); showLive();
 });
 function beep() {
   try {
@@ -807,11 +1293,12 @@ function renderChatMessages() {
   container.innerHTML = filtered.map(m => {
     let contentHtml = esc(m.message);
     if (m.audio) {
+      const vid = voiceId(m);
       contentHtml = `
-        <div class="voice-msg">
-          <button class="voice-play-btn" onclick="playVoiceNote(this, '${m.audio}')">▶</button>
-          <div class="voice-wave"><div class="voice-wave-progress"></div></div>
-          <span class="voice-duration">Audio</span>
+        <div class="voice-msg" data-vid="${vid}">
+          <button class="voice-play-btn" data-vid="${vid}">▶</button>
+          <div class="voice-wave" data-vid="${vid}">${waveBars(vid)}</div>
+          <span class="voice-duration">0:00</span>
         </div>
       `;
     }
@@ -823,6 +1310,7 @@ function renderChatMessages() {
     `;
   }).join('');
   container.scrollTop = container.scrollHeight;
+  Object.keys(voiceAudio).forEach(updateVoiceUI);
 }
 
 $('#chatSend').onclick = () => {
@@ -955,7 +1443,8 @@ function upsert(c) {
   if (!c.recording && wasRec) slots.forEach((id, i) => { if (id === c.cameraId) stopTile(i, waitMsg(id)); });
   if (!!c.ptt !== wasPtt) pttChanged(c);
   if (follow && selected === c.cameraId && c.lat != null) map.easeTo({ center: [c.lng, c.lat] });
-  if (selected === c.cameraId) renderInfo();
+  if (selected === c.cameraId) { renderInfo(); drawAcc(); }
+  slots.forEach((id, i) => { if (id === c.cameraId) syncTileBattery(i); });
   renderList();
 }
 
@@ -965,21 +1454,53 @@ socket.on('connect', () => {
   socket.emit('register', { id: 'admin', type: 'admin' });
 });
 
-socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; renderAlarms(); });
+socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; alerts = s.alerts || []; renderAlarms(); });
 socket.on('dashboard_cam', upsert);
+// A camera fell under 20 % (or under 10 %): a soft two-tone beep and a notice; the alert stays in the Alarms list until it clears.
+function softBeep() {
+  try {
+    const a = new (window.AudioContext || webkitAudioContext)();
+    [0, 0.2].forEach((d, k) => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = k ? 440 : 560; g.gain.value = 0.08; o.connect(g); g.connect(a.destination); o.start(a.currentTime + d); o.stop(a.currentTime + d + 0.14); });
+  } catch (e) { }
+}
+socket.on('dashboard_alert', (a) => {
+  const i = alerts.findIndex((x) => x.id === a.id), was = i >= 0 ? alerts[i] : null;
+  if (i >= 0) alerts[i] = a; else alerts.unshift(a);
+  if (!was || (a.level === 'critical' && was.level !== 'critical')) {   // new, or it just got worse (an acknowledgement alone is silent)
+    const c = cams.get(a.cameraId);
+    flash((a.level === 'critical' ? t('batCritical') : t('batAlert')) + ': ' + getOfficerLabel(a.cameraId) + ' ' + (c && c.battery != null ? c.battery : a.value) + '%');
+    softBeep();
+  }
+  renderAlarms(); renderList();
+});
+socket.on('dashboard_alert_resolved', ({ id }) => { alerts = alerts.filter((a) => a.id !== id); renderAlarms(); renderList(); });
+socket.on('stream_up', ({ cameraId }) => {
+  // the publisher restarted: rebuild any open tile for it (after a moment so the server has the first frames)
+  slots.forEach((id, i) => { if (id === cameraId) setTimeout(() => { if (slots[i] === id) { const t = document.querySelector(`.tile[data-i="${i}"]`); const keep = t && ['port', 'expanded'].some((c) => t.classList.contains(c)); renderTile(i); if (keep) syncTileLabel(i); } }, 700); });
+});
+function syncTileLabel(i) {
+  const t = document.querySelector(`.tile[data-i="${i}"]`); const l = t && t.querySelector('[data-f] .lbl');
+  if (l) l.textContent = t.classList.contains('port') ? (currentLang === 'ar' ? 'عرضي' : 'Landscape') : (currentLang === 'ar' ? 'طولي' : 'Portrait');
+}
 socket.on('dashboard_alarm_ack', ({ id }) => { const a = alarms.find((x) => x.id === id); if (a) { a.ack = true; renderAlarms(); } });
 socket.on('dashboard_cam_removed', ({ cameraId }) => {
   cams.delete(cameraId);
+  alerts = alerts.filter((a) => a.cameraId !== cameraId);
   markers.get(cameraId)?.remove(); markers.delete(cameraId);
   slots.forEach((id, i) => { if (id === cameraId) { slots[i] = null; renderTile(i); } });
   if (selected === cameraId) { selected = null; renderInfo(); }
   renderList();
 });
+socket.on('remote_stream_result', (r) => {
+  if (!r.ok) flash(r.reason === 'live_limit'
+    ? (currentLang === 'ar' ? 'تم الوصول للحد الأقصى للبث المباشر في باقتك' : 'Live-stream limit of your package reached')
+    : (currentLang === 'ar' ? 'الكاميرا غير متصلة' : 'Camera is offline'));
+});
 socket.on('connect_error', (e) => { if (e.message === 'unauthorized') location.href = '/login.html'; });
 socket.on('dashboard_sos', (a) => {
   alarms.unshift(a); renderAlarms(); beep();
   const h = $('#top'); h.classList.remove('flash'); void h.offsetWidth; h.classList.add('flash');
-  select(a.cameraId, true); watch(a.cameraId);
+  select(a.cameraId, true); watch(a.cameraId); showLive();
 });
 
 socket.on('receive_message', (d) => {
@@ -1042,14 +1563,38 @@ function updateUserDisplay() {
   if (!currentUser) return;
   $('#out').textContent = t('signOut');
   const ishebAdmin = currentUser.role === 'admin' || (currentUser.name && currentUser.name.toLowerCase() === 'administrator');
-  $('#who').textContent = ishebAdmin ? t('adminRole') : currentUser.name;
+  $('#who').textContent = currentUser.company ? currentUser.company + ' · ' + currentUser.name : (ishebAdmin ? t('adminRole') : currentUser.name);
+  $('#adminLink').style.display = currentUser.super ? '' : 'none';
 }
 
+// licence notice: a chip in the header (administrators open the License page from it)
+function showLicense(l) {
+  const chip = $('#licChip');
+  if (!l || !l.show) {   // nothing to warn about: a company still sees until when its subscription runs
+    const s = window.__sub;
+    if (s) { chip.className = 'lic-chip ok'; chip.style.display = ''; chip.textContent = 'Subscription until ' + new Date(s.end).toISOString().slice(0, 10); chip.removeAttribute('href'); } else chip.style.display = 'none';
+    return;
+  }
+  const n = l.daysLeft, bad = ['grace', 'restricted', 'locked', 'subexpired'].includes(l.state) || l.clock;
+  chip.className = 'lic-chip' + (bad ? ' bad' : ''); chip.style.display = '';
+  const days = `${n} day${n === 1 ? '' : 's'} left`;
+  chip.innerHTML = l.clock ? 'Server clock behind' : l.state === 'expiring' ? `<span class="lic-long">Licence: </span>${days}` : l.state === 'trial' ? `<span class="lic-long">Trial: </span>${days}`
+    : l.state === 'subexpiring' ? `Subscription: ${n} day${n === 1 ? '' : 's'} left` : l.state === 'subexpired' ? 'Subscription ended' : l.state === 'grace' ? 'Licence expired' : '<span class="lic-long">Limited mode: </span>expired';
+  chip.title = l.canManage ? 'Open the License page' : 'Tell your administrator';
+  if (!l.canManage) chip.removeAttribute('href');
+}
+function loadDirectory() {
+  fetch('/api/regions').then((r) => r.json()).then((l) => { regionList = l; renderList(); }).catch(() => { });
+  if (me.super) fetch('/api/admin/companies').then((r) => r.json()).then((d) => { companyList = d.companies; }).catch(() => { });
+}
 fetch('/api/me').then((r) => (r.ok ? r.json() : Promise.reject()))
   .then((u) => { 
     me = u; 
     currentUser = u;
+    window.__sub = u.subscription;
+    showLicense(u.license && u.license.show ? u.license : u.subscription && u.subscription.show ? { show: true, state: u.subscription.state === 'expired' ? 'subexpired' : 'subexpiring', daysLeft: u.subscription.daysLeft } : null);
     updateUserDisplay();
+    loadDirectory();
     renderInfo(); 
   })
   .catch(() => { location.href = '/login.html'; });
@@ -1060,7 +1605,7 @@ const unlockAudio = () => { const b = $('#snd'); if (b) b.remove(); };
 if (navigator.userActivation?.hasBeenActive) unlockAudio();
 else { addEventListener('pointerdown', unlockAudio, { once: true, capture: true }); addEventListener('keydown', unlockAudio, { once: true, capture: true }); }
 
-buildWall(); renderList(); renderAlarms();
+phoneInit(); buildWall(); renderList(); renderAlarms();
 
 $('#langToggle').addEventListener('click', (e) => {
   const btn = e.target.closest('.lang-btn');
@@ -1069,6 +1614,7 @@ $('#langToggle').addEventListener('click', (e) => {
   currentLang = btn.dataset.l;
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b === btn));
   document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('#mnav [data-en]').forEach((n) => { n.textContent = n.dataset[currentLang]; });
   
   renderList();
   renderAlarms();
@@ -1077,12 +1623,67 @@ $('#langToggle').addEventListener('click', (e) => {
   updateUserDisplay();
 });
 
-window.playVoiceNote = function(btn, audioBase64) {
-  const audio = new Audio(audioBase64);
-  audio.play();
-  btn.textContent = '⏸';
-  audio.onended = () => { btn.textContent = '▶'; };
-};
+/* ---------- Voice note playback ---------- */
+var voiceAudio = {};   // vid -> { el, src }
+var voiceSeq = 0;
+function waveBars(vid) {
+  let h = 0; for (const ch of vid) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  let out = '';
+  for (let k = 0; k < 32; k++) { h = (h * 1664525 + 1013904223) >>> 0; out += `<i style="height:${6 + (h >>> 24) % 20}px"></i>`; }
+  return out;
+}
+function voiceId(m) { return m._vid || (m._vid = 'v' + (++voiceSeq)); }
+const fmtDur = (t) => (isFinite(t) && t > 0) ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '0:00';
+
+function updateVoiceUI(vid) {
+  const v = voiceAudio[vid];
+  if (!v) return;
+  const a = v.el;
+  document.querySelectorAll(`.voice-msg[data-vid="${vid}"]`).forEach(box => {
+    box.querySelector('.voice-play-btn').textContent = a.paused ? '▶' : '⏸';
+    const dur = isFinite(a.duration) ? a.duration : 0;
+    const bars = box.querySelectorAll('.voice-wave i'), n = dur ? Math.round(a.currentTime / dur * bars.length) : 0;
+    bars.forEach((x, k) => x.classList.toggle('on', k < n));
+    box.querySelector('.voice-duration').textContent = fmtDur(a.paused && a.currentTime === 0 ? dur : a.currentTime);
+  });
+}
+
+function getVoice(vid) {
+  if (voiceAudio[vid]) return voiceAudio[vid];
+  const m = chatMessagesHistory.find(x => x._vid === vid);
+  if (!m || !m.audio) return null;
+  const el = new Audio(m.audio);
+  el.preload = 'metadata';
+  const upd = () => updateVoiceUI(vid);
+  ['timeupdate', 'play', 'pause', 'ended', 'loadedmetadata', 'durationchange'].forEach(ev => el.addEventListener(ev, upd));
+  // MediaRecorder webm has no length header: seek far to make the browser compute it
+  el.addEventListener('loadedmetadata', () => {
+    if (el.duration === Infinity) {
+      el.currentTime = 1e101;
+      el.addEventListener('timeupdate', function fix() { el.removeEventListener('timeupdate', fix); el.currentTime = 0; });
+    }
+  });
+  el.addEventListener('ended', () => { el.currentTime = 0; upd(); });
+  return (voiceAudio[vid] = { el });
+}
+
+$('#chat-msgs').addEventListener('click', (e) => {
+  const btn = e.target.closest('.voice-play-btn');
+  const wave = e.target.closest('.voice-wave');
+  const vid = (btn || wave)?.dataset.vid;
+  if (!vid) return;
+  const v = getVoice(vid);
+  if (!v) return;
+  if (wave && !btn && isFinite(v.el.duration)) {
+    const r = wave.getBoundingClientRect();
+    v.el.currentTime = v.el.duration * Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    updateVoiceUI(vid);
+    return;
+  }
+  Object.entries(voiceAudio).forEach(([id, o]) => { if (id !== vid && !o.el.paused) o.el.pause(); });
+  if (v.el.paused) v.el.play().catch(err => console.error('Voice note playback failed:', err));
+  else v.el.pause();
+});
 </script>
 </body>
 </html>

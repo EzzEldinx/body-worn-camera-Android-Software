@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Take a camera - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"dark"}catch(e){document.documentElement.dataset.theme="dark"}</script>
+<style>
+/* The check-out station: opened full screen on the PC (or tablet) next to the dock. Big, plain and touch friendly. */
+:root{--bg:#0B1322;--panel:#131E33;--raise:#1A2842;--line:#273A5B;--text:#E8EEF7;--mut:#8A9BB5;--ok:#2EE6A6;--rec:#FF5D77;--sel:#FFC857;--blue:#5AA9FF;--brand:#9B86E0;--ink:#1A1405}
+:root[data-theme="light"]{--bg:#E9EEF5;--panel:#F8FAFC;--raise:#EEF2F8;--line:#DAE2EC;--text:#0F1B2D;--mut:#62738C;--ok:#00A56F;--rec:#E0213F;--sel:#FFB300;--blue:#2F7BFF;--brand:#5E4A9E}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{display:flex;flex-direction:column;min-height:100vh;background:radial-gradient(900px 500px at 10% -10%,rgba(155,134,224,.18),transparent 70%),radial-gradient(800px 500px at 100% 0,rgba(90,169,255,.14),transparent 70%),var(--bg)}
+header{display:flex;align-items:center;gap:16px;padding:18px 28px}
+header img{height:34px}
+header .sp{flex:1}
+#clock{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--mut)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;background:var(--panel);border:1px solid var(--line);font-size:14px;font-weight:700;color:var(--mut)}
+.pill i{width:9px;height:9px;border-radius:50%;background:var(--mut)}
+.pill.ok i{background:var(--ok);box-shadow:0 0 8px var(--ok)}.pill.bad i{background:var(--rec)}
+main{flex:1;display:flex;align-items:center;justify-content:center;padding:10px 20px 40px}
+.card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:34px 34px 30px;box-shadow:0 30px 70px rgba(0,0,0,.35)}
+.card.wide{width:min(900px,100%)}
+h1{margin:0 0 6px;font-size:clamp(28px,4vw,38px);letter-spacing:-.5px;font-weight:800}
+h1 span{background:linear-gradient(90deg,var(--sel),#ff8a3d);-webkit-background-clip:text;background-clip:text;color:transparent}
+p.sub{margin:0 0 24px;color:var(--mut);font-size:16.5px;line-height:1.5}
+label{display:block;margin:16px 0 7px;font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mut)}
+input{width:100%;padding:17px 18px;font-size:22px;border-radius:14px;border:2px solid var(--line);background:var(--raise);color:var(--text);outline:none}
+input:focus{border-color:var(--sel);box-shadow:0 0 0 4px rgba(255,200,87,.2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--line);background:var(--raise);color:var(--text);padding:16px 26px;border-radius:14px;font-size:19px;font-weight:800;cursor:pointer;transition:.15s}
+.btn:hover{filter:brightness(1.12)}
+.btn.pri{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--ink);box-shadow:0 10px 28px rgba(255,179,0,.4)}
+.btn.block{width:100%;margin-top:22px;padding:19px}
+.btn:disabled{opacity:.55;cursor:default}
+.row{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.row .btn{flex:1}
+.err{margin-top:16px;padding:13px 16px;border-radius:12px;background:rgba(255,93,119,.14);border:1px solid rgba(255,93,119,.5);color:var(--rec);font-weight:700;font-size:16px;display:none}
+.err.on{display:block}
+.counts{margin-top:22px;display:flex;gap:14px;flex-wrap:wrap;color:var(--mut);font-size:15px}
+.counts b{color:var(--text)}
+.hi{font-size:15px;color:var(--mut);margin-bottom:6px}.hi b{color:var(--text);font-size:19px}
+/* the camera to take */
+.cam{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:30px;align-items:center}
+@media (max-width:760px){.cam{grid-template-columns:1fr}}
+.big{font-size:clamp(46px,8vw,72px);font-weight:900;letter-spacing:-1.5px;line-height:1;margin:6px 0 8px}
+.meta{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 4px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:99px;background:var(--raise);border:1px solid var(--line);font-size:15px;font-weight:700}
+.chip.ok{color:var(--ok);border-color:rgba(46,230,166,.5)}.chip.warn{color:var(--sel);border-color:rgba(255,200,87,.5)}
+.bat{display:inline-block;width:46px;height:20px;border-radius:5px;border:2px solid currentColor;position:relative;vertical-align:middle}
+.bat::after{content:"";position:absolute;right:-6px;top:4px;width:4px;height:8px;border-radius:0 2px 2px 0;background:currentColor}
+.bat i{position:absolute;left:2px;top:2px;bottom:2px;border-radius:2px;background:currentColor}
+/* the dock: two rows of five bays, the one to use glows */
+.dockwrap{padding:18px;border-radius:22px;background:linear-gradient(180deg,var(--raise),var(--panel));border:1px solid var(--line)}
+.dockwrap .lbl{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--mut);text-align:center;margin-bottom:12px}
+.bays{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;direction:ltr}
+.lang{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:99px;padding:7px 16px;font-size:14px;font-weight:800;cursor:pointer}
+.lang:hover{border-color:var(--sel)}
+[dir=rtl] .item small{margin-left:0;margin-right:auto}
+[dir=rtl] .stamp{direction:ltr;text-align:left}
+.bay{aspect-ratio:3/4;border-radius:12px;border:2px solid var(--line);background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding-top:7px;font-size:13px;font-weight:800;color:var(--mut);position:relative}
+.bay.full{background:var(--raise);color:var(--text)}
+.bay.full::after{content:"";position:absolute;left:25%;right:25%;bottom:10px;height:42%;border-radius:6px;background:linear-gradient(180deg,#445a82,#2a3c5d)}
+.bay.go{border-color:var(--sel);background:rgba(255,200,87,.16);color:var(--sel);animation:glow 1.2s ease-in-out infinite;transform:scale(1.07);z-index:1}
+.bay.go::after{background:linear-gradient(180deg,var(--sel),#ff9d00)}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(255,200,87,.7)}50%{box-shadow:0 0 0 12px rgba(255,200,87,0)}}
+.where{margin-top:14px;text-align:center;font-size:20px;font-weight:800}
+.where small{display:block;color:var(--mut);font-size:14px;font-weight:600;margin-top:2px}
+/* list of other cameras */
+.list{display:grid;gap:10px;margin-top:16px}
+.item{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:var(--raise);border:2px solid var(--line);cursor:pointer;text-align:left;color:var(--text);font-size:18px;font-weight:800;width:100%}
+.item:hover{border-color:var(--sel)}
+.item small{margin-left:auto;color:var(--mut);font-weight:700;font-size:14px}
+.item.off{opacity:.6;cursor:default}.item.off:hover{border-color:var(--line)}
+.done{text-align:center}
+.tick{width:92px;height:92px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;background:rgba(46,230,166,.16);border:3px solid var(--ok);animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+.tick svg{width:50px;height:50px;stroke:var(--ok);fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.stamp{margin:18px auto 0;max-width:430px;padding:14px 16px;border-radius:12px;background:#000;color:#eaeaea;font:600 15px/1.45 ui-monospace,Menlo,Consolas,monospace;text-align:left;border:1px solid var(--line)}
+.stamp b{color:var(--sel)}
+.bar{height:6px;border-radius:3px;background:var(--raise);overflow:hidden;margin-top:22px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--sel),#ff8a3d);width:100%;transform-origin:left;animation:shrink linear forwards}
+@keyframes shrink{to{transform:scaleX(0)}}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <img src="/brand/visionguard-logo-light.png" alt="VisionGuard" onerror="this.style.display='none'">
+  <span class="sp"></span>
+  <span class="pill" id="dockPill"><i></i><span id="dockTxt">…</span></span>
+  <button class="lang" id="lang" type="button" aria-label="Language">عربي</button>
+  <span id="clock"></span>
+</header>
+<main>
+  <!-- 1. sign in -->
+  <section class="card" id="vLogin">
+    <h1 data-h="title"></h1>
+    <p class="sub" data-i="sub"></p>
+    <form id="form" autocomplete="off">
+      <label for="u" data-i="username"></label>
+      <input id="u" name="u" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" required>
+      <label for="p" data-i="password"></label>
+      <input id="p" name="p" type="password" autocomplete="current-password" required>
+      <div class="err" id="err"></div>
+      <button class="btn pri block" id="go" type="submit" data-i="continue"></button>
+    </form>
+    <div class="counts" id="counts"></div>
+  </section>
+
+  <!-- 2. the camera for you -->
+  <section class="card wide hide" id="vPick">
+    <div class="hi" id="hi"></div>
+    <div id="holding" class="hide"></div>
+    <div id="pickBody"></div>
+  </section>
+
+  <!-- 3. done -->
+  <section class="card hide done" id="vDone">
+    <div class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <h1 id="dName">BWC-01</h1>
+    <p class="sub" id="dText"></p>
+    <div class="stamp" id="stamp"></div>
+    <button class="btn pri block" id="finish" data-i="done"></button>
+    <div class="bar"><i id="countdown"></i></div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let token = null, user = null, state = null, idle = null, resetT = null;
+
+
+/* ---------- language: English and Arabic (employees choose; the choice is remembered on this screen) ---------- */
+const L = {
+  en: {
+    title: 'Take your <span>camera</span>', sub: 'Sign in with your own username and password. The system picks a camera that is charged and ready, and shows you where it is.',
+    username: 'Username', password: 'Password', continue: 'Continue', checking: 'Checking…', done: 'Done',
+    dockOnline: 'Dock online', dockOffline: 'Dock offline', noConn: 'No connection', ready: '{n} camera(s) ready', onDock: '{n} on the dock',
+    signedAs: 'Signed in as', youHave: 'You have <span>{cam}</span>', reservedTxt: 'It is reserved for you and still on the dock. Take it from the bay shown.',
+    outTxt: 'Checked out at {time}. Put it back on the dock when you finish your shift.', returned: 'I returned it', close: 'Close', cancel: 'Cancel', again: 'Check again',
+    other: 'Choose another', take: 'Take {cam}', moment: 'One moment…', dockOffH: 'The dock is <span>offline</span>', dockOffTxt: 'The docking station is not reporting right now, so no camera can be issued. Ask your supervisor.',
+    noneH: 'No camera is <span>ready</span>', noneTxt: 'Every camera on the dock is charging, copying its files or already taken.', noCams: 'There are no cameras on the dock.', taken: 'already taken',
+    yourCam: 'Your camera', bay: 'Bay {n}', connected: 'Connected', notConn: 'Not connected yet', dock: 'Docking station', top: 'top row', bottom: 'bottom row',
+    nth: ['1st', '2nd', '3rd', '4th', '5th'], fromLeft: '{nth} from the left',
+    yours: '{cam} is yours{where}.', takeFrom: ' — take it from <b>bay {n}</b>', stampTxt: 'Your name and ID will be stamped on everything it records.',
+    copying: 'copying files', copyingN: 'copying files ({i} of {n})', updating: 'updating its app', charging: 'charging: {b}%, ready at {m}%', attention: 'needs attention',
+  },
+  ar: {
+    title: 'استلم <span>كاميرتك</span>', sub: 'سجّل الدخول باسم المستخدم وكلمة المرور الخاصة بك. يختار النظام كاميرا مشحونة وجاهزة ويُريك مكانها.',
+    username: 'اسم المستخدم', password: 'كلمة المرور', continue: 'متابعة', checking: 'جارٍ التحقق…', done: 'تم',
+    dockOnline: 'القاعدة متصلة', dockOffline: 'القاعدة غير متصلة', noConn: 'لا يوجد اتصال', ready: '{n} كاميرا جاهزة', onDock: '{n} على القاعدة',
+    signedAs: 'مسجّل باسم', youHave: 'معك الكاميرا <span>{cam}</span>', reservedTxt: 'الكاميرا محجوزة لك وما زالت على القاعدة. خذها من الخانة الموضّحة.',
+    outTxt: 'استلمتها الساعة {time}. أعدها إلى القاعدة عند نهاية الوردية.', returned: 'أعدتها', close: 'إغلاق', cancel: 'إلغاء', again: 'تحقق مجددًا',
+    other: 'اختيار كاميرا أخرى', take: 'استلم {cam}', moment: 'لحظة…', dockOffH: 'القاعدة <span>غير متصلة</span>', dockOffTxt: 'قاعدة الشحن لا تُرسل بياناتها حاليًا، لذلك لا يمكن تسليم كاميرا. اسأل مشرفك.',
+    noneH: 'لا توجد كاميرا <span>جاهزة</span>', noneTxt: 'كل الكاميرات على القاعدة قيد الشحن أو نقل الملفات أو مستلمة.', noCams: 'لا توجد كاميرات على القاعدة.', taken: 'مستلمة',
+    yourCam: 'كاميرتك', bay: 'الخانة {n}', connected: 'متصلة', notConn: 'غير متصلة بعد', dock: 'قاعدة الشحن', top: 'الصف العلوي', bottom: 'الصف السفلي',
+    nth: ['الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة'], fromLeft: '{nth} من اليسار',
+    yours: 'الكاميرا {cam} لك{where}.', takeFrom: ' — خذها من <b>الخانة {n}</b>', stampTxt: 'سيُسجَّل اسمك ورقمك على كل ما تصوّره.',
+    copying: 'تنقل ملفاتها', copyingN: 'تنقل ملفاتها ({i} من {n})', updating: 'تحدّث تطبيقها', charging: 'قيد الشحن: {b}%، جاهزة عند {m}%', attention: 'تحتاج متابعة',
+  },
+};
+// messages from the server, in the employee's language
+const MSG_AR = {
+  'Wrong username or password.': 'اسم المستخدم أو كلمة المرور غير صحيحة.',
+  'Too many attempts. Wait a few minutes or ask your supervisor.': 'محاولات كثيرة. انتظر بضع دقائق أو اسأل مشرفك.',
+  'Your session ended. Sign in again.': 'انتهت الجلسة. سجّل الدخول من جديد.',
+  'The docking station is offline. Ask your supervisor.': 'قاعدة الشحن غير متصلة. اسأل مشرفك.',
+  'No camera is ready right now.': 'لا توجد كاميرا جاهزة الآن.',
+  'That camera is not ready any more. Choose another one.': 'هذه الكاميرا لم تعد جاهزة. اختر كاميرا أخرى.',
+  'You have no camera checked out.': 'ليس معك كاميرا مستلمة.',
+  'Something went wrong.': 'حدث خطأ ما.',
+};
+let lang = 'en';
+try { lang = localStorage.getItem('vg-station-lang') || (/^ar/i.test(navigator.language) ? 'ar' : 'en'); } catch (e) { }
+const t = (k, v = {}) => String(L[lang][k] ?? L.en[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => v[x] ?? '');
+const msg = (m) => (lang === 'ar' && MSG_AR[m]) || (lang === 'ar' && /^You still have .* checked out/.test(m) ? 'ما زالت معك كاميرا مستلمة. أعدها إلى القاعدة أولًا.' : m);
+function applyLang() {
+  document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  $('#lang').textContent = lang === 'ar' ? 'EN' : 'عربي';
+  document.querySelectorAll('[data-i]').forEach((e) => { e.textContent = t(e.dataset.i); });
+  document.querySelectorAll('[data-h]').forEach((e) => { e.innerHTML = t(e.dataset.h); });
+  if (token && state) render();
+  status();
+}
+$('#lang').onclick = () => { lang = lang === 'ar' ? 'en' : 'ar'; try { localStorage.setItem('vg-station-lang', lang); } catch (e) { } applyLang(); };
+
+const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
+  .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) { const e = new Error(j.error || 'Something went wrong.'); e.status = r.status; throw e; } return j; });
+const show = (id) => { for (const v of ['vLogin', 'vPick', 'vDone']) $('#' + v).classList.toggle('hide', v !== id); };
+const err = (m) => { const e = $('#err'); e.textContent = m ? msg(m) : ''; e.classList.toggle('on', !!m); };
+
+/* A minute without a touch while someone is signed in: sign them out, so nobody else uses their name. */
+function watchIdle() { clearTimeout(idle); if (token) idle = setTimeout(reset, 90000); }
+['pointerdown', 'keydown'].forEach((ev) => addEventListener(ev, watchIdle, { passive: true }));
+function reset() {
+  clearTimeout(idle); clearTimeout(resetT);
+  if (token) post('/api/station/logout', { token }).catch(() => { });
+  token = null; user = null; state = null;
+  $('#form').reset(); err(''); show('vLogin'); $('#u').focus(); status();
+}
+
+/* ---------- the bays ---------- */
+function bays(slot) {
+  const used = new Set((state?.ready || []).concat(state?.notReady || []).map((x) => x.slot));
+  return `<div class="dockwrap"><div class="lbl">${t('dock')}</div><div class="bays">${Array.from({ length: 10 }, (_, i) =>
+    `<div class="bay ${i === slot ? 'go' : used.has(i) ? 'full' : ''}">${i + 1}</div>`).join('')}</div>
+    ${slot != null ? `<div class="where">${t('bay', { n: slot + 1 })}<small>${slot < 5 ? t('top', {}) : t('bottom', {})}, ${t('fromLeft', { nth: L[lang].nth[slot % 5] })}</small></div>` : ''}</div>`;
+}
+const battery = (b) => b == null ? '' : `<span class="chip ${b >= 60 ? 'ok' : 'warn'}"><span class="bat"><i style="width:${Math.max(6, b)}%"></i></span>${b}%</span>`;
+
+const why = (x) => (x.reason === 'copying' ? (x.note && /of/.test(x.note) ? t('copyingN', { i: (/\((\d+) of (\d+)\)/.exec(x.note) || [])[1], n: (/\((\d+) of (\d+)\)/.exec(x.note) || [])[2] }) : t('copying'))
+  : x.reason === 'updating' ? t('updating') : x.reason === 'charging' ? t('charging', { b: x.battery, m: state.minBattery }) : x.reason === 'attention' ? t('attention') : (x.note || x.reason));
+function render() {
+  const s = state;
+  $('#hi').innerHTML = `${t('signedAs')} <b>${esc(user.name)}</b>${user.employeeNo ? ' · ' + esc(user.employeeNo) : ''}`;
+  const h = s.holding;
+  let html = '';
+  if (h) {
+    const when = new Date(h.pickedTs || h.issuedTs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    html = `<div class="cam"><div><h1>${t('youHave', { cam: esc(h.cameraName) })}</h1>
+        <p class="sub">${h.status === 'reserved' ? t('reservedTxt') : t('outTxt', { time: when })}</p>
+        <div class="row"><button class="btn" id="back">${t('returned')}</button><button class="btn pri" id="close">${t('close')}</button></div><div class="err" id="err2"></div></div>
+        ${h.status === 'reserved' ? bays(h.slot) : ''}</div>`;
+  } else if (!s.dockOnline) {
+    html = `<h1>${t('dockOffH')}</h1><p class="sub">${t('dockOffTxt')}</p><div class="row"><button class="btn pri" id="close">${t('close')}</button></div>`;
+  } else if (!s.ready.length) {
+    html = `<h1>${t('noneH')}</h1><p class="sub">${t('noneTxt')}</p>
+      <div class="list">${s.notReady.map((x) => `<div class="item off">${esc(x.name)}<small>${esc(x.reason === 'issued' ? t('taken') : why(x))}</small></div>`).join('') || `<p class="sub">${t('noCams')}</p>`}</div>
+      <div class="row"><button class="btn" id="refresh">${t('again')}</button><button class="btn pri" id="close">${t('close')}</button></div>`;
+  } else {
+    const c = s.ready.find((x) => x.cameraId === s.pick) || s.ready[0];
+    html = `<div class="cam"><div><p class="sub" style="margin-bottom:0">${t('yourCam')}</p><div class="big">${esc(c.name)}</div>
+        <div class="meta">${battery(c.battery)}<span class="chip">${t('bay', { n: c.slot != null ? c.slot + 1 : '?' })}</span>${c.online ? `<span class="chip ok">${t('connected')}</span>` : `<span class="chip warn">${t('notConn')}</span>`}</div>
+        <button class="btn pri block" id="take" data-id="${esc(c.cameraId)}">${t('take', { cam: esc(c.name) })}</button>
+        <div class="row">${s.ready.length > 1 ? `<button class="btn" id="other">${t('other')}</button>` : ''}<button class="btn" id="close">${t('cancel')}</button></div><div class="err" id="err2"></div></div>
+        ${bays(c.slot)}</div>
+      <div id="others" class="list hide">${s.ready.map((x) => `<button class="item" data-pick="${esc(x.cameraId)}">${esc(x.name)}<small>${t('bay', { n: x.slot != null ? x.slot + 1 : '?' })} · ${x.battery ?? '?'}%</small></button>`).join('')}</div>`;
+  }
+  $('#pickBody').innerHTML = html;
+  show('vPick');
+}
+$('#pickBody').addEventListener('click', async (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const e2 = $('#err2'); if (e2) { e2.textContent = ''; e2.classList.remove('on'); }
+  try {
+    if (b.id === 'close') return reset();
+    if (b.id === 'refresh') { const r = await post('/api/station/state', { token }); state = { ...state, ...r }; return render(); }
+    if (b.id === 'other') { $('#others').classList.toggle('hide'); return; }
+    if (b.dataset.pick) { state.pick = b.dataset.pick; return render(); }
+    if (b.id === 'back') { await post('/api/station/return', { token }); const r = await post('/api/station/state', { token }); state = { ...state, ...r }; return render(); }
+    if (b.id === 'take') {
+      b.disabled = true; b.textContent = t('moment');
+      const r = await post('/api/station/issue', { token, cameraId: b.dataset.id });
+      return done(r);
+    }
+  } catch (ex) {
+    if (ex.status === 401) { reset(); err(ex.message); return; }
+    const e3 = $('#err2'); if (e3) { e3.textContent = msg(ex.message); e3.classList.add('on'); }
+    try { const r = await post('/api/station/state', { token }); state = { ...state, ...r }; setTimeout(render, 2500); } catch (x) { /* session gone */ }
+  }
+});
+
+function done(r) {
+  const a = r.assignment, c = (state.ready || []).find((x) => x.cameraId === a.cameraId);
+  const slot = a.slot != null ? a.slot : c?.slot;
+  $('#dName').textContent = a.cameraName;
+  $('#dText').innerHTML = `${t('yours', { cam: esc(a.cameraName), where: slot != null ? t('takeFrom', { n: slot + 1 }) : '' })}<br>${t('stampTxt')}`;
+  const now = new Date(), p = (n) => String(n).padStart(2, '0');
+  $('#stamp').innerHTML = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}<br><b>${esc(a.cameraName)}</b> · <b>${esc(a.employeeNo || a.username)}</b> · ${esc(a.name)}`;
+  const cd = $('#countdown'); cd.style.animation = 'none'; void cd.offsetWidth; cd.style.animationDuration = '20s'; cd.style.animationName = 'shrink'; cd.style.animationTimingFunction = 'linear'; cd.style.animationFillMode = 'forwards';
+  show('vDone'); clearTimeout(idle); clearTimeout(resetT); resetT = setTimeout(reset, 20000);
+  try { const a2 = new (window.AudioContext || webkitAudioContext)(); [660, 880].forEach((f, k) => { const o = a2.createOscillator(), g = a2.createGain(); o.frequency.value = f; g.gain.value = .08; o.connect(g); g.connect(a2.destination); o.start(a2.currentTime + k * .14); o.stop(a2.currentTime + k * .14 + .12); }); } catch (e) { }
+}
+$('#finish').onclick = reset;
+
+$('#form').addEventListener('submit', async (e) => {
+  e.preventDefault(); err(''); const go = $('#go'); go.disabled = true; go.textContent = t('checking');
+  try {
+    const r = await post('/api/station/login', { username: $('#u').value.trim(), password: $('#p').value });
+    token = r.token; user = r.user; state = r; $('#p').value = ''; watchIdle(); render();
+  } catch (ex) { err(ex.message); $('#p').value = ''; $('#p').focus(); }
+  go.disabled = false; go.textContent = t('continue');
+});
+
+/* ---------- idle screen: how many cameras are ready, and whether the dock is there ---------- */
+async function status() {
+  try {
+    const s = await (await fetch('/api/station/status')).json();
+    $('#dockPill').className = 'pill ' + (s.dockOnline ? 'ok' : 'bad');
+    $('#dockTxt').textContent = s.dockOnline ? t('dockOnline') : t('dockOffline');
+    $('#counts').innerHTML = s.dockOnline ? `<span><b>${s.ready}</b> ${t('ready', { n: '' }).trim()}</span><span><b>${s.docked}</b> ${t('onDock', { n: '' }).trim()}</span>` : '';
+  } catch (e) { $('#dockPill').className = 'pill bad'; $('#dockTxt').textContent = t('noConn'); }
+}
+setInterval(() => { if (!token) status(); }, 8000);
+setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }, 1000);
+applyLang(); $('#u').focus();
+</script>
+</body>
+</html>

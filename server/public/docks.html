@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Docking Station - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="stylesheet" href="/portal.css">
+<style>
+:root{--c-idle:var(--off);--c-ready:var(--blue);--c-busy:var(--sel);--c-done:var(--ok);--c-err:var(--rec)}
+body{overflow-x:hidden}
+.shell{display:grid;grid-template-columns:96px minmax(0,1fr);gap:0;max-width:1700px;margin:0 auto;min-height:calc(100vh - var(--header-h))}
+main#view{display:block;max-width:none;margin:0;padding:22px 24px 90px;display:grid;gap:18px;align-content:start;min-width:0}
+
+/* ---------- left rail ---------- */
+.rail{position:sticky;top:var(--header-h);align-self:start;height:calc(100vh - var(--header-h));display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 0;border-right:1px solid var(--line);background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 92%,transparent),color-mix(in srgb,var(--raise) 92%,transparent))}
+.rb{width:80px;display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 0 9px;border:0;background:none;color:var(--mut);font-size:11.5px;font-weight:700;letter-spacing:.3px;border-radius:14px;position:relative;transition:.18s}
+.rb .dot{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;background:linear-gradient(145deg,var(--g1),var(--g2));box-shadow:0 6px 16px color-mix(in srgb,var(--g2) 45%,transparent),inset 0 1px 0 rgba(255,255,255,.45),inset 0 -6px 10px rgba(0,0,0,.18);transition:.18s}
+.rb .dot svg{width:22px;height:22px}
+.rb:hover{color:var(--text)}
+.rb:hover .dot{transform:translateY(-2px) scale(1.04)}
+.rb.on{color:var(--text);background:var(--panel);box-shadow:var(--shadow-sm)}
+.rb.on .dot{box-shadow:0 0 0 3px var(--panel),0 0 0 5px var(--g1),0 8px 22px color-mix(in srgb,var(--g2) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.45)}
+.rb.on::before{content:"";position:absolute;left:-8px;top:22%;bottom:22%;width:4px;border-radius:0 4px 4px 0;background:linear-gradient(var(--sel),var(--brand))}
+.rb[data-v="docks"]{--g1:#7C5CFF;--g2:#2F7BFF}.rb[data-v="cams"]{--g1:#FF5D77;--g2:#D81B49}.rb[data-v="data"]{--g1:#FFC857;--g2:#FF8A3D}
+.rb[data-v="shifts"]{--g1:#B38CFF;--g2:#6C3DD6}.rb[data-v="files"]{--g1:#38D9F5;--g2:#0E8FB5}.rb[data-v="set"]{--g1:#2EE6A6;--g2:#009C6B}.rb[data-v="help"]{--g1:#5AA9FF;--g2:#2F4FD8}
+.rail .sp{flex:1}
+
+/* ---------- title + KPIs ---------- */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.top h1{margin:0;font-size:clamp(24px,2.6vw,32px);font-weight:800;letter-spacing:-.4px}
+.top h1 span{background:linear-gradient(90deg,var(--brand),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+.top p{margin:4px 0 0;color:var(--mut);font-size:14px}
+.agent{display:inline-flex;align-items:center;gap:9px;padding:8px 14px;border-radius:99px;font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow-sm)}
+.agent i{width:9px;height:9px;border-radius:50%;background:var(--off)}
+.agent.online i{background:var(--ok);animation:pulse 1.8s infinite}
+.agent.online{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.agent.connecting i{background:var(--sel);animation:blink 1s infinite}
+.agent.connecting{border-color:color-mix(in srgb,var(--sel) 55%,var(--line))}
+.agent small{color:var(--mut);font-weight:600}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 65%,transparent)}100%{box-shadow:0 0 0 10px transparent}}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:16px;background:linear-gradient(135deg,var(--panel),var(--raise));border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.kpi .ki{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);box-shadow:0 0 18px color-mix(in srgb,var(--c) 30%,transparent)}
+.kpi .ki svg{width:22px;height:22px}
+.kpi b{display:block;font-size:28px;line-height:1;font-weight:800}
+.kpi span{display:block;margin-top:5px;color:var(--mut);font-size:11.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+
+/* ---------- bays ---------- */
+.dockpick{display:flex;gap:8px;flex-wrap:wrap}
+.pill{padding:6px 14px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:12.5px;font-weight:700;color:var(--mut)}
+.pill.on{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink)}
+/* The real dock: two rows of five slots (1-5 on top, 6-10 below) inside one chassis. */
+.calbox{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:12px;padding:14px 18px;border-radius:14px;background:color-mix(in srgb,var(--sel) 16%,var(--panel));border:1px solid var(--sel)}.calbox span{color:var(--mut);font-size:13px;flex:1}
+.bays{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;padding:16px;border-radius:26px;border:1px solid var(--line);background:linear-gradient(180deg,color-mix(in srgb,var(--raise) 70%,var(--panel)),var(--panel));box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.35)}
+.bay{--c:var(--c-idle);position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 16px 18px;min-height:268px;border-radius:18px;overflow:hidden;cursor:default;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--c) 7%,var(--panel)),var(--panel) 55%);border:1px solid color-mix(in srgb,var(--c) 28%,var(--line));box-shadow:var(--shadow-sm);transition:border-color .25s,box-shadow .25s,transform .2s}
+.bay::before{content:"";position:absolute;inset:0;background:radial-gradient(260px 160px at 50% 28%,color-mix(in srgb,var(--c) 16%,transparent),transparent 70%);pointer-events:none}
+.bay>*{position:relative}
+.bay.has{cursor:pointer}.bay.has:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.bay.s-connected{--c:var(--c-ready)}.bay.s-offloading{--c:var(--c-busy);box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent),0 10px 34px color-mix(in srgb,var(--c) 28%,transparent)}
+.bay.s-other{--c:var(--mut)}.bay.s-synced{--c:var(--c-done)}.bay.s-error{--c:var(--c-err);box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent),0 10px 34px color-mix(in srgb,var(--c) 26%,transparent)}
+.bhead{align-self:stretch;display:flex;align-items:center;justify-content:space-between}
+.bn{font-size:11px;font-weight:800;letter-spacing:1.4px;color:var(--mut)}
+.st{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+.s-offloading .st::before,.s-connected .st::before{animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.ring{position:relative;width:132px;height:132px;margin-top:4px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
+.ring .tr{stroke:color-mix(in srgb,var(--c) 18%,var(--line-soft));fill:none}
+.ring .vl{stroke:var(--c);fill:none;stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 7px color-mix(in srgb,var(--c) 70%,transparent))}
+.ring .sw{stroke:var(--c);fill:none;stroke-linecap:round;stroke-dasharray:60 280;opacity:.9;transform-origin:60px 60px;animation:spin 1.5s linear infinite;filter:drop-shadow(0 0 6px var(--c))}
+.s-idle .ring .sw,.s-synced .ring .sw,.s-error .ring .sw{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center}
+.ring .mid b{font-size:26px;line-height:1;font-weight:800;color:var(--text)}
+.ring .mid small{font-size:10.5px;color:var(--mut);font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+.ring .mid.idle b{font-size:22px;color:var(--mut);font-family:Georgia,"Times New Roman",serif;font-weight:700}
+.ring .mid svg{width:42px;height:42px;color:var(--c);transform:none}
+.cid{margin-top:2px;font-size:17px;font-weight:800;letter-spacing:.2px}
+.co{margin-top:-4px;font-size:12px;color:var(--mut);min-height:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:26px}
+.ch{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:99px;font-size:11.5px;font-weight:700;background:var(--raise);border:1px solid var(--line-soft)}
+.ch svg{width:13px;height:13px;color:var(--mut)}
+.ch.low{color:var(--rec);border-color:color-mix(in srgb,var(--rec) 40%,var(--line))}.ch.low svg{color:var(--rec)}
+.bar{align-self:stretch;height:6px;border-radius:99px;background:color-mix(in srgb,var(--c) 14%,var(--line-soft));overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--c),color-mix(in srgb,var(--c) 55%,#fff));transition:width .8s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 10px var(--c)}
+.pf{align-self:stretch;font-size:11.5px;color:var(--mut);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hint{font-size:12.5px;color:var(--mut);text-align:center;line-height:1.45;padding:0 6px}
+.s-idle .cid{color:var(--mut)}
+
+/* ---------- status bar ---------- */
+.statusbar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:14px 20px;border-radius:16px;background:linear-gradient(90deg,#0B2A66,#1650B8 55%,#1E7BE8);color:#fff;box-shadow:var(--shadow-md)}
+.statusbar .lbl{font-size:12.5px;font-weight:700;letter-spacing:.4px;opacity:.9;white-space:nowrap}
+.meter{flex:1;min-width:180px;height:12px;border-radius:99px;background:rgba(255,255,255,.22);overflow:hidden;position:relative}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,#2EE6A6,#9BF2D2);box-shadow:0 0 12px rgba(46,230,166,.8);transition:width 1s}
+.statusbar .num{font-size:13px;font-weight:800;white-space:nowrap}
+
+/* ---------- tables / forms ---------- */
+.mode{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mode button{text-align:left;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer;font:inherit}
+.mode button b{display:block;font-size:14px;margin-bottom:3px}.mode button span{display:block;font-size:12px;color:var(--mut);line-height:1.35}
+.mode button.on{border-color:var(--sel);box-shadow:0 0 0 3px color-mix(in srgb,var(--sel) 22%,transparent)}
+.mode button:disabled{opacity:.55;cursor:not-allowed}
+.fchips{display:flex;gap:8px;flex-wrap:wrap}.fchips .pill{cursor:pointer}.fchips .pill small{opacity:.75;margin-left:6px;font-weight:600}
+.cnt{position:absolute;top:2px;right:calc(50% - 30px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--rec);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center}
+.rb{position:relative}
+.b-gone{--c:var(--off)}.btn.del{color:var(--rec);border-color:color-mix(in srgb,var(--rec) 40%,var(--line))}.btn.del:hover{background:var(--rec);color:#fff;border-color:var(--rec)}.btn.del:disabled{opacity:.5}
+.cbox{padding:22px 24px}.cbox h3{margin:0 0 8px;font-size:18px}.cbox p{margin:0 0 6px;line-height:1.5}.cbox .acts{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.b-wait{--c:var(--sel)}.b-cloud{--c:var(--ok)}.b-local{--c:var(--blue)}.b-fail{--c:var(--rec)}
+@media (max-width:760px){.mode{grid-template-columns:1fr}}
+.bar2{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.bar2 input,.bar2 select{min-width:150px}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--mut);background:var(--panel);border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.tbl tr:hover td{background:var(--hover)}
+.tbl .r{text-align:right}.tbl .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--mut)}
+.scroll{overflow:auto;border-radius:12px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:800;background:color-mix(in srgb,var(--c,var(--off)) 14%,transparent);color:var(--c,var(--mut))}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c,var(--off))}
+.b-on{--c:var(--ok)}.b-rec{--c:var(--rec)}.b-off{--c:var(--off)}.b-dock{--c:var(--blue)}
+.empty{padding:40px 12px;text-align:center;color:var(--mut)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.mini{padding:16px 18px;border-radius:16px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm);display:grid;gap:8px}
+.mini h4{margin:0;font-size:15px}.mini .row{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--mut)}.mini .row b{color:var(--text)}
+pre.code{margin:0;padding:14px 16px;border-radius:12px;background:#0A111D;color:#CFE3FF;font:12.5px/1.6 ui-monospace,Menlo,Consolas,monospace;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.kv{display:grid;grid-template-columns:minmax(120px,200px) 1fr;gap:10px 18px;font-size:14px}.kv dt{color:var(--mut)}.kv dd{margin:0;font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;counter-reset:s}
+.step{position:relative;padding:18px 18px 16px 18px;border-radius:16px;background:var(--panel);border:1px solid var(--line);counter-increment:s}
+.step::before{content:counter(s);display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;margin-bottom:10px;font-weight:800;color:var(--sel-ink);background:linear-gradient(135deg,var(--sel),#ff9d00)}
+.step b{display:block;margin-bottom:4px}.step span{color:var(--mut);font-size:13.5px;line-height:1.5}
+details{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px 16px}details+details{margin-top:8px}
+summary{cursor:pointer;font-weight:700}details p{color:var(--mut);margin:8px 0 0;line-height:1.55;font-size:13.5px}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(8,13,24,.78);backdrop-filter:blur(6px)}
+.modal.on{display:flex}
+.mbox{width:min(920px,100%);max-height:92vh;overflow:auto;border-radius:18px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-md)}
+.mbox header{position:static;height:auto;padding:14px 18px;justify-content:space-between;box-shadow:none}
+.mbox header::after{display:none}
+.mbox video,.mbox img{display:block;width:100%;max-height:70vh;background:#000;object-fit:contain}
+.mbody{padding:16px 18px}
+
+/* ---------- phones: rail becomes a bottom bar ---------- */
+@media (max-width:1280px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ring{width:112px;height:112px}.cid{font-size:15px}}
+@media (max-width:1000px){.bays{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px}}
+@media (max-width:900px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;flex-direction:row;justify-content:space-around;padding:6px 6px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--line);z-index:30}
+  .rail .sp{display:none}
+  .rb{width:auto;flex:1;padding:6px 0 5px;font-size:10.5px}.rb .dot{width:36px;height:36px}.rb .dot svg{width:18px;height:18px}.rb.on::before{display:none}
+  .rb.on .dot{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--g1)}
+  main#view{padding:16px 14px 100px}
+  .bay{min-height:290px;padding:12px 10px 14px}.ring{width:112px;height:112px}
+  .kv{grid-template-columns:1fr}
+  nav{display:none}
+}
+@media (max-width:560px){.bays{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi{padding:12px}.kpi b{font-size:22px}}
+@media (prefers-reduced-motion:reduce){.ring .sw,.agent.online i,.agent.connecting i,.st::before{animation:none}}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<div class="shell">
+  <aside class="rail" id="rail" aria-label="Docking sections"></aside>
+  <main id="view"></main>
+</div>
+<div class="modal" id="modal"><div class="mbox" id="mbox"></div></div>
+
+<script src="/portal.js"></script>
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const IC = {
+  dock: '<path d="M4 15h16v4a1 1 0 01-1 1H5a1 1 0 01-1-1zM7 15V9a5 5 0 0110 0v6M12 4v5M9 9h6"/>',
+  cam: '<rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/>',
+  data: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3 1.2 0 2.3-.1 3.3-.3"/><circle cx="18" cy="18" r="3"/><path d="M20.2 20.2L22 22"/>',
+  set: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 2.5-3 4.5M12 17.5v.01"/>',
+  batt: '<rect x="2" y="8" width="17" height="9" rx="2"/><path d="M22 11v3M6 11v3M10 11v3"/>',
+  disk: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/>',
+  file: '<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5"/>',
+  check: '<path d="M5 13l4 4L19 7"/>', warn: '<path d="M12 3l10 18H2zM12 10v5M12 18v.01"/>', bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>', play: '<path d="M8 5v14l11-7z"/>',
+  files: '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M12 16v-5M9.5 13.5L12 11l2.5 2.5"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0116 0v1"/>',
+  down: '<path d="M12 3v12M7 11l5 5 5-5M5 21h14"/>', plug: '<path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 01-12 0zM12 18v4"/>',
+};
+const ic = (n, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[n]}</svg>`;
+const fmtB = (b) => { b = Number(b) || 0; if (b >= 1e12) return (b / 1e12).toFixed(2) + ' TB'; if (b >= 1e9) return (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + ' GB'; if (b >= 1e6) return Math.round(b / 1e6) + ' MB'; return Math.round(b / 1e3) + ' KB'; };
+const ago = (ts) => { if (!ts) return 'never'; const s = Math.max(0, (Date.now() - ts) / 1000); if (s < 5) return 'just now'; if (s < 60) return Math.round(s) + 's ago'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' d ago'; };
+const when = (ts) => ts ? new Date(ts).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+
+const VIEWS = [['docks', 'Docks', 'dock'], ['shifts', 'Check-out', 'user'], ['files', 'Files', 'files'], ['cams', 'Registered', 'cam'], ['data', 'Cloud Library', 'data'], ['set', 'Settings', 'set'], ['help', 'Help', 'help']];
+let me = null, D = null, view = 'docks', dockSel = null, timer = null, recs = [], FD = null, fstate = 'all', sel = new Set();
+
+$('#rail').innerHTML = VIEWS.map(([k, l, i]) => `<button class="rb" data-v="${k}" aria-label="${l}"><span class="dot">${ic(i)}</span>${l}</button>`).join('') +
+  '<span class="sp"></span><a class="rb" href="/" style="text-decoration:none" aria-label="Live dashboard"><span class="dot" style="--g1:#8A9BB5;--g2:#51607A">' + ic('cam') + '</span>Live</a>';
+$('#rail').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) go(b.dataset.v); });
+window.addEventListener('hashchange', () => go(location.hash.slice(1), true));
+
+function go(v, fromHash) {
+  if (!VIEWS.some((x) => x[0] === v)) v = 'docks';
+  view = v; if (!fromHash) history.replaceState(null, '', '#' + v);
+  document.querySelectorAll('.rb[data-v]').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  draw();
+}
+
+async function load() {
+  try { const r = await fetch('/api/docks'); if (r.status === 401) return (location.href = '/login.html'); D = await r.json(); } catch (e) { return; }
+  paintBadge();
+  if (view === 'files') { if (!$('#fmode')) draw(); else loadFiles(); }
+  if (document.activeElement?.classList?.contains('baysel')) return;   // do not redraw under a list the administrator is choosing from
+  if (view === 'shifts') { if (!$('#shOpen')) draw(); else if (Date.now() - (loadShifts.at || 0) > 8000) loadShifts(); }   // the page polls every second; the list changes rarely
+  if (view === 'docks' || view === 'set') draw(); else if (view === 'cams') { if (window.paintCams && $('#cq')) window.paintCams(); else draw(); } else if (view === 'data' && !$('#fc')) draw();
+}
+
+/* ---------- views ---------- */
+function agentOf() { return (D?.docks || []).slice().sort((a, b) => b.ts - a.ts)[0] || null; }
+function head(sub) {
+  const a = agentOf(), st = a?.status || (a?.online ? 'online' : a ? 'offline' : 'none');
+  const empty = st === 'online' && !(a.cameras || []).length;   // the PC is fine but the dock shows no camera: off, unplugged or just empty
+  const label = empty ? 'Dock Agent online · no cameras detected' : { online: 'Dock Agent online', connecting: 'Dock Agent connecting…', offline: 'Dock Agent offline', none: D?.enabled === false ? 'Docking not enabled' : 'No Dock Agent yet' }[st];
+  return `<div class="top"><div><h1>Docking <span>Station</span></h1><p>${sub}</p></div>
+    <span class="agent ${empty ? 'connecting' : st}"><i></i>${label}<small>${a ? esc(a.id) + ' · ' + ago(a.ts) : ''}</small></span></div>`;
+}
+function draw() {
+  const v = $('#view');
+  if (!D) { v.innerHTML = head('Loading…'); return; }
+  ({ docks: vDocks, shifts: vShifts, files: vFiles, cams: vCams, data: vData, set: vSet, help: vHelp })[view](v);
+}
+
+
+/* ---------- check-out: who carries which camera ---------- */
+let SH = null, shF = { user: '', camera: '', from: '', to: '' };
+const who = (a) => (a.employeeNo ? 'No. ' + esc(a.employeeNo) : '') + (a.username !== a.employeeNo ? (a.employeeNo ? ' · ' : '') + esc(a.username) : '');   // the username is often the employee number: say it once
+const dur = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
+async function loadShifts() {
+  loadShifts.at = Date.now();
+  const q = new URLSearchParams({ status: 'all', limit: 400 });
+  if (shF.user) q.set('user', shF.user); if (shF.camera) q.set('camera', shF.camera);
+  if (shF.from) q.set('from', new Date(shF.from + 'T00:00:00').getTime()); if (shF.to) q.set('to', new Date(shF.to + 'T00:00:00').getTime() + 864e5);
+  try { const r = await fetch('/api/assignments?' + q); if (r.ok) SH = await r.json(); } catch (e) { return; }
+  paintShifts();
+}
+function paintShifts() {
+  if (!SH || !$('#shOpen')) return;
+  const open = SH.assignments.filter((a) => a.status === 'reserved' || a.status === 'in_use'), hist = SH.assignments.filter((a) => a.status === 'returned' || a.status === 'cancelled');
+  const stat = { reserved: ['Reserved', 'var(--sel)'], in_use: ['Carrying', 'var(--ok)'], returned: ['Returned', 'var(--off)'], cancelled: ['Cancelled', 'var(--off)'] };
+  const chip = (a) => `<span class="ch" style="--c:${stat[a.status][1]};color:${stat[a.status][1]}">${stat[a.status][0]}</span>`;
+  $('#shN').textContent = open.length ? `(${open.length})` : '';
+  $('#shOpen').innerHTML = open.length ? `<table class="tbl"><thead><tr><th>Camera</th><th>Employee</th><th>Status</th><th>Since</th><th>Battery</th><th></th></tr></thead><tbody>${open.map((a) => `<tr>
+    <td><b>${esc(a.cameraName)}</b>${a.slot != null ? `<div class="muted" style="font-size:12px">bay ${a.slot + 1}</div>` : ''}</td>
+    <td><b>${esc(a.name)}</b><div class="muted" style="font-size:12px">${who(a)}</div></td>
+    <td>${chip(a)}${a.status === 'reserved' ? `<div class="muted" style="font-size:12px">still on the dock until ${new Date(a.holdUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>` : ''}</td>
+    <td>${when(a.pickedTs || a.issuedTs)}<div class="muted" style="font-size:12px">${dur(Date.now() - (a.pickedTs || a.issuedTs))}</div></td>
+    <td>${a.batteryOut != null ? a.batteryOut + '% out' : '-'}</td>
+    <td style="text-align:right">${SH.canManage ? `<button class="btn sm" data-end="${a.id}">Return now</button>` : ''}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted" style="margin:0">Nobody has a camera right now.</p>';
+  $('#shHist').innerHTML = hist.length ? `<table class="tbl"><thead><tr><th>Camera</th><th>Employee</th><th>Taken</th><th>Returned</th><th>Time out</th><th>Battery</th><th>Closed by</th></tr></thead><tbody>${hist.map((a) => `<tr>
+    <td><b>${esc(a.cameraName)}</b></td><td>${esc(a.name)}<div class="muted" style="font-size:12px">${who(a)}</div></td>
+    <td>${a.pickedTs ? when(a.pickedTs) : '<span class="muted">never left the dock</span>'}</td><td>${when(a.returnedTs)}</td>
+    <td>${a.pickedTs && a.returnedTs ? dur(a.returnedTs - a.pickedTs) : '-'}</td><td>${a.batteryOut ?? '-'}${a.batteryIn != null ? ' → ' + a.batteryIn : ''}${a.batteryOut != null || a.batteryIn != null ? '%' : ''}</td>
+    <td>${chip(a)} <span class="muted" style="font-size:12px">${esc(({ dock: 'dock', timeout: 'timed out', station: 'station' })[a.endedBy] || String(a.endedBy || '').replace(/^(admin|user):/, ''))}${a.note ? ' · ' + esc(a.note) : ''}</span></td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted" style="margin:0">No history yet for this filter.</p>';
+}
+function vShifts(v) {
+  const url = location.origin + '/station.html', st = SH?.settings || { minBattery: 30, holdMinutes: 10 }, canSet = !!me?.super;
+  v.innerHTML = head('Employees sign in at the check-out station and the system gives them a camera that is charged and ready. Here is who carries what.') + `
+    <section class="card"><h3>On shift now <span id="shN" class="muted"></span></h3><div id="shOpen"><p class="muted" style="margin:0">Loading…</p></div></section>
+    <section class="card"><h3>Check-out station</h3>
+      <p class="muted" style="margin:0 0 12px;font-size:13.5px;line-height:1.5">Open this page full screen (F11) on the PC or tablet next to the dock and leave it there. Employees type their own username and password; the page shows the camera to take and lights up its bay. When the camera goes back on the dock the shift closes by itself.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><code style="padding:8px 12px;border-radius:9px;background:var(--raise);border:1px solid var(--line)">${esc(url)}</code>
+        <a class="btn pri sm" href="/station.html" target="_blank" rel="noopener">Open the station</a><button class="btn sm" id="cpUrl">Copy link</button></div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:16px">
+        <label class="muted" style="font-size:13px">A camera is ready from <input id="stMin" type="number" min="0" max="100" value="${st.minBattery}" style="width:70px" ${canSet ? '' : 'disabled'}> % battery</label>
+        <label class="muted" style="font-size:13px">A reservation is kept for <input id="stHold" type="number" min="1" max="120" value="${st.holdMinutes}" style="width:70px" ${canSet ? '' : 'disabled'}> minutes</label>
+        ${canSet ? '<button class="btn sm" id="stSave">Save</button>' : '<span class="muted" style="font-size:12px">Only a Smart Way administrator changes these.</span>'}</div>
+    </section>
+    <section class="card"><h3>History</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <input id="shU" placeholder="Employee name, number or username" value="${esc(shF.user)}" style="min-width:230px"><input id="shC" placeholder="Camera, e.g. BWC-01" value="${esc(shF.camera)}">
+        <input type="date" id="shFrom" value="${shF.from}" title="From"><input type="date" id="shTo" value="${shF.to}" title="To">
+        <button class="btn pri sm" id="shGo">Show</button><a class="btn sm" id="shCsv" href="/api/assignments/export.csv">Export CSV</a></div>
+      <div id="shHist" style="overflow:auto"></div></section>`;
+  paintShifts(); loadShifts();
+  $('#cpUrl').onclick = () => navigator.clipboard?.writeText(url).then(() => toast('Link copied'));
+  const csv = () => { const q = new URLSearchParams(); if (shF.user) q.set('user', shF.user); if (shF.camera) q.set('camera', shF.camera); if (shF.from) q.set('from', new Date(shF.from + 'T00:00:00').getTime()); if (shF.to) q.set('to', new Date(shF.to + 'T00:00:00').getTime() + 864e5); $('#shCsv').href = '/api/assignments/export.csv?' + q; };
+  $('#shGo').onclick = () => { shF = { user: $('#shU').value.trim(), camera: $('#shC').value.trim(), from: $('#shFrom').value, to: $('#shTo').value }; csv(); loadShifts(); };
+  if ($('#stSave')) $('#stSave').onclick = () => fetch('/api/admin/checkout/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ minBattery: Number($('#stMin').value), holdMinutes: Number($('#stHold').value) }) })
+    .then(async (r) => { const j = await r.json(); toast(r.ok ? 'Saved' : j.error); }).catch(() => toast('Could not save'));
+  $('#view').onclick = (e) => {
+    const b = e.target.closest('[data-end]'); if (!b) return;
+    if (!confirm('Close this check-out? Use it when the employee handed the camera back without docking it.')) return;
+    fetch('/api/assignments/' + b.dataset.end + '/end', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(async (r) => { const j = await r.json(); toast(r.ok ? 'Closed' : j.error); loadShifts(); });
+  };
+}
+
+function bayState(c) { return !c ? 'idle' : (c.state || 'connected'); }
+function ringSvg(pct) {
+  const r = 54, C = 2 * Math.PI * r, off = C * (1 - Math.max(0, Math.min(1, pct)));
+  return `<svg viewBox="0 0 120 120"><circle class="tr" cx="60" cy="60" r="${r}" stroke-width="9"/><circle class="vl" cx="60" cy="60" r="${r}" stroke-width="9" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/><circle class="sw" cx="60" cy="60" r="${r}" stroke-width="9" style="transform-box:fill-box"/></svg>`;
+}
+let bayDock = '';
+function bayPick(i, c) {   // administrators: which physical bay is this port?
+  if (!me?.super || !c?.port) return '';
+  return `<select class="baysel" data-port="${esc(c.port)}" title="Which bay is this camera really in?" aria-label="Bay">${Array.from({ length: D.slots }, (_, k) => `<option value="${k}" ${k === i ? 'selected' : ''}>Bay ${k + 1}</option>`).join('')}</select>`;
+}
+function bayHTML(i, c) {
+  const s = bayState(c), n = String(i + 1).padStart(2, '0');
+  const label = { idle: 'Idle', connected: 'Ready', offloading: 'Offloading', updating: 'Updating app', synced: 'Synced', error: 'Needs attention', other: 'In use' }[s];
+  if (!c) return `<article class="bay s-idle"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
+    <div class="ring">${ringSvg(0)}<div class="mid idle"><b>Idle</b></div></div></article>`;
+  if (s === 'other') return `<article class="bay s-other"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
+    <div class="ring">${ringSvg(0)}<div class="mid">${ic('plug')}<small>Docked</small></div></div><div class="cid">Another account</div><div class="co"></div>
+    <div class="hint">A camera is docked here but it is not assigned to your company.</div></article>`;
+  const p = c.progress, pct = s === 'offloading' && p?.bytesTotal ? p.bytesDone / p.bytesTotal : (s === 'synced' ? 1 : 0);
+  const mid = s === 'offloading' ? `<b>${Math.round(pct * 100)}%</b><small>${p ? p.index + ' / ' + p.total : ''}</small>`
+    : s === 'synced' ? ic('check') + '<small>Synced</small>' : s === 'updating' ? ic('plug') + '<small>Updating</small>' : s === 'error' ? ic('warn') + '<small>Error</small>' : ic('plug') + '<small>Docked</small>';
+  const low = c.battery != null && c.battery < 20;
+  const chips = [
+    c.battery != null ? `<span class="ch ${low ? 'low' : ''}">${ic('batt')}${c.battery}%</span>` : '',
+    c.storageFreeMb != null ? `<span class="ch">${ic('disk')}${fmtB(c.storageFreeMb * 1e6)} free</span>` : '',
+    c.files != null ? `<span class="ch">${ic('file')}${c.files} file${c.files === 1 ? '' : 's'}${c.pendingMb ? ' · ' + fmtB(c.pendingMb * 1e6) : ''}</span>` : '',
+  ].join('');
+  const foot = s === 'offloading' && p ? `<div class="bar"><i style="width:${Math.round(pct * 100)}%"></i></div><div class="pf">${esc(p.file)} · ${fmtB(p.bytesDone)} of ${fmtB(p.bytesTotal)}</div>`
+    : s === 'synced' ? `<div class="bar"><i style="width:100%"></i></div><div class="pf">${c.synced || 0} file${c.synced === 1 ? '' : 's'} verified · ${ago(c.lastSyncTs)}</div>`
+    : s === 'error' ? `<div class="pf" style="color:var(--rec);white-space:normal">${esc(c.message || 'A file failed verification')}</div>`
+    : s === 'updating' ? `<div class="bar"><i style="width:60%"></i></div><div class="pf">${esc(c.message || 'Updating the camera app…')}</div>`
+    : `<div class="pf">${esc(c.message || 'Waiting for the next sync…')}</div>`;
+  return `<article class="bay has s-${s}" data-cam="${esc(c.cameraId || '')}"><div class="bhead"><span class="bn">${n}</span><span class="st">${label}</span></div>
+    <div class="ring">${ringSvg(pct)}<div class="mid">${mid}</div></div>
+    <div class="cid">${esc(c.cameraId || 'Unregistered')}</div><div class="co">${esc(c.company || (c.cameraId ? '' : 'No config.json on this camera'))}</div>
+    <div class="chips">${chips}</div>${foot}${bayPick(i, c)}</article>`;
+}
+function vDocks(v) {
+  const list = D.docks, d = list.find((x) => x.id === dockSel) || list.slice().sort((a, b) => b.ts - a.ts)[0];
+  if (d) dockSel = d.id;
+  bayDock = dockSel;
+  const cams = d && d.online !== false ? d.cameras : (d ? d.cameras : []);
+  const bySlot = new Map(); (cams || []).forEach((c) => { if (c.slot != null) bySlot.set(c.slot, c); });
+  const total = Math.max(D.slots, ...[...bySlot.keys()].map((k) => k + 1), 1);
+  const docked = (cams || []).filter((c) => c.state !== 'other').length, busy = (cams || []).filter((c) => c.state === 'offloading').length;
+  const st = D.storage, usedPct = st.totalBytes ? Math.min(100, ((st.totalBytes - st.freeBytes) / st.totalBytes) * 100) : 0;
+  v.innerHTML = head('Plug a camera in and VisionGuard copies its recordings, verifies every file, and keeps the evidence safe.') +
+    `<div class="kpis">
+      <div class="kpi" style="--c:var(--blue)"><span class="ki">${ic('dock')}</span><div><b>${list.filter((x) => x.status === 'online' || x.online).length}/${list.length}</b><span>Docks online</span></div></div>
+      <div class="kpi" style="--c:var(--ok)"><span class="ki">${ic('plug')}</span><div><b>${docked}</b><span>Cameras docked</span></div></div>
+      <div class="kpi" style="--c:var(--sel)"><span class="ki">${ic('bolt')}</span><div><b>${busy}</b><span>Offloading now</span></div></div>
+      <div class="kpi" style="--c:var(--brand)"><span class="ki">${ic('data')}</span><div><b>${st.todayCount}</b><span>Files today · ${fmtB(st.todayBytes)}</span></div></div></div>` +
+    (list.length > 1 ? `<div class="dockpick">${list.map((x) => `<button class="pill ${x.id === dockSel ? 'on' : ''}" data-dock="${esc(x.id)}">${esc(x.id)}</button>`).join('')}</div>` : '') +
+    `<div class="bays">${Array.from({ length: total }, (_, i) => bayHTML(i, bySlot.get(i))).join('')}</div>
+    ${(() => { const c = (D.calibration || []).find((x) => x.dock === bayDock); return c ? `<div class="calbox"><b>Calibrating: plug a camera into bay ${c.next + 1}</b><span>Every time a camera is seen in a new bay, the next bay is asked for. ${c.next} of ${D.slots} learned.</span><button class="btn sm" id="calStop">Stop</button></div>` : ''; })()}
+    ${me?.super && (docked || (D.calibration || []).length === 0) ? '<p class="muted" style="margin:10px 4px 0;font-size:12.5px">A camera is shown in the bay of its USB port. If a camera shows in the wrong bay, pick its real bay in the list under it. <button class="btn pri sm" id="calBays">Calibrate bays</button> <button class="btn sm" id="arrangeBays">Arrange by hand</button> <button class="btn sm" id="resetBays">Reset all bays</button></p>' : ''}
+    <div class="statusbar"><span class="lbl">Server storage</span>
+      <div class="meter"><i style="width:${usedPct.toFixed(1)}%"></i></div>
+      <span class="num">${fmtB(st.recordingsBytes)} evidence · ${st.recordings} file${st.recordings === 1 ? '' : 's'}${st.totalBytes ? ' · ' + fmtB(st.freeBytes) + ' free of ' + fmtB(st.totalBytes) : ''}</span></div>`;
+}
+document.addEventListener('change', (e) => {
+  const sel = e.target.closest('.baysel'); if (!sel) return;
+  fetch('/api/admin/dock/slot', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dockId: bayDock, port: sel.dataset.port, slot: Number(sel.value) }) })
+    .then(async (r) => { toast(r.ok ? 'Bay saved' : (await r.json()).error); load(); });
+});
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.baysel')) return e.stopPropagation();
+  if (e.target.id === 'calStop') { fetch('/api/admin/dock/calibrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dockId: bayDock, action: 'stop' }) }).then(load); return; }
+  if (e.target.id === 'calBays') {
+    if (!confirm('Take every camera off the dock first. Then plug one camera into bay 1, wait for the next prompt, move it to bay 2, and so on. Start?')) return;
+    fetch('/api/admin/dock/calibrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dockId: bayDock, action: 'start' }) }).then(async (r) => { if (!r.ok) toast((await r.json()).error); load(); });
+    return;
+  }
+  if (e.target.id === 'arrangeBays') {
+    const num = (c) => (/(\d+)/.exec(c.cameraId || '') || [])[1] || c.cameraId;
+    const d = (D.docks || []).find((x) => x.id === bayDock), by = new Map((d?.cameras || []).map((c) => [c.slot, c]));
+    const half = Math.ceil(D.slots / 2), line = (a, b) => Array.from({ length: b - a }, (_, k) => (by.get(a + k) ? num(by.get(a + k)) : '-')).join(' ');
+    const txt = prompt('Type what you see in front of the dock, left to right: camera numbers, - for an empty bay.\nTop row / bottom row, separated by /', line(0, half) + ' / ' + line(half, D.slots));
+    if (!txt) return;
+    const [top, bottom] = txt.split('/');
+    fetch('/api/admin/dock/layout', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dockId: bayDock, top, bottom: bottom || '' }) }).then(async (r) => { toast(r.ok ? 'Bays arranged' : (await r.json()).error); load(); });
+    return;
+  }
+  if (e.target.id === 'resetBays') { if (confirm('Forget every bay setting? Bays fill again in the order cameras are seen.')) fetch('/api/admin/dock/slots?dockId=' + encodeURIComponent(bayDock), { method: 'DELETE' }).then(() => { toast('Bays reset'); load(); }); return; }
+  const p = e.target.closest('[data-dock]'); if (p) { dockSel = p.dataset.dock; return draw(); }
+  const b = e.target.closest('.bay.has'); if (b && b.dataset.cam) { location.hash = '#data'; sessionStorage.setItem('dockq', b.dataset.cam); }
+  if (e.target.closest('[data-close]') || e.target === $('#modal')) closeModal();
+  const pl = e.target.closest('[data-play]'); if (pl) openMedia(pl.dataset.play);
+});
+
+
+/* ---------- files: push to cloud or keep on the dock ---------- */
+function paintBadge() {
+  const n = D?.fileCounts?.awaiting || 0, b = document.querySelector('.rb[data-v="files"]');
+  if (!b) return;
+  let c = b.querySelector('.cnt');
+  if (n && !c) { c = document.createElement('b'); c.className = 'cnt'; b.appendChild(c); }
+  if (c) { if (n) c.textContent = n > 99 ? '99+' : n; else c.remove(); }
+}
+const MODES = [['ask', 'Ask me', 'Review the files, then choose what happens to each one.'],
+  ['auto_cloud', 'Automatic · Cloud', 'Every file is pushed to the cloud as soon as it is on the dock.'],
+  ['auto_local', 'Automatic · Dock storage', 'Every file stays on the dock’s own storage. Nothing is uploaded.']];
+const BUCKETS = [['all', 'All'], ['awaiting', 'Waiting for you'], ['queued', 'Queued for cloud'], ['local', 'On dock storage'], ['cloud', 'In the cloud'], ['failed', 'Failed']];
+async function loadFiles() {
+  try {
+    const r = await fetch('/api/dock/files?state=' + encodeURIComponent(fstate)); if (r.status === 401) return (location.href = '/login.html');
+    FD = await r.json();
+  } catch (e) { return; }
+  paintFiles();
+}
+function vFiles(v) {
+  v.innerHTML = head('After the dock has copied a camera, decide what happens to its videos and photos.') +
+    `<div class="card"><h3>What should happen to new files?</h3><div class="mode" id="fmode"></div>
+       <p class="muted" style="margin:12px 0 0;font-size:13px" id="fnote"></p></div>
+     <div class="card"><div class="bar2"><div class="fchips" id="fchips"></div></div></div>
+     <div class="card" id="fbulk" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+       <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" id="fall"> Select all shown</label>
+       <span class="muted" id="fsel"></span><span style="flex:1"></span>
+       <button class="btn pri" id="fcloud" disabled>${ic('bolt').replace('<svg', '<svg width="14" height="14"')}Push to cloud</button>
+       <button class="btn" id="flocal" disabled>${ic('disk').replace('<svg', '<svg width="14" height="14"')}Keep on dock storage</button>
+       <button class="btn del" id="fdel" disabled>${ic('trash').replace('<svg', '<svg width="14" height="14"')}Delete from camera</button></div>
+     <div class="card" style="padding:0"><div class="scroll"><table class="tbl"><thead><tr><th style="width:34px"></th><th>Camera</th><th>File</th><th>Recorded</th><th class="r">Size</th><th>Status</th><th></th></tr></thead><tbody id="fbody"></tbody></table></div></div>`;
+  $('#fmode').onclick = async (e) => {
+    const b = e.target.closest('button[data-mode]'); if (!b || b.disabled) return;
+    const r = await fetch('/api/admin/dock/policy', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: b.dataset.mode }) });
+    if (r.ok) { const p = await r.json(); if (FD) FD.policy = p; if (D) D.policy = p; paintFiles(); }
+  };
+  $('#fchips').onclick = (e) => { const b = e.target.closest('[data-b]'); if (!b) return; fstate = b.dataset.b; sel.clear(); loadFiles(); };
+  $('#fall').onchange = (e) => { (FD?.files || []).forEach((f) => { if (!f.camDeletedTs) (e.target.checked ? sel.add(f.id) : sel.delete(f.id)); }); paintFiles(); };
+  $('#fbody').onchange = (e) => { const c = e.target.closest('input[data-id]'); if (!c) return; const id = Number(c.dataset.id); c.checked ? sel.add(id) : sel.delete(id); paintFilesBar(); };
+  $('#fbody').onclick = (e) => { const b = e.target.closest('button[data-one]'); if (b) choose([Number(b.dataset.id)], b.dataset.one); const d = e.target.closest('button[data-del]'); if (d) askDelete([Number(d.dataset.del)]); const h = e.target.closest('button[data-hist]'); if (h) showHistory(Number(h.dataset.hist)); const pv = e.target.closest('button[data-prev]'); if (pv) previewCloud(pv.dataset.prev, pv.dataset.name); };
+  $('#fcloud').onclick = () => choose([...sel], 'cloud');
+  $('#flocal').onclick = () => choose([...sel], 'local');
+  $('#fdel').onclick = () => askDelete([...sel]);
+  if (FD) paintFiles(); else loadFiles();
+}
+async function choose(ids, choice) {
+  if (!ids.length) return;
+  const r = await fetch('/api/dock/files/choose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, choice }) });
+  if (!r.ok) { alert('Only an administrator can choose.'); return; }
+  sel.clear(); loadFiles(); load();
+}
+const STEP = { dock_file_copied: 'Copied from the camera to the dock (checked by SHA-256)', dock_file_choice_cloud: 'Decision: push to the cloud', dock_file_choice_local: 'Decision: keep on the dock storage',
+  dock_file_uploaded_cloud: 'Uploaded to the cloud (verified by the server)', dock_file_upload_failed: 'Cloud upload failed', dock_file_delete_requested: 'Deletion from the camera requested',
+  dock_file_deleted_from_camera: 'Deleted from the camera (verified copy checked first)', dock_file_delete_refused: 'Deletion from the camera refused', recording_expired: 'Removed from the cloud by the retention rule', recording_downloaded: 'Downloaded' };
+async function showHistory(id) {
+  const f = (FD?.files || []).find((x) => x.id === id); if (!f) return;
+  const r = await fetch('/api/audit?limit=200&ref=' + f.sha256); const lines = ((await r.json()).lines || []).slice().reverse();
+  $('#mbox').innerHTML = `<div class="cbox"><h3>${esc(f.cameraId)} · ${esc(f.filename)}</h3>
+    <p class="muted mono" style="word-break:break-all">SHA-256 ${f.sha256}</p>
+    <div style="max-height:340px;overflow:auto;margin-top:10px">${lines.length ? lines.map((l) => `<div style="display:grid;grid-template-columns:150px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft)">
+      <span class="muted" style="font-size:12.5px">${when(l.ts)}</span><span><b>${esc(STEP[l.action] || l.action)}</b><br><span class="muted" style="font-size:12px">${esc(l.username)}${l.detail && l.detail.reason ? ' · ' + esc(l.detail.reason) : ''}</span></span></div>`).join('') : '<p class="muted">No recorded steps yet.</p>'}</div>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">This history is written by the server and cannot be edited or erased. <a href="/analytics.html#audit">Open the full audit trail</a></p>
+    <div class="acts"><button class="btn" data-close>Close</button></div></div>`;
+  $('#modal').classList.add('on');
+}
+function previewCloud(rid, name) {
+  const src = `/api/recordings/${rid}/file`, vid = /\.mp4/i.test(name);
+  $('#mbox').innerHTML = `<header><b>${esc(name)}</b><button class="btn sm" data-close>Close</button></header>${vid ? `<video src="${src}" controls autoplay playsinline></video>` : `<img src="${src}" alt="">`}`;
+  $('#modal').classList.add('on');
+}
+function askDelete(ids) {
+  const rows = (FD?.files || []).filter((f) => ids.includes(f.id) && !f.camDeletedTs); if (!rows.length) return;
+  const bytes = rows.reduce((a, f) => a + f.size, 0), cams = [...new Set(rows.map((f) => f.cameraId))];
+  const noCopy = rows.filter((f) => f.bucket === 'awaiting').length;
+  $('#mbox').innerHTML = `<div class="cbox"><h3>Delete ${rows.length} file${rows.length === 1 ? '' : 's'} from the camera${cams.length > 1 ? 's' : ''}?</h3>
+    <p>${rows.length} file${rows.length === 1 ? '' : 's'} (${fmtB(bytes)}) from <b>${cams.map(esc).join(', ')}</b> will be <b>permanently removed from the camera</b> the next time it is on the dock.</p>
+    <p class="muted">The verified copy stays safe on the dock storage${noCopy ? ' (' + noCopy + ' of them are not in the cloud yet)' : ' or in the cloud'}. A file is only removed after its copy has been checked again. This cannot be undone.</p>
+    <div class="acts"><button class="btn" data-close>Cancel</button><button class="btn del" id="fdelok">${ic('trash').replace('<svg', '<svg width="14" height="14"')}Yes, delete from camera</button></div></div>`;
+  $('#modal').classList.add('on');
+  $('#fdelok').onclick = async () => {
+    $('#fdelok').disabled = true;
+    const r = await fetch('/api/dock/files/delete-from-camera', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: rows.map((f) => f.id) }) });
+    closeModal(); if (!r.ok) alert('Only an administrator can delete.'); sel.clear(); loadFiles();
+  };
+}
+function paintFilesBar() {
+  const n = sel.size, can = me?.role === 'admin';
+  $('#fsel').textContent = n ? n + ' selected' : '';
+  $('#fcloud').disabled = !n || !can; $('#flocal').disabled = !n || !can; $('#fdel').disabled = !n || !can;
+}
+function paintFiles() {
+  if (view !== 'files' || !$('#fmode') || !FD) return;
+  const mode = FD.policy?.mode || 'ask', can = me?.role === 'admin', c = FD.counts;
+  $('#fmode').innerHTML = MODES.map(([k, t, d]) => `<button data-mode="${k}" class="${mode === k ? 'on' : ''}" ${can ? '' : 'disabled'}><b>${t}</b><span>${d}</span></button>`).join('');
+  const dk = agentOf(), st = dk?.storage;
+  $('#fnote').innerHTML = 'Upload quality: <b>Original</b> (more options are coming). ' + (st?.dir ? 'Dock storage: <span class="mono">' + esc(st.dir) + '</span>' + (st.freeBytes != null ? ' · ' + fmtB(st.freeBytes) + ' free' : '') : '') +
+    (can ? '' : ' · Only an administrator can change this.');
+  const tot = { n: 0, bytes: 0 }; Object.values(c).forEach((x) => { tot.n += x.n; tot.bytes += x.bytes; });
+  const cc = { ...c, all: tot };
+  $('#fchips').innerHTML = BUCKETS.map(([k, l]) => `<button class="pill ${fstate === k ? 'on' : ''}" data-b="${k}">${l}<small>${cc[k].n}${cc[k].bytes ? ' · ' + fmtB(cc[k].bytes) : ''}</small></button>`).join('');
+  const files = FD.files;
+  const pick = files.filter((f) => !f.camDeletedTs);
+  $('#fall').checked = pick.length > 0 && pick.every((f) => sel.has(f.id));
+  $('#fbody').innerHTML = files.length ? files.map((f) => {
+    const badge = { awaiting: ['b-wait', 'Waiting for you'], queued: ['b-wait', f.state === 'uploading' ? 'Uploading…' : 'Queued for cloud'], local: ['b-local', 'On dock storage'], cloud: ['b-cloud', 'In the cloud'], failed: ['b-fail', 'Failed, retrying'] }[f.bucket];
+    const dis = f.bucket === 'cloud';
+    const act = dis ? '' : `<button class="btn sm" data-one="cloud" data-id="${f.id}">Push to cloud</button>${f.bucket === 'local' ? '' : ` <button class="btn sm" data-one="local" data-id="${f.id}">Keep on dock</button>`}`;
+    return `<tr><td><input type="checkbox" data-id="${f.id}" ${sel.has(f.id) ? 'checked' : ''} ${f.camDeletedTs || !can ? 'disabled' : ''}></td><td><b>${esc(f.cameraId)}</b></td><td class="mono">${esc(f.filename)}</td>
+      <td>${when(f.recordedTs || f.addedTs)}</td><td class="r">${fmtB(f.size)}</td>
+      <td><span class="badge ${badge[0]}">${badge[1]}</span>${f.bucket === 'cloud' ? `<div class="muted" style="font-size:11.5px;margin-top:3px">Uploaded to cloud · ${when(f.updatedTs)}</div>` : f.bucket === 'local' ? `<div class="muted" style="font-size:11.5px;margin-top:3px">Saved on dock storage · ${when(f.updatedTs)}</div>` : ''}${f.message ? `<div class="muted" style="font-size:11.5px;margin-top:3px">${esc(f.message)}</div>` : ''}${f.camDeletedTs ? '<div style="margin-top:4px"><span class="badge b-gone">Removed from camera</span></div>' : f.camDelete ? '<div class="muted" style="font-size:11.5px">Removal queued for the next dock visit</div>' : ''}${f.chosenBy === 'auto' ? '<div class="muted" style="font-size:11.5px">automatic</div>' : ''}</td>
+      <td style="white-space:nowrap">${f.recordingId ? `<button class="btn sm" data-prev="${f.recordingId}" data-name="${esc(f.cameraId)} · ${esc(f.filename)}">${ic('play').replace('<svg', '<svg width="13" height="13"')}Play</button> <a class="btn sm" href="/api/recordings/${f.recordingId}/file" download="${esc(f.cameraId)}_${esc(f.filename)}" title="Download to this computer">${ic('down').replace('<svg', '<svg width="13" height="13"')}</a> ` : ''}<button class="btn sm" data-hist="${f.id}" title="Every step this file went through">${ic('file').replace('<svg', '<svg width="13" height="13"')}History</button> ${can ? act + (f.camDeletedTs ? '' : ` <button class="btn sm del" data-del="${f.id}" ${f.camDelete ? 'disabled' : ''}>${ic('trash').replace('<svg', '<svg width="13" height="13"')}${f.camDelete ? 'Queued' : 'Delete'}</button>`) : ''}</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="empty">${fstate === 'awaiting' ? 'Nothing is waiting for your choice. Files appear here after a camera has been copied to the dock.' : 'No files in this list.'}</td></tr>`;
+  paintFilesBar();
+}
+
+function vCams(v) {
+  v.innerHTML = head('Every camera registered to your fleet, and whether it is on a dock right now.') +
+    `<div class="card"><div class="bar2"><input id="cq" placeholder="Search camera or company" style="flex:1"><span class="muted" id="cn"></span></div></div>
+     <div class="card" style="padding:0"><div class="scroll"><table class="tbl"><thead><tr><th>Camera</th><th>Company</th><th>Status</th><th>Docked</th><th>Last seen</th><th class="r">Recordings</th></tr></thead><tbody id="cb"></tbody></table></div></div>`;
+  const paint = () => {
+    const docked = new Set(D.docks.flatMap((d) => d.cameras.map((c) => c.cameraId)).filter(Boolean));
+    const q = $('#cq').value.trim().toLowerCase();
+    const f = D.cameras.filter((c) => !q || (c.cameraId + ' ' + (c.company || '')).toLowerCase().includes(q));
+    $('#cn').textContent = f.length + ' camera' + (f.length === 1 ? '' : 's');
+    $('#cb').innerHTML = f.length ? f.map((c) => `<tr><td><b>${esc(c.cameraId)}</b></td><td>${esc(c.company || '-')}</td>
+      <td><span class="badge ${c.recording ? 'b-rec' : c.online ? 'b-on' : 'b-off'}">${c.recording ? 'Recording' : c.online ? 'Online' : 'Offline'}</span></td>
+      <td>${docked.has(c.cameraId) ? '<span class="badge b-dock">On dock</span>' : '<span class="muted">-</span>'}</td>
+      <td class="muted">${ago(c.ts)}</td><td class="r">${c.recordings}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">No cameras registered yet.</td></tr>';
+  };
+  $('#cq').oninput = paint; window.paintCams = paint; paint();
+}
+
+function vData(v) {
+  const cams = [...new Set([...D.cameras.map((c) => c.cameraId), ...recs.map((r) => r.cameraId)])].sort();
+  const pre = sessionStorage.getItem('dockq') || ''; sessionStorage.removeItem('dockq');
+  const day = (o) => { const d = new Date(Date.now() - o * 864e5); return d.toISOString().slice(0, 10); };
+  v.innerHTML = head('Everything that is in the cloud. Play any video or photo, or download it, at any time. Files kept only on the dock PC are in Files.') +
+    `<div class="card"><div class="bar2">
+      <select id="fc"><option value="">All cameras</option>${cams.map((c) => `<option ${c === pre ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      <input type="date" id="ff" title="From"><input type="date" id="ft" title="To">
+      <select id="fy"><option value="">Videos &amp; photos</option><option value="video">Videos</option><option value="image">Photos</option></select>
+      <button class="btn pri" id="fgo">Search</button><span class="muted" id="fsum"></span></div></div>
+     <div class="card" style="padding:0"><div class="scroll"><table class="tbl"><thead><tr><th>Camera</th><th>File</th><th>Recorded</th><th class="r">Size</th><th>Dock</th><th>SHA-256</th><th></th></tr></thead><tbody id="rb"></tbody></table></div></div>`;
+  $('#fgo').onclick = query; ['fc', 'fy', 'ff', 'ft'].forEach((i) => $('#' + i).onchange = query);
+  if (pre) $('#fc').value = pre;
+  query();
+}
+async function query() {
+  if (view !== 'data' || !$('#fc')) return;
+  const q = new URLSearchParams();
+  if ($('#fc').value) q.set('camera', $('#fc').value);
+  if ($('#fy').value) q.set('type', $('#fy').value);
+  if ($('#ff').value) q.set('from', new Date($('#ff').value + 'T00:00:00').getTime());
+  if ($('#ft').value) q.set('to', new Date($('#ft').value + 'T00:00:00').getTime() + 864e5);
+  const r = await fetch('/api/recordings?' + q); recs = (await r.json()).recordings || [];
+  const total = recs.reduce((a, x) => a + x.size, 0);
+  $('#fsum').textContent = recs.length + ' result' + (recs.length === 1 ? '' : 's') + ' · ' + fmtB(total) + (recs.length >= 500 ? ' (showing the latest 500)' : '');
+  $('#rb').innerHTML = recs.length ? recs.map((x) => `<tr><td><b>${esc(x.cameraId)}</b></td><td class="mono">${esc(x.filename)}</td><td>${when(x.recordedTs || x.uploadedTs)}</td>
+    <td class="r">${fmtB(x.size)}</td><td class="muted">${esc(x.dockId || '-')}</td><td class="mono" title="${x.sha256}">${x.sha256.slice(0, 10)}…</td>
+    <td style="white-space:nowrap"><button class="btn sm" data-play="${x.id}">${ic('play').replace('<svg', '<svg width="13" height="13"')}Play</button>
+    <a class="btn sm" href="/api/recordings/${x.id}/file" download="${esc(x.cameraId)}_${esc(x.filename)}">${ic('down').replace('<svg', '<svg width="13" height="13"')}</a></td></tr>`).join('')
+    : '<tr><td colspan="7" class="empty">No recordings match. Dock a camera and they will appear here once verified.</td></tr>';
+}
+function openMedia(id) {
+  const x = recs.find((r) => String(r.id) === String(id)); if (!x) return;
+  const src = `/api/recordings/${x.id}/file`, vid = /\.mp4$/i.test(x.filename);
+  $('#mbox').innerHTML = `<header><b>${esc(x.cameraId)} · ${esc(x.filename)}</b><button class="btn sm" data-close>Close</button></header>
+    ${vid ? `<video src="${src}" controls autoplay playsinline></video>` : `<img src="${src}" alt="">`}
+    <div class="mbody muted">${when(x.recordedTs || x.uploadedTs)} · ${fmtB(x.size)} · SHA-256 <span class="mono" style="word-break:break-all">${x.sha256}</span></div>`;
+  $('#modal').classList.add('on');
+}
+function closeModal() { $('#modal').classList.remove('on'); const m = $('#mbox video'); if (m) m.pause(); $('#mbox').innerHTML = ''; }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+function vSet(v) {
+  const a = agentOf();
+  const cmd = `# on the PC next to the docking station (Node 22+ and adb installed)\nDOCK_SERVER=${location.origin} \\\nDOCK_TOKEN=<your DOCK_TOKEN> \\\nDOCK_ID=dock-1 \\\nnode dock-agent/agent.js --delete`;
+  v.innerHTML = head('How this dock is connected, and the rules every file follows.') +
+    `<div class="grid g2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+      <div class="card"><h3>Dock Agent</h3><dl class="kv">
+        <dt>Status</dt><dd>${a?.online ? '<span class="badge b-on">Online</span>' : '<span class="badge b-off">Offline</span>'}</dd>
+        <dt>Dock ID</dt><dd>${esc(a?.id || '-')}</dd><dt>Agent version</dt><dd>${esc(a?.agent || '-')}</dd>
+        <dt>Last report</dt><dd>${a ? ago(a.ts) : '-'}</dd>
+        <dt>Mode</dt><dd>${a ? (a.mode === 'move' ? 'Move: verified files are removed from the camera' : 'Copy: nothing is deleted from the camera') : '-'}</dd>
+        <dt>Retention</dt><dd>${D.storage.retentionDays ? 'Recordings are deleted ' + D.storage.retentionDays + ' days after upload' : 'Recordings are kept until deleted'}</dd>
+        <dt>Slots</dt><dd>${D.slots} (set <code>DOCK_SLOTS</code> on the server)</dd>
+        <dt>Server docking</dt><dd>${D.enabled ? 'Enabled' : '<span style="color:var(--rec)">Disabled: set DOCK_TOKEN on the server</span>'}</dd></dl></div>
+      <div class="card"><h3>Safety rules</h3><dl class="kv">
+        <dt>Integrity</dt><dd>SHA-256 on the camera, on the dock PC and again on the server</dd>
+        <dt>Delete from camera</dt><dd>Only after the server confirmed the same hash</dd>
+        <dt>Recording in progress</dt><dd>Files changed in the last minute are never touched</dd>
+        <dt>Access</dt><dd>Company users only see their own cameras' evidence; every download is audited</dd></dl></div></div>
+     <div class="card"><h3>Install the Dock Agent</h3><pre class="code">${esc(cmd)}</pre>
+       <p class="muted" style="margin:10px 0 0;font-size:13px">The token is the <code>DOCK_TOKEN</code> from the server's environment. It is never shown here.</p></div>`;
+}
+function vHelp(v) {
+  v.innerHTML = head('Everything an operator needs at the dock.') +
+    `<div class="steps">
+      <div class="step"><b>Plug in</b><span>Seat the camera in any free slot marked Idle. USB debugging must be on (it is, on VisionGuard cameras).</span></div>
+      <div class="step"><b>Watch the ring</b><span>The slot turns amber and shows progress while files are copied and verified.</span></div>
+      <div class="step"><b>Green means safe</b><span>"Synced" means every file is verified on the server. Only then are files removed from the camera.</span></div>
+      <div class="step"><b>Take it out</b><span>Remove the camera. The slot goes back to Idle.</span></div></div>
+     <div class="card"><h3>Troubleshooting</h3>
+      <details><summary>The slot stays Idle although a camera is inserted</summary><p>The Dock Agent is offline or cannot see the camera. Check that the agent is running on the dock PC (the badge at the top should say online) and that <code>adb devices</code> lists the camera.</p></details>
+      <details><summary>The slot shows "Unregistered"</summary><p>The camera has no <code>config.json</code> with its ID. Configure the camera with its server address and token first; it is then offloaded under its own ID.</p></details>
+      <details><summary>"Needs attention" appears</summary><p>A file failed verification (USB copy or upload). Nothing was deleted from the camera. The agent retries on its next cycle; re-seat the camera if it keeps failing.</p></details>
+      <details><summary>Still stuck?</summary><p>Open a ticket from <a href="/help.html">Help &amp; Support</a>: the Smart Way support team answers it there, or write to <a href="mailto:sdpt@smart-way.com.sa">sdpt@smart-way.com.sa</a>.</p></details>
+      <details><summary>Where do the recordings go?</summary><p>They are stored on the VisionGuard server and listed under Data Query, where you can play or download them.</p></details></div>`;
+}
+
+portalReady.then((m) => { me = m; go(location.hash.slice(1) || 'docks', true); load(); timer = setInterval(() => { if (!document.hidden) load(); }, 1000); });
+</script>
+</body>
+</html>

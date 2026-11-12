@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>License - VisionGuard</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+<link rel="stylesheet" href="/portal.css">
+<style>
+.lic{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1000px){.lic{grid-template-columns:1fr}}
+.stack{display:grid;gap:18px}
+.hero{display:flex;align-items:center;gap:26px;flex-wrap:wrap;padding:26px 30px;color:#fff;border:0;position:relative;overflow:hidden;
+  background:radial-gradient(700px 300px at 90% 0,rgba(47,123,255,.45),transparent 65%),radial-gradient(600px 300px at 0 100%,rgba(124,92,255,.5),transparent 65%),linear-gradient(135deg,#1B1442,#0E1B45)}
+.hero.bad{background:radial-gradient(700px 300px at 90% 0,rgba(255,51,85,.45),transparent 65%),linear-gradient(135deg,#3A1020,#1B1442)}
+.hero.warn{background:radial-gradient(700px 300px at 90% 0,rgba(255,179,0,.4),transparent 65%),linear-gradient(135deg,#3A2A10,#1B1442)}
+.ring{position:relative;width:132px;height:132px;flex:none}
+.ring svg{width:132px;height:132px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:11;stroke-linecap:round}
+.ring .tr{stroke:rgba(255,255,255,.16)}
+.ring .v{stroke:var(--c,#2EE6A6);transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 7px var(--c,#2EE6A6))}
+.ring b{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:34px;line-height:1}
+.ring b small{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;opacity:.8;margin-top:4px}
+.hero h1{margin:0 0 6px;font-size:clamp(22px,2.6vw,30px);letter-spacing:-.3px}
+.hero p{margin:0;color:rgba(232,238,247,.82);font-size:14.5px;line-height:1.5}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;border-radius:99px;font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;background:rgba(255,255,255,.14);margin-bottom:10px}
+.badge i{width:9px;height:9px;border-radius:50%;background:var(--c,#2EE6A6);box-shadow:0 0 8px var(--c,#2EE6A6)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:6px}
+.fact{padding:12px 14px;border-radius:12px;background:var(--raise);border:1px solid var(--line-soft)}
+.fact span{display:block;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mut)}
+.fact b{display:block;margin-top:4px;font-size:15.5px;word-break:break-word}
+.use{display:grid;gap:14px}
+.use .row{display:grid;grid-template-columns:130px 1fr auto;gap:12px;align-items:center;font-size:13.5px}
+.use .meter{height:10px;border-radius:6px;background:var(--line-soft);overflow:hidden}
+.use .meter i{display:block;height:100%;border-radius:6px;background:var(--c,var(--ok));transition:width .8s}
+.feat{display:flex;flex-wrap:wrap;gap:8px}
+.feat span{padding:6px 13px;border-radius:99px;font-size:12.5px;font-weight:700;background:color-mix(in srgb,var(--ok) 13%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 40%,var(--line))}
+.feat span.no{background:var(--raise);border-color:var(--line);color:var(--mut);text-decoration:line-through}
+.id{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.id code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;padding:9px 13px;border-radius:10px;background:var(--raise);border:1px solid var(--line);letter-spacing:.4px}
+.terms{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
+.terms label{cursor:pointer}
+.terms input{display:none}
+.terms span{display:inline-block;padding:9px 16px;border-radius:11px;border:1px solid var(--line);background:var(--raise);font-weight:700;font-size:13.5px}
+.terms input:checked+span{border-color:var(--sel);background:var(--panel);box-shadow:var(--glow-amber)}
+.steps{margin:0;padding-left:20px;color:var(--mut);font-size:13.5px;line-height:1.7}
+.steps b{color:var(--text)}
+textarea{width:100%;min-height:90px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:12.5px/1.45 ui-monospace,Menlo,Consolas,monospace}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--mut);cursor:pointer;transition:.15s}
+.drop:hover,.drop.over{border-color:var(--sel);background:color-mix(in srgb,var(--sel) 7%,var(--panel));color:var(--text)}
+.msg{margin-top:12px;padding:11px 14px;border-radius:11px;font-size:13.5px;display:none}
+.msg.on{display:block}.msg.ok{background:color-mix(in srgb,var(--ok) 13%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line))}
+.msg.err{background:color-mix(in srgb,var(--rec) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--rec) 45%,var(--line))}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);border-bottom:1px solid var(--line)}td{padding:9px 10px;border-bottom:1px solid var(--line-soft)}
+.warnbox{padding:13px 16px;border-radius:12px;background:color-mix(in srgb,var(--sel) 13%,var(--panel));border:1px solid color-mix(in srgb,var(--sel) 50%,var(--line));font-size:13.5px;line-height:1.5}
+</style>
+</head>
+<body>
+<header id="top"></header>
+<main>
+  <section class="card hero" id="hero"><div class="muted" style="color:#fff">Loading…</div></section>
+  <div id="problem"></div>
+  <div class="lic">
+    <div class="stack">
+      <section class="card"><h3>Your licence</h3><div class="facts" id="facts"></div></section>
+      <section class="card"><h3>What you use</h3><div class="use" id="use"></div><p class="muted" style="margin:14px 0 0;font-size:12.5px" id="useNote"></p></section>
+      <section class="card"><h3>Included</h3><div class="feat" id="feat"></div></section>
+      <section class="card"><h3>History</h3><div style="overflow:auto"><table id="hist"></table></div></section>
+    </div>
+    <div class="stack">
+      <section class="card" id="renew"><h3>Renew or extend</h3>
+        <ol class="steps"><li><b>Pick a term</b> and download the request.</li><li><b>Send it</b> to Smart Way (<span id="mailTo">sdpt@smart-way.com.sa</span>). It carries this installation's ID, so the new licence only works here.</li><li><b>Install the file</b> we send back, below. No restart, no internet needed.</li></ol>
+        <div class="terms" id="terms"></div>
+        <textarea id="note" placeholder="Anything we should know? (optional: more cameras, more employees…)" maxlength="300" style="min-height:62px"></textarea>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <a class="btn pri" id="dl" href="#">Download request file</a><button class="btn" id="cp">Copy request text</button><a class="btn" id="mail" href="#">Write the e-mail</a></div>
+        <div class="msg" id="reqMsg"></div>
+      </section>
+      <section class="card"><h3>Install a licence</h3>
+        <div class="drop" id="drop">Drop the licence file here, or click to choose it<input type="file" id="file" accept=".vglic,.json,application/json" style="display:none"></div>
+        <textarea id="paste" placeholder="…or paste the contents of the licence file here" style="margin-top:12px"></textarea>
+        <div style="margin-top:12px"><button class="btn pri" id="install">Install licence</button></div>
+        <div class="msg" id="instMsg"></div>
+      </section>
+      <section class="card"><h3>This installation</h3>
+        <p class="muted" style="margin:0 0 10px;font-size:13px">A licence is issued for this ID. Moving VisionGuard to a new server with a copy of its data keeps the ID; a fresh installation has a new one and needs its own licence.</p>
+        <div class="id"><code id="iid">-</code><button class="btn sm" id="cpid">Copy</button></div></section>
+    </div>
+  </div>
+</main>
+<script src="/portal.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const day = (t) => (t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
+let L = null, term = '12m';
+const TERM_LABEL = { '3m': '3 months', '6m': '6 months', '12m': '1 year', '24m': '2 years', '36m': '3 years' };
+const FEATURES = { reports: 'PDF reports', ai: 'AI analysis', docking: 'Docking station', checkout: 'Employee check-out', mobile: 'Mobile apps' };
+const NOUN = { cameras: 'Cameras', employees: 'Employees', users: 'Dashboard users', companies: 'Companies', live: 'Live streams now' };
+const STATE = {
+  off: ['No licence needed', 'This is a Smart Way hosted server.', '#2EE6A6', ''],
+  trial: ['Trial', 'You are trying VisionGuard. Request a licence before the trial ends to keep going.', '#FFC857', 'warn'],
+  valid: ['Licensed', 'Everything is switched on.', '#2EE6A6', ''],
+  expiring: ['Renew soon', 'Your licence ends soon. Request a renewal now so there is no gap.', '#FFC857', 'warn'],
+  grace: ['Expired · grace period', 'The licence has ended. Everything still works for a few more days; then the system goes into limited mode.', '#FF5D77', 'bad'],
+  restricted: ['Limited mode', 'Live view, alarms and evidence keep working. New cameras, users, reports and exports are paused until the licence is renewed.', '#FF5D77', 'bad'],
+  locked: ['Locked', 'The licence has ended and dashboards are closed. Cameras and docks still deliver evidence. Install a new licence to open it again.', '#FF5D77', 'bad'],
+};
+
+function render() {
+  const d = L, st = STATE[d.state] || STATE.valid, c = st[2];
+  const total = d.state === 'trial' ? 30 : d.start && d.expires ? Math.max(1, Math.round((d.expires - d.start) / 864e5)) : 365;
+  const left = d.daysLeft ?? 0, frac = d.state === 'off' ? 1 : Math.max(0, Math.min(1, left / total)), R = 56, C = 2 * Math.PI * R;
+  $('#hero').className = 'card hero ' + st[3];
+  $('#hero').style.setProperty('--c', c);
+  $('#hero').innerHTML = `<div class="ring"><svg viewBox="0 0 132 132"><circle class="tr" cx="66" cy="66" r="${R}"/><circle class="v" cx="66" cy="66" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C * (1 - frac)}"/></svg>
+      <b>${d.state === 'off' ? '∞' : left < 0 ? '0' : left}<small>${d.state === 'off' ? 'no limit' : left === 1 ? 'day left' : 'days left'}</small></b></div>
+    <div style="flex:1;min-width:260px"><span class="badge"><i></i>${st[0]}</span>
+      <h1>${d.customer ? esc(d.customer) : d.state === 'trial' ? 'Trial installation' : d.state === 'off' ? 'Smart Way hosted' : 'No licence installed'}</h1>
+      <p>${st[1]}${d.state === 'grace' && d.graceUntil ? ` Limited mode starts on ${day(d.graceUntil)}.` : ''}${d.state === 'trial' && d.trialEnds ? ` The trial ends on ${day(d.trialEnds)}.` : ''}${d.clock ? ' The server clock is behind the last time it ran: correct the clock.' : ''}</p></div>
+    ${['expiring', 'grace', 'restricted', 'locked', 'trial'].includes(d.state) ? '<a class="btn pri" href="#renew">Renew now</a>' : ''}`;
+  setTimeout(() => { const v = $('#hero .v'); if (v) v.style.strokeDashoffset = v.dataset.off; }, 80);
+  $('#problem').innerHTML = d.problem ? `<div class="warnbox">${esc(d.problem)}</div>` : '';
+
+  $('#facts').innerHTML = d.mode === 'off' ? '<div class="fact"><span>Mode</span><b>Hosted by Smart Way</b></div>' : [
+    ['Licensed to', d.customer || '-'], ['Licence no.', d.serial || '-'], ['Edition', d.edition || '-'], ['Term', d.term ? TERM_LABEL[d.term] : '-'],
+    ['Starts', day(d.start)], ['Ends', day(d.expires)], ['Grace after the end', d.graceDays != null ? d.graceDays + ' days' : '-'], ['After that', d.state === 'off' ? '-' : d.afterExpiry === 'locked' ? 'Locked' : 'Limited mode'],
+  ].map(([k, v]) => `<div class="fact"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+
+  const use = d.usage || {}, rows = Object.keys(NOUN).filter((k) => d.limits[k] !== undefined || use[k] !== undefined);
+  $('#use').innerHTML = rows.map((k) => {
+    const lim = d.limits[k], u = use[k] ?? 0, p = lim ? Math.min(1, u / lim) : 0, col = lim && p >= 1 ? 'var(--rec)' : lim && p >= .85 ? 'var(--sel)' : 'var(--ok)';
+    return `<div class="row" style="--c:${col}"><span>${NOUN[k]}</span><div class="meter"><i style="width:${lim ? (p * 100).toFixed(1) : 8}%"></i></div><b>${u}${lim !== undefined ? ' / ' + lim : ''}${lim === undefined ? '<small class="muted"> · no limit</small>' : ''}</b></div>`;
+  }).join('') || '<p class="muted" style="margin:0">Nothing counted yet.</p>';
+  $('#useNote').textContent = d.limits.cameras !== undefined && d.state !== 'off' ? 'When a limit is reached the next camera, user or employee is refused until the licence is enlarged.' : '';
+  $('#feat').innerHTML = Object.entries(FEATURES).map(([k, v]) => `<span class="${d.features.includes(k) ? '' : 'no'}">${d.features.includes(k) ? '✓ ' : ''}${v}</span>`).join('');
+  $('#hist').innerHTML = '<thead><tr><th>Licence</th><th>Customer</th><th>From</th><th>To</th><th>Installed</th></tr></thead><tbody>' + (d.history.length ? d.history.map((h) =>
+    `<tr><td><b>${esc(h.serial)}</b></td><td>${esc(h.customer)}</td><td>${day(h.start)}</td><td>${day(h.expires)}</td><td>${day(h.installedAt)}<div class="muted" style="font-size:11.5px">${esc(h.installedBy || '')}</div></td></tr>`).join('') : '<tr><td colspan="5" class="muted">No licence has been installed yet.</td></tr>') + '</tbody>';
+  $('#iid').textContent = d.installId;
+  $('#terms').innerHTML = d.terms.map((t) => `<label><input type="radio" name="t" value="${t}" ${t === term ? 'checked' : ''}><span>${TERM_LABEL[t]}</span></label>`).join('');
+  if (d.mode === 'off') document.getElementById('renew').style.display = 'none';
+}
+const query = () => new URLSearchParams({ term, note: $('#note').value.trim() });
+const msg = (el, text, kind) => { el.textContent = text; el.className = 'msg on ' + kind; };
+
+portalReady.then(async (me) => {
+  if (!me.super) { location.href = '/analytics.html'; return; }
+  const load = async () => { const r = await fetch('/api/license'); if (r.status === 401) { location.href = '/login.html'; return; } if (!r.ok) return; L = await r.json(); render(); };
+  await load();
+  $('#terms').onchange = (e) => { term = e.target.value; $('#mail').href = mailHref(); };
+  const mailHref = () => `mailto:${encodeURIComponent('sdpt@smart-way.com.sa')}?subject=${encodeURIComponent(`VisionGuard licence renewal - ${L.customer || 'new customer'} - ${L.installId}`)}&body=${encodeURIComponent(
+    `Hello Smart Way,\n\nPlease renew our VisionGuard licence.\n\nCustomer: ${L.customer || '-'}\nCurrent licence: ${L.serial || 'none'}\nInstallation: ${L.installId}\nTerm wanted: ${TERM_LABEL[term]}\n\nThe request file is attached (VisionGuard-renewal-request-${L.installId}.vgreq).\n\nThank you.`)}`;
+  $('#mail').href = mailHref();
+  $('#dl').onclick = (e) => { e.preventDefault(); location.href = '/api/license/request?' + query(); setTimeout(() => msg($('#reqMsg'), 'The request file was downloaded. Attach it to the e-mail to Smart Way.', 'ok'), 400); };
+  $('#cp').onclick = async () => { const r = await fetch('/api/license/request?' + query()); if (!r.ok) return msg($('#reqMsg'), (await r.json()).error, 'err'); await navigator.clipboard?.writeText(await r.text()); msg($('#reqMsg'), 'Copied. Paste it into your message to Smart Way.', 'ok'); };
+  $('#cpid').onclick = () => navigator.clipboard?.writeText(L.installId).then(() => toast('Copied'));
+
+  async function install(text) {
+    const r = await fetch('/api/license', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ license: text }) });
+    const j = await r.json();
+    if (!r.ok) return msg($('#instMsg'), j.error || 'The licence was not accepted.', 'err');
+    L = j; render(); $('#paste').value = ''; msg($('#instMsg'), `Installed: ${j.customer}, valid until ${day(j.expires)}. Thank you.`, 'ok'); toast('Licence installed');
+  }
+  $('#install').onclick = () => { const t = $('#paste').value.trim(); if (!t) return msg($('#instMsg'), 'Choose the file or paste its contents first.', 'err'); install(t); };
+  const read = (f) => f && f.text().then(install);
+  $('#drop').onclick = () => $('#file').click();
+  $('#file').onchange = (e) => read(e.target.files[0]);
+  $('#drop').ondragover = (e) => { e.preventDefault(); $('#drop').classList.add('over'); };
+  $('#drop').ondragleave = () => $('#drop').classList.remove('over');
+  $('#drop').ondrop = (e) => { e.preventDefault(); $('#drop').classList.remove('over'); read(e.dataTransfer.files[0]); };
+  setInterval(() => { if (!document.hidden) load(); }, 30000);
+});
+</script>
+</body>
+</html>
