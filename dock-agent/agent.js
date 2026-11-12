@@ -6,11 +6,15 @@
 // decide automatically: Ask me / Automatic · Cloud / Automatic · Dock storage. With --delete a file is removed from the camera only after
 // it is safe where the user wanted it. DOCK_PURGE_UPLOADED=1 frees the PC's copy once a file is verified in the cloud.
 //
-//   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--report-only] [--dry-run] [--interval 30] [--only VID_x.mp4] [--limit N] [--smallest] [--latest N] [--since today|YYYY-MM-DD] [--report-only] [--no-update] [--update-only]
+//   DOCK_SERVER=https://visionguard.example.com DOCK_TOKEN=... node agent.js [--once] [--delete] [--report-only] [--dry-run] [--interval 30] [--only VID_x.mp4] [--limit N] [--smallest] [--latest N] [--since today|YYYY-MM-DD] [--report-only] [--no-update] [--update-only] [--no-screen]
 //
-// Camera app updates: every cycle the agent compares the app installed on each docked camera with the latest build published on the server
-// (Dashboard > Updates) and installs the new one over USB when the camera is not recording and has >= 20% battery. A camera signed with an
-// older key cannot be updated this way: it is flagged "needs migration" and left untouched.
+// Camera app updates: the moment a camera is docked (and then every cycle) the agent compares the app installed on it with the latest build
+// published on the server (Dashboard > Updates) and installs the new one over USB when the camera is not recording and is either powered by
+// the dock or has >= 20% battery. This comes BEFORE copying recordings: an update takes seconds, copying can take minutes. A camera signed
+// with an older key cannot be updated this way: it is flagged "needs migration" and left untouched.
+//
+// On the camera's own screen: while the agent works on a camera (connected, updating, uploading, done, needs attention) it writes a small
+// status file into the camera app's folder and the camera app shows it as a full-screen window (see screen.js). --no-screen turns this off.
 //
 // Requires: Node 22+, adb in PATH (or ADB=/path/to/adb).
 const { spawn, execFile } = require('child_process');
@@ -18,6 +22,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const screenFile = require('./screen');
 
 const ARGV = process.argv.slice(2);
 const flag = (n) => ARGV.includes(`--${n}`);
@@ -42,6 +47,8 @@ const LOC_RAW = opt('location', process.env.DOCK_LOCATION || '');
 const LOC = (() => { const m = String(LOC_RAW).split(',').map((x) => Number(x.trim())); return m.length >= 2 && m.every(Number.isFinite) && Math.abs(m[0]) <= 90 && Math.abs(m[1]) <= 180 ? { lat: m[0], lng: m[1], acc: m[2] || 25 } : null; })();
 const NO_UPDATE = flag('no-update');          // do NOT update the camera app from the dock (default: update outdated cameras)
 const UPDATE_ONLY = flag('update-only');      // only update the camera app, copy no recordings (tests / first rollout)
+const NO_SCREEN = flag('no-screen');          // do NOT show the "updating / uploading" window on the camera's own screen
+const MIN_BATTERY = Number(process.env.DOCK_UPDATE_MIN_BATTERY) || 20;   // a camera that is NOT powered by the dock needs this much battery to be updated
 const DRY = flag('dry-run');                   // list what would be offloaded, touch nothing
 const ONLY = opt('only', null);
 if ((ARGV.includes('--only') && !ONLY) || (SINCE_RAW && !Number.isFinite(SINCE)) || (ARGV.includes('--since') && !SINCE_RAW)) { console.error('Bad --only / --since value: refusing to run without a filter.'); process.exit(2); }  // restrict to one file name (useful for tests)
@@ -51,10 +58,14 @@ const NAME_RE = /^(VID|IMG)_\d{6,16}\.(mp4|jpg)$/;
 // What the agent is doing per camera right now; sent to the server so the Docking page shows live progress.
 const status = new Map();   // serial -> { state, message, progress, synced, failed, lastSyncTs }
 let lastInfos = [], lastReportAt = 0;
-const AGENT_VERSION = '1.5';
+const screens = screenFile.create();   // what each docked camera's own screen says (screen.js)
+const checks = new Map();              // serial -> 'current' | 'other': the app has been checked since this camera was docked
+const pulling = new Map();             // serial -> the .part file being copied right now (its size moves the progress bar)
+const screenSent = new Map();          // serial -> { key, at }: what the camera's screen file says and when it was last written
+const AGENT_VERSION = '1.6';
 const log = (dev, ...a) => console.log(new Date().toISOString().slice(11, 19), dev ? `[${dev}]` : '', ...a);
-const run = (args) => new Promise((resolve, reject) => execFile(ADB, args, { maxBuffer: 64 * 1024 * 1024 }, (e, so, se) => (e ? reject(new Error((se || e.message).trim())) : resolve(so))));
-const shell = (serial, cmd) => run(['-s', serial, 'shell', cmd]);
+const run = (args, opts = {}) => new Promise((resolve, reject) => execFile(ADB, args, { maxBuffer: 64 * 1024 * 1024, ...opts }, (e, so, se) => (e ? reject(new Error((se || e.message).trim())) : resolve(so))));
+const shell = (serial, cmd, timeout) => run(['-s', serial, 'shell', cmd], timeout ? { timeout } : {});
 const hashFile = (f) => new Promise((res, rej) => { const h = crypto.createHash('sha256'); fs.createReadStream(f).on('data', (c) => h.update(c)).on('end', () => res(h.digest('hex'))).on('error', rej); });
 
 async function api(method, p, { body, headers } = {}) {
@@ -74,13 +85,20 @@ async function devices() {
 async function inspect(serial) {
     let cameraId = null;
     try { cameraId = JSON.parse(await shell(serial, `cat ${APP_DIR}/config.json`)).id || null; } catch { /* not configured */ }
-    const battery = Number((await shell(serial, 'dumpsys battery | grep level')).split(':')[1]) || null;
+    const bat = await shell(serial, 'dumpsys battery | grep -E "level|powered"');
+    const battery = Number((/level:\s*(\d+)/.exec(bat) || [])[1]) || null;
+    const powered = /(AC|USB|Wireless) powered: true/.test(bat);   // on the dock the camera is powered: an update cannot be cut short by a flat battery
     const df = (await shell(serial, 'df -k /sdcard | tail -1')).trim().split(/\s+/);
     const storageFreeMb = Math.round(Number(df[3]) / 1024) || null;
     const listing = await shell(serial, `cd ${REC_DIR} 2>/dev/null && for f in *; do [ -f "$f" ] && echo "$f $(stat -c '%s %Y' "$f")"; done`).catch(() => '');
     const files = listing.split('\n').map((l) => l.trim().split(' ')).filter((p) => p.length === 3 && NAME_RE.test(p[0]))
         .map(([name, size, mtime]) => ({ name, size: Number(size), mtimeMs: Number(mtime) * 1000 }));
-    return { serial, cameraId, battery, storageFreeMb, files };
+    return { serial, cameraId, battery, powered, storageFreeMb, files };
+}
+
+// The camera left the dock: forget everything about this visit (it gets its "connected" window again when it returns).
+function forget(serial) {
+    status.delete(serial); checks.delete(serial); pulling.delete(serial); screenSent.delete(serial); screens.forget(serial);
 }
 
 // ---------- the dock's own storage, and what the user decided for each file ----------
@@ -115,11 +133,21 @@ async function offload(info, stats) {
     if (SMALLEST) todo = todo.sort((a, b) => a.size - b.size);
     if (LIMIT) todo = todo.slice(0, LIMIT);
     if (DRY) { todo.forEach((f) => log(tag, `would copy ${f.name}  ${(f.size / 1e6).toFixed(1)} MB  ${new Date(f.mtimeMs).toISOString().slice(0, 16)}`)); return; }
-    const bytesTotal = todo.reduce((a, f) => a + f.size, 0); let bytesDone = 0, index = 0;
+    // Only what really has to travel counts as "copying / uploading": a file that is already on the dock is just verified again, quietly.
+    const onDock = (f) => { try { return fs.statSync(localPath(cameraId, f.name)).size === f.size; } catch { return false; } };
+    const travel = todo.filter((f) => !onDock(f));
+    const bytesTotal = travel.reduce((a, f) => a + f.size, 0); let bytesDone = 0, index = 0;
     st.synced = 0; st.failed = 0; st.message = '';
     const copied = [];
     for (const f of todo) {
-        index++; Object.assign(st, { state: 'offloading', message: '', progress: { index, total: todo.length, file: f.name, bytesDone, bytesTotal } }); await report(false);
+        let announced = false;
+        const announce = async () => {   // from here on the camera's screen and the Docking page say "copying"
+            if (announced) return;
+            announced = true; index++;
+            Object.assign(st, { state: 'offloading', message: '', progress: { index, total: Math.max(travel.length, index), file: f.name, bytesDone, bytesTotal: Math.max(bytesTotal, bytesDone + f.size) } });
+            await report(false);
+        };
+        if (!onDock(f)) await announce();
         try {
             const key = `${serial}|${f.name}|${f.size}|${f.mtimeMs}`;
             let sha = shaCache.get(key);
@@ -131,15 +159,18 @@ async function offload(info, stats) {
             const lp = localPath(cameraId, f.name);
             const have = fs.existsSync(lp) && fs.statSync(lp).size === f.size && (await hashFile(lp).catch(() => null)) === sha;
             if (!have) {
+                await announce();
                 const t0 = Date.now(), part = lp + '.part';
-                await run(['-s', serial, 'pull', `${REC_DIR}/${f.name}`, part]);
+                pulling.set(serial, part);
+                try { await run(['-s', serial, 'pull', `${REC_DIR}/${f.name}`, part]); } finally { pulling.delete(serial); }
                 if ((await hashFile(part)) !== sha) { fs.rmSync(part, { force: true }); throw new Error('hash differs after USB copy'); }
                 fs.renameSync(part, lp);
                 log(tag, `${f.name} ${(f.size / 1e6).toFixed(1)} MB copied to the dock in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
                 stats.copied++; stats.bytes += f.size;
             } else { log(tag, `${f.name} already on the dock`); stats.known++; }
             copied.push({ cameraId, name: f.name, size: f.size, sha256: sha, recordedTs: f.mtimeMs });
-            bytesDone += f.size; st.synced++;
+            if (announced) bytesDone += f.size;
+            st.synced++;
         } catch (e) { log(tag, `${f.name} FAILED: ${e.message}`); stats.failed++; st.failed++; st.message = e.message.slice(0, 120); }
     }
     // tell the server what is now safe on the dock; it answers with what to do with each file
@@ -267,26 +298,31 @@ async function ensureGps(info) {
     log(tag, `GPS fixed (${[!modeOk && 'location was off', !permOk && 'permission was missing'].filter(Boolean).join(', ')})`);
 }
 
+// 'current' = the camera runs the latest build; 'other' = checked, and there is nothing to show (updated, waiting, failed, not installed...).
+// The camera's own screen uses this to end its first "connected, checking" window.
+const checked = (serial, kind) => { checks.set(serial, kind); };
+
 async function updateApp(info) {
-    if (NO_UPDATE) return;
     const { serial } = info; const tag = info.cameraId || serial;
+    if (NO_UPDATE) return checked(serial, 'other');
     const meta = await latestBuild();
-    if (!meta) return;
+    if (!meta) return checked(serial, 'other');
     const installed = (await shell(serial, `pm path ${PKG}`).catch(() => '')).trim().split('\n')[0].replace('package:', '').trim();
-    if (!installed) { status.set(serial, { ...(status.get(serial) || {}), state: 'connected', message: 'Camera app not installed: provision this camera first' }); return; }
+    if (!installed) { status.set(serial, { ...(status.get(serial) || {}), state: 'connected', message: 'Camera app not installed: provision this camera first' }); return checked(serial, 'other'); }
     const have = (await shell(serial, `sha256sum ${installed}`).catch(() => '')).trim().split(/\s+/)[0];
-    if (have === meta.build) { const st = status.get(serial) || {}; if (st.state === 'updating' || /needs migration/i.test(st.message || '')) status.set(serial, { ...st, state: 'connected', message: '' }); return; }
+    if (have === meta.build) { const st = status.get(serial) || {}; if (st.state === 'updating' || /needs migration/i.test(st.message || '')) status.set(serial, { ...st, state: 'connected', message: '' }); return checked(serial, 'current'); }
     const failed = updateFailed.get(serial);
-    if (failed && failed.build === meta.build && Date.now() - failed.at < 10 * 60_000) return;
-    if (info.battery != null && info.battery < 20) { log(tag, `app is outdated but the battery is ${info.battery}%: waiting`); return; }
+    if (failed && failed.build === meta.build && Date.now() - failed.at < 10 * 60_000) return checked(serial, 'other');
+    // On the dock the camera is powered (USB), so a low battery cannot cut the update short; only a camera that is NOT powered must have enough charge.
+    if (info.battery != null && info.battery < MIN_BATTERY && !info.powered) { log(tag, `app is outdated but the battery is ${info.battery}% and the camera is not powered: waiting`); return checked(serial, 'other'); }
     const newest = Math.max(0, ...info.files.map((f) => f.mtimeMs));
-    if (Date.now() - newest < 2 * MIN_AGE_MS) { log(tag, 'app is outdated but the camera is recording: waiting'); return; }
+    if (Date.now() - newest < 2 * MIN_AGE_MS) { log(tag, 'app is outdated but the camera is recording: waiting'); return checked(serial, 'other'); }
     const keep = status.get(serial) || {};
     try {
         status.set(serial, { ...keep, state: 'updating', message: 'Updating the camera app…' }); await report(true);
         const apk = await fetchApk(meta);
         log(tag, `installing camera app ${meta.build.slice(0, 12)}…`);
-        await run(['-s', serial, 'install', '-r', apk]);
+        await run(['-s', serial, 'install', '-r', apk], { timeout: 180_000 });   // never hold the camera's window (and its bay) forever
         await shell(serial, `am start -n ${PKG}/.MainActivity`).catch(() => {});
         await ensureGps(info);
         log(tag, 'camera app updated');
@@ -298,6 +334,15 @@ async function updateApp(info) {
         log(tag, 'app update failed:', e.message);
         status.set(serial, { ...keep, state: 'error', message: incompatible ? 'Camera app needs migration (older signing key): not updated' : `App update failed: ${e.message}`.slice(0, 150) });
     }
+    checked(serial, 'other');
+}
+
+// One update at a time per camera: the heartbeat starts the check the moment a camera is docked, the cycle repeats it later.
+const updating = new Set();
+async function updateOnce(info) {
+    if (updating.has(info.serial)) return;
+    updating.add(info.serial);
+    try { await updateApp(info); } finally { updating.delete(info.serial); }
 }
 
 async function report(force) {
@@ -309,9 +354,50 @@ async function report(force) {
         .catch((e) => log('', 'report failed:', e.message));
 }
 
+// ---------- the camera's own screen ----------
+// What the docking station is doing with this camera (screen.js decides the words). Written every few seconds while there is something to
+// say, so the camera knows the agent is alive; removed when there is nothing to say. A camera whose app is older than 1.6 simply ignores it.
+const SCREEN_REFRESH_MS = 4000;
+async function pushScreens() {
+    if (NO_SCREEN || REPORT_ONLY || DRY) return;
+    const t = Date.now();
+    await Promise.all(lastInfos.map(async (i) => {
+        const st = status.get(i.serial) || {};
+        let partBytes = 0;
+        const part = pulling.get(i.serial);
+        if (part) { try { partBytes = fs.statSync(part).size; } catch { /* the first bytes have not arrived yet */ } }
+        const view = screens.view(i.serial, { state: st.state, message: st.message, progress: st.progress, check: checks.get(i.serial), partBytes }, t);
+        const key = view ? JSON.stringify(view) : '';
+        const last = screenSent.get(i.serial);
+        if (!last && !view) return;                                                  // never said anything: nothing to remove
+        if (last && last.key === key && (!view || t - last.at < SCREEN_REFRESH_MS)) return;   // nothing new to say
+        screenSent.set(i.serial, { key, at: t });
+        await shell(i.serial, view ? screenFile.writeCommand(APP_DIR, screenFile.encode(view, t)) : screenFile.clearCommand(APP_DIR), 8000)
+            .catch(() => screenSent.delete(i.serial));   // try again on the next beat
+    }));
+}
+let screenBusy = false;
+function pushScreensSoon() {   // never holds up the heartbeat: a camera that does not answer must not make the dock look offline
+    if (screenBusy) return;
+    screenBusy = true;
+    pushScreens().catch(() => {}).finally(() => { screenBusy = false; });
+}
+
+// A camera was just docked: do not wait for the end of the pause between cycles.
+let napWake = null, nudged = false;
+const nudgeCycle = () => { nudged = true; if (napWake) napWake(); };
+function nap(seconds) {
+    if (nudged) { nudged = false; return Promise.resolve(); }
+    return new Promise((resolve) => {
+        const done = () => { clearTimeout(timer); napWake = null; nudged = false; resolve(); };
+        const timer = setTimeout(done, seconds * 1000);
+        napWake = done;
+    });
+}
+
 async function cycle() {
     const devs = await devices();
-    for (const k of [...status.keys()]) if (!devs.some((d) => d.serial === k)) status.delete(k);   // camera left the dock
+    for (const k of [...status.keys()]) if (!devs.some((d) => d.serial === k)) forget(k);   // camera left the dock
     const infos = [];
     for (const d of devs) { try { infos.push({ ...(await inspect(d.serial)), port: d.port }); } catch (e) { log(d.serial, 'inspect failed:', e.message); } }
     lastInfos = infos;   // swapped in one go, so the heartbeat never reports a half-built list
@@ -321,9 +407,9 @@ async function cycle() {
     await loadPolicy();
     const stats = { copied: 0, known: 0, skipped: 0, failed: 0, deleted: 0, bytes: 0 };
     if (!REPORT_ONLY && !NO_UPDATE) await Promise.all(lastInfos.map((i) => ensureGps(i).catch((e) => log(i.cameraId || i.serial, 'GPS check failed:', e.message))));
+    if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => updateOnce(i).catch((e) => log(i.cameraId || i.serial, 'update check failed:', e.message))));   // first: an update takes seconds, copying recordings can take minutes
     if (!REPORT_ONLY && !UPDATE_ONLY) await Promise.all(lastInfos.map((i) => offload(i, stats)));   // cameras in parallel, files in order
     if (flag('once') && !UPDATE_ONLY) { await processQueue(); await processDeletions(); }   // the long-running agent does this on its own timer so a big upload never blocks copying
-    if (!REPORT_ONLY) await Promise.all(lastInfos.map((i) => updateApp(i).catch((e) => log(i.cameraId || i.serial, 'update check failed:', e.message))));   // after the recordings are safe
     await report(true);
     log('', `cycle done: ${JSON.stringify(stats)}`);
     return stats;
@@ -335,19 +421,28 @@ let lastKey = null, hbBusy = false;
 async function heartbeat() {
     if (hbBusy) return;
     hbBusy = true;
+    const justDocked = [];
     try {
         const devs = await devices();
         const key = devs.map((d) => d.serial).sort().join(',');
         if (key !== lastKey) {
             lastKey = key;
             lastInfos = lastInfos.filter((i) => devs.some((d) => d.serial === i.serial));
-            for (const k of [...status.keys()]) if (!devs.some((d) => d.serial === k)) status.delete(k);
+            for (const k of [...status.keys()]) if (!devs.some((d) => d.serial === k)) forget(k);
             for (const d of devs) {
                 if (lastInfos.some((i) => i.serial === d.serial)) continue;
-                try { lastInfos = [...lastInfos, { ...(await inspect(d.serial)), port: d.port }]; status.set(d.serial, { state: 'connected', synced: 0, failed: 0 }); } catch (e) { log(d.serial, 'inspect failed:', e.message); }
+                try {
+                    const info = { ...(await inspect(d.serial)), port: d.port };
+                    lastInfos = [...lastInfos, info]; status.set(d.serial, { state: 'connected', synced: 0, failed: 0 });
+                    justDocked.push(info);
+                } catch (e) { log(d.serial, 'inspect failed:', e.message); }
             }
         }
         await report(true);
+        pushScreensSoon();   // the camera shows "connected" within a second or two of being docked
+        // Straight away, not at the next cycle: check the camera's app (an update starts at once) and wake the cycle for its recordings.
+        for (const info of justDocked) { log(info.cameraId || info.serial, 'docked'); if (!REPORT_ONLY) updateOnce(info).catch((e) => log(info.cameraId || info.serial, 'update check failed:', e.message)); }
+        if (justDocked.length) nudgeCycle();
     } catch (e) { log('', 'heartbeat:', e.message); } finally { hbBusy = false; }
 }
 
@@ -358,6 +453,6 @@ async function heartbeat() {
     do {
         try { await cycle(); } catch (e) { log('', 'cycle error:', e.message); }
         if (flag('once')) break;
-        await new Promise((r) => setTimeout(r, Number(opt('interval', 30)) * 1000));
+        await nap(Number(opt('interval', 30)));
     } while (true);
 })();

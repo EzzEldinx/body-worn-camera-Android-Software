@@ -10,11 +10,13 @@ import 'package:rtmp_broadcaster/rtmp_broadcaster.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'chat_screen.dart';
 import '../widgets/hud.dart';
+import '../widgets/dock_sync_overlay.dart';
 import '../../../../core/theme/bwc_tokens.dart';
 import '../widgets/hidden_admin_door.dart';
 import '../providers/kiosk_controller.dart';
 import '../../../../hardware/hardware_key_listener.dart';
 import '../../../../core/services/central_link.dart';
+import '../../../../core/services/dock_sync.dart';
 import '../../../../core/services/video_quality.dart';
 import '../../../../core/services/self_heal.dart';
 import '../../../../core/services/app_updater.dart'; 
@@ -961,6 +963,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         cams.isNotEmpty &&
         cams[_selectedCameraIndex].lensDirection == CameraLensDirection.front;
     final link = ref.read(centralLinkProvider);
+    final dock = ref.read(dockSyncProvider);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1027,6 +1030,13 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
                   ),
                 ),
               ),
+            // The docking station is busy with this camera (checking it, updating its software, uploading its recordings): a window says so.
+            Positioned.fill(
+              child: ValueListenableBuilder<DockScreen?>(
+                valueListenable: dock.screen,
+                builder: (_, s, __) => s == null ? const SizedBox.shrink() : DockSyncOverlay(screen: s, compact: isRecording),
+              ),
+            ),
           ],
         ),
       ),

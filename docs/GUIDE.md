@@ -221,14 +221,16 @@ Each employee has a username and password; at the **check-out station** (`/stati
 ### 8.3j Licence (self-hosted customers)
 Customers who run VisionGuard on their own server need a licence you issue (3, 6, 12, 24 or 36 months) and renew; the system degrades gently (grace, then limited mode, safety never stops). Full guide: **LICENSING.md**; page **License** (administrators).
 
-### 8.4 The docking station updates the cameras by itself (Dock Agent 1.3)
-Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that sits on the dock is checked each cycle (about 30 s):
+### 8.4 The docking station updates the cameras by itself (Dock Agent 1.6)
+Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that is put on the dock is checked **the moment it is docked** (within a couple of seconds, before its recordings are copied) and then again every cycle (about 30 s):
 * installed app = latest build -> nothing happens;
-* older build -> the agent installs the latest one over USB (only when the camera is **not recording** and has **>= 20% battery**), then starts the app. The bay shows *Updating app*;
+* older build -> the agent installs the latest one over USB (only when the camera is **not recording**, and it is powered by the dock or has **>= 20% battery**; change the level with `DOCK_UPDATE_MIN_BATTERY`), then starts the app. The bay shows *Updating app*;
 * camera signed with an older key -> **"needs migration"** (see CAMERA_SIGNING.md); nothing is changed on it;
 * camera without the app -> "provision this camera first" (needs its camera id and token, section 9).
 Every cycle the agent also makes sure **GPS is ready** on each docked camera (location switched on, location permission granted) and fixes it if not, and again right after every install.
 Switch off with `--no-update`; `--update-only` updates apps without copying recordings.
+
+**On the camera's own screen** a window tells whoever docked it what the station is doing, so nobody unplugs it halfway: *Docking station - connected*, *Updating the camera software - do not unplug*, *Uploading recordings - file 2 of 5* with a bar, *All done* (a few seconds), or *Needs attention* with the reason. It only shows work that really happens (a camera whose recordings are already safe just says it is up to date), it never covers the screen of a camera that is recording (a thin bar instead), and it disappears by itself if the agent stops or the camera is unplugged. The agent writes a small file (`dock-status.json`, see `dock-agent/screen.js`) into the camera app's folder over USB and the camera app shows it. A camera shows the window once it runs a build that includes this feature: the update to that build is silent, every update after it shows the window. `--no-screen` switches it off.
 
 ---
 

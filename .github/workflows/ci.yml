@@ -12,6 +12,13 @@ jobs:
         with: { node-version: 22, cache: npm, cache-dependency-path: server/package-lock.json }
       - run: npm ci
       - run: npm test
+  dock-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node --test dock-agent/test/*.test.js
   app:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: app } }
@@ -21,3 +28,4 @@ jobs:
         with: { channel: stable, cache: true }
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos   # style hints are listed but only warnings and errors fail the build
+      - run: flutter test
