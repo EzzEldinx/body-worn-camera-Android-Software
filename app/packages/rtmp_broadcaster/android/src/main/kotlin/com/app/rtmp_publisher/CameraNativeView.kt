@@ -23,7 +23,7 @@ import com.pedro.encoder.input.video.CameraHelper.Facing.FRONT
 import com.pedro.encoder.input.gl.render.filters.`object`.ImageObjectFilterRender
 import com.pedro.encoder.utils.gl.AspectRatioMode
 import com.pedro.encoder.utils.gl.TranslateTo
-import com.pedro.library.rtmp.RtmpCamera2
+import com.pedro.library.rtmp.RtmpCamera1
 import com.pedro.library.view.OpenGlView
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
@@ -42,7 +42,7 @@ class CameraNativeView(
     ConnectChecker {
 
     private val glView = OpenGlView(activity)
-    private val rtmpCamera: RtmpCamera2
+    private val rtmpCamera: RtmpCamera1
 
     private var isSurfaceCreated = false
     private var fps = 0
@@ -51,10 +51,55 @@ class CameraNativeView(
     // started together and used the camcorder profile's bitrate (~18 Mbps at 1080p), which floods Wi-Fi.
     private var targetBitrate: Int? = null
 
+    // The camera sensor is mounted sideways, so the UPRIGHT picture (preview, photos, recording) needs rotation 90 (tested on the SDJW-S1).
+    // The recording and the live stream are encoded as a 16:9 landscape file: the upright frame is cropped top and bottom, full width
+    // (the encoder size is passed swapped to prepareVideo: with rotation 90 the library swaps it back).
+    // The picture is the camera's own wide frame, upright and 16:9, for the preview, the photos, the live stream and the recording.
+    // The camera is opened through the legacy Camera API exactly like the factory camera app does (the newer Camera2 route rotated the
+    // picture sideways and made it hazy on this device), so rotation 0 is upright.
+    private val pictureRotation: Int = 0
+
+    // The factory camera app previews at 1920x1080 with the frame rate range 5-30 and continuous-video focus. The library compares the range
+    // with the encoder's 30 as if both were in the same unit, finds no match and leaves the camera at a fixed 10 fps range, so the
+    // camera is tuned right after it (re)starts, see [tuneCamera].
+    private val previewFps: Int = 30
+
+    // The release build is minified, so the library's fields are found by their TYPE, not by name.
+    private fun findFieldValue(owner: Any, type: Class<*>): Any? {
+        var cls: Class<*>? = owner.javaClass
+        while (cls != null) {
+            for (field: java.lang.reflect.Field in cls.declaredFields) {
+                if (type.isAssignableFrom(field.type)) {
+                    field.isAccessible = true
+                    return field.get(owner)
+                }
+            }
+            cls = cls.superclass
+        }
+        return null
+    }
+
+    private fun tuneCamera() {
+        try {
+            val manager: Any = findFieldValue(rtmpCamera, com.pedro.encoder.input.video.Camera1ApiManager::class.java) ?: return
+            val camera: android.hardware.Camera = findFieldValue(manager, android.hardware.Camera::class.java) as? android.hardware.Camera ?: return
+            val parameters: android.hardware.Camera.Parameters = camera.parameters
+            parameters.setPreviewFpsRange(5000, 30000)
+            if (parameters.supportedFocusModes?.contains(android.hardware.Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO) == true) {
+                parameters.focusMode = android.hardware.Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO
+            }
+            camera.parameters = parameters
+            Log.d("CameraNativeView", "camera tuned: fps range 5-30, continuous-video focus")
+        } catch (e: Exception) {
+            Log.w("CameraNativeView", "could not tune the camera: $e")
+        }
+    }
+
+
     init {
         glView.setAspectRatioMode(AspectRatioMode.Adjust)
         glView.holder.addCallback(this)
-        rtmpCamera = RtmpCamera2(glView, this)
+        rtmpCamera = RtmpCamera1(glView, this)
         rtmpCamera.getStreamClient().setReTries(10)
         rtmpCamera.setFpsListener { fps = it }
     }
@@ -178,13 +223,16 @@ class CameraNativeView(
                     30,
                     targetBitrate ?: streamingSize.videoBitRate,
                     1, // keyframe every second: a viewer joins (and recovers from loss) within a second
-                    com.pedro.encoder.input.video.CameraHelper.getCameraOrientation(glView.context)
+                    pictureRotation
                 )
             ) {
+                tuneCamera()
                 rtmpCamera.startRecord(filePath)
+                forgetStamp()
             }
         } else {
             rtmpCamera.startRecord(filePath)
+            forgetStamp()
         }
     }
 
@@ -206,11 +254,13 @@ class CameraNativeView(
                         30,
                         bitrate ?: streamingSize.videoBitRate,
                         1,
-                        com.pedro.encoder.input.video.CameraHelper.getCameraOrientation(glView.context)
+                        pictureRotation
                     )
                 ) {
                     // ready to start streaming
+                    tuneCamera()
                     rtmpCamera.startStream(url)
+                    forgetStamp()
                 } else {
                     result.error("videoStreamingFailed", "Error preparing stream, This device cant do it", null)
                     return
@@ -309,6 +359,12 @@ class CameraNativeView(
     // The date, time, camera ID and employee ID written INTO the picture (bottom right), so every frame of the live stream, the recording and photos carries it.
     private var stampFilter: ImageObjectFilterRender? = null
 
+    // Starting the preview, the stream or a recording rebuilds the GL pipeline and drops its filters. Forget the old filter object
+    // so the next update (every second) creates and attaches a new one; otherwise the stamp stays on screen only until recording starts.
+    private fun forgetStamp() {
+        stampFilter = null
+    }
+
     private fun renderStamp(text: String, frameH: Int): Bitmap {
         val lines = text.split("\n")
         val size = (frameH * 0.034f).coerceIn(14f, 48f)
@@ -401,7 +457,9 @@ class CameraNativeView(
                     rtmpCamera.stopPreview()
                 }
 
-                rtmpCamera.startPreview(if (isFrontFacing(targetCamera)) FRONT else BACK, previewSize.width, previewSize.height)
+                rtmpCamera.startPreview(if (isFrontFacing(targetCamera)) FRONT else BACK, previewSize.width, previewSize.height, previewFps, pictureRotation)
+                tuneCamera()
+                forgetStamp()
             } catch (e: CameraAccessException) {
 //                close()
                 activity?.runOnUiThread { dartMessenger?.send(DartMessenger.EventType.ERROR, "CameraAccessException") }

@@ -39,7 +39,8 @@ One server, one web dashboard, one mobile app, multi-company from day one.
 | **Employee check-out** | Employees check cameras in and out, with a full audit trail. |
 | **Mobile app** | iPhone, iPad and Android app for owners and supervisors, with the same accounts and permissions as the web. |
 | **Licensing** | Offline-verifiable signed licences for installations on a customer's own server. |
-| **Operations** | Audit log, automatic recording retention, over-the-air camera updates, Docker deployment. |
+| **Camera updates** | Docking stations update a camera the moment it is docked and show the work on its screen. Customers are told once (a notice and a pulsing heart) and only have to dock their cameras. Cameras far from a dock update over Wi-Fi or SIM, one canary first. |
+| **Operations** | Audit log, automatic recording retention, Docker deployment. |
 
 <p align="center">
   <img src="docs/client-brochure/img/docks.jpg" alt="Docking page" width="430">

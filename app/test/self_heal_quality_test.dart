@@ -19,8 +19,8 @@ void main() {
   });
 
   test('automatic quality follows the network and manual choices are the safe ones', () {
-    expect(VideoQuality.forNetwork(fast: true), VideoQuality.p720);
-    expect(VideoQuality.forNetwork(fast: false), VideoQuality.p480);
+    expect(VideoQuality.forNetwork(fast: true), VideoQuality.p1080);
+    expect(VideoQuality.forNetwork(fast: false), VideoQuality.p720);
     expect(VideoQuality.selectable, [VideoQuality.p480, VideoQuality.p720, VideoQuality.p1080]);
     expect(VideoQuality.selectable.contains(VideoQuality.p2160), isFalse);
     expect(VideoQuality.selectable.contains(VideoQuality.p240), isFalse);

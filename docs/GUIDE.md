@@ -188,6 +188,19 @@ Law el-camera 3aleha account → mumken yerfod; el-script beyeqolak.
 
 El-build identifier = SHA-256 lel-APK. El-camera beteb3at el-build bta3ha lel-server 3and kol ittisal.
 
+### 8.3a Telling customers about an update, and cameras that are far from a dock
+**The customer's side is one thing: put the cameras on the docking station.** After you publish a build, open **Updates**:
+1. **Tell your customers**: edit the message (English and Arabic are filled in) and press **Notify all users**. Publishing alone tells nobody, so a test build never troubles a customer.
+2. Every user of every company gets a window with a Close button, once, and a **heart beats on their Updates tab** until they have seen it. After that the tab shows how many cameras still wait for the dock. Smart Way staff send the notice, they are not its audience.
+3. A company's Updates page shows **only its own cameras**: "11 of 14 are up to date", which ones wait for the docking station and what each is doing. The client has nothing to press.
+
+**Cameras that are not near a dock** (their employee works remotely): Docking > Registered (or Updates > Cameras), column **Updates**: *Docking station only* (default), *Over Wi-Fi*, *Over Wi-Fi and SIM*. For many cameras at once, select them on the Updates page and use *Network updates for the selected cameras*, or the menu at the top of Registered.
+* When you publish, the server updates these cameras by itself, **carefully**. First ONE camera (the canary). The rest follow, three at a time, once a camera has run the new build for 5 minutes (a camera updated on a docking station counts as proof). If the first camera refuses the build or never comes back, or two cameras refuse it, everything **stops**, the page says why, and nothing more is sent until you press **Resume**. *Pause automatic updates* stops it by hand. A remote camera that got a broken build has no dock to be rescued on: this is why.
+* A camera is asked only when it is online, not recording or live, not on a dock (the dock updates it in seconds) and has at least 30 % battery or is charging. A failed download is retried after 10 min, 30 min, 2 h and 6 h; a camera that refuses the build is not asked again and the client's page tells them to use the dock.
+* *Over Wi-Fi*: the camera never touches the SIM, also when the Wi-Fi goes away halfway (what arrived is kept and the download goes on when Wi-Fi is back). It needs the newest camera app: put such a camera on a docking station once; until then the page says "needs the newest app first". *Over Wi-Fi and SIM* uses mobile data, about 55 MB per camera and update.
+* The update installs without anybody touching the camera (it is the device owner). Tried on a real camera: Wi-Fi off = waiting for Wi-Fi, Wi-Fi on = download, Wi-Fi lost at 30 % = paused, then it went on, silent install, back on the new build.
+Settings (environment): `ROLLOUT_PROVE_MS` (default 5 min), `ROLLOUT_CANARY_MS` (30 min), `ROLLOUT_PARALLEL` (3), `ROLLOUT_MIN_BATTERY` (30). Code: `server/updates.js`, `server/rollout.js`, `app/lib/core/services/app_updater.dart`. API for the apps: `GET /api/updates`, `GET /api/updates/badge`, `POST /api/updates/seen`.
+
 ### 8.3b Recording size (camera app 2026-11)
 Recordings are 720p H.264 at 2 Mbps (about **0.9 GB per hour**; before: 1080p at 5.2 Mbps = 2.3 GB/h). 1080p, if chosen, is capped at 3.5 Mbps. A recording is cut into files of **10 minutes** (about 150 MB each): the camera and the live stream keep running and the next file starts on the next key frame, so at most about one second can sit at a boundary (measured under 1 s on a real camera). Small files upload, retry and expire independently.
 Publish a new build from a Mac: `tools/publish-build.sh https://server --build`.
@@ -221,14 +234,16 @@ Each employee has a username and password; at the **check-out station** (`/stati
 ### 8.3j Licence (self-hosted customers)
 Customers who run VisionGuard on their own server need a licence you issue (3, 6, 12, 24 or 36 months) and renew; the system degrades gently (grace, then limited mode, safety never stops). Full guide: **LICENSING.md**; page **License** (administrators).
 
-### 8.4 The docking station updates the cameras by itself (Dock Agent 1.3)
-Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that sits on the dock is checked each cycle (about 30 s):
+### 8.4 The docking station updates the cameras by itself (Dock Agent 1.6)
+Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that is put on the dock is checked **the moment it is docked** (within a couple of seconds, before its recordings are copied) and then again every cycle (about 30 s):
 * installed app = latest build -> nothing happens;
-* older build -> the agent installs the latest one over USB (only when the camera is **not recording** and has **>= 20% battery**), then starts the app. The bay shows *Updating app*;
+* older build -> the agent installs the latest one over USB (only when the camera is **not recording**, and it is powered by the dock or has **>= 20% battery**; change the level with `DOCK_UPDATE_MIN_BATTERY`), then starts the app. The bay shows *Updating app*;
 * camera signed with an older key -> **"needs migration"** (see CAMERA_SIGNING.md); nothing is changed on it;
 * camera without the app -> "provision this camera first" (needs its camera id and token, section 9).
 Every cycle the agent also makes sure **GPS is ready** on each docked camera (location switched on, location permission granted) and fixes it if not, and again right after every install.
 Switch off with `--no-update`; `--update-only` updates apps without copying recordings.
+
+**On the camera's own screen** a window tells whoever docked it what the station is doing, so nobody unplugs it halfway: *Docking station - connected*, *Updating the camera software - do not unplug*, *Uploading recordings - file 2 of 5* with a bar, *All done* (a few seconds), or *Needs attention* with the reason. It only shows work that really happens (a camera whose recordings are already safe just says it is up to date), it never covers the screen of a camera that is recording (a thin bar instead), and it disappears by itself if the agent stops or the camera is unplugged. The agent writes a small file (`dock-status.json`, see `dock-agent/screen.js`) into the camera app's folder over USB and the camera app shows it. A camera shows the window once it runs a build that includes this feature: the update to that build is silent, every update after it shows the window. `--no-screen` switches it off.
 
 ---
 

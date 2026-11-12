@@ -505,21 +505,41 @@ function paintFiles() {
   paintFilesBar();
 }
 
+// How a camera may be updated (super administrator): on the docking station only, over Wi-Fi, or over Wi-Fi and the SIM. A camera whose employee
+// works far from any dock is set to update over the network; the server then updates it by itself, carefully (see Updates).
+const UMODES = [['off', 'Docking station only'], ['wifi', 'Over Wi-Fi'], ['any', 'Over Wi-Fi and SIM']];
 function vCams(v) {
+  const sup = !!(me && me.super);
   v.innerHTML = head('Every camera registered to your fleet, and whether it is on a dock right now.') +
-    `<div class="card"><div class="bar2"><input id="cq" placeholder="Search camera or company" style="flex:1"><span class="muted" id="cn"></span></div></div>
-     <div class="card" style="padding:0"><div class="scroll"><table class="tbl"><thead><tr><th>Camera</th><th>Company</th><th>Status</th><th>Docked</th><th>Last seen</th><th class="r">Recordings</th></tr></thead><tbody id="cb"></tbody></table></div></div>`;
+    `<div class="card"><div class="bar2"><input id="cq" placeholder="Search camera or company" style="flex:1">${sup ? `<select id="cbulk" title="Set how the cameras below are updated"><option value="">Update the shown cameras...</option>${UMODES.map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select>` : ''}<span class="muted" id="cn"></span></div></div>
+     <div class="card" style="padding:0"><div class="scroll"><table class="tbl"><thead><tr><th>Camera</th><th>Company</th><th>Status</th><th>Docked</th><th>Last seen</th>${sup ? '<th title="Cameras that are not near a docking station can be updated over the network">Updates</th>' : ''}<th class="r">Recordings</th></tr></thead><tbody id="cb"></tbody></table></div></div>`;
+  const shown = () => { const q = $('#cq').value.trim().toLowerCase(); return D.cameras.filter((c) => !q || (c.cameraId + ' ' + (c.company || '')).toLowerCase().includes(q)); };
   const paint = () => {
+    if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('umode')) return;   // do not close a menu the person is choosing from
     const docked = new Set(D.docks.flatMap((d) => d.cameras.map((c) => c.cameraId)).filter(Boolean));
-    const q = $('#cq').value.trim().toLowerCase();
-    const f = D.cameras.filter((c) => !q || (c.cameraId + ' ' + (c.company || '')).toLowerCase().includes(q));
+    const f = shown();
     $('#cn').textContent = f.length + ' camera' + (f.length === 1 ? '' : 's');
     $('#cb').innerHTML = f.length ? f.map((c) => `<tr><td><b>${esc(c.cameraId)}</b></td><td>${esc(c.company || '-')}</td>
       <td><span class="badge ${c.recording ? 'b-rec' : c.online ? 'b-on' : 'b-off'}">${c.recording ? 'Recording' : c.online ? 'Online' : 'Offline'}</span></td>
       <td>${docked.has(c.cameraId) ? '<span class="badge b-dock">On dock</span>' : '<span class="muted">-</span>'}</td>
-      <td class="muted">${ago(c.ts)}</td><td class="r">${c.recordings}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">No cameras registered yet.</td></tr>';
+      <td class="muted">${ago(c.ts)}</td>
+      ${sup ? `<td><select class="umode" data-id="${esc(c.cameraId)}">${UMODES.map(([k, t]) => `<option value="${k}" ${c.updateMode === k ? 'selected' : ''}>${t}</option>`).join('')}</select>${c.updateMode === 'wifi' && !c.canWifi ? '<div class="muted" style="font-size:11.5px">Needs the newest camera app first: put it on a dock once</div>' : ''}</td>` : ''}
+      <td class="r">${c.recordings}</td></tr>`).join('') : `<tr><td colspan="${sup ? 7 : 6}" class="empty">No cameras registered yet.</td></tr>`;
+  };
+  const setMode = async (ids, mode) => {
+    const r = await fetch('/api/admin/update/mode', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cameraIds: ids, mode }) });
+    if (!r.ok) return toast((await r.json().catch(() => ({}))).error || 'Could not change it');
+    D.cameras.forEach((c) => { if (ids.includes(c.cameraId)) c.updateMode = mode; });
+    toast(ids.length === 1 ? 'Saved' : `Saved for ${ids.length} cameras`); paint();
   };
   $('#cq').oninput = paint; window.paintCams = paint; paint();
+  if (sup) {
+    $('#cb').onchange = (e) => { const s = e.target.closest('.umode'); if (s) { s.blur(); setMode([s.dataset.id], s.value); } };
+    $('#cbulk').onchange = (e) => {
+      const mode = e.target.value, ids = shown().map((c) => c.cameraId); e.target.value = '';
+      if (mode && ids.length && confirm(`Set ${ids.length} camera${ids.length === 1 ? '' : 's'} to: ${UMODES.find((m) => m[0] === mode)[1]}?`)) setMode(ids, mode);
+    };
+  }
 }
 
 function vData(v) {

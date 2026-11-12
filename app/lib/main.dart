@@ -14,7 +14,7 @@ Future<void> main() async {
   await CentralConfig.load(); // per-camera id/server/token written by tools/update-cameras.ps1
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  // Portrait: the camera is worn vertically; the video is shown in a 16:9 window.
+  // The screen stays upright (the camera is worn vertically); the PICTURE is wide (16:9) and shown in a window in the middle.
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

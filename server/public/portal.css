@@ -84,3 +84,20 @@ input:focus,select:focus{outline:none;background:var(--panel);border-color:var(-
 .hav:hover{border-color:var(--sel)}
 .chlogo{height:18px;width:auto;max-width:42px;object-fit:contain;vertical-align:-4px;margin-right:7px;border-radius:4px}
 @media (max-width:640px){.hav{display:none}}
+/* Updates: the heart that beats until the notice has been seen, the number of cameras that still wait for the docking station, and the notice window */
+@keyframes heartbeat{0%,100%{transform:scale(1)}14%{transform:scale(1.3)}28%{transform:scale(1)}42%{transform:scale(1.2)}70%{transform:scale(1)}}
+@keyframes vgfade{from{opacity:0}to{opacity:1}}
+.beat{display:inline-block;width:14px;height:14px;margin-left:6px;vertical-align:-2px;color:var(--rec);animation:heartbeat 1.3s ease-in-out infinite;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--rec) 65%,transparent))}
+.beat svg{display:block;width:100%;height:100%}
+.navcount{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--sel);color:var(--sel-ink);font-size:11px;font-weight:800;line-height:18px;text-align:center}
+.vgmodal{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:20px;background:rgba(8,14,28,.58);animation:vgfade .18s ease-out}
+.vgmodal .box{position:relative;width:min(540px,100%);max-height:90vh;overflow:auto;padding:28px 28px 22px;background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+.vgmodal .x{position:absolute;top:10px;right:12px;width:32px;height:32px;border-radius:50%;border:0;background:transparent;color:var(--mut);font-size:22px;line-height:1;cursor:pointer}
+.vgmodal .x:hover{background:var(--hover);color:var(--text)}
+.vgmodal .beat.big{width:46px;height:46px;margin:0 0 12px;display:block}
+.vgmodal h2{margin:0 0 10px;font-size:21px}
+.vgmodal p{margin:0 0 10px;line-height:1.55;font-size:14.5px}
+.vgmodal p.ar{direction:rtl;text-align:right;font-size:15.5px}
+.vgmodal .wait{display:inline-block;margin:4px 0 2px;padding:6px 12px;border-radius:99px;background:color-mix(in srgb,var(--sel) 22%,transparent);font-weight:700;font-size:13px}
+.vgmodal .row{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){.beat{animation:none}}

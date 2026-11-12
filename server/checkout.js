@@ -14,7 +14,7 @@ const GONE_MS = 20_000;     // a reserved camera must be missing from every dock
 const BACK_MS = 5_000;      // a camera in use must sit on a dock this long before we say it is back: docking it IS the return, nobody presses anything
 const SESSION_MS = 3 * 60_000;
 
-function create({ db, cams, publish, dock, audit, tellCamera = () => {}, now = Date.now }) {
+function create({ db, cams, publish, dock, audit, tellCamera = () => {}, companyName = () => null, now = Date.now }) {
     db.exec('CREATE TABLE IF NOT EXISTS checkout_settings(key TEXT PRIMARY KEY, value TEXT NOT NULL)');
     const getSetting = (k, d) => { const v = db.prepare('SELECT value FROM checkout_settings WHERE key = ?').get(k)?.value; return v === undefined ? d : Number(v); };
     const settings = () => ({ minBattery: getSetting('minBattery', DEFAULTS.minBattery), holdMinutes: getSetting('holdMinutes', DEFAULTS.holdMinutes) });
@@ -38,8 +38,9 @@ function create({ db, cams, publish, dock, audit, tellCamera = () => {}, now = D
     // What a camera is told: who is carrying it, so it can stamp it on the picture. serverTime lets it correct a wrong clock.
     function payload(cameraId) {
         const a = openFor(cameraId);
-        return a ? { active: true, id: a.id, userId: a.user_id, username: a.username, name: a.name, employeeNo: a.employee_no || '', since: a.picked_ts || a.issued_ts, status: a.status, serverTime: now() }
-            : { active: false, serverTime: now() };
+        const company = companyName(cams.get(cameraId)?.companyId) || '';   // the camera writes it into the picture
+        return a ? { active: true, id: a.id, userId: a.user_id, username: a.username, name: a.name, employeeNo: a.employee_no || '', since: a.picked_ts || a.issued_ts, status: a.status, company, serverTime: now() }
+            : { active: false, company, serverTime: now() };
     }
     // While a shift lasts the employee's name is the camera's holder. A name an administrator typed by hand is kept aside and comes back afterwards.
     const setHolder = (cameraId, a) => {

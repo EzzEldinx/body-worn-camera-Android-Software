@@ -47,6 +47,7 @@ addColumn('cameras', 'battery_ts', 'INTEGER');
 addColumn('cameras', 'charging', 'INTEGER');
 addColumn('users', 'employee_no', 'TEXT');            // badge / employee number printed on every recording the person makes
 addColumn('users', 'active', 'INTEGER NOT NULL DEFAULT 1');   // 0 = switched off (kept for the history, cannot sign in)
+addColumn('cameras', 'update_mode', 'TEXT');          // how the camera may be updated: off (docking station only), wifi, any (see rollout.js)
 addColumn('cameras', 'holder_prev', 'TEXT');          // the holder an administrator typed by hand, kept aside while a check-out shift lasts
 addColumn('cameras', 'holder_src', 'TEXT');           // 'checkout' when the holder comes from the check-out station, empty when an admin typed it
 addColumn('alarms', 'holder', 'TEXT');                // who carried the camera when the SOS was pressed
