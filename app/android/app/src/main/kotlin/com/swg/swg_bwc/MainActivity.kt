@@ -66,6 +66,18 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // Battery level and whether it is charging, for the control room.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.swg.bwc/device").setMethodCallHandler { call, result ->
+            if (call.method == "battery") {
+                val i = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                val level = i?.getIntExtra("level", -1) ?: -1
+                val scale = i?.getIntExtra("scale", 100) ?: 100
+                val status = i?.getIntExtra("status", -1) ?: -1
+                val plugged = (i?.getIntExtra("plugged", 0) ?: 0) != 0
+                result.success(mapOf("level" to if (level >= 0 && scale > 0) level * 100 / scale else -1, "charging" to (plugged || status == 2 || status == 5)))
+            } else result.notImplemented()
+        }
+
         // Remote app updates: build id, device-owner check, install a downloaded APK.
         val updateChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.swg.bwc/update")
         AppInstaller.onResult = { status, msg ->

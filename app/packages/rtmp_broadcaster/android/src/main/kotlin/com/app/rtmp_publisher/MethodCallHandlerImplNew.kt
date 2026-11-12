@@ -135,6 +135,10 @@ class MethodCallHandlerImplNew(
                 getCameraView()?.stopVideoRecordingOrStreaming(result)
             }
 
+            "setOverlayText" -> {
+                getCameraView()?.setOverlayText(call.argument<String>("text"), result)
+            }
+
             "rotateRecording" -> {
                 getCameraView()?.rotateVideoRecording(call.argument<String>("path"), result)
             }

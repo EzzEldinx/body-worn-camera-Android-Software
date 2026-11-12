@@ -37,6 +37,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   double _framePixelRatio = 1.0;
   Timer? _timer;
   Timer? _sosTick;
+  Timer? _stampTimer; // writes date/time, camera ID and employee ID into the picture every second
   double _sosProgress = 0;
   bool _sosActive = false;
   Timer? _toastTimer;
@@ -328,6 +329,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         _currentZoomLevel = 1.0;
 
         if (mounted) setState(() => _isCameraInitialized = true);
+        _startStamp();
       }
     } catch (e) {
       _report('CAMERA INIT FAILED: $e');
@@ -440,7 +442,20 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
   // Two cameras cannot be open together. Order matters: take the preview off the
   // screen first (so the native view closes the camera), wait, then release the
   // controller, then give the hardware a moment before opening the other camera.
+  void _startStamp() {
+    _stampTimer?.cancel();
+    final link = ref.read(centralLinkProvider);
+    Future<void> put() async {
+      final c = _controller;
+      if (c == null || !mounted) return;
+      try { await c.setOverlayText(link.stampText()); } catch (_) {/* camera is being reopened: the next second retries */}
+    }
+    put();
+    _stampTimer = Timer.periodic(const Duration(seconds: 1), (_) => put());
+  }
+
   Future<void> _releaseCamera() async {
+    _stampTimer?.cancel();
     final old = _controller;
     _controller = null;
     if (mounted) setState(() => _isCameraInitialized = false);
@@ -931,6 +946,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     _hardwareSubscription?.cancel();
     _timer?.cancel();
     _sosTick?.cancel();
+    _stampTimer?.cancel();
     _toastTimer?.cancel();
     _linkSub?.cancel();
     _remoteSub?.cancel();

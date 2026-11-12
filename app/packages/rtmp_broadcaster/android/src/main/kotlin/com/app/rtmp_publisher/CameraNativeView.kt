@@ -3,6 +3,11 @@ package com.app.rtmp_publisher
 import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
 import android.graphics.Point
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
@@ -15,7 +20,9 @@ import android.widget.Toast
 import com.pedro.common.ConnectChecker
 import com.pedro.encoder.input.video.CameraHelper.Facing.BACK
 import com.pedro.encoder.input.video.CameraHelper.Facing.FRONT
+import com.pedro.encoder.input.gl.render.filters.`object`.ImageObjectFilterRender
 import com.pedro.encoder.utils.gl.AspectRatioMode
+import com.pedro.encoder.utils.gl.TranslateTo
 import com.pedro.library.rtmp.RtmpCamera2
 import com.pedro.library.view.OpenGlView
 import io.flutter.plugin.common.MethodChannel
@@ -296,6 +303,47 @@ class CameraNativeView(
             result.success(null)
         } catch (e: Exception) {
             result.error("rotateRecordingFailed", e.message, null)
+        }
+    }
+
+    // The date, time, camera ID and employee ID written INTO the picture (bottom right), so every frame of the live stream, the recording and photos carries it.
+    private var stampFilter: ImageObjectFilterRender? = null
+
+    private fun renderStamp(text: String, frameH: Int): Bitmap {
+        val lines = text.split("\n")
+        val size = (frameH * 0.034f).coerceIn(14f, 48f)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = size; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD) }
+        val pad = size * 0.5f
+        val margin = size * 0.6f
+        val lineH = size * 1.25f
+        val w = (lines.maxOf { paint.measureText(it) } + pad * 2)
+        val h = lineH * lines.size + pad * 0.5f
+        val bmp = Bitmap.createBitmap((w + margin).toInt(), (h + margin).toInt(), Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        c.drawRoundRect(RectF(0f, 0f, w, h), size * 0.4f, size * 0.4f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(150, 0, 0, 0) })
+        lines.forEachIndexed { i, l -> c.drawText(l, pad, pad * 0.25f + size + i * lineH, paint) }
+        return bmp
+    }
+
+    fun setOverlayText(text: String?, result: MethodChannel.Result) {
+        try {
+            if (text.isNullOrEmpty()) {
+                stampFilter?.let { glView.removeFilter(it) }
+                stampFilter = null
+                result.success(null)
+                return
+            }
+            val size = glView.encoderSize
+            val ew = if (size.x > 0) size.x else 1280
+            val eh = if (size.y > 0) size.y else 720
+            val bmp = renderStamp(text, eh)
+            val f = stampFilter ?: ImageObjectFilterRender().also { glView.setFilter(it); stampFilter = it }
+            f.setImage(bmp)
+            f.setScale(bmp.width.toFloat() / ew * 100f, bmp.height.toFloat() / eh * 100f)
+            f.setPosition(TranslateTo.BOTTOM_RIGHT)
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("setOverlayTextFailed", e.message, null)
         }
     }
 

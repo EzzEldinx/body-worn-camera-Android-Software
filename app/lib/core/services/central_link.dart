@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
@@ -67,6 +68,38 @@ class ChatMessage {
 }
 
 class CentralLink {
+  // Who carries this camera (told by the server after the employee took it at the check-out station) and the server's clock.
+  final ValueNotifier<Map<String, dynamic>?> assignment = ValueNotifier(null);
+  int clockOffsetMs = 0; // server time minus this device's clock: the stamp on the picture is right even if the device clock is wrong
+  DateTime get serverNow => DateTime.now().add(Duration(milliseconds: clockOffsetMs));
+
+  /// What is written into the picture, bottom right: date and time, camera ID, employee ID.
+  String stampText() {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final t = serverNow;
+    final a = assignment.value;
+    final who = a == null ? 'NO USER' : 'USER ${(a['employeeNo'] ?? '').toString().isNotEmpty ? a['employeeNo'] : a['username']}';
+    return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}:${two(t.second)}\nCAM ${CentralConfig.cameraId}  $who';
+  }
+
+  static const _device = MethodChannel('com.swg.bwc/device');
+  int? _lastBat;
+  bool? _lastChg;
+  DateTime? _lastBatAt;
+
+  /// The camera's own battery, so the dashboard shows it wherever the camera is (under 20 % and not charging raises an alert there).
+  Future<void> _sendBattery() async {
+    if (!_online) return;
+    try {
+      final m = await _device.invokeMapMethod<String, dynamic>('battery');
+      final level = m?['level'] as int?;
+      if (level == null || level < 0) return;
+      final charging = m?['charging'] == true, now = DateTime.now();
+      if (level == _lastBat && charging == _lastChg && _lastBatAt != null && now.difference(_lastBatAt!) < const Duration(seconds: 120)) return;
+      _lastBat = level; _lastChg = charging; _lastBatAt = now;
+      _socket!.emit('camera_battery', {'cameraId': CentralConfig.cameraId, 'battery': level, 'charging': charging});
+    } catch (_) {/* no battery information on this device */}
+  }
   io.Socket? _socket;
   StreamSubscription<Position>? _gpsSub;
   Timer? _heartbeat;
@@ -171,6 +204,7 @@ class CentralLink {
       ..onConnect((_) {
         connected.value = true;
         _emitStatus();
+        _sendBattery();
         debugPrint('Connected to central server');
         _socket!.emit('register', {
           'id': CentralConfig.cameraId,
@@ -228,6 +262,12 @@ class CentralLink {
         }
       })
       
+      ..on('assignment', (d) {
+        if (d is! Map) return;
+        final st = (d['serverTime'] as num?)?.toInt();
+        if (st != null) clockOffsetMs = st - DateTime.now().millisecondsSinceEpoch;
+        assignment.value = d['active'] == true ? Map<String, dynamic>.from(d) : null;
+      })
       ..on('update_app', (d) {
         if (d is Map) _update.add(Map<String, dynamic>.from(d));
       })
@@ -337,6 +377,7 @@ class CentralLink {
 
     _heartbeat?.cancel();
     _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) {
+      _sendBattery();
       // repeat the last GOOD fix only while it is still recent; after that the camera says nothing about
       // position and the dashboard shows "no GPS fix" instead of a stale point
       final p = _last, at = _lastFixAt;

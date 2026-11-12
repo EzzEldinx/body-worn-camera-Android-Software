@@ -632,6 +632,17 @@ class CameraController extends ValueNotifier<CameraValue> {
     }
   }
 
+  /// Writes [text] (lines separated by \n) into the picture, bottom right: date and time, camera ID, employee ID. It is part of the live stream,
+  /// the recordings and the photos. Pass null to remove it. Call it again whenever the text changes (every second for the clock).
+  Future<void> setOverlayText(String? text) async {
+    if (!value.isInitialized! || _isDisposed) return;
+    try {
+      await _channel.invokeMethod<void>('setOverlayText', <String, dynamic>{'textureId': _textureId, 'text': text});
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    }
+  }
+
   /// Ends the current recording file and continues in [newPath] without stopping the camera or the live stream
   /// (Android). Used to cut long recordings into segments.
   Future<void> rotateVideoRecording(String newPath) async {
