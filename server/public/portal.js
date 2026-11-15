@@ -57,7 +57,7 @@
         <button class="btn sm" id="outBtn">Sign out</button>
       </div>`;
     // licence notice under the header: expiring (administrators), expired, limited mode, trial running out
-    if (me.company) { const sc = document.querySelector('.hdr-right .chip'); if (sc && me.subscription) sc.insertAdjacentHTML('afterend', `<span class="chip" title="Your subscription">Until ${new Date(me.subscription.end).toISOString().slice(0, 10)}</span>`); }
+    if (me.company && me.subscription && /reports/.test(location.pathname)) { const m = document.querySelector('main'); if (m) m.insertAdjacentHTML('afterbegin', `<p class="muted" style="margin:0 0 10px;font-size:12px">Subscription until ${new Date(me.subscription.end).toISOString().slice(0, 10)}</p>`); }
     const lic = me.license;
     if (lic && lic.show) {
       const day = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
