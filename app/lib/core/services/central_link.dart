@@ -390,6 +390,26 @@ class CentralLink {
 
   Timer? _gpsRetry;
   Timer? _assistTimer;
+  Timer? _gpsWatchdog;
+  DateTime _gpsStartedAt = DateTime.now();
+
+  // A GPS chip can get stuck: it lists no satellites, its clock stops, and it never produces a fix, for hours, with a clear sky (seen on a real
+  // camera: 83 minutes without a fix; switching the location off and on made it fix within 10 minutes). If no fix has come for 15 minutes, stop
+  // the location stream for a few seconds and start it again, which makes Android restart the chip. Not sooner: a normal cold start can take
+  // 10 minutes and a restart would throw that progress away.
+  static const Duration _stuckAfter = Duration(minutes: 15);
+  void _armGpsWatchdog() {
+    _gpsWatchdog?.cancel();
+    _gpsWatchdog = Timer.periodic(const Duration(minutes: 1), (_) async {
+      final now = DateTime.now();
+      final since = _lastFixAt ?? _gpsStartedAt;
+      if (now.difference(since) < _stuckAfter || now.difference(_gpsStartedAt) < _stuckAfter) return;
+      await _gpsSub?.cancel();
+      _gpsSub = null;
+      await Future.delayed(const Duration(seconds: 5));
+      _startGps(); // subscribes again (and gives the chip the time again)
+    });
+  }
 
   Future<void> _assistGps() async {
     try { await _device.invokeMethod('gpsAssist'); } catch (_) {}
@@ -435,6 +455,8 @@ class CentralLink {
 
     // The chip's clock is wrong after a long time without a fix: give it the time and the assistance data now, and again every few minutes
     // while there is still no fix (a camera that sat on a dock indoors needed 10-30 minutes to get its first fix without this).
+    _gpsStartedAt = DateTime.now();
+    _armGpsWatchdog();
     _assistGps();
     _assistTimer?.cancel();
     _assistTimer = Timer.periodic(const Duration(minutes: 3), (_) { if (!gpsFix.value) _assistGps(); });
@@ -507,6 +529,7 @@ class CentralLink {
     _heartbeat?.cancel();
     _batTimer?.cancel();
     _assistTimer?.cancel();
+    _gpsWatchdog?.cancel();
     _gpsSub?.cancel();
     _socket?.dispose();
     _msgs.close();
