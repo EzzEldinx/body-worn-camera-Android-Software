@@ -73,18 +73,23 @@ class Alarm {
   Alarm acked() => Alarm(id: id, cameraId: cameraId, ts: ts, ack: true, lat: lat, lng: lng, holder: holder, holderNo: holderNo);
 }
 
-/// A low-battery alert (under 20 % and not charging; critical under 10 %). The server clears it when the camera charges or recovers.
+/// An alert of a camera that is not an SOS: low battery (under 20 % and not charging; critical under 10 %), or a geofence alert
+/// (left a zone, entered one, missed a checkpoint; `zone` is the zone's name). The server clears it when the camera recovers.
 class BatteryAlert {
-  BatteryAlert({required this.id, required this.cameraId, required this.level, required this.value, required this.ts, required this.ack});
+  BatteryAlert({required this.id, required this.cameraId, required this.level, required this.value, required this.ts, required this.ack, this.kind = 'low_battery', this.zone = ''});
   final int id, value, ts;
   final String cameraId, level; // level: warning | critical
   final bool ack;
+  final String kind; // low_battery | geo_exit | geo_enter | checkpoint_missed
+  final String zone;
   bool get critical => level == 'critical';
+  bool get isGeo => kind == 'geo_exit' || kind == 'geo_enter' || kind == 'checkpoint_missed';
 
   factory BatteryAlert.fromJson(Map j) => BatteryAlert(
         id: (j['id'] as num).toInt(), cameraId: '${j['cameraId']}', level: '${j['level']}', value: (j['value'] as num?)?.toInt() ?? 0, ts: (j['ts'] as num?)?.toInt() ?? 0, ack: j['ack'] == true,
+        kind: j['kind'] is String ? j['kind'] as String : 'low_battery', zone: j['zone'] is String ? j['zone'] as String : '',
       );
-  BatteryAlert acked() => BatteryAlert(id: id, cameraId: cameraId, level: level, value: value, ts: ts, ack: true);
+  BatteryAlert acked() => BatteryAlert(id: id, cameraId: cameraId, level: level, value: value, ts: ts, ack: true, kind: kind, zone: zone);
 }
 
 /// The licence notice of a self-hosted server (server/license.js). Only shown when the server says `show`.

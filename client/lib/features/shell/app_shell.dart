@@ -46,7 +46,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     m.showSnackBar(SnackBar(
       behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 8),
       backgroundColor: a.critical ? context.vg.rec : const Color(0xFFB87800),
-      content: Text('${context.tr(a.critical ? 'bat_critical' : 'bat_low')}: ${cam?.name ?? a.cameraId}  ${ltr('$level%')}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+      content: Text(a.isGeo ? '${context.tr(a.kind)}: ${a.zone}  ·  ${cam?.name ?? a.cameraId}' : '${context.tr(a.critical ? 'bat_critical' : 'bat_low')}: ${cam?.name ?? a.cameraId}  ${ltr('$level%')}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
       action: SnackBarAction(label: context.tr('tab_alerts'), textColor: Colors.white, onPressed: () => widget.shell.goBranch(4)),
     ));
   }

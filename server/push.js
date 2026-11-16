@@ -89,6 +89,17 @@ function createPush({ db, env = process.env, fetchImpl = fetch, log = console })
 // Low-battery notice: "BWC-03 battery is 18%".
 function buildAlertMessage(token, platform, alert, label) {
     const critical = alert.level === 'critical';
+    const geo = { geo_exit: ['Left the zone', 'left'], geo_enter: ['Entered a zone', 'entered'], checkpoint_missed: ['Checkpoint missed', 'did not reach'] }[alert.kind];
+    if (geo) {
+        const m = {
+            token,
+            notification: { title: `${geo[0]}: ${label}`, body: alert.kind === 'checkpoint_missed' ? `${label} did not reach checkpoint "${alert.zone}" in time.` : `${label} ${geo[1]} "${alert.zone}".` },
+            data: { type: 'geofence', alertId: String(alert.id), cameraId: alert.cameraId, kind: alert.kind, level: alert.level, ts: String(alert.ts) },
+        };
+        if (platform === 'android') m.android = { priority: critical ? 'HIGH' : 'NORMAL', notification: { channel_id: 'alerts' } };
+        else m.apns = { headers: { 'apns-priority': critical ? '10' : '5' }, payload: { aps: { sound: 'default' } } };
+        return m;
+    }
     const msg = {
         token,
         notification: { title: `${critical ? 'Battery critical' : 'Low battery'}: ${label}`, body: `${label} battery is ${alert.value}%. Put it on the dock to charge.` },

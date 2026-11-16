@@ -46,16 +46,17 @@ class BatteryAlertCard extends ConsumerWidget {
     final color = !open ? v.off : (alert.critical ? v.rec : v.sel);
     final name = cam?.name ?? alert.cameraId;
     final level = cam?.battery ?? alert.value;
+    final geo = alert.isGeo;
     return VgCard(
       border: open ? color.withValues(alpha: .6) : null,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 42, height: 42, decoration: BoxDecoration(color: color.withValues(alpha: .14), shape: BoxShape.circle), child: Icon(Icons.battery_alert_rounded, color: color)),
+          Container(width: 42, height: 42, decoration: BoxDecoration(color: color.withValues(alpha: .14), shape: BoxShape.circle), child: Icon(geo ? (alert.kind == 'checkpoint_missed' ? Icons.flag_rounded : alert.kind == 'geo_enter' ? Icons.block_rounded : Icons.wrong_location_rounded) : Icons.battery_alert_rounded, color: color)),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${context.tr(alert.critical ? 'bat_critical' : 'bat_low')}  ·  $name', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: open ? v.text : v.mut)),
+            Text(geo ? '${context.tr(alert.kind)}  ·  ${alert.zone}' : '${context.tr(alert.critical ? 'bat_critical' : 'bat_low')}  ·  $name', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.5, color: open ? v.text : v.mut)),
             const SizedBox(height: 2),
-            Text('${ltr('$level%')}  ·  ${agoText(context, alert.ts)}${cam != null && !cam!.online ? '  ·  ${context.tr('st_off')}' : ''}', style: TextStyle(color: v.mut, fontSize: 12.5)),
+            Text('${geo ? '$name${alert.kind == 'checkpoint_missed' && alert.value > 0 ? '  ·  ${alert.value} ${context.tr('min_no_visit')}' : ''}' : ltr('$level%')}  ·  ${agoText(context, alert.ts)}${cam != null && !cam!.online ? '  ·  ${context.tr('st_off')}' : ''}', style: TextStyle(color: v.mut, fontSize: 12.5)),
           ])),
         ]),
         const SizedBox(height: 12),

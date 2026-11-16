@@ -8,6 +8,7 @@
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
+<link href="/geofence.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
 
 <script>
@@ -1222,7 +1223,16 @@ $('#wallFs').onclick = () => { if (document.fullscreenElement) document.exitFull
 
 /* ---------- Alarms ---------- */
 // A low-battery alert (below 20 % and not charging; critical below 10 %). It clears by itself once the camera is charging or recovered.
+// A geofence alert: a camera left a zone, entered one, or did not pass a checkpoint in time (see geofence.js on the server).
+const GEO = { geo_exit: ['📍', 'Left the zone', 'غادرت المنطقة'], geo_enter: ['⛔', 'Entered a zone', 'دخلت منطقة'], checkpoint_missed: ['🚩', 'Checkpoint missed', 'فاتتها نقطة المرور'] };
+const geoName = (k) => GEO[k][currentLang === 'ar' ? 2 : 1];
+function geoAlertRow(a) {
+  const crit = a.level === 'critical', extra = a.kind === 'checkpoint_missed' && a.value ? ' · ' + a.value + (currentLang === 'ar' ? ' دقيقة بلا زيارة' : ' min without a visit') : '';
+  return `<div class="al bat ${crit ? 'crit' : ''} ${a.ack ? 'ack' : ''}" data-al="${a.id}"><b>${GEO[a.kind][0]} ${geoName(a.kind)} · ${esc(a.zone || '')} · ${tagOf(a.cameraId)}</b>
+    <small>${new Date(a.ts).toLocaleTimeString()}${extra}</small>${a.ack ? '' : `<button class="ackb" data-ackal="${a.id}">${t('dismiss')}</button>`}</div>`;
+}
 function batAlertRow(a) {
+  if (GEO[a.kind]) return geoAlertRow(a);
   const c = cams.get(a.cameraId), crit = a.level === 'critical', v = c && c.battery != null ? c.battery : a.value;
   const off = c && !c.online ? (currentLang === 'ar' ? ' · غير متصلة' : ' · offline') : '';
   return `<div class="al bat ${crit ? 'crit' : ''} ${a.ack ? 'ack' : ''}" data-al="${a.id}"><b>🔋 ${crit ? t('batCritical') : t('batAlert')} · ${tagOf(a.cameraId)}</b>
@@ -1237,6 +1247,7 @@ function renderAlarms() {
     <small>${new Date(a.ts).toLocaleTimeString()}</small></div>`).join('');
   $('#alarms').innerHTML = bats || sos ? bats + sos : `<div class="none">${t('noAlarms')}</div>`;
   stats();
+  if (window.geoAlertsChanged) geoAlertsChanged();
 }
 $('#alarms').addEventListener('click', (e) => {
   const ab = e.target.closest('[data-ackal]');
@@ -1473,8 +1484,8 @@ socket.on('dashboard_alert', (a) => {
   if (i >= 0) alerts[i] = a; else alerts.unshift(a);
   if (!was || (a.level === 'critical' && was.level !== 'critical')) {   // new, or it just got worse (an acknowledgement alone is silent)
     const c = cams.get(a.cameraId);
-    flash((a.level === 'critical' ? t('batCritical') : t('batAlert')) + ': ' + getOfficerLabel(a.cameraId) + ' ' + (c && c.battery != null ? c.battery : a.value) + '%');
-    softBeep();
+    if (GEO[a.kind]) { flash(GEO[a.kind][0] + ' ' + geoName(a.kind) + ': ' + (a.zone || '') + ' · ' + getOfficerLabel(a.cameraId)); if (a.level === 'critical') beep(); else softBeep(); }
+    else { flash((a.level === 'critical' ? t('batCritical') : t('batAlert')) + ': ' + getOfficerLabel(a.cameraId) + ' ' + (c && c.battery != null ? c.battery : a.value) + '%'); softBeep(); }
   }
   renderAlarms(); renderList();
 });
@@ -1601,6 +1612,7 @@ fetch('/api/me').then((r) => (r.ok ? r.json() : Promise.reject()))
     showLicense(u.license && u.license.show ? u.license : u.subscription && u.subscription.show ? { show: true, state: u.subscription.state === 'expired' ? 'subexpired' : 'subexpiring', daysLeft: u.subscription.daysLeft } : null);
     updateUserDisplay();
     loadDirectory();
+    if (window.geoInit) geoInit();
     renderInfo(); 
   })
   .catch(() => { location.href = '/login.html'; });
@@ -1691,5 +1703,6 @@ $('#chat-msgs').addEventListener('click', (e) => {
   else v.el.pause();
 });
 </script>
+<script src="/geofence.js"></script>
 </body>
 </html>

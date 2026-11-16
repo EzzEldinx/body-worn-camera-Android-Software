@@ -31,6 +31,7 @@ One server, one web dashboard, one mobile app, multi-company from day one.
 | **Live view** | Watch any camera in the browser or the mobile app, a flexible live wall for many cameras at once, and remote start/stop without asking the officer. |
 | **SOS and alerts** | Instant SOS alarms with acknowledgement, battery alerts, and push notifications to a locked phone. |
 | **GPS and fleet** | Positions on a map, shifts, camera health and a fleet overview. |
+| **Geofencing** | Draw zones on the map (circle or polygon): alerts when a camera leaves an allowed area, enters a forbidden one, or misses a patrol checkpoint. Per company, with schedules, on the dashboard, the mobile app and push. |
 | **Push-to-talk** | Voice and text messages between the control room and each camera. |
 | **Recordings** | Docking stations offload recordings over USB with SHA-256 verification at three points (camera, dock PC, server). |
 | **Analytics and reports** | Fleet analytics, an optional written AI analysis (only aggregated numbers are sent), and PDF reports. |

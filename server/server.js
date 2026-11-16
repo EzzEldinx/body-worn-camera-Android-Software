@@ -255,6 +255,36 @@ const battery = require('./battery').create({
     audit: (action, id, detail) => auditlog.add(db, 'system', action, id, detail),
     notify: (alert, c) => push.notifyAlert(alert, c.name || c.cameraId, c.companyId || null),
 });
+// Geofencing: zones on the map, alerts for leaving / entering / missed checkpoints (see geofence.js). Alerts share the battery alerts' table and screens.
+const geofence = require('./geofence').create({
+    db, cams, toCam,
+    audit: (action, id, detail) => auditlog.add(db, 'system', action, id, detail),
+    notify: (alert, c) => push.notifyAlert(alert, c.name || c.cameraId, c.companyId || null),
+    changed: (companyId) => io.to(companyId ? [`room:company_${companyId}`, 'room:admin'] : ['room:admin']).emit('geofences_changed'),
+});
+const needZones = (req, res, next) => (isManager(req.user) || (canWrite(req.user) && can(req.user, 'zones')) ? next() : res.status(403).json({ error: 'You are not allowed to change zones.' }));
+const zoneOwner = (req) => (isStaff(req.user) ? (Number.isInteger(req.body?.companyId) ? req.body.companyId : null) : req.user.companyId);
+const zoneVisible = (u, z) => (isStaff(u) ? true : z.companyId === u.companyId);
+app.get('/api/geofences', needUser, (req, res) => {
+    const only = isStaff(req.user) && req.query.company !== undefined ? (req.query.company === '' || req.query.company === 'none' ? null : Number(req.query.company)) : undefined;
+    res.json({ zones: geofence.list({ staff: isStaff(req.user), companyId: req.user.companyId, only }), canEdit: isManager(req.user) || (canWrite(req.user) && can(req.user, 'zones')) });
+});
+app.get('/api/geofences/alerts', needUser, (req, res) => res.json({ alerts: geofence.history((id) => canSee(req.user, id), { days: Number(req.query.days) || 7 }) }));
+app.post('/api/geofences', needUser, needZones, (req, res) => {
+    const r = geofence.add(req.body, { username: req.user.username, companyId: zoneOwner(req) });
+    r.error ? res.status(400).json({ error: r.error }) : res.status(201).json(r);
+});
+app.put('/api/geofences/:id', needUser, needZones, (req, res) => {
+    const z = geofence.get(req.params.id);
+    if (!z || !zoneVisible(req.user, z)) return res.status(404).json({ error: 'Zone not found.' });
+    const r = geofence.update(z.id, req.body, { username: req.user.username });
+    r.error ? res.status(r.status || 400).json({ error: r.error }) : res.json(r);
+});
+app.delete('/api/geofences/:id', needUser, needZones, (req, res) => {
+    const z = geofence.get(req.params.id);
+    if (!z || !zoneVisible(req.user, z)) return res.status(404).json({ error: 'Zone not found.' });
+    res.json(geofence.remove(z.id, { username: req.user.username }));
+});
 app.get('/api/alerts', needUser, (req, res) => res.json({ alerts: battery.open((id) => canSee(req.user, id)), low: battery.LOW, critical: battery.CRITICAL }));
 app.post('/api/alerts/:id/ack', needUser, (req, res) => (battery.ack(req.params.id, req.user.username, (id) => canSee(req.user, id)) ? res.json({ ok: true }) : res.status(404).json({ error: 'Alert not found.' })));
 
@@ -367,7 +397,7 @@ app.delete('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
     const rooms = roomsFor(id);
     auditlog.add(db, req.user.username, 'camera_removed', id, { name: cams.get(id).name });
-    battery.forget(id);
+    battery.forget(id); geofence.forget(id);
     db.prepare('DELETE FROM cameras WHERE id = ?').run(id);
     db.prepare('INSERT OR REPLACE INTO deleted_cameras(id,ts) VALUES(?,?)').run(id, Date.now());
     deleted.add(id);
@@ -1121,6 +1151,7 @@ io.on('connection', (socket) => {
             lastPos.set(id, now);
         }
         publish(id, { lat, lng, acc, fixTs, online: true, ts: now, posSrc: null });
+        geofence.position(id, lat, lng, { acc, ts: now });
         if (d.battery !== undefined) battery.set(id, { battery: d.battery, charging: d.charging });
     });
 

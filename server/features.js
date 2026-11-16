@@ -6,6 +6,7 @@
 const FEATURES = [
     { key: 'live', group: 'Watching', label: 'Live dashboard & map', hint: 'See cameras on the map and watch them live' },
     { key: 'wall', group: 'Watching', label: 'Live wall', hint: 'Many cameras on one screen, full screen', needs: ['live'] },
+    { key: 'geofence', group: 'Watching', label: 'Geofencing', hint: 'Zones on the map and alerts when a camera leaves or enters one, or misses a checkpoint', needs: ['live'] },
     { key: 'talk', group: 'Watching', label: 'Voice & chat', hint: 'Talk to cameras, send messages and voice notes', needs: ['live'] },
     { key: 'recordings', group: 'Evidence', label: 'Recordings & downloads', hint: 'Browse and download recordings from the docking stations' },
     { key: 'docks', group: 'Evidence', label: 'Docking stations', hint: 'See the docks, their slots and the files on them' },
@@ -19,6 +20,7 @@ const ACTIONS = [
     { key: 'ack', group: 'Alarms', label: 'Handle alarms', hint: 'Acknowledge SOS alarms and battery alerts', def: ['client'] },
     { key: 'stream', group: 'Watching', label: 'Start & stop live', hint: 'Switch a camera\'s live stream on or off from the dashboard', def: ['client'], needs: ['live'] },
     { key: 'quality', group: 'Watching', label: 'Change video quality', hint: 'Set a camera to 480p, 720p or 1080p', def: ['client'], needs: ['live'] },
+    { key: 'zones', group: 'Watching', label: 'Manage zones', hint: 'Draw, change and delete geofence zones', def: [], needs: ['geofence'] },
     { key: 'files', group: 'Evidence', label: 'Decide on recordings', hint: 'Choose to keep or move recordings that are on the docks', def: ['client'], needs: ['docks'] },
     { key: 'delete', group: 'Evidence', label: 'Delete files', hint: 'Delete recordings from cameras. This cannot be undone', def: [], needs: ['docks'] },
 ].map((a) => ({ ...a, kind: 'action' }));
@@ -54,7 +56,7 @@ const API_RULES = [
     [/^\/api\/analytics\/ai$/, 'ai'], [/^\/api\/analytics/, 'analytics'],
     [/^\/api\/(report$|reports\/|audit\/export)/, 'reports'],
     [/^\/api\/docks$/, 'docks'], [/^\/api\/dock\/files/, 'recordings'],
-    [/^\/api\/employees/, 'checkout'], [/^\/api\/alerts\/[^/]+\/ack$/, 'ack'],
+    [/^\/api\/employees/, 'checkout'], [/^\/api\/geofences/, 'geofence'], [/^\/api\/alerts\/[^/]+\/ack$/, 'ack'],
 ];
 const PAGE_RULES = { '/': 'live', '/index.html': 'live', '/wall.html': 'wall', '/analytics.html': 'analytics', '/reports.html': 'reports', '/docks.html': 'docks' };
 const ruleFor = (p) => (API_RULES.find(([re]) => re.test(p)) || [])[1] || null;

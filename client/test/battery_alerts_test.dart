@@ -32,6 +32,14 @@ void main() {
       expect(cam({}).lowBattery, isFalse);
     });
 
+    test('a geofence alert is parsed with its zone and keeps it when acknowledged', () {
+      final a = BatteryAlert.fromJson({'id': 9, 'cameraId': 'BWC-02', 'kind': 'geo_exit', 'zone': 'Main gate', 'level': 'warning', 'value': null, 'ts': 5, 'ack': false});
+      expect(a.isGeo, isTrue); expect(a.zone, 'Main gate'); expect(a.kind, 'geo_exit'); expect(a.value, 0);
+      final b = a.acked();
+      expect(b.ack, isTrue); expect(b.isGeo, isTrue); expect(b.zone, 'Main gate');
+      expect(BatteryAlert.fromJson({'id': 1, 'cameraId': 'x', 'level': 'warning', 'value': 15, 'ts': 1, 'ack': false}).isGeo, isFalse, reason: 'a battery alert has no kind on older servers');
+    });
+
     test('an alert is parsed and can be acknowledged', () {
       final a = BatteryAlert.fromJson({'id': 4, 'cameraId': 'BWC-03', 'level': 'critical', 'value': 7, 'ts': 123, 'ack': false});
       expect(a.critical, isTrue); expect(a.value, 7); expect(a.ack, isFalse);
@@ -87,6 +95,8 @@ void main() {
         alerts: [
           BatteryAlert(id: 5, cameraId: 'BWC-03', level: 'warning', value: 17, ts: DateTime.now().millisecondsSinceEpoch, ack: false),
           BatteryAlert(id: 6, cameraId: 'BWC-04', level: 'critical', value: 8, ts: DateTime.now().millisecondsSinceEpoch, ack: false),
+          BatteryAlert(id: 7, cameraId: 'BWC-03', level: 'warning', value: 0, ts: DateTime.now().millisecondsSinceEpoch, ack: false, kind: 'geo_exit', zone: 'Main gate'),
+          BatteryAlert(id: 8, cameraId: 'BWC-04', level: 'warning', value: 35, ts: DateTime.now().millisecondsSinceEpoch, ack: false, kind: 'checkpoint_missed', zone: 'Back door'),
         ],
         loaded: true, connected: true,
       );
@@ -98,6 +108,10 @@ void main() {
       expect(t.takeException(), isNull);
       expect(find.textContaining('Battery critical'), findsOneWidget);
       expect(find.textContaining('Low battery'), findsOneWidget);
+      expect(find.textContaining('Left the zone'), findsOneWidget);
+      expect(find.textContaining('Main gate'), findsOneWidget);
+      expect(find.textContaining('Checkpoint missed'), findsOneWidget);
+      expect(find.textContaining('35 min without a visit'), findsOneWidget);
       expect(find.textContaining('SOS from'), findsOneWidget);
       expect(find.textContaining('Ahmed Hassan'), findsOneWidget, reason: 'the SOS says who carried the camera');
       expect(find.textContaining('#0147'), findsOneWidget);
@@ -105,7 +119,7 @@ void main() {
       double y(String s) => t.getTopLeft(find.textContaining(s).first).dy;
       expect(y('Battery critical'), lessThan(y('Low battery')));
       expect(y('Low battery'), lessThan(y('SOS from')));
-      expect(find.text('Dismiss'), findsNWidgets(2));
+      expect(find.text('Dismiss'), findsNWidgets(4));
     });
   }
 }

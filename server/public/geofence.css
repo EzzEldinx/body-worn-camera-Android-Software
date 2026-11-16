@@ -1,0 +1,74 @@
+/* Geofencing on the dashboard map (see geofence.js) */
+.geo-btn{position:absolute;top:14px;right:14px;z-index:4;display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:99px;font:600 12.5px/1 inherit;color:var(--text);background:color-mix(in srgb,var(--panel) 86%,transparent);backdrop-filter:blur(10px);border:1px solid var(--line);box-shadow:var(--shadow-sm);cursor:pointer}
+.geo-btn:hover{background:var(--panel)}
+.geo-btn svg{width:16px;height:16px}
+.geo-btn .geo-n{min-width:18px;padding:1px 5px;border-radius:99px;background:var(--rec);color:#fff;font-size:11px;text-align:center;display:none}
+.geo-btn.alert .geo-n{display:inline-block}
+.geo-btn.on{border-color:var(--sel)}
+
+.geo-panel{position:absolute;top:56px;right:14px;z-index:4;width:min(340px,calc(100% - 28px));max-height:calc(100% - 140px);display:none;flex-direction:column;border-radius:14px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(12px);border:1px solid var(--line);box-shadow:var(--shadow-md);overflow:hidden;direction:ltr}
+.geo-panel.open{display:flex}
+.geo-panel[dir="rtl"]{direction:rtl}
+.geo-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line-soft)}
+.geo-h b{flex:1;font-size:14px}
+.geo-x{border:0;background:none;color:var(--mut);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+.geo-x:hover{background:var(--hover)}
+.geo-body{overflow:auto;padding:10px 12px 14px}
+.geo-new{width:100%;margin-bottom:10px}
+.geo-sec{margin:14px 2px 6px;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mut)}
+.geo-empty{padding:14px 6px;color:var(--mut);font-size:13px;line-height:1.5}
+.geo-z{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;padding:9px 8px;border-radius:10px;border:1px solid transparent;cursor:pointer}
+.geo-z:hover{background:var(--hover)}
+.geo-z.off{opacity:.55}
+.geo-z .dot{width:12px;height:12px;border-radius:4px;grid-row:1/3}
+.geo-z b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.geo-z small{grid-column:2;color:var(--mut);font-size:12px;line-height:1.35}
+.geo-z .acts{grid-row:1/3;grid-column:3;display:flex;gap:2px}
+.geo-ic{border:0;background:none;color:var(--mut);cursor:pointer;padding:5px;border-radius:7px;display:grid;place-items:center}
+.geo-ic:hover{background:var(--raise);color:var(--text)}
+.geo-ic svg{width:16px;height:16px}
+.geo-ev{padding:7px 8px;border-radius:9px;font-size:12.5px;line-height:1.4;border-bottom:1px solid var(--line-soft)}
+.geo-ev small{display:block;color:var(--mut)}
+.geo-ev.open{background:color-mix(in srgb,var(--rec) 10%,transparent)}
+
+.geo-lbl{padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.35);transform:translateY(-4px)}
+.geo-lbl.bad{animation:geoPulse 1.2s infinite}
+@keyframes geoPulse{50%{box-shadow:0 0 0 5px rgba(255,51,85,.35)}}
+
+/* drawing */
+.geo-bar{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:5;display:none;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 28px);padding:8px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--sel);box-shadow:var(--shadow-md);direction:ltr}
+.geo-bar[dir="rtl"]{direction:rtl}
+.geo-bar.open{display:flex}
+.geo-bar span{font-size:12.5px;color:var(--text);padding:0 4px}
+.geo-bar .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.geo-bar .seg button{border:0;background:var(--raise);color:var(--mut);padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer}
+.geo-bar .seg button.on{background:var(--sel);color:var(--sel-ink)}
+body.geo-drawing #map{cursor:crosshair}
+body.geo-drawing #map .mk{pointer-events:none}
+body.geo-drawing #info{display:none}
+
+/* dialog */
+.geo-modal{position:fixed;inset:0;z-index:40000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(8,13,24,.55);backdrop-filter:blur(3px)}
+.geo-modal.open{display:flex}
+.geo-card{width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;border-radius:16px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-md);color:var(--text)}
+.geo-card h3{margin:0;padding:16px 18px 6px;font-size:17px}
+.geo-card .gf{padding:8px 18px}
+.geo-card label.l{display:block;margin:0 0 5px;font-size:12px;font-weight:700;color:var(--mut)}
+.geo-card .in{width:100%}
+.geo-types{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.geo-type{display:flex;flex-direction:column;gap:2px;text-align:start;padding:10px 12px;border-radius:11px;border:1.5px solid var(--line);background:var(--raise);color:var(--text);cursor:pointer;font:inherit}
+.geo-type b{font-size:13px;display:flex;align-items:center;gap:7px}
+.geo-type b i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.geo-type small{color:var(--mut);font-size:11.5px;line-height:1.35}
+.geo-type.on{border-color:var(--sel);background:color-mix(in srgb,var(--sel) 14%,var(--panel))}
+.geo-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.geo-days{display:flex;gap:5px;flex-wrap:wrap}
+.geo-days button{width:40px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--raise);color:var(--mut);font-weight:700;font-size:12px;cursor:pointer}
+.geo-days button.on{background:var(--sel);border-color:var(--sel);color:var(--sel-ink)}
+.geo-pick{max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--raise)}
+.geo-pick label{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px;cursor:pointer}
+.geo-err{margin:6px 18px 0;padding:8px 11px;border-radius:9px;background:color-mix(in srgb,var(--rec) 14%,var(--panel));color:var(--text);font-size:13px;display:none}
+.geo-err.on{display:block}
+.geo-foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:14px 18px 16px}
+.geo-hint{font-size:12px;color:var(--mut);margin-top:4px;line-height:1.4}
+@media (max-width:520px){.geo-types{grid-template-columns:1fr}}
