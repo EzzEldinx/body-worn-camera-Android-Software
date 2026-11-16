@@ -22,7 +22,7 @@ const at = (m) => ({ lat: C.lat + m / 111320, lng: C.lng });
 test.before(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-geo-'));
     proc = spawn(process.execPath, ['server.js'], { cwd: path.join(__dirname, '..'), stdio: 'pipe',
-        env: { ...process.env, PORT, FLV_PORT: 8812, RTMP_PORT: 1812, DATA_DIR: dir, ADMIN_PASSWORD: 'geo-test-pw', BWC_TOKEN: 'camtoken', STREAM_SECRET: 's', DOCK_TOKEN: 'docktoken', GEOFENCE_DEBOUNCE_MS: '300' } });
+        env: { ...process.env, PORT, FLV_PORT: 8812, RTMP_PORT: 1812, DATA_DIR: dir, ADMIN_PASSWORD: 'geo-test-pw', BWC_TOKEN: 'camtoken', STREAM_SECRET: 's', DOCK_TOKEN: 'docktoken', GEOFENCE_DEBOUNCE_MS: '300', GEOFENCE_MAX_SPEED_MS: '1000000' } });
     await new Promise((res, rej) => { proc.stdout.on('data', (d) => /Dashboard is running/.test(String(d)) && res()); proc.on('exit', () => rej(new Error('server exited'))); setTimeout(() => rej(new Error('server start timeout')), 15000); });
     admin = await signIn('admin', 'geo-test-pw');
 });

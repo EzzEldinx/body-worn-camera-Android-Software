@@ -337,12 +337,32 @@ class CentralLink {
   DateTime? _lastFixAt;
   final ValueNotifier<double?> gpsAccuracy = ValueNotifier(null); // metres of the last accepted fix
 
+  // A chip that has just started (cold) can report a position with a small "accuracy" that is nonsense: kilometres away, altitude of -11000 m or
+  // +8600 m (all seen on real cameras). Reject an impossible altitude, and a jump that no person or vehicle could make since the last good fix.
+  // After 8 rejected fixes in a row the new place is accepted (the old one may have been the wrong one).
+  int _rejected = 0;
+  bool _implausible(Position p, DateTime now) {
+    bool bad = false;
+    if (p.altitude != 0 && (p.altitude < -300 || p.altitude > 3500)) bad = true;
+    final last = _last, at = _lastFixAt;
+    if (!bad && last != null && at != null) {
+      final dt = now.difference(at).inSeconds;
+      if (dt < 180) {
+        final meters = Geolocator.distanceBetween(last.latitude, last.longitude, p.latitude, p.longitude);
+        if (meters > 300 && meters / (dt < 1 ? 1 : dt) > 70) bad = true; // faster than 250 km/h
+      }
+    }
+    if (!bad) { _rejected = 0; return false; }
+    if (++_rejected > 8) { _rejected = 0; return false; }
+    return true;
+  }
+
   void _onFix(Position p) {
     final now = DateTime.now();
     final fixTime = p.timestamp;
     final age = now.difference(fixTime);
     final bad = p.isMocked || age > _maxFixAge || p.accuracy <= 0 || p.accuracy > _maxAccuracyM ||
-        (p.latitude == 0 && p.longitude == 0);
+        (p.latitude == 0 && p.longitude == 0) || _implausible(p, now);
     if (bad) {
       // keep the last good fix for the heartbeat, but do not let a poor one replace it
       gpsAccuracy.value = p.accuracy > 0 ? p.accuracy : null;

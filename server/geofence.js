@@ -16,6 +16,7 @@
 const DEBOUNCE_MS = Number(process.env.GEOFENCE_DEBOUNCE_MS) || 15000;
 const GRACE_MS = Number(process.env.GEOFENCE_GRACE_MS) || 2 * 60000;     // extra time after a checkpoint is due before it is called missed
 const SWEEP_MS = 15000;
+const MAX_SPEED_MS = Number(process.env.GEOFENCE_MAX_SPEED_MS) || 70;                                                    // m/s (250 km/h): a faster jump between two fixes is a GPS glitch
 const MAX_ZONES = 200, MAX_POINTS = 100, MAX_SCOPE = 500;
 const KINDS = ['zone', 'checkpoint'];
 const ALERT_KINDS = ['geo_exit', 'geo_enter', 'checkpoint_missed'];
@@ -222,6 +223,7 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
     }
 
     const lastFix = new Map();   // camera -> time of the last fix judged
+    const lastAt = new Map();    // camera -> { lat, lng, ts, skipped } the last position judged (to refuse impossible jumps)
     function position(id, lat, lng, { acc = null, ts = now(), fixTs = null } = {}) {
         const cam = cams.get(id);
         if (!cam || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
@@ -233,6 +235,14 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
         }
         const list = byCompany.get(cam.companyId || 0);
         if (!list) return;
+        // A cold GPS chip sometimes reports a nonsense place with a small accuracy. A jump that nothing could travel is not judged (a run of 8 is
+        // accepted: then the new place is probably the right one).
+        const prev = lastAt.get(id);
+        if (prev && ts - prev.ts < 180000) {
+            const dt = Math.max(1, (ts - prev.ts) / 1000), m = distance(prev.lat, prev.lng, lat, lng);
+            if (m > 300 && m / dt > MAX_SPEED_MS && prev.skipped < 8) { prev.skipped++; return; }
+        }
+        lastAt.set(id, { lat, lng, ts, skipped: 0 });
         for (const z of list) {
             if (!applies(z, cam)) continue;
             const s = stateOf(z.id, id);
@@ -370,7 +380,7 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
         forget(id) {
             resolveWhere('camera_id = ?', [id], 'removed');
             for (const k of [...states.keys()]) if (k.endsWith('|' + id)) states.delete(k);
-            lastFix.delete(id);
+            lastFix.delete(id); lastAt.delete(id);
             db.prepare('DELETE FROM geo_state WHERE camera_id = ?').run(id);
         },
         stop() { if (timer) clearInterval(timer); },

@@ -171,7 +171,7 @@ test('editing a zone closes what was open and forgets the old state; deleting do
     r.walk('A', at(10, 0)); r.walk('A', at(400, 0)); assert.equal(r.sent.length, 1);
     const up = r.geo.update(zone.id, { shape: circle(1000) }, { username: 'boss' });
     assert.equal(up.zone.shape.r, 1000); assert.equal(r.resolved.length, 1);
-    r.walk('A', at(10, 0)); r.walk('A', at(1500, 0)); assert.equal(r.sent.length, 2);
+    r.walk('A', at(10, 0)); r.walk('A', at(1100, 0)); assert.equal(r.sent.length, 2);
     assert.ok(r.geo.remove(zone.id, { username: 'boss' }).ok);
     assert.equal(r.resolved.length, 2); assert.equal(r.geo.list({ staff: false, companyId: 1 }).length, 0);
     assert.deepEqual(r.changes.filter((c) => c === 1).length, 3, 'dashboards are told after add, edit and delete');
@@ -240,4 +240,15 @@ test('status explains, camera by camera, why a zone does or does not alert', () 
     r.cams.get('A').posSrc = 'dock'; assert.equal(why('A'), 'on_dock');
     r.cams.get('A').posSrc = null; r.t.now += 3 * 3600000; assert.equal(why('A'), 'no_gps', 'a fix hours old is not judged');
     assert.equal(r.geo.status(999, () => true), null);
+});
+
+test('an impossible jump (a cold GPS chip reporting a place 30 km away) is not judged, but a lasting move is', () => {
+    const r = rig(); r.geo.add(zoneBody(), r.owner);
+    r.walk('A', at(10, 0));
+    const far = at(30000, 0);
+    for (let i = 0; i < 8; i++) { r.step(3000); r.geo.position('A', far.lat, far.lng, { acc: 5, ts: r.t.now }); }
+    r.step(20000); r.geo.position('A', far.lat, far.lng, { acc: 5, ts: r.t.now });
+    assert.equal(r.sent.length, 0, 'the first glitch fixes are ignored');
+    r.step(3000); r.geo.position('A', far.lat, far.lng, { acc: 5, ts: r.t.now }); r.step(20000); r.geo.position('A', far.lat, far.lng, { acc: 5, ts: r.t.now });
+    assert.equal(r.sent.length, 1, 'a place that lasts is accepted after a run of 8');
 });
