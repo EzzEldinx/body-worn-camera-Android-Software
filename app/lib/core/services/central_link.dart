@@ -400,6 +400,7 @@ class CentralLink {
           notificationTitle: 'VisionGuard',
           notificationText: 'Camera location is on',
           notificationChannelName: 'Camera location',
+          notificationIcon: AndroidResource(name: 'ic_stat_location', defType: 'drawable'), // the project has no mipmap launcher icon: Android refuses a notification without a valid icon and the app crashed
           enableWakeLock: true,
           enableWifiLock: true,
           setOngoing: true,
