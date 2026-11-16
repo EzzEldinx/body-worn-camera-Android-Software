@@ -337,6 +337,28 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
             changed(old.companyId);
             return { ok: true };
         },
+        /** Why a zone does or does not alert, camera by camera: the question "it went outside and nothing happened" answered with facts. */
+        status(id, canSee) {
+            const z = this.get(id); if (!z) return null;
+            const t = now(), rows = [];
+            for (const cam of cams.values()) {
+                if (!applies(z, cam) || !canSee(cam.cameraId)) continue;
+                const s = states.get(`${z.id}|${cam.cameraId}`) || { inside: null, seenIn: false };
+                const age = cam.fixTs ? t - cam.fixTs : null, open = ALERT_KINDS.some((k) => openRow(k, z.id, cam.cameraId));
+                let why, state = s.inside == null ? 'unknown' : s.inside ? 'inside' : 'outside';
+                if (!z.active) why = 'zone_off';
+                else if (cam.posSrc === 'dock') why = 'on_dock';
+                else if (age == null || age > 120000) why = 'no_gps';
+                else if (!cam.online) why = 'offline';
+                else if (z.kind === 'checkpoint') why = s.lastVisit ? 'visited' : 'not_visited';
+                else if (s.inside == null) why = 'waiting';
+                else if (s.inside === false && z.onExit && !s.seenIn) why = 'never_inside';
+                else if (!activeAt(z, t)) why = 'schedule_off';
+                else why = 'watching';
+                rows.push({ cameraId: cam.cameraId, name: cam.name || cam.cameraId, state, why, ageSec: age == null ? null : Math.round(age / 1000), alert: open, lastVisit: s.lastVisit || null });
+            }
+            return { zoneId: z.id, name: z.name, companyId: z.companyId, cameras: rows.sort((x, y) => x.name.localeCompare(y.name)) };
+        },
         /** Past geofence alerts (open and closed) the caller may see, newest first. */
         history(canSee, { days = 7, limit = 200 } = {}) {
             const since = now() - Math.min(90, Math.max(1, days)) * 86400000;

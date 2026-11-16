@@ -86,6 +86,9 @@ test('a camera of the company leaves the zone: the dashboard gets the alert, the
 
 test('deleting a zone works for the manager and the audit log records who did what', async () => {
     const z = (await json(await api('/api/geofences', 'GET', undefined, mgrA))).zones[0];
+    const st = await json(await api(`/api/geofences/${z.id}/status`, 'GET', undefined, mgrA));
+    assert.strictEqual(st.status, 200); assert.deepStrictEqual(st.cameras.map((c) => c.cameraId), ['G-1']); assert.ok(st.cameras[0].why);
+    assert.strictEqual((await api(`/api/geofences/${z.id}/status`, 'GET', undefined, mgrB)).status, 404, 'another company cannot ask');
     const r = await json(await api(`/api/geofences/${z.id}`, 'DELETE', undefined, mgrA));
     assert.strictEqual(r.ok, true);
     assert.strictEqual((await json(await api('/api/geofences', 'GET', undefined, mgrA))).zones.length, 0);

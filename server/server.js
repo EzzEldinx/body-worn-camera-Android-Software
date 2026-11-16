@@ -270,6 +270,11 @@ app.get('/api/geofences', needUser, (req, res) => {
     res.json({ zones: geofence.list({ staff: isStaff(req.user), companyId: req.user.companyId, only }), canEdit: isManager(req.user) || (canWrite(req.user) && can(req.user, 'zones')) });
 });
 app.get('/api/geofences/alerts', needUser, (req, res) => res.json({ alerts: geofence.history((id) => canSee(req.user, id), { days: Number(req.query.days) || 7 }) }));
+app.get('/api/geofences/:id/status', needUser, (req, res) => {
+    const z = geofence.get(req.params.id);
+    if (!z || !zoneVisible(req.user, z)) return res.status(404).json({ error: 'Zone not found.' });
+    res.json(geofence.status(z.id, (id) => canSee(req.user, id)));
+});
 app.post('/api/geofences', needUser, needZones, (req, res) => {
     const r = geofence.add(req.body, { username: req.user.username, companyId: zoneOwner(req) });
     r.error ? res.status(400).json({ error: r.error }) : res.status(201).json(r);

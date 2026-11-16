@@ -225,3 +225,19 @@ test('a repeated fix (the camera heartbeat) is not a second observation, so one 
     r.step(5000); fix(400, 4000); r.step(16000); fix(400, 5000);     // real, new fixes
     assert.equal(r.sent.length, 1);
 });
+
+test('status explains, camera by camera, why a zone does or does not alert', () => {
+    const r = rig(); const { zone } = r.geo.add(zoneBody(), r.owner);
+    const why = (id) => r.geo.status(zone.id, () => true).cameras.find((c) => c.cameraId === id)?.why;
+    assert.equal(why('X'), undefined, 'a camera of another company is not covered by this zone');
+    assert.equal(why('A'), 'no_gps', 'no fix yet');
+    r.cams.get('A').fixTs = r.t.now; r.cams.get('B').fixTs = r.t.now;
+    assert.equal(why('A'), 'waiting');
+    r.walk('A', at(500, 0)); r.cams.get('A').fixTs = r.t.now;
+    assert.equal(why('A'), 'never_inside', 'outside, but never inside: it has not left');
+    r.walk('A', at(10, 0)); r.cams.get('A').fixTs = r.t.now;
+    assert.equal(why('A'), 'watching');
+    r.cams.get('A').posSrc = 'dock'; assert.equal(why('A'), 'on_dock');
+    r.cams.get('A').posSrc = null; r.t.now += 3 * 3600000; assert.equal(why('A'), 'no_gps', 'a fix hours old is not judged');
+    assert.equal(r.geo.status(999, () => true), null);
+});

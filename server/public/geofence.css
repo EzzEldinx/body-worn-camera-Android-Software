@@ -72,3 +72,10 @@ body.geo-drawing #info{display:none}
 .geo-foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:14px 18px 16px}
 .geo-hint{font-size:12px;color:var(--mut);margin-top:4px;line-height:1.4}
 @media (max-width:520px){.geo-types{grid-template-columns:1fr}}
+
+.geo-st{margin:0 0 6px 22px;padding:6px 8px;border-radius:9px;background:var(--raise);display:grid;gap:5px}
+.geo-panel[dir="rtl"] .geo-st{margin:0 22px 6px 0}
+.geo-sr{font-size:12.5px;line-height:1.35;border-inline-start:3px solid var(--off);padding-inline-start:7px}
+.geo-sr b{font-weight:700}.geo-sr span{color:var(--mut)}
+.geo-sr small{display:block;color:var(--mut);font-size:12px}
+.geo-sr.ok{border-color:var(--ok)}.geo-sr.warn{border-color:var(--sel)}.geo-sr.bad{border-color:var(--rec)}

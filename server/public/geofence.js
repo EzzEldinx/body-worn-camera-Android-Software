@@ -5,7 +5,7 @@
   const L = (en, ar) => (currentLang === 'ar' ? ar : en);
   const KIND_COLOR = { allowed: '#00B87C', forbidden: '#FF3355', both: '#FFB300', checkpoint: '#2F7BFF', off: '#9AA8BD' };
   const DAYS = [[0, 'Sun', 'أحد'], [1, 'Mon', 'إثنين'], [2, 'Tue', 'ثلاثاء'], [3, 'Wed', 'أربعاء'], [4, 'Thu', 'خميس'], [5, 'Fri', 'جمعة'], [6, 'Sat', 'سبت']];
-  const state = { zones: [], canEdit: false, history: [], panel: false, draw: null, ready: false, labels: new Map() };
+  const state = { open: null, status: null, zones: [], canEdit: false, history: [], panel: false, draw: null, ready: false, labels: new Map() };
   const $ = (s, r = document) => r.querySelector(s);
   const el = (html) => { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; };
 
@@ -161,9 +161,35 @@
     const t = a.kind === 'geo_exit' ? L('left', 'غادرت') : a.kind === 'geo_enter' ? L('entered', 'دخلت') : L('missed checkpoint', 'فاتتها نقطة المرور');
     return a.kind === 'checkpoint_missed' ? `${who} ${t} “${esc(a.zone)}”` : `${who} ${t} “${esc(a.zone)}”`;
   };
+  const WHY = {
+    zone_off: ['Zone is switched off', 'المنطقة متوقفة', 'off'],
+    on_dock: ['On the docking station: not judged', 'على محطة الإرساء: لا يتم الحكم عليها', 'off'],
+    no_gps: ['No recent GPS fix: its position is old, so it is not judged', 'لا يوجد تحديد موقع حديث: موقعها قديم فلا يتم الحكم عليها', 'bad'],
+    offline: ['Offline', 'غير متصلة', 'off'],
+    waiting: ['Waiting for its first position', 'بانتظار أول موقع', 'off'],
+    never_inside: ['Outside, but it has not been inside yet, so it has not "left". The alert starts after it has been inside once', 'خارج المنطقة لكنها لم تدخلها بعد، فلم "تغادرها". يبدأ التنبيه بعد أن تدخلها مرة', 'warn'],
+    schedule_off: ['Outside the zone schedule', 'خارج جدول المنطقة', 'off'],
+    watching: ['Being watched', 'تحت المراقبة', 'ok'],
+    visited: ['Has visited the checkpoint', 'زارت نقطة المرور', 'ok'],
+    not_visited: ['Has not visited the checkpoint yet', 'لم تزر نقطة المرور بعد', 'warn'],
+  };
+  const STATE_TXT = { inside: ['inside', 'داخل'], outside: ['outside', 'خارج'], unknown: ['unknown', 'غير معروف'] };
+  function statusHtml(z) {
+    const st = state.status && state.status.zoneId === z.id ? state.status : null;
+    if (!st) return `<div class="geo-st"><small>${L('Loading…', 'جارٍ التحميل…')}</small></div>`;
+    if (!st.cameras.length) return `<div class="geo-st"><small>${L('No camera is covered by this zone. Check that the zone belongs to the same company as the cameras and that "Which cameras" includes them.', 'لا توجد كاميرا مشمولة بهذه المنطقة. تأكد أن المنطقة تتبع نفس شركة الكاميرات وأن خيار "أي الكاميرات" يشملها.')}</small></div>`;
+    return `<div class="geo-st">${st.cameras.map((c) => {
+      const w = WHY[c.why] || [c.why, c.why, 'off'];
+      const age = c.ageSec == null ? '' : c.ageSec < 120 ? '' : ' · ' + (c.ageSec >= 3600 ? Math.floor(c.ageSec / 3600) + L(' h', ' س') : Math.floor(c.ageSec / 60) + L(' min', ' د')) + L(' since its last fix', ' منذ آخر موقع');
+      return `<div class="geo-sr ${w[2]}"><b>${esc(c.name)}</b> <span>${STATE_TXT[c.state][currentLang === 'ar' ? 1 : 0]}${c.alert ? ' · ⚠' : ''}</span><small>${L(w[0], w[1])}${age}</small></div>`;
+    }).join('')}</div>`;
+  }
+  async function loadStatus(id) {
+    try { const r = await fetch('/api/geofences/' + id + '/status'); if (r.ok && state.open === id) { state.status = await r.json(); renderPanel(); } } catch (e) { }
+  }
   function renderPanel() {
     if (!panel) return;
-    const rows = state.zones.map(zoneRow).join('');
+    const rows = state.zones.map((z) => zoneRow(z) + (state.open === z.id ? statusHtml(z) : '')).join('');
     const ev = state.history.slice(0, 15).map((a) => `<div class="geo-ev ${a.resolvedTs ? '' : 'open'}" data-cam="${esc(a.cameraId)}">${evText(a)}<small>${new Date(a.ts).toLocaleString()} · ${a.resolvedTs ? L('back in line', 'عادت للوضع الطبيعي') : a.ack ? L('acknowledged', 'تم الإقرار') : L('open', 'مفتوح')}</small></div>`).join('');
     panel.innerHTML = `<div class="geo-h"><b>${L('Geofences', 'النطاقات الجغرافية')}</b><button class="geo-x" data-act="close" aria-label="${L('Close', 'إغلاق')}">×</button></div>
       <div class="geo-body">${state.canEdit ? `<button class="btn pri geo-new" data-act="new">+ ${L('New zone', 'منطقة جديدة')}</button>` : ''}
@@ -176,7 +202,11 @@
     if (act === 'new') return startDraw(null);
     if (act === 'edit' && z) return openForm(z);
     if (act === 'del' && z) return confirmDelete(z);
-    if (z) { const c = centre(z.shape); const b = new maplibregl.LngLatBounds(); ring(z.shape).forEach((p) => b.extend(p)); map.fitBounds(b, { padding: 80, maxZoom: 17, duration: 600 }); return; }
+    if (z) {
+      state.open = state.open === z.id ? null : z.id; state.status = null; renderPanel();
+      if (state.open) loadStatus(z.id);
+      const b = new maplibregl.LngLatBounds(); ring(z.shape).forEach((p) => b.extend(p)); map.fitBounds(b, { padding: 80, maxZoom: 17, duration: 600 }); return;
+    }
     const ev = e.target.closest('.geo-ev'); if (ev && typeof select === 'function') select(ev.dataset.cam, true);
   }
   async function confirmDelete(z) {
@@ -352,6 +382,6 @@
     load();
   }
   window.geoInit = init;
-  window.geoAlertsChanged = () => { if (!state.ready) return; syncButton(); drawZones(); if (state.panel) renderPanel(); };
+  window.geoAlertsChanged = () => { if (!state.ready) return; syncButton(); drawZones(); if (state.panel) { renderPanel(); if (state.open) loadStatus(state.open); } };
   if (typeof me !== 'undefined' && me.features) init();
 })();
