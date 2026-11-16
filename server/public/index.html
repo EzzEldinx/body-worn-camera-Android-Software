@@ -740,9 +740,9 @@ function renderList() {
       const ar = currentLang === 'ar', age = c.fixTs ? Date.now() - c.fixTs : null;
       let cls, txt, tip;
       if (c.lat == null) { cls = 'bad'; txt = ar ? 'لا GPS' : 'No GPS'; tip = ar ? 'لم تُرسل هذه الكاميرا موقعاً أبداً' : 'This camera has never sent a position'; }
-      else if (c.posSrc === 'dock') { cls = 'dock'; txt = ar ? 'موقع القاعدة' : 'Dock location'; tip = ar ? 'على محطة الإرساء: الموقع هو موقع المحطة وليس GPS الكاميرا' : 'On the docking station: this is the dock\'s place, not the camera\'s own GPS'; }
+      else if (c.posSrc === 'dock' && age !== null && age < 120000) { cls = 'dock'; txt = ar ? 'موقع القاعدة' : 'Dock location'; tip = ar ? 'على محطة الإرساء: الموقع هو موقع المحطة وليس GPS الكاميرا' : 'On the docking station: this is the dock\'s place, not the camera\'s own GPS'; }
       else if (age !== null && age < 120000) { cls = 'ok'; txt = 'GPS' + (c.acc ? ' ±' + Math.round(c.acc) + (ar ? ' م' : ' m') : ''); tip = ar ? 'GPS حي من الكاميرا' : 'Live GPS from the camera'; }
-      else { cls = 'warn'; txt = (ar ? 'GPS مفقود · ' : 'GPS lost · ') + (age === null ? '' : agoShort(c.fixTs)); tip = ar ? 'لا يوجد تحديد موقع حديث. هذا آخر موقع معروف' : 'No recent GPS fix. This is the last known position'; }
+      else { cls = 'warn'; txt = (ar ? 'GPS مفقود · ' : 'GPS lost · ') + (age === null ? '' : agoShort(c.fixTs)); tip = c.posSrc === 'dock' ? (ar ? 'غادرت المحطة ولم تحصل على GPS بعد. الموقع المعروض هو آخر موقع للمحطة' : 'It left the docking station and has no GPS fix of its own yet. The place shown is the dock\'s old position') : (ar ? 'لا يوجد تحديد موقع حديث. هذا آخر موقع معروف' : 'No recent GPS fix. This is the last known position'); }
       return `<span class="gpsc ${cls}" title="${esc(tip)}">${txt}</span>`;
     };
     const card = (c) => {
