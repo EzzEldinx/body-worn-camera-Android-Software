@@ -221,9 +221,16 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
         }
     }
 
-    function position(id, lat, lng, { acc = null, ts = now() } = {}) {
+    const lastFix = new Map();   // camera -> time of the last fix judged
+    function position(id, lat, lng, { acc = null, ts = now(), fixTs = null } = {}) {
         const cam = cams.get(id);
         if (!cam || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        // The camera repeats its last good fix every 10 s as a heartbeat. That is not a new observation: counting it could confirm a change
+        // of side from a single real fix. (The camera itself already refuses fixes older than 20 s, so no age check here: camera clocks drift.)
+        if (fixTs != null) {
+            if (fixTs <= (lastFix.get(id) || 0)) return;
+            lastFix.set(id, fixTs);
+        }
         const list = byCompany.get(cam.companyId || 0);
         if (!list) return;
         for (const z of list) {
@@ -341,6 +348,7 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
         forget(id) {
             resolveWhere('camera_id = ?', [id], 'removed');
             for (const k of [...states.keys()]) if (k.endsWith('|' + id)) states.delete(k);
+            lastFix.delete(id);
             db.prepare('DELETE FROM geo_state WHERE camera_id = ?').run(id);
         },
         stop() { if (timer) clearInterval(timer); },

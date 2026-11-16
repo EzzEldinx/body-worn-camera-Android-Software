@@ -292,6 +292,11 @@ async function ensureGps(info) {
     const probe = (await shell(serial, `echo mode:$(settings get secure location_mode); dumpsys package ${PKG} | grep -c "ACCESS_FINE_LOCATION: granted=true"`).catch(() => '')).trim().split('\n');
     const modeOk = (probe[0] || '').trim() === 'mode:3', permOk = Number(probe[1]) > 0;
     if (!aidedOnce.has(serial)) { aidedOnce.add(serial); await shell(serial, 'settings put global assisted_gps_enabled 1; cmd location providers send-extra-command gps force_time_injection; cmd location providers send-extra-command gps force_xtra_injection').catch(() => {}); }
+    if (!aidedOnce.has(serial + ':bg')) {   // GPS must also work with the screen off: location "all the time" and no battery optimisation (both are harmless to repeat)
+        aidedOnce.add(serial + ':bg');
+        await shell(serial, `pm grant ${PKG} android.permission.ACCESS_BACKGROUND_LOCATION`).catch(() => {});
+        await shell(serial, `dumpsys deviceidle whitelist +${PKG}`).catch(() => {});
+    }
     if (modeOk && permOk) return;
     if (!modeOk) await shell(serial, 'settings put secure location_mode 3').catch(() => {});
     for (const perm of ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION']) await shell(serial, `pm grant ${PKG} android.permission.${perm}`).catch(() => {});

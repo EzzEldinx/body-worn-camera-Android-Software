@@ -214,3 +214,14 @@ test('push: a geofence alert reads as one, and the feature is offered to compani
     assert.ok(!f.effective({ staff: false, manager: false, role: 'client', companyFeatures: null, perms: null }).includes('zones'), 'an operator cannot unless given it');
     assert.strictEqual(f.ruleFor('/api/geofences'), 'geofence');
 });
+
+test('a repeated fix (the camera heartbeat) is not a second observation, so one real fix cannot confirm leaving', () => {
+    const r = rig(); r.geo.add(zoneBody(), r.owner);
+    const fix = (m, fixTs) => { const p = at(m, 0); r.geo.position('A', p.lat, p.lng, { acc: 5, ts: r.t.now, fixTs }); };
+    fix(10, 1000); r.step(1000); fix(10, 2000);
+    fix(400, 3000);                                   // one real fix outside
+    for (let i = 0; i < 6; i++) { r.step(5000); fix(400, 3000); }   // ...repeated by the heartbeat for 30 s
+    assert.equal(r.sent.length, 0, 'still only one observation');
+    r.step(5000); fix(400, 4000); r.step(16000); fix(400, 5000);     // real, new fixes
+    assert.equal(r.sent.length, 1);
+});

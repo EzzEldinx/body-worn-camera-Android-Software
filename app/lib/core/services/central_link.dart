@@ -391,8 +391,19 @@ class CentralLink {
       locationSettings: AndroidSettings(
         accuracy: LocationAccuracy.best, // GPS + BeiDou/GLONASS, not network guesses
         distanceFilter: 0,
-        intervalDuration: const Duration(seconds: 2),
+        intervalDuration: const Duration(seconds: 1),
         forceLocationManager: true,
+        // A foreground service of type "location" with a wake lock. Without it Android treats the app as a background app as soon as the
+        // screen is off: location updates are throttled to a few per hour and arrive in batches, so a camera that is carried with its screen
+        // off looked frozen for minutes and geofence alerts came late or never. (Measured on a real camera: 559 of 9765 minutes in the foreground.)
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'VisionGuard',
+          notificationText: 'Camera location is on',
+          notificationChannelName: 'Camera location',
+          enableWakeLock: true,
+          enableWifiLock: true,
+          setOngoing: true,
+        ),
       ),
     ).listen(_onFix);
 

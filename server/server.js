@@ -1151,7 +1151,7 @@ io.on('connection', (socket) => {
             lastPos.set(id, now);
         }
         publish(id, { lat, lng, acc, fixTs, online: true, ts: now, posSrc: null });
-        geofence.position(id, lat, lng, { acc, ts: now });
+        geofence.position(id, lat, lng, { acc, ts: now, fixTs: Number.isFinite(d?.fixTs) ? fixTs : null });   // fixTs: only a fix the camera really made counts, not its repeats
         if (d.battery !== undefined) battery.set(id, { battery: d.battery, charging: d.charging });
     });
 

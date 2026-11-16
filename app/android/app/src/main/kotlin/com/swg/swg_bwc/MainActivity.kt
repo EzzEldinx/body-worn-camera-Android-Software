@@ -270,6 +270,7 @@ class MainActivity : FlutterActivity() {
 
         registerLolaageReceiver()
         Kiosk.applyHome(this) // provisioned cameras: become the Home app so Android restarts us after updates
+        Kiosk.grantLocation(this) // and may use the GPS all the time, screen on or off
     }
 
     private fun registerLolaageReceiver() {
