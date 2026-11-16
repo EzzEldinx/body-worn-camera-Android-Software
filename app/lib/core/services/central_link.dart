@@ -369,6 +369,11 @@ class CentralLink {
   }
 
   Timer? _gpsRetry;
+  Timer? _assistTimer;
+
+  Future<void> _assistGps() async {
+    try { await _device.invokeMethod('gpsAssist'); } catch (_) {}
+  }
 
   // Location can be switched off (or the permission missing) when the app starts, e.g. a camera whose location
   // setting was never enabled. Before, that meant no position until the next reboot; now we keep trying.
@@ -407,6 +412,12 @@ class CentralLink {
         ),
       ),
     ).listen(_onFix);
+
+    // The chip's clock is wrong after a long time without a fix: give it the time and the assistance data now, and again every few minutes
+    // while there is still no fix (a camera that sat on a dock indoors needed 10-30 minutes to get its first fix without this).
+    _assistGps();
+    _assistTimer?.cancel();
+    _assistTimer = Timer.periodic(const Duration(minutes: 3), (_) { if (!gpsFix.value) _assistGps(); });
 
     _heartbeat?.cancel();
     _heartbeat = Timer.periodic(const Duration(seconds: 10), (_) {
@@ -475,6 +486,7 @@ class CentralLink {
     _gpsRetry?.cancel();
     _heartbeat?.cancel();
     _batTimer?.cancel();
+    _assistTimer?.cancel();
     _gpsSub?.cancel();
     _socket?.dispose();
     _msgs.close();
