@@ -106,6 +106,10 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .lic-chip{white-space:nowrap;padding:7px 13px;border-radius:99px;font-size:12.5px;font-weight:800;text-decoration:none;color:var(--text);background:color-mix(in srgb,var(--sel) 24%,var(--panel));border:1px solid color-mix(in srgb,var(--sel) 55%,var(--line))}
 .lic-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:900px){.lic-long{display:none}.lic-chip{padding:5px 9px;font-size:11px}}
+.gpsc{display:inline-block;margin-inline-start:4px;padding:0 6px;border-radius:99px;font-size:10.5px;font-weight:700;line-height:16px;white-space:nowrap;border:1px solid var(--line);color:var(--mut);background:var(--raise)}
+.gpsc.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 50%,var(--line))}
+.gpsc.warn{color:var(--accent-text);border-color:color-mix(in srgb,var(--sel) 60%,var(--line))}
+.gpsc.bad{color:var(--rec);border-color:color-mix(in srgb,var(--rec) 50%,var(--line))}
 .lic-chip.ok{position:fixed;left:12px;bottom:3px;z-index:6;padding:0;border:0;background:none;font-size:10.5px;font-weight:400;color:var(--mut);opacity:.6;pointer-events:none}
 @media (max-width:900px){.lic-chip.ok{display:none!important}}
 .lic-chip.bad{background:color-mix(in srgb,var(--rec) 22%,var(--panel));border-color:color-mix(in srgb,var(--rec) 55%,var(--line))}
@@ -731,6 +735,16 @@ function renderList() {
     };
     $('#regions').innerHTML = tab('all', t('all')) + names.map((n) => tab(n, n)).join('') + (hasNone && names.length ? tab('_none', currentLang === 'ar' ? 'بدون منطقة' : 'No region') : '');
 
+    // Where a camera's position comes from, and whether it can be trusted: live GPS of its own, the docking station's place, or lost.
+    const gpsChip = (c) => {
+      const ar = currentLang === 'ar', age = c.fixTs ? Date.now() - c.fixTs : null;
+      let cls, txt, tip;
+      if (c.lat == null) { cls = 'bad'; txt = ar ? 'لا GPS' : 'No GPS'; tip = ar ? 'لم تُرسل هذه الكاميرا موقعاً أبداً' : 'This camera has never sent a position'; }
+      else if (c.posSrc === 'dock') { cls = 'dock'; txt = ar ? 'موقع القاعدة' : 'Dock location'; tip = ar ? 'على محطة الإرساء: الموقع هو موقع المحطة وليس GPS الكاميرا' : 'On the docking station: this is the dock\'s place, not the camera\'s own GPS'; }
+      else if (age !== null && age < 120000) { cls = 'ok'; txt = 'GPS' + (c.acc ? ' ±' + Math.round(c.acc) + (ar ? ' م' : ' m') : ''); tip = ar ? 'GPS حي من الكاميرا' : 'Live GPS from the camera'; }
+      else { cls = 'warn'; txt = (ar ? 'GPS مفقود · ' : 'GPS lost · ') + (age === null ? '' : agoShort(c.fixTs)); tip = ar ? 'لا يوجد تحديد موقع حديث. هذا آخر موقع معروف' : 'No recent GPS fix. This is the last known position'; }
+      return `<span class="gpsc ${cls}" title="${esc(tip)}">${txt}</span>`;
+    };
     const card = (c) => {
       const resolved = resolveCameraId(c.cameraId);
       const unreadCount = unreadChats[c.cameraId] || unreadChats[resolved] || 0;
@@ -738,7 +752,7 @@ function renderList() {
       <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''} ${battLow(c) ? 'lowbat' : ''}" data-id="${c.cameraId}" tabindex="0" draggable="true">
         <span class="dot"></span>
         <div class="meta"><b>${esc(getOfficerLabel(c.cameraId))}</b>
-          <small>${c.region ? esc(c.region) + ', ' : ''}${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
+          <small>${c.region ? esc(c.region) + ', ' : ''}${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span> ${gpsChip(c)}</small></div>
         ${unreadCount > 0 ? `<span class="badge" style="background:var(--rec); margin-right:4px;">${unreadCount}</span>` : ''}
         ${c.battery != null ? `<span class="batt ${battLow(c) ? 'low' : ''} ${c.charging ? 'chg' : ''}" title="${esc(t('battery') + ': ' + battNote(c))}">${battTxt(c)}</span>` : ''}
         ${c.recording ? '<span class="badge">REC</span>' : ''}
