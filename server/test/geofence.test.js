@@ -252,3 +252,69 @@ test('an impossible jump (a cold GPS chip reporting a place 30 km away) is not j
     r.step(3000); r.geo.position('A', far.lat, far.lng, { acc: 5, ts: r.t.now }); r.step(20000); r.geo.position('A', far.lat, far.lng, { acc: 5, ts: r.t.now });
     assert.equal(r.sent.length, 1, 'a place that lasts is accepted after a run of 8');
 });
+
+test('per camera: one zone, one camera allowed, another forbidden, another left out, another with a checkpoint of its own', () => {
+    const r = rig({ cams: { C: { cameraId: 'C', companyId: 1, online: true }, D: { cameraId: 'D', companyId: 1, online: true } } });
+    const { zone } = r.geo.add({ ...zoneBody({ name: 'Yard' }), overrides: {
+        B: { mode: 'forbidden' },                       // A follows the zone (allowed: alert when it leaves), B must never enter
+        C: { mode: 'off' },                             // C is not watched here at all
+        D: { mode: 'checkpoint', everyMin: 30 },        // D must pass by every 30 minutes
+    } }, r.owner);
+    assert.deepEqual(zone.overrides.B, { mode: 'forbidden' }); assert.equal(zone.overrides.D.everyMin, 30);
+    // A: leaving alerts, entering does not
+    r.walk('A', at(10, 0)); r.walk('A', at(400, 0));
+    assert.deepEqual(r.sent.map((a) => a.kind + ':' + a.cameraId), ['geo_exit:A']);
+    // B: staying outside is fine, entering alerts, leaving again clears it (and leaving is not an alert for B)
+    r.walk('B', at(400, 0)); r.walk('B', at(10, 0));
+    assert.deepEqual(r.sent.map((a) => a.kind + ':' + a.cameraId), ['geo_exit:A', 'geo_enter:B']);
+    r.walk('B', at(400, 0));
+    assert.equal(r.sent.length, 2, 'B leaving is not an alert');
+    assert.equal(r.resolved.filter((x) => x.cameraId === 'B').length, 1);
+    // C: left out
+    r.walk('C', at(10, 0)); r.walk('C', at(400, 0)); r.walk('C', at(10, 0));
+    assert.ok(!r.sent.some((a) => a.cameraId === 'C'));
+    // D: a missed round, not an exit
+    r.walk('D', at(400, 0)); r.cams.get('D').onlineSince = r.t.now;
+    r.step(40 * 60000); r.geo.sweep(r.t.now);
+    assert.ok(r.sent.some((a) => a.kind === 'checkpoint_missed' && a.cameraId === 'D'));
+    assert.ok(!r.sent.some((a) => a.kind === 'geo_exit' && a.cameraId === 'D'));
+});
+
+test('per camera: a camera outside the zone\'s "which cameras" can still get a rule of its own, and its own urgency and hours', () => {
+    const r = rig();
+    r.geo.add({ ...zoneBody({ name: 'Gate', scope: { type: 'cameras', ids: ['A'] } }), overrides: {
+        B: { mode: 'allowed', severity: 'critical' },                               // not in the scope, but watched, and urgent
+        A: { mode: 'inherit', schedule: { days: [0], from: '23:00', to: '23:30' } }, // A follows the zone but only on Sundays at night: never now
+    } }, r.owner);
+    r.walk('A', at(10, 0)); r.walk('A', at(400, 0));
+    assert.equal(r.sent.filter((a) => a.cameraId === 'A').length, 0, 'A has its own hours, and it is not them');
+    r.walk('B', at(10, 0)); r.walk('B', at(400, 0));
+    const b = r.sent.find((a) => a.cameraId === 'B');
+    assert.ok(b && b.kind === 'geo_exit' && b.level === 'critical', 'B: its own rule and its own urgency');
+});
+
+test('per camera: a zone with no rule of its own needs at least one camera with a rule', () => {
+    assert.match(g.clean({ ...zoneBody(), onExit: false, onEnter: false }).error, /own/);
+    assert.ok(g.clean({ ...zoneBody(), onExit: false, onEnter: false, overrides: { B: { mode: 'forbidden' } } }).value);
+    assert.match(g.clean({ ...zoneBody(), overrides: { B: { mode: 'checkpoint', everyMin: 2 } } }).error, /5 to 720/);
+    assert.match(g.clean({ ...zoneBody(), overrides: { B: { mode: 'both', schedule: { days: [], from: '08:00', to: '10:00' } } } }).error, /day/);
+    assert.match(g.clean({ ...zoneBody(), overrides: { B: { mode: 'both', schedule: { days: [1], from: '08:00' } } } }).error, /both the start and the end/);
+    assert.match(g.clean({ ...zoneBody(), overrides: [] }).error, /not valid/);
+    const ok = g.clean({ ...zoneBody(), overrides: { B: { mode: 'weird' }, C: { mode: 'inherit' }, D: { mode: 'off' } } }).value;
+    assert.deepEqual(Object.keys(ok.overrides), ['D'], 'an unknown mode and "same as the zone" with nothing of its own are dropped');
+});
+
+test('per camera: stored, listed, edited; cameras of other companies and unknown cameras are dropped; status names the rule', () => {
+    const r = rig();
+    const { zone } = r.geo.add({ ...zoneBody({ name: 'Mixed' }), overrides: { B: { mode: 'forbidden', severity: 'critical' }, X: { mode: 'forbidden' }, GHOST: { mode: 'off' } } }, r.owner);
+    assert.deepEqual(Object.keys(zone.overrides), ['B'], 'X belongs to another company and GHOST does not exist');
+    assert.deepEqual(r.geo.list({ staff: false, companyId: 1 })[0].overrides.B, { mode: 'forbidden', severity: 'critical' });
+    const up = r.geo.update(zone.id, { overrides: { B: { mode: 'off' }, A: { mode: 'both' } } }, { username: 'boss' });
+    assert.deepEqual(Object.keys(up.zone.overrides).sort(), ['A', 'B']);
+    r.cams.get('A').fixTs = r.t.now; r.cams.get('B').fixTs = r.t.now;
+    const rows = r.geo.status(zone.id, () => true).cameras;
+    assert.equal(rows.find((c) => c.cameraId === 'A').rule, 'both');
+    assert.equal(rows.find((c) => c.cameraId === 'B').why, 'excluded');
+    assert.ok(!rows.some((c) => c.cameraId === 'X'));
+    assert.equal(r.geo.update(zone.id, { name: 'Renamed' }, { username: 'boss' }).zone.overrides.A.mode, 'both', 'a rename keeps the per-camera settings');
+});

@@ -3,19 +3,20 @@
 (function () {
   'use strict';
   const L = (en, ar) => (currentLang === 'ar' ? ar : en);
-  const KIND_COLOR = { allowed: '#00B87C', forbidden: '#FF3355', both: '#FFB300', checkpoint: '#2F7BFF', off: '#9AA8BD' };
+  const KIND_COLOR = { allowed: '#00B87C', forbidden: '#FF3355', both: '#FFB300', checkpoint: '#2F7BFF', none: '#9AA8BD', off: '#9AA8BD' };
   const DAYS = [[0, 'Sun', 'أحد'], [1, 'Mon', 'إثنين'], [2, 'Tue', 'ثلاثاء'], [3, 'Wed', 'أربعاء'], [4, 'Thu', 'خميس'], [5, 'Fri', 'جمعة'], [6, 'Sat', 'سبت']];
   const state = { open: null, status: null, zones: [], canEdit: false, history: [], panel: false, draw: null, ready: false, labels: new Map() };
   const $ = (s, r = document) => r.querySelector(s);
   const el = (html) => { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; };
 
-  const typeOf = (z) => (z.kind === 'checkpoint' ? 'checkpoint' : z.onExit && z.onEnter ? 'both' : z.onEnter ? 'forbidden' : 'allowed');
+  const typeOf = (z) => (z.kind === 'checkpoint' ? 'checkpoint' : z.onExit && z.onEnter ? 'both' : z.onEnter ? 'forbidden' : z.onExit ? 'allowed' : 'none');
   const colorOf = (z) => (z.active ? KIND_COLOR[typeOf(z)] : KIND_COLOR.off);
   const TYPE_TXT = {
     allowed: () => [L('Allowed area', 'منطقة مسموحة'), L('Alert when a camera leaves it', 'تنبيه عند خروج الكاميرا منها')],
     forbidden: () => [L('Forbidden area', 'منطقة ممنوعة'), L('Alert when a camera enters it', 'تنبيه عند دخول الكاميرا إليها')],
     both: () => [L('Both ways', 'الاتجاهان'), L('Alert on leaving and on entering', 'تنبيه عند الخروج وعند الدخول')],
     checkpoint: () => [L('Checkpoint', 'نقطة مرور'), L('A camera must pass by on a round', 'يجب أن تمر الكاميرا بها في الجولة')],
+    none: () => [L('No default rule', 'بدون قاعدة افتراضية'), L('Only the cameras I set below', 'فقط الكاميرات التي أحددها أدناه')],
   };
   const hasZoneAlert = (z) => (typeof alerts !== 'undefined' ? alerts : []).some((a) => a.zoneId === z.id && !a.ack);
 
@@ -154,7 +155,7 @@
     const rule = z.kind === 'checkpoint' ? L(`every ${z.everyMin} min`, `كل ${z.everyMin} دقيقة`) : tt;
     return `<div class="geo-z ${z.active ? '' : 'off'}" data-z="${z.id}"><span class="dot" style="background:${color}"></span><b>${esc(z.name)}</b>
       <span class="acts">${state.canEdit ? `<button class="geo-ic" data-act="edit" title="${L('Edit', 'تعديل')}">${IC_EDIT}</button><button class="geo-ic" data-act="del" title="${L('Delete', 'حذف')}">${IC_DEL}</button>` : `<button class="geo-ic" data-act="show" title="${L('Show on the map', 'عرض على الخريطة')}">${IC_EYE}</button>`}</span>
-      <small>${esc(rule)} · ${esc(whoTxt(z))}<br>${esc(whenTxt(z))}${z.active ? '' : ' · ' + L('switched off', 'متوقفة')}</small></div>`;
+      <small>${esc(rule)} · ${esc(whoTxt(z))}${Object.keys(z.overrides || {}).length ? ' · ' + L(`${Object.keys(z.overrides).length} with their own settings`, `${Object.keys(z.overrides).length} بإعدادات خاصة`) : ''}<br>${esc(whenTxt(z))}${z.active ? '' : ' · ' + L('switched off', 'متوقفة')}</small></div>`;
   }
   const evText = (a) => {
     const cam = (typeof cams !== 'undefined' && cams.get(a.cameraId)), who = esc(cam?.name || a.cameraId);
@@ -172,6 +173,7 @@
     watching: ['Being watched', 'تحت المراقبة', 'ok'],
     visited: ['Has visited the checkpoint', 'زارت نقطة المرور', 'ok'],
     not_visited: ['Has not visited the checkpoint yet', 'لم تزر نقطة المرور بعد', 'warn'],
+    excluded: ['Switched off for this camera in this zone', 'متوقفة لهذه الكاميرا في هذه المنطقة', 'off'],
   };
   const STATE_TXT = { inside: ['inside', 'داخل'], outside: ['outside', 'خارج'], unknown: ['unknown', 'غير معروف'] };
   function statusHtml(z) {
@@ -181,7 +183,7 @@
     return `<div class="geo-st">${st.cameras.map((c) => {
       const w = WHY[c.why] || [c.why, c.why, 'off'];
       const age = c.ageSec == null ? '' : c.ageSec < 120 ? '' : ' · ' + (c.ageSec >= 3600 ? Math.floor(c.ageSec / 3600) + L(' h', ' س') : Math.floor(c.ageSec / 60) + L(' min', ' د')) + L(' since its last fix', ' منذ آخر موقع');
-      return `<div class="geo-sr ${w[2]}"><b>${esc(c.name)}</b> <span>${STATE_TXT[c.state][currentLang === 'ar' ? 1 : 0]}${c.alert ? ' · ⚠' : ''}</span><small>${L(w[0], w[1])}${age}</small></div>`;
+      return `<div class="geo-sr ${w[2]}"><b>${esc(c.name)}</b> <span>${STATE_TXT[c.state][currentLang === 'ar' ? 1 : 0]}${c.alert ? ' · ⚠' : ''}${c.rule && c.rule !== 'off' ? ' · ' + TYPE_TXT[c.rule]()[0] + (c.custom ? ' ★' : '') : ''}</span><small>${L(w[0], w[1])}${age}</small></div>`;
     }).join('')}</div>`;
   }
   async function loadStatus(id) {
@@ -282,6 +284,12 @@
     name: z?.name || '', type: z ? typeOf(z) : 'allowed', everyMin: z?.everyMin || 30, severity: z?.severity || 'warning', active: z ? z.active : true,
     scopeType: z?.scope.type || 'all', scopeIds: z?.scope.ids ? [...z.scope.ids] : [], allDay: z ? !(z.from && z.to) && z.days.length === 7 : true,
     days: z ? [...z.days] : [0, 1, 2, 3, 4, 5, 6], from: z?.from || '08:00', to: z?.to || '18:00', companyId: z ? z.companyId : (me.staff ? undefined : me.companyId),
+    over: Object.fromEntries(Object.entries(z?.overrides || {}).map(([cid, e]) => [cid, {
+      mode: e.mode, severity: e.severity || '', everyMin: e.everyMin || '', custom: !!e.schedule, allDay: e.schedule ? !(e.schedule.from && e.schedule.to) : true,
+      days: e.schedule ? [...e.schedule.days] : [0, 1, 2, 3, 4, 5, 6], from: e.schedule?.from || '08:00', to: e.schedule?.to || '18:00',
+      open: !!(e.severity || e.everyMin || e.schedule),
+    }])),
+    ovQ: '',
   });
   function openForm(zone, form, shape) {
     state.form = { zone, f: form || draftOf(zone), shape: shape || zone?.shape };
@@ -300,6 +308,81 @@
     if (f.scopeType === 'regions') return [...new Set([...(typeof regionList !== 'undefined' ? regionList : []), ...mine.map((c) => c.region).filter(Boolean)])].sort().map((g) => [g, g]);
     return [];
   }
+  /* ---------- per camera: each camera can have its own rule, urgency, checkpoint interval and hours ---------- */
+  const OVER_MODES = () => [['inherit', L('Same as the zone', 'نفس المنطقة')], ['allowed', L('Allowed area (alert when it leaves)', 'منطقة مسموحة (تنبيه عند الخروج)')], ['forbidden', L('Forbidden area (alert when it enters)', 'منطقة ممنوعة (تنبيه عند الدخول)')], ['both', L('Both ways', 'الاتجاهان')], ['checkpoint', L('Checkpoint', 'نقطة مرور')], ['off', L('Not watched here', 'غير مراقبة هنا')]];
+  const ovOf = (f, cid) => f.over[cid] || (f.over[cid] = { mode: 'inherit', severity: '', everyMin: '', custom: false, allDay: true, days: [0, 1, 2, 3, 4, 5, 6], from: '08:00', to: '18:00', open: false });
+  const formCompany = (f) => (f.companyId === undefined ? null : f.companyId);
+  const formCams = (f) => [...cams.values()].filter((c) => (c.companyId ?? null) === formCompany(f)).sort((a, b) => String(a.name || a.cameraId).localeCompare(String(b.name || b.cameraId)));
+  const inScope = (f, c) => f.scopeType === 'all' || (f.scopeType === 'cameras' && f.scopeIds.includes(c.cameraId)) || (f.scopeType === 'groups' && !!c.grp && f.scopeIds.includes(c.grp)) || (f.scopeType === 'regions' && !!c.region && f.scopeIds.includes(c.region));
+  function ovSummary(f, c, o) {
+    if (o.mode === 'off') return L('Not watched in this zone', 'غير مراقبة في هذه المنطقة');
+    if (o.mode !== 'inherit') return TYPE_TXT[o.mode]()[0];
+    if (f.type === 'none' || !inScope(f, c)) return L('Not in this zone', 'ليست ضمن هذه المنطقة');
+    return L('Follows the zone: ', 'تتبع المنطقة: ') + TYPE_TXT[f.type]()[0];
+  }
+  function ovRow(f, c) {
+    const o = ovOf(f, c.cameraId), color = o.mode === 'off' || (o.mode === 'inherit' && (f.type === 'none' || !inScope(f, c))) ? KIND_COLOR.off : KIND_COLOR[o.mode === 'inherit' ? f.type : o.mode];
+    const own = o.mode !== 'inherit' || o.severity || o.custom || o.everyMin !== '';
+    const isCp = o.mode === 'checkpoint' || (o.mode === 'inherit' && f.type === 'checkpoint');
+    const details = !o.open || o.mode === 'off' ? '' : `<div class="geo-ovd">
+      <div class="ovl">${L('Urgency', 'الأهمية')}</div><div class="geo-days"><button type="button" data-ovsev="" class="${o.severity === '' ? 'on' : ''}" style="width:auto;padding:0 10px">${L('Same as zone', 'نفس المنطقة')}</button><button type="button" data-ovsev="warning" class="${o.severity === 'warning' ? 'on' : ''}" style="width:auto;padding:0 10px">${L('Normal', 'عادي')}</button><button type="button" data-ovsev="critical" class="${o.severity === 'critical' ? 'on' : ''}" style="width:auto;padding:0 10px">${L('Urgent (red)', 'عاجل (أحمر)')}</button></div>
+      ${isCp ? `<div class="ovl">${L('Must pass by every', 'يجب أن تمر كل')}</div><div class="geo-row"><input class="in" data-ovevery type="number" min="5" max="720" step="5" placeholder="${L('as the zone', 'مثل المنطقة')}" style="margin-top:0;width:120px" value="${esc(o.everyMin)}"> <span>${L('minutes', 'دقيقة')}</span></div>` : ''}
+      <div class="ovl">${L('When', 'متى')}</div><div class="geo-days"><button type="button" data-ovsch="0" class="${o.custom ? '' : 'on'}" style="width:auto;padding:0 10px">${L('Same as zone', 'نفس المنطقة')}</button><button type="button" data-ovsch="1" class="${o.custom ? 'on' : ''}" style="width:auto;padding:0 10px">${L('Its own hours', 'ساعات خاصة')}</button></div>
+      ${o.custom ? `<div class="geo-days" style="margin:6px 0">${DAYS.map((d) => `<button type="button" data-ovd="${d[0]}" class="${o.days.includes(d[0]) ? 'on' : ''}">${L(d[1], d[2])}</button>`).join('')}</div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" data-ovall ${o.allDay ? 'checked' : ''}> ${L('All day on those days', 'طوال اليوم في هذه الأيام')}</label>
+        ${o.allDay ? '' : `<div class="geo-row" style="margin-top:6px"><span>${L('From', 'من')}</span><input class="in" data-ovfrom type="time" style="margin-top:0;width:120px" value="${o.from}"><span>${L('to', 'إلى')}</span><input class="in" data-ovto type="time" style="margin-top:0;width:120px" value="${o.to}"></div>`}` : ''}
+    </div>`;
+    return `<div class="geo-ov ${own ? 'own' : ''}" data-cid="${esc(c.cameraId)}" style="--c:${color}"><div class="geo-ovh"><span class="dot" style="background:${color}"></span><div class="nm"><b>${esc(c.name || c.cameraId)}</b><small>${esc(ovSummary(f, c, o))}</small></div>
+      <select class="in" data-ovmode style="margin-top:0">${OVER_MODES().map(([v, t]) => `<option value="${v}" ${o.mode === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+      ${o.mode === 'off' ? '' : `<button type="button" class="geo-ic" data-ovmore title="${L('Urgency, interval and hours of this camera', 'أهمية وفترة وساعات هذه الكاميرا')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="8" cy="18" r="2" fill="currentColor"/></svg></button>`}</div>${details}</div>`;
+  }
+  const OV_SHOW = 60;
+  function renderOvList() {
+    const box = modal.querySelector('#gfOvList'); if (!box || !state.form) return;
+    const f = state.form.f, q = (f.ovQ || '').trim().toLowerCase();
+    const all = formCams(f), hit = q ? all.filter((c) => (String(c.name || '') + ' ' + c.cameraId).toLowerCase().includes(q)) : all;
+    const own = all.filter((c) => { const o = f.over[c.cameraId]; return o && (o.mode !== 'inherit' || o.severity || o.custom || o.everyMin !== ''); });
+    // cameras with settings of their own stay on top, the rest in name order
+    const rows = q ? hit : [...own, ...all.filter((c) => !own.includes(c))];
+    box.innerHTML = rows.length
+      ? rows.slice(0, OV_SHOW).map((c) => ovRow(f, c)).join('') + (rows.length > OV_SHOW ? `<div class="geo-hint" style="padding:6px 4px">${L(`Showing ${OV_SHOW} of ${rows.length}. Type a name to find a camera.`, `عرض ${OV_SHOW} من ${rows.length}. اكتب اسماً للبحث عن كاميرا.`)}</div>` : '')
+      : `<div class="geo-hint" style="padding:6px 4px">${all.length ? L('No camera matches.', 'لا توجد كاميرا مطابقة.') : L('This company has no cameras yet.', 'لا توجد كاميرات لهذه الشركة بعد.')}</div>`;
+  }
+  function onOvChange(e) {
+    const f = state.form?.f, row = e.target.closest('.geo-ov'); if (!f || !row) return;
+    const o = ovOf(f, row.dataset.cid), t = e.target;
+    if (t.matches('[data-ovmode]')) { o.mode = t.value; if (o.mode === 'checkpoint') o.open = true; if (o.mode === 'off') o.open = false; renderOvList(); }
+    else if (t.matches('[data-ovevery]')) o.everyMin = t.value;
+    else if (t.matches('[data-ovfrom]')) o.from = t.value;
+    else if (t.matches('[data-ovto]')) o.to = t.value;
+    else if (t.matches('[data-ovall]')) { o.allDay = t.checked; renderOvList(); }
+  }
+  function onOvClick(e) {
+    const f = state.form?.f, row = e.target.closest('.geo-ov'); if (!f || !row) return;
+    const o = ovOf(f, row.dataset.cid), b = e.target.closest('button'); if (!b) return;
+    if (b.matches('[data-ovmore]')) o.open = !o.open;
+    else if (b.hasAttribute('data-ovsev')) o.severity = b.dataset.ovsev;
+    else if (b.hasAttribute('data-ovsch')) o.custom = b.dataset.ovsch === '1';
+    else if (b.hasAttribute('data-ovd')) { const d = +b.dataset.ovd; o.days = o.days.includes(d) ? o.days.filter((x) => x !== d) : [...o.days, d]; }
+    else return;
+    e.stopPropagation(); renderOvList();
+  }
+  /** The per-camera settings as the server wants them: only cameras that differ from the zone. */
+  function overridesBody(f) {
+    const out = {};
+    for (const [cid, o] of Object.entries(f.over)) {
+      const e = { mode: o.mode };
+      if (o.mode !== 'off') {
+        if (o.severity) e.severity = o.severity;
+        if (o.everyMin !== '' && o.everyMin != null && (o.mode === 'checkpoint' || (o.mode === 'inherit' && f.type === 'checkpoint'))) e.everyMin = Number(o.everyMin);
+        if (o.custom) e.schedule = { days: o.days, from: o.allDay ? null : o.from, to: o.allDay ? null : o.to };
+      }
+      if (e.mode === 'inherit' && !e.severity && e.everyMin === undefined && !e.schedule) continue;
+      out[cid] = e;
+    }
+    return out;
+  }
+
   function renderForm() {
     const { zone, f, shape } = state.form;
     const staffPick = me.staff && !zone;
@@ -312,7 +395,7 @@
       <h3>${zone ? L('Edit zone', 'تعديل المنطقة') : L('New zone', 'منطقة جديدة')}</h3>
       <div class="gf"><label class="l">${L('Name', 'الاسم')}</label><input class="in" id="gfName" maxlength="60" style="margin-top:0" value="${esc(f.name)}" placeholder="${L('e.g. Main gate', 'مثال: البوابة الرئيسية')}"></div>
       ${staffPick ? `<div class="gf"><label class="l">${L('Company', 'الشركة')}</label><select class="in" id="gfCo" style="margin-top:0"><option value="">${L('Smart Way (no company)', 'سمارت واي (بدون شركة)')}</option>${companies.map((c) => `<option value="${c.id}" ${f.companyId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>` : ''}
-      <div class="gf"><label class="l">${L('What should raise an alert?', 'ما الذي يسبب التنبيه؟')}</label><div class="geo-types">${['allowed', 'forbidden', 'both', 'checkpoint'].map((k) => typeCard(k, f.type === k)).join('')}</div></div>
+      <div class="gf"><label class="l">${L('What should raise an alert?', 'ما الذي يسبب التنبيه؟')}</label><div class="geo-types">${['allowed', 'forbidden', 'both', 'checkpoint', 'none'].map((k) => typeCard(k, f.type === k)).join('')}</div></div>
       ${f.type === 'checkpoint' ? `<div class="gf"><label class="l">${L('A camera must pass by at least every', 'يجب أن تمر الكاميرا على الأقل كل')}</label><div class="geo-row"><input class="in" id="gfEvery" type="number" min="5" max="720" step="5" style="margin-top:0;width:110px" value="${f.everyMin}"> <span>${L('minutes', 'دقيقة')}</span></div><div class="geo-hint">${L('Counted only while the schedule below is on and the camera is online.', 'يُحسب فقط أثناء الجدول أدناه وعندما تكون الكاميرا متصلة.')}</div></div>` : ''}
       ${shape?.type === 'circle' ? `<div class="gf"><label class="l">${L('Radius (metres)', 'نصف القطر (متر)')}</label><input class="in" id="gfR" type="number" min="10" max="50000" step="5" style="margin-top:0;width:140px" value="${shape.r}"></div>` : `<div class="gf"><div class="geo-hint">${L(`Polygon with ${shape?.pts.length || 0} corners.`, `مضلع بـ ${shape?.pts.length || 0} زوايا.`)}</div></div>`}
       <div class="gf"><label class="l">${L('Urgency', 'الأهمية')}</label><div class="geo-row"><div class="geo-days" id="gfSev"><button type="button" data-sev="warning" class="${f.severity === 'warning' ? 'on' : ''}" style="width:auto;padding:0 14px">${L('Normal', 'عادي')}</button><button type="button" data-sev="critical" class="${f.severity === 'critical' ? 'on' : ''}" style="width:auto;padding:0 14px">${L('Urgent (red)', 'عاجل (أحمر)')}</button></div></div></div>
@@ -323,13 +406,20 @@
         <div class="geo-row"><span>${L('From', 'من')}</span><input class="in" id="gfFrom" type="time" style="margin-top:0;width:130px" value="${f.from}"><span>${L('to', 'إلى')}</span><input class="in" id="gfTo" type="time" style="margin-top:0;width:130px" value="${f.to}"></div>
         <div class="geo-hint">${L('A window that ends before it starts (22:00 to 06:00) runs overnight.', 'إذا كانت النهاية قبل البداية (٢٢:٠٠ إلى ٠٦:٠٠) فالفترة تمتد لليوم التالي.')}</div>`}
       </div>
+      <div class="gf"><label class="l">${L('Each camera on its own', 'كل كاميرا على حدة')}</label>
+        <div class="geo-hint" style="margin:0 0 6px">${L('Give one camera its own rule (for example allowed for one, forbidden for another), its own urgency, checkpoint interval and hours. Cameras left on "Same as the zone" follow the settings above.', 'أعطِ كاميرا قاعدتها الخاصة (مثلاً مسموحة لكاميرا وممنوعة لأخرى)، وأهميتها وفترة المرور وساعاتها. الكاميرات التي تبقى على "نفس المنطقة" تتبع الإعدادات أعلاه.')}</div>
+        <input class="in" id="gfOvQ" type="search" placeholder="${L('Find a camera…', 'ابحث عن كاميرا…')}" style="margin-top:0;margin-bottom:6px" value="${esc(f.ovQ || '')}">
+        <div class="geo-ovlist" id="gfOvList"></div></div>
       ${zone ? `<div class="gf"><label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="gfActive" ${f.active ? 'checked' : ''}> ${L('Zone is switched on', 'المنطقة مفعّلة')}</label></div>` : ''}
       <div class="geo-err" id="gfErr"></div>
       <div class="geo-foot">${zone ? `<button class="btn" data-a="redraw" style="flex:none">${L('Redraw the shape', 'إعادة رسم الشكل')}</button>` : ''}<span style="flex:1"></span><button class="btn" data-a="cancel" style="flex:none">${L('Cancel', 'إلغاء')}</button><button class="btn pri" data-a="save" style="flex:none">${L('Save', 'حفظ')}</button></div></div>`;
     modal.querySelector('.geo-card').onclick = onFormClick;
     modal.querySelector('#gfScope').onchange = (e) => { read(); state.form.f.scopeType = e.target.value; state.form.f.scopeIds = []; renderForm(); };
     modal.querySelector('#gfAll').onchange = (e) => { read(); state.form.f.allDay = e.target.checked; renderForm(); };
-    const co = modal.querySelector('#gfCo'); if (co) co.onchange = () => { read(); state.form.f.scopeIds = []; renderForm(); };
+    const co = modal.querySelector('#gfCo'); if (co) co.onchange = () => { read(); state.form.f.scopeIds = []; state.form.f.over = {}; renderForm(); };
+    const ovl = modal.querySelector('#gfOvList'); ovl.onchange = onOvChange; ovl.onclick = onOvClick;
+    modal.querySelector('#gfOvQ').oninput = (e) => { state.form.f.ovQ = e.target.value; renderOvList(); };
+    renderOvList();
     (modal.querySelector('#gfName') || {}).onkeydown = (e) => { if (e.key === 'Enter') save(); };
   }
   function read() {   // the fields -> state.form.f (called before a redraw and before saving)
@@ -357,7 +447,7 @@
     read();
     const { zone, f, shape } = state.form, err = modal.querySelector('#gfErr');
     const body = {
-      name: f.name, kind: f.type === 'checkpoint' ? 'checkpoint' : 'zone', shape,
+      name: f.name, kind: f.type === 'checkpoint' ? 'checkpoint' : 'zone', shape, overrides: overridesBody(f),
       onExit: f.type === 'allowed' || f.type === 'both', onEnter: f.type === 'forbidden' || f.type === 'both', everyMin: f.type === 'checkpoint' ? f.everyMin : undefined,
       severity: f.severity, scope: { type: f.scopeType, ids: f.scopeIds },
       days: f.allDay ? [0, 1, 2, 3, 4, 5, 6] : f.days, from: f.allDay ? null : f.from, to: f.allDay ? null : f.to, active: f.active,

@@ -19,6 +19,7 @@ const SWEEP_MS = 15000;
 const MAX_SPEED_MS = Number(process.env.GEOFENCE_MAX_SPEED_MS) || 70;                                                    // m/s (250 km/h): a faster jump between two fixes is a GPS glitch
 const MAX_ZONES = 200, MAX_POINTS = 100, MAX_SCOPE = 500;
 const KINDS = ['zone', 'checkpoint'];
+const MODES = ['inherit', 'off', 'allowed', 'forbidden', 'both', 'checkpoint'];   // what one camera can be told in a zone: follow the zone, be left out, or have its own rule
 const ALERT_KINDS = ['geo_exit', 'geo_enter', 'checkpoint_missed'];
 const R_EARTH = 6371000;
 
@@ -111,6 +112,51 @@ function cleanScope(s) {
     if (ids.length > MAX_SCOPE) return { error: `At most ${MAX_SCOPE} entries.` };
     return { scope: { type, ids } };
 }
+/**
+ * Per-camera settings of a zone: { cameraId: { mode, severity?, everyMin?, schedule?: { days, from, to } } }.
+ *   mode      inherit (the zone's own rule, if the zone covers the camera) | off (this camera is not watched) | allowed | forbidden | both | checkpoint
+ *   severity  this camera's own urgency (normal / critical), else the zone's
+ *   everyMin  this camera's own checkpoint interval, else the zone's
+ *   schedule  this camera's own days and hours, else the zone's
+ * A camera with a rule of its own is watched even when the zone's "which cameras" does not include it.
+ */
+function cleanOverrides(o) {
+    if (o === undefined || o === null) return { overrides: {} };
+    if (typeof o !== 'object' || Array.isArray(o)) return { error: 'The per-camera settings are not valid.' };
+    const out = {}, keys = Object.keys(o);
+    if (keys.length > MAX_SCOPE) return { error: `Per-camera settings are limited to ${MAX_SCOPE} cameras.` };
+    for (const raw of keys) {
+        const id = String(raw).trim().slice(0, 80);
+        if (!id) continue;
+        const v = o[raw] && typeof o[raw] === 'object' ? o[raw] : {};
+        const e = { mode: MODES.includes(v.mode) ? v.mode : 'inherit' };
+        if (v.severity === 'critical' || v.severity === 'warning') e.severity = v.severity;
+        if (v.everyMin !== undefined && v.everyMin !== null && v.everyMin !== '') {
+            const n = num(v.everyMin, 5, 720);
+            if (n === null) return { error: `Camera ${id}: a checkpoint must be passed every 5 to 720 minutes.` };
+            e.everyMin = Math.round(n);
+        }
+        if (v.schedule && typeof v.schedule === 'object') {
+            const sc = v.schedule;
+            const days = Array.isArray(sc.days) ? sc.days.reduce((m, d) => (Number.isInteger(d) && d >= 0 && d <= 6 ? m | (1 << d) : m), 0) : 0;
+            if (!days) return { error: `Camera ${id}: choose at least one day for its own schedule.` };
+            const hasFrom = sc.from !== undefined && sc.from !== null && sc.from !== '', hasTo = sc.to !== undefined && sc.to !== null && sc.to !== '';
+            const fromMin = hasFrom ? minutesOf(sc.from) : null, toMin = hasTo ? minutesOf(sc.to) : null;
+            if ((hasFrom && fromMin === null) || (hasTo && toMin === null)) return { error: `Camera ${id}: times must look like 08:00.` };
+            if (hasFrom !== hasTo) return { error: `Camera ${id}: set both the start and the end time, or neither.` };
+            e.days = days; e.fromMin = fromMin; e.toMin = toMin;
+        }
+        if (e.mode === 'inherit' && e.severity === undefined && e.everyMin === undefined && e.days === undefined) continue;   // nothing of its own: the zone decides
+        out[id] = e;
+    }
+    return { overrides: out };
+}
+const publicOverrides = (ov = {}) => Object.fromEntries(Object.entries(ov).map(([id, e]) => [id, {
+    mode: e.mode, ...(e.severity ? { severity: e.severity } : {}), ...(e.everyMin ? { everyMin: e.everyMin } : {}),
+    ...(e.days != null ? { schedule: { days: [0, 1, 2, 3, 4, 5, 6].filter((d) => hasDay(e.days, d)), from: hhmm(e.fromMin), to: hhmm(e.toMin) } } : {}),
+}]));
+const hasRuleOverride = (ov) => Object.values(ov || {}).some((e) => e.mode !== 'inherit' && e.mode !== 'off');
+
 /** A request body -> the fields stored, or { error }. */
 function clean(b) {
     const name = String(b?.name ?? '').trim().slice(0, 60);
@@ -126,10 +172,12 @@ function clean(b) {
     if (hasFrom !== hasTo) return { error: 'Set both the start and the end time, or neither.' };
     const tz = b?.tz === undefined ? 180 : num(b.tz, -720, 840);
     if (tz === null) return { error: 'Unknown time zone.' };
-    const v = { name, kind, shape: sh.shape, scope: sc.scope, days, fromMin, toMin, tz: Math.round(tz), active: b?.active === false ? 0 : 1, severity: b?.severity === 'critical' ? 'critical' : 'warning' };
+    const ov = cleanOverrides(b?.overrides); if (ov.error) return ov;
+    const v = { name, kind, shape: sh.shape, scope: sc.scope, days, fromMin, toMin, tz: Math.round(tz), active: b?.active === false ? 0 : 1, severity: b?.severity === 'critical' ? 'critical' : 'warning', overrides: ov.overrides };
     if (kind === 'zone') {
         v.onExit = b?.onExit ? 1 : 0; v.onEnter = b?.onEnter ? 1 : 0;
-        if (!v.onExit && !v.onEnter) return { error: 'Choose when to alert: when a camera leaves, when it enters, or both.' };
+        // no rule for "the others" is fine when single cameras have rules of their own
+        if (!v.onExit && !v.onEnter && !hasRuleOverride(v.overrides)) return { error: 'Choose when to alert: when a camera leaves, when it enters, or both (or give single cameras a rule of their own).' };
         v.everyMin = null;
     } else {
         v.onExit = 0; v.onEnter = 0;
@@ -144,12 +192,13 @@ const rowToZone = (r) => ({
     id: r.id, companyId: r.company_id ?? null, name: r.name, kind: r.kind, shape: JSON.parse(r.shape), scope: JSON.parse(r.scope),
     onExit: !!r.on_exit, onEnter: !!r.on_enter, severity: r.severity, days: r.days, fromMin: r.from_min, toMin: r.to_min, tz: r.tz,
     everyMin: r.every_min, active: !!r.active, created: r.created, updated: r.updated, createdBy: r.created_by,
+    overrides: (() => { try { return JSON.parse(r.overrides || '{}'); } catch { return {}; } })(),
 });
 /** What the dashboard and the apps receive. */
 const publicZone = (z, extra = {}) => ({
     id: z.id, companyId: z.companyId, name: z.name, kind: z.kind, shape: z.shape, scope: z.scope, onExit: z.onExit, onEnter: z.onEnter, severity: z.severity,
     days: [0, 1, 2, 3, 4, 5, 6].filter((d) => hasDay(z.days, d)), from: hhmm(z.fromMin), to: hhmm(z.toMin), tz: z.tz, everyMin: z.everyMin, active: z.active,
-    created: z.created, updated: z.updated, createdBy: z.createdBy, ...extra,
+    created: z.created, updated: z.updated, createdBy: z.createdBy, overrides: publicOverrides(z.overrides), ...extra,
 });
 const applies = (z, cam) => {
     if ((z.companyId ?? null) !== (cam.companyId ?? null)) return false;
@@ -160,6 +209,22 @@ const applies = (z, cam) => {
     return !!cam.region && s.ids.includes(cam.region);
 };
 
+const MODE_RULE = { allowed: { kind: 'zone', onExit: true, onEnter: false }, forbidden: { kind: 'zone', onExit: false, onEnter: true }, both: { kind: 'zone', onExit: true, onEnter: true }, checkpoint: { kind: 'checkpoint', onExit: false, onEnter: false } };
+const baseMode = (z) => (z.kind === 'checkpoint' ? 'checkpoint' : z.onExit && z.onEnter ? 'both' : z.onEnter ? 'forbidden' : z.onExit ? 'allowed' : 'none');
+/** The rule that really applies to this camera in this zone (the zone's own or the camera's own), or null when the zone does not watch it. */
+function effective(z, cam) {
+    if ((z.companyId ?? null) !== (cam.companyId ?? null)) return null;
+    const o = z.overrides && z.overrides[cam.cameraId];
+    let mode;
+    if (o && o.mode === 'off') return null;
+    if (o && o.mode && o.mode !== 'inherit') mode = o.mode;
+    else { if (!applies(z, cam)) return null; mode = baseMode(z); if (mode === 'none') return null; }
+    const r = { ...z, ...MODE_RULE[mode], mode, custom: !!o, severity: (o && o.severity) || z.severity };
+    r.everyMin = mode === 'checkpoint' ? ((o && o.everyMin) || z.everyMin || 30) : null;
+    if (o && o.days != null) { r.days = o.days; r.fromMin = o.fromMin ?? null; r.toMin = o.toMin ?? null; }   // the camera's own days and hours
+    return r;
+}
+
 function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed = () => {}, now = Date.now, sweepMs = SWEEP_MS }) {
     db.exec(`CREATE TABLE IF NOT EXISTS geofences(
         id INTEGER PRIMARY KEY AUTOINCREMENT, company_id INTEGER, name TEXT NOT NULL, kind TEXT NOT NULL, shape TEXT NOT NULL,
@@ -167,6 +232,7 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
         days INTEGER NOT NULL DEFAULT 127, from_min INTEGER, to_min INTEGER, tz INTEGER NOT NULL DEFAULT 180,
         scope TEXT NOT NULL DEFAULT '{"type":"all"}', every_min INTEGER, active INTEGER NOT NULL DEFAULT 1,
         created INTEGER NOT NULL, updated INTEGER NOT NULL, created_by TEXT)`);
+    if (!db.prepare('PRAGMA table_info(geofences)').all().some((c) => c.name === 'overrides')) db.exec("ALTER TABLE geofences ADD COLUMN overrides TEXT NOT NULL DEFAULT '{}'");
     db.exec('CREATE INDEX IF NOT EXISTS geofences_company ON geofences(company_id)');
     db.exec(`CREATE TABLE IF NOT EXISTS geo_state(zone_id INTEGER NOT NULL, camera_id TEXT NOT NULL, inside INTEGER, seen_in INTEGER NOT NULL DEFAULT 0, last_visit INTEGER,
         PRIMARY KEY(zone_id, camera_id))`);
@@ -243,8 +309,9 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
             if (m > 300 && m / dt > MAX_SPEED_MS && prev.skipped < 8) { prev.skipped++; return; }
         }
         lastAt.set(id, { lat, lng, ts, skipped: 0 });
-        for (const z of list) {
-            if (!applies(z, cam)) continue;
+        for (const zone of list) {
+            const z = effective(zone, cam);   // the zone's rule for this camera, or the camera's own
+            if (!z) continue;
             const s = stateOf(z.id, id);
             const ins = isInside(z.shape, lat, lng);
             if (z.kind === 'checkpoint') {
@@ -276,11 +343,12 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
 
     /** Cameras the schedule has switched on or off, missed checkpoints, cameras that went onto a dock. Runs by itself every few seconds. */
     function sweep(t = now()) {
-        for (const z of zones) {
-            if (!z.active) continue;
-            const active = activeAt(z, t);
+        for (const zone of zones) {
+            if (!zone.active) continue;
             for (const cam of cams.values()) {
-                if (!applies(z, cam)) continue;
+                const z = effective(zone, cam);
+                if (!z) continue;
+                const active = activeAt(z, t);
                 if (cam.posSrc === 'dock') {                      // on a docking station: nothing to judge, and a camera that left earlier is not "missing" any more
                     const s = states.get(`${z.id}|${cam.cameraId}`);
                     if (s && (s.inside !== null || s.pending)) { s.inside = null; s.seenIn = false; s.pending = null; persist(z.id, cam.cameraId, s); }
@@ -305,6 +373,8 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
         for (const k of [...states.keys()]) if (k.startsWith(zid + '|')) states.delete(k);
         db.prepare('DELETE FROM geo_state WHERE zone_id = ?').run(zid);
     }
+    // Per-camera settings only for cameras of the zone's own company that exist (a removed camera's old entry is simply dropped).
+    const ownCameras = (ov, companyId) => Object.fromEntries(Object.entries(ov || {}).filter(([id]) => cams.has(id) && (cams.get(id).companyId ?? null) === (companyId ?? null)));
     const countFor = (companyId) => db.prepare('SELECT COUNT(*) n FROM geofences WHERE company_id IS ?').get(companyId ?? null).n;
 
     return {
@@ -318,8 +388,9 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
             const c = clean(body); if (c.error) return c;
             if (countFor(companyId) >= MAX_ZONES) return { error: `A company can have at most ${MAX_ZONES} zones.` };
             const v = c.value, t = now();
-            const r = db.prepare(`INSERT INTO geofences(company_id,name,kind,shape,on_exit,on_enter,severity,days,from_min,to_min,tz,scope,every_min,active,created,updated,created_by)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(companyId ?? null, v.name, v.kind, JSON.stringify(v.shape), v.onExit, v.onEnter, v.severity, v.days, v.fromMin, v.toMin, v.tz, JSON.stringify(v.scope), v.everyMin, v.active, t, t, username);
+            v.overrides = ownCameras(v.overrides, companyId);
+            const r = db.prepare(`INSERT INTO geofences(company_id,name,kind,shape,on_exit,on_enter,severity,days,from_min,to_min,tz,scope,every_min,active,created,updated,created_by,overrides)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(companyId ?? null, v.name, v.kind, JSON.stringify(v.shape), v.onExit, v.onEnter, v.severity, v.days, v.fromMin, v.toMin, v.tz, JSON.stringify(v.scope), v.everyMin, v.active, t, t, username, JSON.stringify(v.overrides));
             reload();
             audit('geofence_created', null, { name: v.name, kind: v.kind, by: username });
             changed(companyId ?? null);
@@ -329,8 +400,9 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
             const old = this.get(id); if (!old) return { error: 'Zone not found.', status: 404 };
             const c = clean({ ...publicZone(old), ...body }); if (c.error) return c;
             const v = c.value;
-            db.prepare(`UPDATE geofences SET name=?,kind=?,shape=?,on_exit=?,on_enter=?,severity=?,days=?,from_min=?,to_min=?,tz=?,scope=?,every_min=?,active=?,updated=? WHERE id=?`)
-                .run(v.name, v.kind, JSON.stringify(v.shape), v.onExit, v.onEnter, v.severity, v.days, v.fromMin, v.toMin, v.tz, JSON.stringify(v.scope), v.everyMin, v.active, now(), old.id);
+            v.overrides = ownCameras(v.overrides, old.companyId);
+            db.prepare(`UPDATE geofences SET name=?,kind=?,shape=?,on_exit=?,on_enter=?,severity=?,days=?,from_min=?,to_min=?,tz=?,scope=?,every_min=?,active=?,updated=?,overrides=? WHERE id=?`)
+                .run(v.name, v.kind, JSON.stringify(v.shape), v.onExit, v.onEnter, v.severity, v.days, v.fromMin, v.toMin, v.tz, JSON.stringify(v.scope), v.everyMin, v.active, now(), JSON.stringify(v.overrides), old.id);
             // a different shape, rule or audience: whatever was open or remembered about it no longer applies
             resolveWhere('zone_id = ?', [old.id], 'zone changed'); dropState(old.id);
             reload();
@@ -352,7 +424,11 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
             const z = this.get(id); if (!z) return null;
             const t = now(), rows = [];
             for (const cam of cams.values()) {
-                if (!applies(z, cam) || !canSee(cam.cameraId)) continue;
+                if (!canSee(cam.cameraId)) continue;
+                const r = effective(z, cam);
+                const left = !r && z.overrides[cam.cameraId] && z.overrides[cam.cameraId].mode === 'off' && (z.companyId ?? null) === (cam.companyId ?? null);
+                if (!r && !left) continue;
+                if (left) { rows.push({ cameraId: cam.cameraId, name: cam.name || cam.cameraId, state: 'unknown', why: 'excluded', rule: 'off', custom: true, ageSec: null, alert: false, lastVisit: null }); continue; }
                 const s = states.get(`${z.id}|${cam.cameraId}`) || { inside: null, seenIn: false };
                 const age = cam.fixTs ? t - cam.fixTs : null, open = ALERT_KINDS.some((k) => openRow(k, z.id, cam.cameraId));
                 let why, state = s.inside == null ? 'unknown' : s.inside ? 'inside' : 'outside';
@@ -360,12 +436,12 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
                 else if (cam.posSrc === 'dock') why = 'on_dock';
                 else if (age == null || age > 120000) why = 'no_gps';
                 else if (!cam.online) why = 'offline';
-                else if (z.kind === 'checkpoint') why = s.lastVisit ? 'visited' : 'not_visited';
+                else if (r.kind === 'checkpoint') why = s.lastVisit ? 'visited' : 'not_visited';
                 else if (s.inside == null) why = 'waiting';
-                else if (s.inside === false && z.onExit && !s.seenIn) why = 'never_inside';
-                else if (!activeAt(z, t)) why = 'schedule_off';
+                else if (s.inside === false && r.onExit && !s.seenIn) why = 'never_inside';
+                else if (!activeAt(r, t)) why = 'schedule_off';
                 else why = 'watching';
-                rows.push({ cameraId: cam.cameraId, name: cam.name || cam.cameraId, state, why, ageSec: age == null ? null : Math.round(age / 1000), alert: open, lastVisit: s.lastVisit || null });
+                rows.push({ cameraId: cam.cameraId, name: cam.name || cam.cameraId, state, why, rule: r.mode, custom: r.custom, severity: r.severity, ageSec: age == null ? null : Math.round(age / 1000), alert: open, lastVisit: s.lastVisit || null });
             }
             return { zoneId: z.id, name: z.name, companyId: z.companyId, cameras: rows.sort((x, y) => x.name.localeCompare(y.name)) };
         },
@@ -387,4 +463,4 @@ function create({ db, cams, toCam, audit = () => {}, notify = () => {}, changed 
     };
 }
 
-module.exports = { create, clean, cleanShape, cleanScope, isInside, edgeDistance, distance, pointInPolygon, activeAt, windowStart, applies, publicZone, minutesOf, hhmm, ALERT_KINDS, DEBOUNCE_MS, GRACE_MS, ALL_DAYS };
+module.exports = { create, clean, cleanShape, cleanScope, cleanOverrides, effective, isInside, edgeDistance, distance, pointInPolygon, activeAt, windowStart, applies, publicZone, minutesOf, hhmm, ALERT_KINDS, DEBOUNCE_MS, GRACE_MS, ALL_DAYS };

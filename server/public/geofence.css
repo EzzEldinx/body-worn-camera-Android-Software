@@ -79,3 +79,18 @@ body.geo-drawing #info{display:none}
 .geo-sr b{font-weight:700}.geo-sr span{color:var(--mut)}
 .geo-sr small{display:block;color:var(--mut);font-size:12px}
 .geo-sr.ok{border-color:var(--ok)}.geo-sr.warn{border-color:var(--sel)}.geo-sr.bad{border-color:var(--rec)}
+
+/* per camera */
+.geo-ovlist{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--raise);padding:4px}
+.geo-ov{border-radius:10px;padding:6px 8px;border-inline-start:3px solid transparent;margin-bottom:2px}
+.geo-ov.own{background:color-mix(in srgb,var(--c,var(--sel)) 10%,var(--panel));border-inline-start-color:var(--c,var(--sel))}
+.geo-ovh{display:flex;align-items:center;gap:8px}
+.geo-ovh .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.geo-ovh .nm{flex:1;min-width:0;display:grid}
+.geo-ovh .nm b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.geo-ovh .nm small{color:var(--mut);font-size:11.5px;line-height:1.3}
+.geo-ovh select{width:auto;max-width:190px;padding:6px 8px;font-size:12.5px}
+.geo-ovd{margin:6px 0 4px;padding:8px 10px;border-radius:9px;background:var(--panel);border:1px solid var(--line)}
+.geo-ovd .ovl{font-size:11px;font-weight:700;color:var(--mut);margin:6px 0 4px;letter-spacing:.3px}
+.geo-ovd .ovl:first-child{margin-top:0}
+@media (max-width:520px){.geo-ovh{flex-wrap:wrap}.geo-ovh select{max-width:none;flex:1}}
