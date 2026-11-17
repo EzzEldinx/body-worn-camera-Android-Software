@@ -383,6 +383,18 @@ app.delete('/api/company/users/:id', needUser, needCompanyManager, (req, res) =>
     auditlog.add(db, req.user.username, 'user_removed', null, { user: u.name, company: req.user.company });
     res.json({ ok: true });
 });
+// The profile card in the header: who this is and exactly what they may see and do, with the reason for each thing they may not.
+app.get('/api/me/access', needUser, (req, res) => {
+    const u = req.user, staff = !u.companyId, have = new Set(u.features), plan = staff ? null : new Set(companyAvail(u.companyId));
+    const items = features.ALL.map((f) => {
+        const ok = have.has(f.key);
+        let why = null;
+        if (!ok) why = u.role === 'viewer' && f.kind === 'action' ? 'viewer' : ((f.kind === 'feature' && plan && !plan.has(f.key)) || (f.needs || []).some((n) => !have.has(n))) ? 'plan' : 'admin';
+        return { key: f.key, kind: f.kind, group: f.group, label: f.label, hint: f.hint, allowed: ok, why };
+    });
+    res.json({ id: u.id, username: u.username, name: u.name, role: staff ? (u.role === 'admin' ? 'staff_admin' : 'staff_viewer') : u.role, company: u.company || null,
+        subscription: staff ? null : subscriptionOf(u.companyId), items });
+});
 app.get('/api/me', needUser, (req, res) => res.json({ ...req.user, featureList: features.FEATURES, staff: isStaff(req.user), super: isSuper(req.user), license: license.summary(req.user), subscription: subscriptionOf(req.user.companyId), updates: updatesMod.badge(req.user) }));
 
 app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {

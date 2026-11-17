@@ -105,7 +105,12 @@
       document.documentElement.dataset.theme = n; try { localStorage.setItem('bwc-theme', n); } catch (e) { }
       window.dispatchEvent(new Event('themechange'));
     };
-    document.getElementById('myPic').onclick = () => pickPicture('user', me.id).then((ok) => { if (ok) location.reload(); }).catch((e) => toast(e.message));
+    const loadProfile = () => new Promise((res) => {   // the profile card (profile.js + profile.css) is loaded the first time it is opened
+      if (window.vgProfile) return res();
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/profile.css'; document.head.appendChild(l);
+      const sc = document.createElement('script'); sc.src = '/profile.js'; sc.onload = () => res(); document.head.appendChild(sc);
+    });
+    document.getElementById('myPic').onclick = () => loadProfile().then(() => window.vgProfile.open({ avatarTs: me.avatarTs })).catch((e) => toast(e.message));
     document.getElementById('outBtn').onclick = () => fetch('/api/logout', { method: 'POST' }).then(() => { location.href = '/login.html'; });
 
     // Updates. A heart beats on the tab (and a window opens once) until the person has seen the notice about a new camera update; after that
