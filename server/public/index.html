@@ -354,7 +354,8 @@ header.flash{animation:fl 1s 3}
   .lang-btn svg{display:none}
   .user{padding-inline-start:8px}
   .user::before{display:none}
-  .user .btn{padding:6px 10px;font-size:12.5px}
+  .user .btn{padding:6px 8px;font-size:12px}
+  header{gap:6px}.hdr-right{gap:4px}
   main{display:block;padding:8px;overflow:hidden}
   main>*,main>#right,main>#mapwrap{display:none;height:100%}
   body[data-tab="cams"] main>aside{display:flex}
@@ -377,9 +378,10 @@ header.flash{animation:fl 1s 3}
   .chat-composer button.send-btn{padding:11px 18px}
   .tile.expanded{width:96vw;max-height:92vh}
   #snd{display:none!important}
-  #mnav{display:grid;grid-template-columns:repeat(4,1fr);background:linear-gradient(180deg,var(--panel),var(--raise));border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+  #mnav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:linear-gradient(180deg,var(--panel),var(--raise));border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
   #mnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 4px 8px;border:0;background:none;color:var(--mut);font-size:11px;font-weight:700;letter-spacing:.3px;min-height:56px;position:relative}
   #mnav button svg{width:22px;height:22px}
+  #mnav button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #mnav button.on{color:var(--text)}
   #mnav button.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,var(--sel),var(--brand))}
   #mnav .nb{position:absolute;top:5px;inset-inline-start:calc(50% + 8px);min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--rec);color:#fff;font-size:10px;line-height:17px;text-align:center;display:none}
@@ -391,7 +393,7 @@ header.flash{animation:fl 1s 3}
 <div id="snd" data-i18n="lv.sound">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
 <header id="top">
   <div class="brand">
-    <div class="brand-text"><img class="vg-logo logo-light" src="/brand/visionguard-logo-sm.png" alt="VisionGuard"><img class="vg-logo logo-dark" src="/brand/visionguard-logo-light.png" alt="VisionGuard"><small class="pw">Powered by <img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"></small></div>
+    <div class="brand-text"><img class="vg-logo logo-light" src="/brand/visionguard-logo-sm.png" alt="VisionGuard"><img class="vg-logo logo-dark" src="/brand/visionguard-logo-light.png" alt="VisionGuard"><small class="pw"><span data-i18n="hdr.poweredBy">Powered by</span> <img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"></small></div>
   </div>
   <div class="stats">
     <div class="stat ok"><i class="si"><svg class="i" viewBox="0 0 24 24"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg></i><div><b id="sOn">0</b><span id="txtOnline">online</span></div></div>

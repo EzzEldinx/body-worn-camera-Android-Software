@@ -122,10 +122,10 @@ select.umode{max-width:180px}
         <select id="bMode"><option value="" data-i18n="up.choose">Choose...</option><option value="off" data-i18n="up.m.off">Docking station only</option><option value="wifi" data-i18n="up.m.wifi">Over Wi-Fi</option><option value="any" data-i18n="up.m.any">Over Wi-Fi and SIM</option></select>
         <button class="btn" id="bModeGo" data-i18n="up.apply">Apply</button>
       </div>
-      <table>
+      <div style="overflow-x:auto"><table>
         <thead><tr><th style="width:34px"><input type="checkbox" id="all"></th><th data-i18n="up.hCamera">Camera</th><th data-i18n="up.hRegion">Region</th><th data-i18n="up.hCompany">Company</th><th data-i18n="up.hBuild">Build</th><th data-i18n="up.hStatus">Status</th><th data-i18n="up.hNet">Network updates</th></tr></thead>
         <tbody id="rows"></tbody>
-      </table>
+      </table></div>
       <div class="hint" data-i18n="up.tableHint">"Update selected" sends the update now, over whatever network the camera has. A camera that is recording waits until it stops (unless you tick "even while recording"), downloads the APK from this server, checks it, installs it and restarts. Offline cameras are skipped. "Network updates" decides whether the server does this by itself for a camera: Over Wi-Fi only works once the camera runs the newest app (put it on a docking station once); over the SIM uses mobile data, about 55 MB each time.</div>
     </section>
   </div>

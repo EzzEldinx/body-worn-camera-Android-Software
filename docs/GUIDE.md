@@ -106,7 +106,14 @@ Feen: dashboard > el-eyqona fo2 (bena2 mabna) aw `http://192.168.100.75:3000/adm
 - El-company beshoof chat bta3ha bas; **Staff broadcast** (Public men staff) beywasal lel-kol.
 
 ### El-lugha wel-theme
-- EN/AR + light/dark men fo2 (bet-etzakar).
+- EN/AR + light/dark men fo2 (bet-etzakar). Zorar el-lugha (**عربي | EN**) maw3ood fel header fi **kol** saf7a (el-Dashboard, Analytics, Reports, Docking, Support, Updates, Employees, Admin, License, Live wall, Login, el-Station, Privacy) — shof el-section ta7t.
+
+### El-lugha (English / Arabic) fel website kolo
+- **El-ekhtiyar**: el-lugha elly teekhtarha bet-etzakar fel browser (`localStorage` esm-ha `bwc-lang` + cookie `vglang`) w betetnaffez 3ala kol el-sfa7at, 7ata el-login w el-Live wall window (law ghayart el-lugha men saf7a, el-windows el-tanya btelha2). El-awwal marra: law el-browser 3araby yefta7 Arabic, ella yefta7 English.
+- **El-3araby RTL**: el-saf7a kolha bet-enqeleb (el-menu, el-gadawel, el-forms, el-charts, el-flow diagram). El-ar2am bel-ingilizi (0-9) w el-tawareekh Gregorian w el-sa3a 24h fel lughatein. El-camera IDs w el-units (MB, GB) bet-fdal Latin.
+- **El-kalam fein?** `server/public/i18n.js` (el-engine + el-kalam el-moshtarak), `server/public/i18n/<page>.js` (kalam kol saf7a, EN + AR bel nafs el-keys), `server/lang/errors.js` (rodood el-API), `server/lang/texts.js` (el-insights, el-written analysis, el-push, el-emails). **Text gedeed** = key gedeed fel **lughatein** (el-test `server/test/i18n.test.js` yefshal law key fi lugha w mesh fel tanya, aw law fi error gedeed fel server bela tarjama).
+- **El-server beyrod bel-lugha**: el-browser by-ib3at cookie `vglang`; el-app el-mobile by-ib3at header `x-lang`. El-API errors, el-written analysis, el-push notifications (kol gehaz bel-lugha bta3to) w el-support emails (bel-lugha bta3et elly katab el-ticket, aw `SUPPORT_EMAIL_LANG=en|ar` fel `.env` 3ashan el-desk yestalem bel-lugha el-sabta).
+- **Mesh metargam (3amdan)**: el-CSV exports (headers w codes bel-ingilizi 3ashan Excel w el-audit hashes), el-PDF report (el-font Latin bas, el-asma' el-3arabiya betetshal — Arabic PDF mumken bas mehtaga font + layout mirror, shof el-report), el-date pickers (shakl el-browser nafso), w ay kalam katabo el-nas (asma' el-companies, el-notices...).
 
 ---
 

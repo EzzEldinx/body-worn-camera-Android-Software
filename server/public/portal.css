@@ -57,7 +57,8 @@ header.compact nav{display:none;position:absolute;top:100%;inset-inline:0;flex-d
 header.compact.menu-open nav{display:flex}
 header.compact nav a{padding:13px 14px}
 header.compact .hdr-right{margin-inline-start:auto}
-#outBtn{display:inline-flex;align-items:center;gap:7px}
+#outBtn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.hdr-right{flex:none}
 #outBtn .out-ico{width:15px;height:15px;display:none}
 @media (max-width:640px){#outBtn .out-ico{display:block}#outBtn span{display:none}#outBtn{padding:7px 9px}}
 
@@ -70,8 +71,11 @@ main{max-width:1500px;margin:0 auto;padding:22px 24px 40px;display:grid;gap:18px
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g2{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
-@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3,.g2{grid-template-columns:1fr}}
-@media (max-width:640px){.g4{grid-template-columns:1fr}header{padding:0 14px;gap:10px}.chip,.who{display:none}}
+@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3,.g2{grid-template-columns:minmax(0,1fr)}}
+/* a card may be narrower than its content (a chart, a long word): the content scrolls or wraps, the page never gets wider than the phone */
+main>*,.grid>*,.card{min-width:0}
+main{grid-template-columns:minmax(0,1fr)}
+@media (max-width:640px){.g4{grid-template-columns:1fr}header{padding:0 12px;gap:8px}.hdr-right{gap:8px}.chip,.who{display:none}}
 
 .btn{padding:10px 18px;border-radius:11px;border:1px solid var(--line);background:var(--panel);font-weight:600;font-size:14px;transition:.15s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .btn:hover{background:var(--hover)}

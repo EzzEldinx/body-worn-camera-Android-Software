@@ -59,6 +59,7 @@ table{width:100%;border-collapse:collapse}
 td{padding:10px 6px;border-bottom:1px solid var(--line-soft);font-size:14px}
 tr:last-child td{border-bottom:0}
 td select{width:100%}
+.camtbl td select{min-width:118px}.camtbl td:first-child{min-width:150px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:8px;background:var(--off)}
 .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
 .empty{color:var(--mut);font-size:13.5px;padding:14px 0}
@@ -89,7 +90,7 @@ td select{width:100%}
       <select id="coPkg" aria-label="Package" data-i18n-aria="ad.pkgAria"></select>
       <button class="btn pri" id="coAdd" data-i18n="ad.addCo">Add company</button>
     </div>
-    <div class="newco" style="margin-top:10px"><input id="coAdmin" dir="ltr" placeholder="Administrator username (the company's own login, e.g. alnoor.admin)" data-i18n-ph="ad.phCoAdmin" maxlength="32" autocomplete="off">
+    <div class="newco" style="margin-top:10px"><input id="coAdmin" placeholder="Administrator username (the company's own login, e.g. alnoor.admin)" data-i18n-ph="ad.phCoAdmin" maxlength="32" autocomplete="off">
       <span class="muted" style="font-size:12.5px;align-self:center;flex:2;min-width:220px" data-i18n="ad.coAdminNote">Leave empty to add the administrator later. A strong password is made for you and shown once.</span></div>
     <details class="bulk" style="margin-top:12px"><summary><span data-i18n="ad.chooseCo">Choose what this company can use</span> <span class="muted" style="font-weight:500" data-i18n="ad.allDefault">(all selected by default)</span></summary><div id="newFeat"></div></details>
   </section>
@@ -115,10 +116,10 @@ td select{width:100%}
       <p class="muted" style="margin:0 0 10px;font-size:13px" data-i18n="ad.camAssignNote">Choose which company owns each camera. That company's users see only their cameras.</p>
       <div style="margin-bottom:10px"><button class="btn sm danger" id="rmOffline" data-i18n="ad.rmOffline">Remove all offline cameras</button></div>
       <div class="newco" style="margin-bottom:12px">
-        <input id="newCamId" dir="ltr" placeholder="New camera ID, e.g. BWC-08-RIY" data-i18n-ph="ad.phCam" maxlength="32">
+        <input id="newCamId" placeholder="New camera ID, e.g. BWC-08-RIY" data-i18n-ph="ad.phCam" maxlength="32">
         <button class="btn pri" id="newCamBtn" data-i18n="ad.createTok">Create + issue token</button>
       </div>
-      <table><tbody id="cams"></tbody></table>
+      <div style="overflow-x:auto"><table class="camtbl"><tbody id="cams"></tbody></table></div>
     </section>
     </div>
   </div>
@@ -210,9 +211,9 @@ function render() {
       ${lastCred[co.id] ? `<div class="cred">${t('ad.loginFor')} <code>${esc(lastCred[co.id].username)}</code> <code>${esc(lastCred[co.id].password)}</code>
         <button class="btn sm" data-act="copy">${t('em.copy')}</button><span class="muted" style="font-size:12px">${t('ad.saveIt')}</span></div>` : ''}
       <div class="adduser">
-        <input class="nu" dir="ltr" placeholder="Username" data-i18n-ph="em.phUser" maxlength="32" autocomplete="off">
+        <input class="nu" placeholder="Username" data-i18n-ph="em.phUser" maxlength="32" autocomplete="off">
         <input class="nn" placeholder="${esc(t('ad.phDisplay'))}" maxlength="60">
-        <div class="pw"><input class="np" dir="ltr" placeholder="${esc(t('em.phPass'))}" autocomplete="new-password"><button class="btn sm" data-act="gen" type="button">${t('ad.generate')}</button></div>
+        <div class="pw"><input class="np" placeholder="${esc(t('em.phPass'))}" autocomplete="new-password"><button class="btn sm" data-act="gen" type="button">${t('ad.generate')}</button></div>
         <select class="nr" aria-label="${esc(t('ad.roleAria'))}" title="${esc(t('ad.roleTitle'))}"><option value="manager">${ROLE('manager')}</option><option value="client" selected>${ROLE('client')}</option><option value="viewer">${t('ad.viewerRO')}</option></select>
         <button class="btn pri" data-act="adduser">${t('em.addUser')}</button>
       </div>
@@ -227,8 +228,8 @@ function render() {
         <table class="ltr">${lastEmp[co.id].map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.employeeNo || '')}</td><td>${esc(c.username)}</td><td>${esc(c.password)}</td></tr>`).join('')}</table></div>` : ''}
       <div class="addemp">
         <input class="en" placeholder="${esc(t('em.phEmp'))}" maxlength="60">
-        <input class="eno" dir="ltr" placeholder="${esc(t('em.phNo'))}" maxlength="20">
-        <input class="eu" dir="ltr" placeholder="${esc(t('em.phEmpUser'))}" maxlength="32" autocomplete="off">
+        <input class="eno" placeholder="${esc(t('em.phNo'))}" maxlength="20">
+        <input class="eu" placeholder="${esc(t('em.phEmpUser'))}" maxlength="32" autocomplete="off">
         <button class="btn pri" data-act="addemp">${t('em.addEmp')}</button>
       </div>
       <details class="bulk"><summary>${t('em.many')}</summary>
