@@ -52,7 +52,7 @@
       <div class="hdr-right">
         ${me.company ? `<span class="chip">${me.logoTs ? `<img class="chlogo" src="/api/avatar/company/${me.companyId}?v=${me.logoTs}" alt="">` : ''}${me.company.replace(/[<>&]/g, '')}</span>` : `<span class="chip">${t('hdr.smartway')}</span>`}
         <button class="hav" id="myPic" title="${VG.esc(t('hdr.changePic'))}" aria-label="${VG.esc(t('hdr.changePic'))}">${avatarInner('user', me.id, me.avatarTs, (me.name || '?')[0].toUpperCase())}</button>
-        <span class="who">${me.name.replace(/[<>&]/g, '')}</span>
+        <span class="who">${me.name.replace(/[<>&]/g, '')}</span><span class="rolechip">${VG.esc(t("hdr.role." + (me.companyId ? me.role : (me.role === "admin" ? "staff_admin" : "staff_viewer"))))}</span>
         <span id="langSlot"></span>
         <button class="icon-btn" id="themeBtn" title="${VG.esc(t('hdr.theme'))}" aria-label="${VG.esc(t('hdr.theme'))}">
           <svg class="ico-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
