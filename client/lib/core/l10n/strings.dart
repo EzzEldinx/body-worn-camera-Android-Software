@@ -150,7 +150,7 @@ const _t = <String, List<String>>{
   'status': ['Status', 'الحالة'],
   'position': ['Position', 'الموقع'],
   'load_failed': ['Could not load. Pull to retry.', 'تعذر التحميل. اسحب للتحديث.'],
-  'download': ['Download', 'تنزيل'],
+  'download': ['Download', 'تنزيل'], 'downloading': ['Downloading…', 'جارٍ التنزيل…'], 'download_failed': ['Could not download the file.', 'تعذّر تنزيل الملف.'], 'play': ['Play', 'تشغيل'], 'dk_cloud_only': ['Push it to the cloud to play or download it.', 'ادفعه إلى السحابة لتشغيله أو تنزيله.'],
   'size': ['Size', 'الحجم'],
   'recorded': ['Recorded', 'وقت التسجيل'],
   'dock_updating': ['Updating app', 'تحديث التطبيق'],

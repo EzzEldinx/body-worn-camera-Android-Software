@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api.dart';
 import '../../core/api/models.dart';
@@ -7,6 +8,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../auth/auth_controller.dart';
+import '../../core/save_file.dart';
 
 /// The files the dock copied from the cameras, polled every 3 s while the screen is open.
 final dockFilesProvider = StreamProvider.autoDispose.family<DockFiles, String>((ref, bucket) async* {
@@ -207,6 +209,13 @@ class _FileTile extends StatelessWidget {
             else if (file.camDelete) Text(context.tr('dk_removal_queued'), style: TextStyle(color: v.mut, fontSize: 11.5)),
           ])),
           StatusPill(label: label, color: color),
+          if (file.bucket == 'cloud' && file.recordingId != null && !file.removed) Consumer(builder: (ctx, ref, _) {
+            final s = ref.watch(sessionProvider);
+            return Row(mainAxisSize: MainAxisSize.min, children: [
+              if (file.isVideo) IconButton(tooltip: context.tr('play'), icon: const Icon(Icons.play_circle_outline_rounded), onPressed: s == null ? null : () => context.push('/recordings/play', extra: Recording(id: file.recordingId!, cameraId: file.cameraId, filename: file.filename, size: file.size, ts: file.recordedTs ?? file.addedTs ?? 0, sha256: ''))),
+              Builder(builder: (bctx) => IconButton(tooltip: context.tr('download'), icon: const Icon(Icons.download_rounded), onPressed: s == null ? null : () => saveRecording(bctx, s, file.recordingId!, file.filename))),
+            ]);
+          }),
         ]),
       ),
     );

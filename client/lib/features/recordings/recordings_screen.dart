@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:media_kit/media_kit.dart';
+import '../../core/save_file.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../core/api/api.dart';
 import '../../core/api/fleet.dart';
@@ -68,6 +69,7 @@ class _RecordingsScreenState extends ConsumerState<RecordingsScreen> {
                                 Text(cams[r.cameraId]?.name ?? r.cameraId, style: const TextStyle(fontWeight: FontWeight.w800)),
                                 Text('${when(r.ts)}  ·  ${fmtBytes(r.size)}', style: TextStyle(color: v.mut, fontSize: 12.5)),
                               ])),
+                              Builder(builder: (bctx) => IconButton(tooltip: context.tr('download'), icon: Icon(Icons.download_rounded, color: v.mut), onPressed: () => saveRecording(bctx, ref.read(sessionProvider)!, r.id, r.filename))),
                               Icon(Icons.chevron_right_rounded, color: v.mut),
                             ]),
                           ),
@@ -113,7 +115,7 @@ class _RecordingPlayerPageState extends ConsumerState<RecordingPlayerPage> {
     final r = widget.recording;
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: Text(r.cameraId, style: const TextStyle(color: Colors.white))),
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: Text(r.cameraId, style: const TextStyle(color: Colors.white)), actions: [Builder(builder: (bctx) => IconButton(tooltip: context.tr('download'), icon: const Icon(Icons.download_rounded), onPressed: () => saveRecording(bctx, s, r.id, r.filename)))]),
       body: SafeArea(
         child: Column(children: [
           Expanded(child: Center(child: r.isVideo ? Video(controller: _video!) : Image.network(s.api.recordingUrl(r.id), headers: {'authorization': 'Bearer ${s.token}'}, fit: BoxFit.contain))),
