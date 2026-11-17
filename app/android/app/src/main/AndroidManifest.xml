@@ -29,7 +29,7 @@
     <application
         android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true"
-        android:label="swg_bwc"
+        android:label="VisionGuard"
         android:icon="@mipmap/ic_launcher"
         android:name="${applicationName}">
         <activity
