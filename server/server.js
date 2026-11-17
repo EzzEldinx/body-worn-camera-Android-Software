@@ -144,6 +144,9 @@ const recentAlarms = (u) => (isStaff(u)
     : db.prepare(`SELECT a.id,a.camera_id,a.lat,a.lng,a.ts,a.ack_ts,a.holder,a.holder_no FROM alarms a
         JOIN cameras c ON c.id = a.camera_id WHERE c.company_id = ? ORDER BY a.id DESC LIMIT 100`).all(u.companyId)
 ).map(alarmRow);
+// An SOS nobody has answered yet. While one is open (and not older than SOS_GUARD_MS) nobody may cut that camera's recording from the dashboard.
+const SOS_GUARD_MS = Number(process.env.STOPREC_SOS_GUARD_MS) || 2 * 3600000;
+const sosOpen = (camId) => !!db.prepare('SELECT 1 FROM alarms WHERE camera_id = ? AND ack_ts IS NULL AND ts > ? LIMIT 1').get(camId, Date.now() - SOS_GUARD_MS);
 
 // Package limits: how many cameras a company owns and how many may stream live at once.
 const companyLimits = (id) => (id ? db.prepare('SELECT max_cameras AS maxCameras, max_live AS maxLive FROM companies WHERE id = ?').get(id) : null);
@@ -1081,16 +1084,26 @@ io.on('connection', (socket) => {
             if (!id || !['start', 'stop'].includes(action) || !canSee(user, id)) return;
             const c = cams.get(id);
             if (!c?.online) return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'offline' });
-            if (action === 'stop' && !c.remote) return; // never cut a recording the officer started
+            // A recording the officer started is never cut by accident. It ends only when somebody asks for exactly that (recording: true), may do it,
+            // the camera can obey (it reports 'remote-stop') and no SOS of that camera is still waiting for an answer.
+            const endRec = action === 'stop' && !c.remote && d?.recording === true;
+            if (action === 'stop' && !c.remote && !endRec) return;
+            if (endRec) {
+                const refuse = (reason) => socket.emit('remote_stream_result', { cameraId: id, ok: false, reason, action });
+                if (!canWrite(user) || !can(user, 'stoprec')) return refuse('not_allowed');
+                if (!c.recording) return refuse('not_recording');
+                if (!Array.isArray(c.caps) || !c.caps.includes('remote-stop')) return refuse('needs_update');
+                if (sosOpen(id)) return refuse('sos_open');
+            }
             // Package live cap: refuse a NEW live stream beyond the company's limit (officer-started SOS/recording is never blocked).
             if (action === 'start' && !c.recording && !c.remote && c.companyId && !packages.canGoLive(companyLimits(c.companyId), liveCount(c.companyId))) {
                 return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'live_limit' });
             }
             if (action === 'start' && !c.recording && !c.remote && !license.allow('live').ok) return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'live_limit' });   // the installation's licensed number of live streams
-            auditlog.add(db, user.username, `remote_stream_${action}`, id);
-            io.to(`room:camera_${id}`).emit('remote_stream', { action });
+            auditlog.add(db, user.username, endRec ? 'remote_record_stop' : `remote_stream_${action}`, id);
+            io.to(`room:camera_${id}`).emit('remote_stream', endRec ? { action, force: true } : { action });
             if (action === 'start') publish(id, { remote: true });
-            socket.emit('remote_stream_result', { cameraId: id, ok: true, action });
+            socket.emit('remote_stream_result', { cameraId: id, ok: true, action, ...(endRec ? { recording: true } : {}) });
         });
         // Super admin tells cameras to download and install the latest APK.
         on('update_cameras', (d) => {

@@ -128,7 +128,7 @@ function gather(db, cameras, from, to, Z) {
 
     // control-room actions
     const label = (a) => (a === 'remote_stream_start' ? 'Live view started remotely' : a === 'remote_stream_stop' ? 'Remote live view stopped'
-        : a.startsWith('set_quality_') ? `Video quality set to ${a.slice(12)}` : a.startsWith('update_app_') ? 'App update sent' : a);
+        : a === 'remote_record_stop' ? 'Recording stopped from the control room' : a.startsWith('set_quality_') ? `Video quality set to ${a.slice(12)}` : a.startsWith('update_app_') ? 'App update sent' : a);
     for (const a of audit) out.actions.push({ ts: a.ts, who: a.username, camera: a.camera_id, text: label(a.action) });
 
     // timeline of notable moments

@@ -70,7 +70,9 @@ class ChatMessage {
 class CentralLink {
   /// What this camera app can do for the server, reported with the status. 'update-net': it keeps an update to Wi-Fi when told to (see
   /// AppUpdater); the server only updates a "Wi-Fi only" camera over the network when it knows this.
-  static const List<String> capabilities = <String>['update-net'];
+  /// 'remote-stop': it ends a recording the officer started when the control room asks for exactly that (see remoteCommands 'stop_force');
+  /// the server only sends that to a camera that reports it.
+  static const List<String> capabilities = <String>['update-net', 'remote-stop'];
 
   // Who carries this camera (told by the server after the employee took it at the check-out station) and the server's clock.
   final ValueNotifier<Map<String, dynamic>?> assignment = ValueNotifier(null);
@@ -298,7 +300,11 @@ class CentralLink {
       })
       ..on('remote_stream', (d) {
         final a = d is Map ? d['action'] : null;
-        if (a == 'start' || a == 'stop') _remote.add(a as String);
+        if (a == 'stop' && d is Map && d['force'] == true) {
+          _remote.add('stop_force'); // the control room ends a recording the officer started, on purpose
+        } else if (a == 'start' || a == 'stop') {
+          _remote.add(a as String);
+        }
       })
       ..on('join_group', (d) {
         if (d is Map && d['groupId'] != null) {

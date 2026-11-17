@@ -77,7 +77,7 @@ Feen: dashboard > el-eyqona fo2 (bena2 mabna) aw `http://192.168.100.75:3000/adm
 - Gowwa kol tab: **companies** (collapsible) w 3ala-ha el-cameras. (El-company el-wa7da mesh betshoof headers.)
 - Search + filter (All / Online / Recording).
 - **▶** = **Watch live**: law el-camera online w mesh bet-record, **beyebda2ha el-stream benafsoh** (el-officer maye3rafsh). Law kanet bet-record asln beyofta7 el-video.
-- Idas 3ala camera → panel taht el-map: eltaf el-esm, el-company/region, **Watch live**, **Follow**, **Edit**, **Video quality**, **Stop remote stream**.
+- Idas 3ala camera → panel taht el-map: eltaf el-esm, el-company/region, **Watch live**, **Follow**, **Edit**, **Video quality**, **Stop remote stream** (aw **Stop recording…** lel-recording el-officer).
 
 ### El-Live wall
 - 1 / 2×2 / 3×3 tiles. Kol tile: esm + **REC/WAITING**, **Listen** (sawt), **Fill/Fit**, **Expand** (theater), ✕.
@@ -88,7 +88,8 @@ Feen: dashboard > el-eyqona fo2 (bena2 mabna) aw `http://192.168.100.75:3000/adm
 | 3ayez | E3mel |
 |---|---|
 | Ebda2 live | ▶ aw **Start live view** |
-| Wa2af el-stream | **Stop remote stream** (bas lel-stream elly ent bada2to — recording el-officer mesh beyetwa2af) |
+| Wa2af el-stream aw el-recording | Zorar **■ Stop** 3ala sorat el-camera (aw **Stop recording…** fel panel taht el-map). Beyes2alak ta2ref eh bezabt: **Stop streaming** lel-live elly ent bada2to, aw **Stop recording and streaming** lel-recording elly el-**officer** bada2o. El-tany byehtag el-so2la **Stop a recording** (el-company manager w Smart Way staff 3andohom, el-baqi yet3eti), el-camera tekoon 3andaha el app el-gedeed (betqool `remote-stop`), w mayekoonsh fee SOS lel-camera lessa meganakshe ack (sa3tein, `STOPREC_SOS_GUARD_MS`). El-officer beyetwarrah "Recording stopped by the control room" 3ala el-camera w el-file beyet7fez. Beyetsagel fel-audit (`remote_record_stop`). |
+| E2fel el-window bas | Zorar **✕** 3ala el-sora (aw **Close window only** fel menu): el-camera betkammel zay ma heyya w mafeesh 7aga betetghayyar 3aleha |
 | Ghayyar el-gawda | panel > **Video quality**: 240p / 480p / 720p / **1080p (default)** / 4K |
 | Kalem el-officer | PTT / chat / voice note men el-chat panel |
 

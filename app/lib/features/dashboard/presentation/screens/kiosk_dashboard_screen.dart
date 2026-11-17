@@ -205,6 +205,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         _toggleRecording(silent: true);
       } else if (a == 'stop' && isRecording && _remoteStarted) {
         _toggleRecording(silent: true);
+      } else if (a == 'stop_force' && isRecording) {
+        // The control room ended a recording the officer started (the server checked who may, and that no SOS is waiting).
+        // The officer is told, then the file is closed and saved as for any stop.
+        HapticFeedback.heavyImpact();
+        _toast('Recording stopped by the control room');
+        _toggleRecording(silent: true);
       }
     });
 

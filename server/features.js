@@ -20,6 +20,7 @@ const ACTIONS = [
     { key: 'ack', group: 'Alarms', label: 'Handle alarms', hint: 'Acknowledge SOS alarms and battery alerts', def: ['client'] },
     { key: 'stream', group: 'Watching', label: 'Start & stop live', hint: 'Switch a camera\'s live stream on or off from the dashboard', def: ['client'], needs: ['live'] },
     { key: 'quality', group: 'Watching', label: 'Change video quality', hint: 'Set a camera to 480p, 720p or 1080p', def: ['client'], needs: ['live'] },
+    { key: 'stoprec', group: 'Watching', label: 'Stop a recording', hint: 'End a recording the officer started, from the dashboard. The officer is told and the file is saved', def: [], needs: ['live'] },
     { key: 'zones', group: 'Watching', label: 'Manage zones', hint: 'Draw, change and delete geofence zones', def: [], needs: ['geofence'] },
     { key: 'files', group: 'Evidence', label: 'Decide on recordings', hint: 'Choose to keep or move recordings that are on the docks', def: ['client'], needs: ['docks'] },
     { key: 'delete', group: 'Evidence', label: 'Delete files', hint: 'Delete recordings from cameras. This cannot be undone', def: [], needs: ['docks'] },

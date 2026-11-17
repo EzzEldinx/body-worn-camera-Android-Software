@@ -9,6 +9,7 @@
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
 <link href="/geofence.css" rel="stylesheet" />
+<link href="/stopstream.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
 
 <script>
@@ -247,11 +248,12 @@ body[dir="rtl"] .tile.live .pill::after{content:"تسجيل"}
 .tag button{pointer-events:auto;height:26px;min-width:26px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.1);color:#fff;font-size:11.5px;font-weight:600;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:.15s;flex:none}
 .tag button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.4)}
 .tag button.on{background:rgba(0,184,124,.35);border-color:rgba(46,230,166,.7);box-shadow:0 0 12px rgba(0,184,124,.5)}
-.tag button[data-x]:hover{background:rgba(255,51,85,.6);border-color:rgba(255,51,85,.9)}
+.tag button[data-k]:hover{background:rgba(255,51,85,.6);border-color:rgba(255,51,85,.9)}
 .tbat{flex:none;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.14);color:#fff;white-space:nowrap}
 .tbat.low{background:var(--rec)}
 .tbat:empty{display:none}
-@container (max-width:240px){.tbat{display:none}}
+@container (max-width:300px){.tbat{display:none}}
+@container (max-width:360px){.tag .pill::after{display:none}.tag .pill{padding:2px 7px}}   /* the Stop button needs the room: the status shows as a dot only */
 .tag .pill+button{margin-left:auto}
 body[dir="rtl"] .tag .pill+button{margin-left:0;margin-right:auto}
 .tag button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
@@ -965,10 +967,11 @@ function renderInfo() {
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
     <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
     ${c.online ? `<div class="row qrow"><span>${currentLang === 'ar' ? 'جودة الفيديو' : 'Video quality'}</span><select id="qSel">${['auto', '480p', '720p', '1080p'].map((q) => `<option value="${q}" ${(c.qualityAuto ? 'auto' : c.quality) === q ? 'selected' : ''}>${q === 'auto' ? (currentLang === 'ar' ? 'تلقائي (حسب الشبكة)' : 'Auto (by network)') : q}${q === 'auto' && c.qualityAuto && c.quality ? ' · ' + c.quality : ''}</option>`).join('')}</select></div>` : ''}
-    ${c.remote ? `<div class="row"><button class="btn" id="bX">${currentLang === 'ar' ? 'إيقاف البث عن بُعد' : 'Stop remote stream'}</button></div>` : ''}`;
+    ${c.remote ? `<div class="row"><button class="btn" id="bX">${currentLang === 'ar' ? 'إيقاف البث عن بُعد' : 'Stop remote stream'}</button></div>` : (c.recording && canEndRec()) ? `<div class="row"><button class="btn" id="bS">${currentLang === 'ar' ? 'إيقاف التسجيل…' : 'Stop recording…'}</button></div>` : ''}`;
   $('#bW').onclick = () => openLive(c.cameraId);
   if ($('#qSel')) $('#qSel').onchange = (e) => { socket.emit('set_quality', { cameraId: c.cameraId, quality: e.target.value }); flash(currentLang === 'ar' ? 'تم إرسال تغيير الجودة' : 'Quality change sent'); };
   if ($('#bX')) $('#bX').onclick = () => requestStream(c.cameraId, 'stop');
+  if ($('#bS')) $('#bS').onclick = () => stopMenu(c.cameraId);
   if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };
   $('#bF').onclick = () => { follow = !follow; renderInfo(); if (follow && c.lat != null) map.easeTo({ center: [c.lng, c.lat] }); };
 }
@@ -1005,6 +1008,13 @@ function requestStream(id, action) {
   socket.emit('remote_stream', { cameraId: id, action });
   if (action === 'start') watch(id);
 }
+// "Stop" on a picture or in the camera panel: asks what to stop (see stopstream.js). Ending a recording the officer started needs "Stop a recording".
+const canEndRec = () => (me.features || []).includes('stoprec');
+function stopMenu(id, slot) {
+  if (!id) return;
+  vgStop.open({ id, cam: cams.get(id), name: getOfficerLabel(id), lang: currentLang, socket, canEndRecording: canEndRec(),
+    onCloseWindow: () => { const i = slot ?? slots.indexOf(id); if (i >= 0) { slots[i] = null; renderTile(i); } } });
+}
 function buildWall() {
   const w = $('#wall'), cols = Math.sqrt(layout);
   w.style.gridTemplateColumns = `repeat(${cols},1fr)`;
@@ -1021,7 +1031,7 @@ function renderTile(i) {
   t.draggable = !!id;   // drag a picture onto another one to swap them
   if (!id) { t.innerHTML = `<div class="empty">${currentLang === 'ar' ? 'خانة فارغة' : 'Empty slot'}<small>${currentLang === 'ar' ? 'اضغط ▶ بجوار الكاميرا لعرضها هنا' : 'Press ▶ next to a camera to show it here'}</small></div>`; return; }
   t.innerHTML = `<video muted autoplay playsinline></video>
-    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="tbat"></span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'طولي' : 'Portrait'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="tbat"></span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'طولي' : 'Portrait'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-k="${i}" aria-label="Stop ${id}" title="${currentLang === 'ar' ? 'إيقاف البث' : 'Stop streaming'}"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg><span class="lbl">${currentLang === 'ar' ? 'إيقاف' : 'Stop'}</span></button><button data-x="${i}" aria-label="Close ${id}" title="${currentLang === 'ar' ? 'إغلاق النافذة فقط (الكاميرا تواصل عملها)' : 'Close window only (the camera keeps going)'}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}<button class="reqbtn" data-r="${id}">${currentLang === 'ar' ? 'بدء البث عن بُعد' : 'Start live view'}</button></div>`;
   start(i, id, t.querySelector('video'));
   if (dbgText.has(i)) dbg(i, dbgText.get(i));
@@ -1151,6 +1161,8 @@ $('#wall').addEventListener('click', (e) => {
     fb.querySelector('.lbl').textContent = t.classList.contains('port') ? (currentLang === 'ar' ? 'عرضي' : 'Landscape') : (currentLang === 'ar' ? 'طولي' : 'Portrait');
     return;
   }
+  const kb = e.target.closest('[data-k]');
+  if (kb) { stopMenu(slots[+kb.dataset.k], +kb.dataset.k); return; }
   const x = e.target.closest('[data-x]'); if (!x) return;
   slots[+x.dataset.x] = null; renderTile(+x.dataset.x);
 });
@@ -1522,9 +1534,8 @@ socket.on('dashboard_cam_removed', ({ cameraId }) => {
   renderList();
 });
 socket.on('remote_stream_result', (r) => {
-  if (!r.ok) flash(r.reason === 'live_limit'
-    ? (currentLang === 'ar' ? 'تم الوصول للحد الأقصى للبث المباشر في باقتك' : 'Live-stream limit of your package reached')
-    : (currentLang === 'ar' ? 'الكاميرا غير متصلة' : 'Camera is offline'));
+  if (!r.ok) flash(vgStop.reason(r.reason, currentLang));
+  else if (r.recording) flash(vgStop.sentText(currentLang));   // an officer's recording was stopped on purpose
 });
 socket.on('connect_error', (e) => { if (e.message === 'unauthorized') location.href = '/login.html'; });
 socket.on('dashboard_sos', (a) => {
@@ -1717,6 +1728,7 @@ $('#chat-msgs').addEventListener('click', (e) => {
   else v.el.pause();
 });
 </script>
+<script src="/stopstream.js"></script>
 <script src="/geofence.js"></script>
 </body>
 </html>

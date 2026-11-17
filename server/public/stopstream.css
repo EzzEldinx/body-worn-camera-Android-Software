@@ -1,0 +1,14 @@
+/* The "Stop" menu of a camera's picture (see stopstream.js). Shared by the dashboard and the live wall window, so every colour has a fallback. */
+.vgs-modal{position:fixed;inset:0;z-index:45000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,13,24,.55);backdrop-filter:blur(3px)}
+.vgs-card{width:min(440px,100%);max-height:calc(100vh - 32px);overflow:auto;border-radius:16px;background:var(--panel,#131E33);border:1px solid var(--line,rgba(255,255,255,.14));box-shadow:0 24px 60px rgba(0,0,0,.5);color:var(--text,#E8EEF7);padding:18px 18px 16px;font-family:inherit}
+.vgs-card h3{margin:0 0 8px;font-size:17px;line-height:1.3}
+.vgs-card p{margin:0 0 8px;font-size:13.5px;line-height:1.5}
+.vgs-card p.note{color:var(--mut,#8A9BB5);font-size:12.5px}
+.vgs-card p.warn{color:var(--rec,#FF5D77);font-weight:600;font-size:13px}
+.vgs-acts{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.vgs-acts button{border:1px solid var(--line,rgba(255,255,255,.14));background:var(--raise,rgba(255,255,255,.08));color:inherit;font:inherit;font-weight:700;font-size:13.5px;padding:10px 14px;border-radius:11px;cursor:pointer;text-align:center}
+.vgs-acts button:hover{background:var(--hover,rgba(255,255,255,.18))}
+.vgs-acts button.danger{background:var(--rec,#FF3355);border-color:transparent;color:#fff}
+.vgs-acts button.danger:hover{filter:brightness(1.08);background:var(--rec,#FF3355)}
+.vgs-acts button:disabled{opacity:.45;cursor:not-allowed}
+.vgs-acts button:focus-visible{outline:2px solid var(--sel,#FFC857);outline-offset:2px}
