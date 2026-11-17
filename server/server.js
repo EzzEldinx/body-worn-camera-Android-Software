@@ -77,7 +77,7 @@ const can = (u, f) => u.features.includes(f);
 const isManager = (u) => isSuper(u) || u.role === 'manager';
 const canWrite = (u) => u.role !== 'viewer';
 const needWrite = (req, res, next) => (canWrite(req.user) ? next() : res.status(403).json({ error: 'Your account is read only.' }));
-const needDelete = (req, res, next) => (isManager(req.user) || (canWrite(req.user) && can(req.user, 'delete')) ? next() : res.status(403).json({ error: 'You are not allowed to delete files.' }));
+const needDelete = (req, res, next) => (canWrite(req.user) && can(req.user, 'delete') ? next() : res.status(403).json({ error: 'You are not allowed to delete files.' }));
 const needFiles = (req, res, next) => (canWrite(req.user) && can(req.user, 'files') ? next() : res.status(403).json({ error: 'You are not allowed to decide on recordings.' }));
 // A company's subscription: notice 30 days before it ends, and after.
 const subscriptionOf = (companyId) => {

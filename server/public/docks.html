@@ -498,13 +498,13 @@ function askDelete(ids) {
   };
 }
 function paintFilesBar() {
-  const n = sel.size, can = me?.role === 'admin';
+  const n = sel.size, can = (me?.features || []).includes('files'), canDel = (me?.features || []).includes('delete');
   $('#fsel').textContent = n ? t('dc.nSelected', { n }) : '';
-  $('#fcloud').disabled = !n || !can; $('#flocal').disabled = !n || !can; $('#fdel').disabled = !n || !can;
+  $('#fcloud').disabled = !n || !can; $('#flocal').disabled = !n || !can; $('#fdel').disabled = !n || !canDel;
 }
 function paintFiles() {
   if (view !== 'files' || !$('#fmode') || !FD) return;
-  const mode = FD.policy?.mode || 'ask', can = me?.role === 'admin', c = FD.counts;
+  const mode = FD.policy?.mode || 'ask', can = me?.role === 'admin' || (me?.role === 'manager' && (me.features || []).includes('files')), c = FD.counts;
   $('#fmode').innerHTML = MODES.map((k) => `<button data-mode="${k}" class="${mode === k ? 'on' : ''}" ${can ? '' : 'disabled'}><b>${t('dc.m.' + k)}</b><span>${t('dc.m.' + k + 'D')}</span></button>`).join('');
   const dk = agentOf(), st = dk?.storage;
   $('#fnote').innerHTML = t('dc.uploadQuality') + (st?.dir ? t('dc.dockStorage') + '<span class="mono ltr">' + esc(st.dir) + '</span>' + (st.freeBytes != null ? esc(t('dc.freeSz', { size: fmtB(st.freeBytes) })) : '') : '') +
