@@ -211,7 +211,7 @@ function render() {
       ${lastCred[co.id] ? `<div class="cred">${t('ad.loginFor')} <code>${esc(lastCred[co.id].username)}</code> <code>${esc(lastCred[co.id].password)}</code>
         <button class="btn sm" data-act="copy">${t('em.copy')}</button><span class="muted" style="font-size:12px">${t('ad.saveIt')}</span></div>` : ''}
       <div class="adduser">
-        <input class="nu" placeholder="Username" data-i18n-ph="em.phUser" maxlength="32" autocomplete="off">
+        <input class="nu" placeholder="${esc(t('em.phUser'))}" maxlength="32" autocomplete="off">
         <input class="nn" placeholder="${esc(t('ad.phDisplay'))}" maxlength="60">
         <div class="pw"><input class="np" placeholder="${esc(t('em.phPass'))}" autocomplete="new-password"><button class="btn sm" data-act="gen" type="button">${t('ad.generate')}</button></div>
         <select class="nr" aria-label="${esc(t('ad.roleAria'))}" title="${esc(t('ad.roleTitle'))}"><option value="manager">${ROLE('manager')}</option><option value="client" selected>${ROLE('client')}</option><option value="viewer">${t('ad.viewerRO')}</option></select>

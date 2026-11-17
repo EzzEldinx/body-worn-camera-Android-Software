@@ -61,3 +61,28 @@ test('texts with a count use the plural forms of the language', () => {
     assert.strictEqual(VG.t('common.nDays', { n: 1 }, 'en'), '1 day');
     assert.strictEqual(i18n.tr('ar', 'ins.sos.title', { n: 3 }), '3 إنذارات SOS بانتظار تأكيد الاستلام');
 });
+
+// ---- every word a page asks for exists (a typo in a key would show the key itself to the user)
+const pubDir = path.join(__dirname, '..', 'public');
+const all = (() => { const m = {}; for (const d of Object.values(dicts)) Object.assign(m, d.en); return m; })();
+const sources = [...fs.readdirSync(pubDir).filter((f) => /\.(html|js)$/.test(f) && f !== 'i18n.js'), ...[]].map((f) => [f, fs.readFileSync(path.join(pubDir, f), 'utf8')]);
+
+test('every data-i18n key and every t(\'key\') in the pages exists in the dictionaries', () => {
+    const missing = [];
+    for (const [f, src] of sources) {
+        for (const m of src.matchAll(/data-i18n(?:-html|-ph|-title|-aria|-alt|-value)?="([^"]+)"/g)) if (!(m[1] in all)) missing.push(`${f}: data-i18n ${m[1]}`);
+        // the dashboard and the station write t('word') for lv.word / st.word; everything else writes the whole key
+        const prefix = f === 'index.html' ? 'lv.' : f === 'station.html' ? 'st.' : null;
+        const whole = prefix ? /\bVG\.(?:t|h)\(\s*['"]([a-z]{1,3}\.[A-Za-z0-9_.\-]+)['"]\s*[,)]/g : /\b(?:VG\.)?(?:t|th|h|tr)\(\s*['"]([a-z]{1,3}\.[A-Za-z0-9_.\-]+)['"]\s*[,)]/g;
+        for (const m of src.matchAll(whole)) if (!(m[1] in all)) missing.push(`${f}: ${m[1]}`);
+        if (prefix) for (const m of src.matchAll(/(?<![.\w])tt?\(\s*['"]([A-Za-z0-9_.]+)['"]\s*[,)]/g)) if (!((prefix + m[1]) in all)) missing.push(`${f}: ${prefix}${m[1]}`);
+    }
+    assert.deepStrictEqual([...new Set(missing)], []);
+});
+
+test('the inline pairs L(english, arabic) of the dashboard map have an Arabic text', () => {
+    const src = fs.readFileSync(path.join(pubDir, 'geofence.js'), 'utf8');
+    const bad = [];
+    for (const m of src.matchAll(/\bL\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*'((?:[^'\\]|\\.)*)'\s*\)/g)) if (!/[؀-ۿ]/.test(m[2]) && /[A-Za-z]{4,}/.test(m[1])) bad.push(m[1]);
+    assert.deepStrictEqual(bad, []);
+});
