@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Help &amp; Support - VisionGuard</title>
+<title data-i18n="hp.pageTitle">Help &amp; Support - VisionGuard</title>
+<script src="/i18n.js"></script>
+<script src="/i18n/help.js"></script>
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="stylesheet" href="/portal.css">
@@ -39,87 +41,80 @@ details.q div{padding:0 16px 14px;color:var(--mut);font-size:13.5px;line-height:
 .fchips button.on{background:linear-gradient(135deg,var(--sel),#ff9d00);border-color:transparent;color:var(--sel-ink)}
 .empty{color:var(--mut);font-size:13px;padding:14px 0}
 </style>
+<link rel="stylesheet" href="/i18n.css">
 </head>
 <body>
 <header id="top"></header>
 <main>
   <section class="card hero">
-    <div><h1>Help &amp; <span>Support</span></h1>
-      <p>Find a quick answer, or open a ticket and the Smart Way support team will answer you right here. You can also write to <a id="mailTop" style="color:#FFC857;font-weight:700" href="mailto:sdpt@smart-way.com.sa">sdpt@smart-way.com.sa</a>.</p></div>
-    <a class="btn pri" href="#new" id="goNew" style="font-size:16px;padding:14px 26px">Open a ticket</a>
+    <div><h1 data-i18n-html="hp.h1">Help &amp; <span>Support</span></h1>
+      <p data-i18n-html="hp.lead">Find a quick answer, or open a ticket and the Smart Way support team will answer you right here. You can also write to <a id="mailTop" style="color:#FFC857;font-weight:700" href="mailto:sdpt@smart-way.com.sa">sdpt@smart-way.com.sa</a>.</p></div>
+    <a class="btn pri" href="#new" id="goNew" style="font-size:16px;padding:14px 26px" data-i18n="hp.openTicket">Open a ticket</a>
   </section>
 
   <section class="cols">
-    <div class="card"><h3>Quick answers</h3><div id="faq"></div></div>
-    <div class="card" id="new"><h3>Open a ticket</h3>
+    <div class="card"><h3 data-i18n="hp.quick">Quick answers</h3><div id="faq"></div></div>
+    <div class="card" id="new"><h3 data-i18n="hp.openTicket">Open a ticket</h3>
       <form class="frm" id="tf" autocomplete="off">
-        <label>Subject<input id="tSub" maxlength="120" placeholder="e.g. Camera BWC-03 shows offline" required></label>
+        <label><span data-i18n="hp.subject">Subject</span><input id="tSub" maxlength="120" placeholder="e.g. Camera BWC-03 shows offline" data-i18n-ph="hp.phSubject" required></label>
         <div class="row2">
-          <label>About<select id="tCat"><option value="question">A question</option><option value="camera">A camera</option><option value="docking">The docking station</option><option value="live">Live view</option><option value="alerts">Alerts / SOS</option><option value="account">My account</option><option value="app">The mobile app</option><option value="other">Something else</option></select></label>
-          <label>Priority<select id="tPri"><option value="normal">Normal</option><option value="low">Low</option><option value="high">High</option><option value="urgent">Urgent (cameras are not working)</option></select></label>
+          <label><span data-i18n="hp.about">About</span><select id="tCat"><option value="question" data-i18n="hp.cat.question">A question</option><option value="camera" data-i18n="hp.cat.camera">A camera</option><option value="docking" data-i18n="hp.cat.docking">The docking station</option><option value="live" data-i18n="hp.cat.live">Live view</option><option value="alerts" data-i18n="hp.cat.alerts">Alerts / SOS</option><option value="account" data-i18n="hp.cat.account">My account</option><option value="app" data-i18n="hp.cat.app">The mobile app</option><option value="other" data-i18n="hp.cat.other">Something else</option></select></label>
+          <label><span data-i18n="hp.priority">Priority</span><select id="tPri"><option value="normal" data-i18n="hp.pri.normal">Normal</option><option value="low" data-i18n="hp.pri.low">Low</option><option value="high" data-i18n="hp.pri.high">High</option><option value="urgent" data-i18n="hp.pri.urgentLong">Urgent (cameras are not working)</option></select></label>
         </div>
-        <label>Camera (optional)<select id="tCam"><option value="">None</option></select></label>
-        <label>What happened?<textarea id="tDesc" maxlength="4000" placeholder="What did you do, what did you expect, what happened instead? The more detail, the faster we can help." required></textarea></label>
+        <label><span data-i18n="hp.camera">Camera (optional)</span><select id="tCam"><option value="" data-i18n="hp.none">None</option></select></label>
+        <label><span data-i18n="hp.what">What happened?</span><textarea id="tDesc" maxlength="4000" placeholder="What did you do, what did you expect, what happened instead? The more detail, the faster we can help." data-i18n-ph="hp.phWhat" required></textarea></label>
         <div id="tMsg"></div>
-        <button class="btn pri" id="tGo" type="submit" style="justify-self:start">Send to support</button>
+        <button class="btn pri" id="tGo" type="submit" style="justify-self:start" data-i18n="hp.send">Send to support</button>
       </form></div>
   </section>
 
   <section class="cols" id="mine">
-    <div class="card"><h3 id="lTitle">My tickets</h3><div class="fchips" id="fch"></div><div id="tl"><div class="empty">Loading…</div></div></div>
-    <div class="card" id="det"><h3>Conversation</h3><div class="empty">Choose a ticket to read the conversation and reply.</div></div>
+    <div class="card"><h3 id="lTitle" data-i18n="hp.myTickets">My tickets</h3><div class="fchips" id="fch"></div><div id="tl"><div class="empty" data-i18n="common.loading">Loading…</div></div></div>
+    <div class="card" id="det"><h3 data-i18n="hp.conversation">Conversation</h3><div class="empty" data-i18n="hp.choose">Choose a ticket to read the conversation and reply.</div></div>
   </section>
 </main>
 
 <script src="/portal.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
+const t = VG.t, th = VG.h;
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const when = (t) => new Date(t).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-const ST = { open: 'Open', in_progress: 'In progress', resolved: 'Resolved', closed: 'Closed' }, PR = { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low' };
+const when = (ts) => VG.dateTime(ts, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+const ST = Object.fromEntries(['open', 'in_progress', 'resolved', 'closed'].map((k) => [k, t('hp.st.' + k)])), PR = Object.fromEntries(['urgent', 'high', 'normal', 'low'].map((k) => [k, t('hp.pri.' + k)]));
 let info = { email: 'sdpt@smart-way.com.sa', staff: false }, filter = '', cur = null, tickets = [];
 
-const FAQ = [
-  ['A camera shows offline', 'Check it is charged and has Wi-Fi or mobile data. A camera on the docking station is charging and appears online within seconds. If it stays offline after charging, open a ticket with the camera name.'],
-  ['The camera on the map has no GPS position', 'Indoors and on the dock a camera cannot see the sky, so it has no GPS fix. A docked camera is shown at the dock’s location ("At the docking station"). Outdoors it gets a fix within a minute or two. If it never does, open a ticket.'],
-  ['What happens to videos after I dock a camera?', 'The dock copies them to the dock computer and checks them. Then in Docking › Files you choose, per file or all at once: Push to cloud, or keep on the dock’s storage. You can also switch on an automatic mode.'],
-  ['Where are my files? What does "Keep on dock storage" mean?', 'It means a verified copy stays on the computer next to the docking station (not on the camera). Files in the cloud are listed under Docking › Cloud Library, where you can play or download them any time.'],
-  ['Can I delete a video from the camera?', 'Yes: Docking › Files › Delete. The camera removes it only when it is docked and a verified copy exists on the dock or in the cloud. The copy is never touched. This cannot be undone.'],
-  ['The live view does not start', 'The camera must be online. Press Live next to the camera and wait a few seconds; it starts by itself. On a weak mobile network the video quality lowers automatically. If it keeps failing, open a ticket with the camera name and the time.'],
-  ['How can I prove nothing was changed?', 'Analytics › Audit trail records every step of every file and who decided it. It cannot be edited or erased, and each line is chained to the previous one. “Verify now” checks it, and you can export it.'],
-  ['I forgot my password / I need a new user', 'Ask your company administrator, or open a ticket under "My account".'],
-];
+const FAQ = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => [t('hp.f' + n + 'q'), t('hp.f' + n + 'a')]);
 $('#faq').innerHTML = FAQ.map(([q, a]) => `<details class="q"><summary>${esc(q)}</summary><div>${esc(a)}</div></details>`).join('');
 
 async function loadList() {
   const r = await fetch('/api/tickets' + (filter ? '?status=' + filter : '')); tickets = (await r.json()).tickets || [];
-  $('#lTitle').textContent = info.staff ? 'All tickets' : 'My tickets';
-  $('#fch').innerHTML = [['', 'All'], ['open', 'Open'], ['in_progress', 'In progress'], ['resolved', 'Resolved'], ['closed', 'Closed']].map(([k, l]) => `<button data-f="${k}" class="${filter === k ? 'on' : ''}">${l}</button>`).join('');
-  $('#tl').innerHTML = tickets.length ? tickets.map((t) => `<div class="tk ${cur === t.id ? 'on' : ''}" data-id="${t.id}"><div><b>${esc(t.subject)}</b><small>${esc(t.ref)} · ${when(t.updated)}${info.staff ? ' · ' + esc(t.by) + (t.company ? ' · ' + esc(t.company) : '') : ''}${t.replies ? ' · ' + t.replies + ' repl' + (t.replies === 1 ? 'y' : 'ies') : ''}</small></div>
-    <div style="display:grid;gap:4px;justify-items:end"><span class="chip s-${t.status}">${ST[t.status]}</span><span class="chip p-${t.priority}">${PR[t.priority]}</span></div></div>`).join('') : '<div class="empty">No tickets yet. When you open one it appears here.</div>';
+  $('#lTitle').textContent = info.staff ? t('hp.allTickets') : t('hp.myTickets');
+  $('#fch').innerHTML = [['', t('hp.all')], ...Object.entries(ST)].map(([k, l]) => `<button data-f="${k}" class="${filter === k ? 'on' : ''}">${l}</button>`).join('');
+  $('#tl').innerHTML = tickets.length ? tickets.map((k) => `<div class="tk ${cur === k.id ? 'on' : ''}" data-id="${k.id}"><div><b>${esc(k.subject)}</b><small>${esc(k.ref)} · ${when(k.updated)}${info.staff ? ' · ' + esc(k.by) + (k.company ? ' · ' + esc(k.company) : '') : ''}${k.replies ? ' · ' + esc(t('hp.replies', { n: k.replies })) : ''}</small></div>
+    <div style="display:grid;gap:4px;justify-items:end"><span class="chip s-${k.status}">${ST[k.status]}</span><span class="chip p-${k.priority}">${PR[k.priority]}</span></div></div>`).join('') : `<div class="empty">${t('hp.noTickets')}</div>`;
 }
 async function openTicket(id) {
   cur = id; const r = await fetch('/api/tickets/' + id); if (!r.ok) return;
-  const t = await r.json();
+  const k = await r.json();
   const canStatus = info.staff;
-  $('#det').innerHTML = `<h3>${esc(t.ref)} · ${esc(t.subject)}</h3>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px"><span class="chip s-${t.status}">${ST[t.status]}</span><span class="chip p-${t.priority}">${PR[t.priority]}</span><span class="chip" style="--c:var(--mut)">${esc(t.category)}</span>${t.cameraId ? `<span class="chip" style="--c:var(--blue)">${esc(t.cameraId)}</span>` : ''}</div>
-    ${t.messages.map((m) => `<div class="msg ${m.staff ? 'staff' : ''}"><small>${esc(m.author)}${m.staff ? ' · Smart Way support' : ''} · ${when(m.ts)}</small>${esc(m.body)}</div>`).join('')}
-    ${t.status === 'closed' ? '<div class="note">This ticket is closed. Reply to reopen it.</div>' : ''}
-    <div class="frm" style="margin-top:12px"><textarea id="rBody" placeholder="Write a reply…" maxlength="4000"></textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn pri" id="rGo">Send reply</button>
-        ${canStatus ? `<select id="rSt">${Object.entries(ST).map(([k, v]) => `<option value="${k}" ${t.status === k ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn" id="rSet">Set status</button>`
-          : (t.status !== 'closed' ? '<button class="btn" id="rClose">Close ticket</button>' : '')}<span class="muted" id="rMsg"></span></div></div>`;
+  $('#det').innerHTML = `<h3>${esc(k.ref)} · ${esc(k.subject)}</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 12px"><span class="chip s-${k.status}">${ST[k.status]}</span><span class="chip p-${k.priority}">${PR[k.priority]}</span><span class="chip" style="--c:var(--mut)">${esc(VG.has('hp.cat.' + k.category) ? t('hp.cat.' + k.category) : k.category)}</span>${k.cameraId ? `<span class="chip" style="--c:var(--blue)">${esc(k.cameraId)}</span>` : ''}</div>
+    ${k.messages.map((m) => `<div class="msg ${m.staff ? 'staff' : ''}"><small><bdi>${esc(m.author)}</bdi>${m.staff ? t('hp.supportTag') : ''} · ${when(m.ts)}</small>${esc(m.body)}</div>`).join('')}
+    ${k.status === 'closed' ? `<div class="note">${t('hp.closedNote')}</div>` : ''}
+    <div class="frm" style="margin-top:12px"><textarea id="rBody" placeholder="${esc(t('hp.phReply'))}" maxlength="4000"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn pri" id="rGo">${t('hp.sendReply')}</button>
+        ${canStatus ? `<select id="rSt">${Object.entries(ST).map(([key, v]) => `<option value="${key}" ${k.status === key ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn" id="rSet">${t('hp.setStatus')}</button>`
+          : (k.status !== 'closed' ? `<button class="btn" id="rClose">${t('hp.closeTicket')}</button>` : '')}<span class="muted" id="rMsg"></span></div></div>`;
   $('#rGo').onclick = async () => {
     const body = $('#rBody').value.trim(); if (body.length < 2) return;
     const x = await fetch(`/api/tickets/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }) });
-    if (x.ok) { await openTicket(id); loadList(); } else $('#rMsg').textContent = (await x.json()).error || 'Could not send.';
+    if (x.ok) { await openTicket(id); loadList(); } else $('#rMsg').textContent = (await x.json()).error || t('hp.couldNotSend');
   };
   if ($('#rSet')) $('#rSet').onclick = async () => { await fetch(`/api/tickets/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: $('#rSt').value }) }); openTicket(id); loadList(); };
   if ($('#rClose')) $('#rClose').onclick = async () => { await fetch(`/api/tickets/${id}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'closed' }) }); openTicket(id); loadList(); };
   history.replaceState(null, '', '#t=' + id);
 }
-$('#tl').addEventListener('click', (e) => { const t = e.target.closest('.tk'); if (t) { openTicket(Number(t.dataset.id)); loadList(); } });
+$('#tl').addEventListener('click', (e) => { const k = e.target.closest('.tk'); if (k) { openTicket(Number(k.dataset.id)); loadList(); } });
 $('#fch').addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (b) { filter = b.dataset.f; loadList(); } });
 $('#goNew').onclick = (e) => { e.preventDefault(); $('#new').scrollIntoView({ behavior: 'smooth' }); $('#tSub').focus(); };
 
@@ -127,25 +122,25 @@ $('#tf').onsubmit = async (e) => {
   e.preventDefault(); const b = $('#tGo'); b.disabled = true; $('#tMsg').innerHTML = '';
   const r = await fetch('/api/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: $('#tSub').value, category: $('#tCat').value, priority: $('#tPri').value, cameraId: $('#tCam').value, description: $('#tDesc').value }) });
   const j = await r.json(); b.disabled = false;
-  if (!r.ok) { $('#tMsg').innerHTML = `<div class="note warn">${esc(j.error || 'Could not send the ticket.')}</div>`; return; }
-  $('#tMsg').innerHTML = j.emailed ? `<div class="note ok">Ticket <b>${esc(j.ref)}</b> was sent to support. We will answer it here.</div>`
-    : `<div class="note ok">Ticket <b>${esc(j.ref)}</b> is saved and support will answer it here. If it is urgent, also write to <a href="mailto:${esc(info.email)}?subject=${encodeURIComponent(j.ref)}">${esc(info.email)}</a>.</div>`;
+  if (!r.ok) { $('#tMsg').innerHTML = `<div class="note warn">${esc(j.error || t('hp.couldNotSendTicket'))}</div>`; return; }
+  $('#tMsg').innerHTML = j.emailed ? `<div class="note ok">${th('hp.sentOk', { ref: j.ref })}</div>`
+    : `<div class="note ok">${th('hp.savedOk', { ref: j.ref, email: info.email, subj: encodeURIComponent(j.ref) })}</div>`;
   $('#tf').reset(); await loadList(); openTicket(j.id);
 };
 
 portalReady.then(async (me) => {
   info = await (await fetch('/api/support/info')).json();
   if (info.staff) {   // Smart Way support answers tickets: an inbox, no form to open one
-    document.querySelector('.hero h1').innerHTML = 'Support <span>inbox</span>';
-    document.querySelector('.hero p').textContent = 'Tickets from your customers. Open one to read the conversation, answer, and set its status. Customers see your answer in their own Support page.';
+    document.querySelector('.hero h1').innerHTML = t('hp.h1Staff');
+    document.querySelector('.hero p').textContent = t('hp.leadStaff');
     document.getElementById('goNew').style.display = 'none';
     document.getElementById('new').closest('section').style.display = 'none';
     document.querySelector('main').appendChild(document.getElementById('mine'));
     filter = 'open';
   }
   if ($('#mailTop')) { $('#mailTop').textContent = info.email; $('#mailTop').href = 'mailto:' + info.email; }
-  if (info.staff && !info.emailConfigured) $('#tMsg').innerHTML = '<div class="note warn">E-mail to the support desk is not configured on the server (set SMTP_HOST in the server .env). Tickets are stored here meanwhile.</div>';
-  try { const d = await (await fetch('/api/docks')).json(); $('#tCam').innerHTML = '<option value="">None</option>' + (d.cameras || []).map((c) => `<option>${esc(c.cameraId)}</option>`).join(''); } catch (e) { /* optional */ }
+  if (info.staff && !info.emailConfigured) $('#tMsg').innerHTML = `<div class="note warn">${t('hp.noMail')}</div>`;
+  try { const d = await (await fetch('/api/docks')).json(); $('#tCam').innerHTML = `<option value="">${t('hp.none')}</option>` + (d.cameras || []).map((c) => `<option>${esc(c.cameraId)}</option>`).join(''); } catch (e) { /* optional */ }
   await loadList();
   const m = /#t=(\d+)/.exec(location.hash); if (m) openTicket(Number(m[1]));
   setInterval(() => { if (!document.hidden) loadList(); }, 20000);

@@ -13,6 +13,7 @@ const packages = require('./packages');
 const auditlog = require('./auditlog');
 const features = require('./features');
 const insights = require('./insights');
+const i18n = require('./i18n');
 const support = require('./support');
 const deviceTokens = require('./tokens');
 
@@ -170,6 +171,7 @@ const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 15e6 }); // voice notes travel as Base64 (default cap is 1 MB)
 app.disable('x-powered-by');
 app.use(securityHeaders);
+app.use(i18n.middleware);                                              // req.lang from the language the page or the app asked for; the API's own error texts come back in it
 app.use(express.json());
 
 // ---------- Licence (self-hosted installations; off on Smart Way's own servers, see license.js and docs/LICENSING.md) ----------
@@ -318,11 +320,12 @@ app.post('/api/mobile/logout', needUser, (req, res) => {
 });
 // Push registration: the app hands over its FCM/APNs token so SOS alerts can reach a locked phone (see push.js).
 db.exec('CREATE TABLE IF NOT EXISTS push_devices(token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, platform TEXT NOT NULL, session TEXT, created INTEGER NOT NULL)');
+if (!db.prepare('PRAGMA table_info(push_devices)').all().some((c) => c.name === 'lang')) db.exec('ALTER TABLE push_devices ADD COLUMN lang TEXT');   // the language the app is in: SOS and alert notices are written in it
 app.post('/api/mobile/push', needUser, (req, res) => {
     const token = String(req.body?.token || ''), platform = req.body?.platform;
     if (!/^[\w:.\-]{20,4096}$/.test(token) || !['ios', 'android'].includes(platform)) return res.status(400).json({ error: 'Bad push token.' });
-    db.prepare('INSERT INTO push_devices(token,user_id,platform,session,created) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id, platform=excluded.platform, session=excluded.session')
-        .run(token, req.user.id, platform, bearer(req.headers.authorization), Date.now());
+    db.prepare('INSERT INTO push_devices(token,user_id,platform,session,created,lang) VALUES(?,?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id, platform=excluded.platform, session=excluded.session, lang=excluded.lang')
+        .run(token, req.user.id, platform, bearer(req.headers.authorization), Date.now(), i18n.norm(req.body?.lang || req.lang));
     res.json({ ok: true });
 });
 app.delete('/api/mobile/push', needUser, (req, res) => {
@@ -557,7 +560,7 @@ app.get('/api/analytics', needUser, (req, res) => {
     for (let i = 6; i >= 0; i--) {
         const d = new Date(now - i * DAY); d.setHours(0, 0, 0, 0);
         const from = d.getTime();
-        days.push({ day: d.toLocaleDateString('en', { weekday: 'short' }), count: alarms.filter((a) => a.ts >= from && a.ts < from + DAY).length });
+        days.push({ day: d.toLocaleDateString('en', { weekday: 'short' }), ts: from, count: alarms.filter((a) => a.ts >= from && a.ts < from + DAY).length });
     }
     const groups = {};
     list.forEach((c) => { const g = c.grp || '-'; groups[g] = (groups[g] || 0) + 1; });
@@ -572,33 +575,33 @@ app.get('/api/analytics', needUser, (req, res) => {
             offline: list.filter((c) => !c.online).length,
         },
         alarms: { total: alarms.length, open: alarms.filter((a) => a.ack_ts == null).length, acked: acked.length, avgResponseSec: avgResponse, days },
-        groups: Object.entries(groups).map(([name, count]) => ({ name, count })),
+        groups: Object.entries(groups).map(([name, count]) => ({ name, count, ...(name === '-' ? { none: true } : {}) })),
         gpsPoints24h: gps,
     };
     if (isStaff(u)) {
         const names = new Map(db.prepare('SELECT id,name FROM companies').all().map((c) => [c.id, c.name]));
         const per = {};
         list.forEach((c) => { const n = c.companyId ? names.get(c.companyId) : 'Unassigned'; per[n || 'Unassigned'] = (per[n || 'Unassigned'] || 0) + 1; });
-        out.companies = Object.entries(per).map(([name, count]) => ({ name, count }));
+        out.companies = Object.entries(per).map(([name, count]) => ({ name, count, ...(name === 'Unassigned' ? { unassigned: true } : {}) }));
         out.totals = { companies: names.size, users: db.prepare('SELECT COUNT(*) n FROM users').get().n };
     }
     res.json(out);
 });
 
-const insightsFor = (u) => {
+const insightsFor = (u, lang = 'en') => {
     const cameras = visibleCams(u);
-    return { ...insights.build({ db, cameras, recordingsDir: path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'recordings'), staff: isStaff(u) }), shifts: checkout.summary(cameras) };
+    return { ...insights.build({ db, cameras, recordingsDir: path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'recordings'), staff: isStaff(u), lang }), shifts: checkout.summary(cameras) };
 };
-app.get('/api/analytics/insights', needUser, (req, res) => res.json(insightsFor(req.user)));
+app.get('/api/analytics/insights', needUser, (req, res) => res.json(insightsFor(req.user, req.lang)));
 const aiCache = new Map(), aiLast = new Map();
 app.post('/api/analytics/ai', needUser, license.gate('ai'), async (req, res) => {
-    const key = isStaff(req.user) ? 'staff' : `c${req.user.companyId}`, now = Date.now();
+    const key = (isStaff(req.user) ? 'staff' : `c${req.user.companyId}`) + ':' + req.lang, now = Date.now();
     const hit = aiCache.get(key);
     if (hit && now - hit.at < 10 * 60000 && !req.body?.refresh) return res.json({ ...hit.v, cached: true });
     if (now - (aiLast.get(req.user.id) || 0) < 15000) return res.status(429).json({ error: 'Please wait a few seconds before asking again.' });
     aiLast.set(req.user.id, now);
     try {
-        const v = { ...(await insights.aiNarrative(insightsFor(req.user))), generatedAt: now };
+        const v = { ...(await insights.aiNarrative(insightsFor(req.user, req.lang), { lang: req.lang })), generatedAt: now };
         aiCache.set(key, { at: now, v });
         auditlog.add(db, req.user.username, v.ai ? 'ai_analysis_generated' : 'summary_generated', null);
         res.json(v);

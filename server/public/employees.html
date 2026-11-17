@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Employees - VisionGuard</title>
+<title data-i18n="em.pageTitle">Employees - VisionGuard</title>
+<script src="/i18n.js"></script>
+<script src="/i18n/employees.js"></script>
+<script src="/i18n/features.js"></script>
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="stylesheet" href="/portal.css">
 <style>
@@ -11,8 +14,8 @@
 .user.off{opacity:.6}
 .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--sel),#ff8a00);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--sel-ink);flex:none}
 .user b{font-size:14.5px}.user small{display:block;color:var(--mut);font-size:12px}
-.sp{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
-.tag{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--ok) 16%,var(--panel));color:var(--ok)}
+.sp{margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap}
+.tag{display:inline-block;margin-inline-start:8px;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--ok) 16%,var(--panel));color:var(--ok)}
 .tag.off{background:color-mix(in srgb,var(--rec) 14%,var(--panel));color:var(--rec)}
 .add{display:grid;grid-template-columns:1.3fr .8fr 1fr auto;gap:8px;margin-top:12px}
 @media (max-width:760px){.add{grid-template-columns:1fr}}
@@ -43,52 +46,55 @@ summary{cursor:pointer;font-weight:700}
 .coLogo{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.coLogo .lg{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:24px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--blue));overflow:hidden;flex:none}.coLogo .lg.has{background:var(--panel);border:1px solid var(--line)}.coLogo .avimg{object-fit:contain;padding:4px}
 .full{margin-top:12px;color:var(--mut);font-size:13px}
 </style>
+<link rel="stylesheet" href="/i18n.css">
 </head>
 <body>
 <header id="top"></header>
 <main>
   <section class="card" style="margin-bottom:18px">
-    <h3>Company logo</h3>
-    <div class="coLogo"><div class="lg" id="lg"></div><button class="btn sm" id="lgUp">Upload logo</button><button class="btn sm" id="lgRm" style="display:none">Remove</button><span class="muted" style="font-size:13px">Shown next to your company name at the top of every page. PNG, JPEG or WebP.</span></div>
+    <h3 data-i18n="em.logo">Company logo</h3>
+    <div class="coLogo"><div class="lg" id="lg"></div><button class="btn sm" id="lgUp" data-i18n="em.upload">Upload logo</button><button class="btn sm" id="lgRm" style="display:none" data-i18n="em.remove">Remove</button><span class="muted" style="font-size:13px" data-i18n="em.logoNote">Shown next to your company name at the top of every page. PNG, JPEG or WebP.</span></div>
   </section>
   <section class="card">
-    <h3>Dashboard users</h3>
-    <p class="muted" style="margin:0 0 14px;font-size:13.5px;line-height:1.5">People who sign in to watch the cameras. <b>Administrator</b>: everything in your company (users, employees, delete files). <b>Operator</b>: watch live, alarms, chat, choose what happens to files, but cannot delete. <b>Viewer</b>: read only.</p>
-    <div id="ulist"><div class="empty">Loading…</div></div>
-    <div class="add" style="grid-template-columns:1fr 1fr 1fr auto auto"><input id="uu" placeholder="Username" maxlength="32" autocomplete="off"><input id="un" placeholder="Name (optional)" maxlength="60"><input id="up" placeholder="Password (8+)" autocomplete="new-password"><select id="ur"><option value="manager">Administrator</option><option value="client" selected>Operator</option><option value="viewer">Viewer</option></select><button class="btn pri" id="addUser">Add user</button></div>
-    <details><summary>Choose what the new user can use <span class="muted" style="font-weight:500">(everything by default)</span></summary><div id="newAcc"></div></details>
+    <h3 data-i18n="em.usersTitle">Dashboard users</h3>
+    <p class="muted" style="margin:0 0 14px;font-size:13.5px;line-height:1.5"><span data-i18n="em.usersIntro">People who sign in to watch the cameras.</span> <span data-i18n-html="em.usersNote"><b>Administrator</b>: everything in your company (users, employees, delete files). <b>Operator</b>: watch live, alarms, chat, choose what happens to files, but cannot delete. <b>Viewer</b>: read only.</span></p>
+    <div id="ulist"><div class="empty" data-i18n="common.loading">Loading…</div></div>
+    <div class="add" style="grid-template-columns:1fr 1fr 1fr auto auto"><input id="uu" dir="ltr" placeholder="Username" data-i18n-ph="em.phUser" maxlength="32" autocomplete="off"><input id="un" placeholder="Name (optional)" data-i18n-ph="em.phName" maxlength="60"><input id="up" dir="ltr" placeholder="Password (8+)" data-i18n-ph="em.phPass" autocomplete="new-password"><select id="ur"><option value="manager" data-i18n="em.role.manager">Administrator</option><option value="client" selected data-i18n="em.role.client">Operator</option><option value="viewer" data-i18n="em.role.viewer">Viewer</option></select><button class="btn pri" id="addUser" data-i18n="em.addUser">Add user</button></div>
+    <details><summary><span data-i18n="em.chooseNew">Choose what the new user can use</span> <span class="muted" style="font-weight:500" data-i18n="em.defaultAll">(everything by default)</span></summary><div id="newAcc"></div></details>
   </section>
   <section class="card" style="margin-top:18px">
     <h3 id="ttl">Employees</h3>
-    <p class="muted" style="margin:0 0 14px;font-size:13.5px;line-height:1.5">Everyone who carries a camera has their own username and password. At the check-out station next to the docking station they sign in and the system gives them a camera that is charged and ready; their name and ID are stamped on what it records. These accounts cannot open the dashboard.</p>
-    <div id="list"><div class="empty">Loading…</div></div>
+    <p class="muted" style="margin:0 0 14px;font-size:13.5px;line-height:1.5" data-i18n="em.empNote">Everyone who carries a camera has their own username and password. At the check-out station next to the docking station they sign in and the system gives them a camera that is charged and ready; their name and ID are stamped on what it records. These accounts cannot open the dashboard.</p>
+    <div id="list"><div class="empty" data-i18n="common.loading">Loading…</div></div>
     <div id="creds"></div>
-    <div class="add"><input id="en" placeholder="Employee name" maxlength="60"><input id="eno" placeholder="Employee no." maxlength="20"><input id="eu" placeholder="Username (blank = the number)" maxlength="32" autocomplete="off"><button class="btn pri" id="addOne">Add employee</button></div>
-    <details><summary>Add many employees at once</summary>
-      <textarea id="bulk" placeholder="One person per line:&#10;Ahmed Hassan, 0147&#10;Sara Ali, 0200"></textarea>
-      <p class="muted" style="font-size:12.5px;margin:8px 0 10px">Name, then employee number. The username becomes the number and each person gets a random password. You get a sheet of logins to hand out (shown once).</p>
-      <button class="btn pri" id="addMany">Create accounts</button></details>
+    <div class="add"><input id="en" placeholder="Employee name" data-i18n-ph="em.phEmp" maxlength="60"><input id="eno" dir="ltr" placeholder="Employee no." data-i18n-ph="em.phNo" maxlength="20"><input id="eu" dir="ltr" placeholder="Username (blank = the number)" data-i18n-ph="em.phEmpUser" maxlength="32" autocomplete="off"><button class="btn pri" id="addOne" data-i18n="em.addEmp">Add employee</button></div>
+    <details><summary data-i18n="em.many">Add many employees at once</summary>
+      <textarea id="bulk" placeholder="One person per line:&#10;Ahmed Hassan, 0147&#10;Sara Ali, 0200" data-i18n-ph="em.phBulk"></textarea>
+      <p class="muted" style="font-size:12.5px;margin:8px 0 10px" data-i18n="em.bulkNote">Name, then employee number. The username becomes the number and each person gets a random password. You get a sheet of logins to hand out (shown once).</p>
+      <button class="btn pri" id="addMany" data-i18n="em.create">Create accounts</button></details>
   </section>
 </main>
 <script src="/portal.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
+const t = VG.t;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const api = (m, u, b) => fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) }).then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; });
+const api = (m, u, b) => fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) }).then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || t('common.failed')); return j; });
 const fail = (e) => toast(e.message);
 const genPw = () => { const c = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (x) => c[x % c.length]).join(''); };
 let D = { employees: [] }, creds = [];
 let U = [];
-const ROLE = { manager: 'Administrator', client: 'Operator', viewer: 'Viewer' };
+const ROLE = { manager: t('em.role.manager'), client: t('em.role.client'), viewer: t('em.role.viewer') };
 const loadUsers = () => api('GET', '/api/company/users').then((d) => { U = d.users; AV = d.available; CAT = d.catalog; DEF = d.defaults; if (!$('#newAcc').children.length) newAcc(); renderUsers(); });
 let AV = [], CAT = [], DEF = {};
-function newAcc() { const sel = (DEF[$('#ur').value] || []); $('#newAcc').innerHTML = `<div data-box>${featBoxes(sel, 'data-np')}<div class="fbar"><span class="fcount">${sel.length} of ${AV.length} selected</span></div></div>`; }    // what the company has / the catalogue of features
+const fl = (f) => (VG.has('ft.' + f.key + '.l') ? t('ft.' + f.key + '.l') : f.label), fh = (f) => (VG.has('ft.' + f.key + '.h') ? t('ft.' + f.key + '.h') : f.hint), fg = (g) => (VG.has('ft.g.' + g) ? t('ft.g.' + g) : g);   // the catalogue comes from the server in English; the words are looked up by key
+function newAcc() { const sel = (DEF[$('#ur').value] || []); $('#newAcc').innerHTML = `<div data-box>${featBoxes(sel, 'data-np')}<div class="fbar"><span class="fcount">${esc(t('em.selected', { n: sel.length, total: AV.length }))}</span></div></div>`; }    // what the company has / the catalogue of features
 const openU = new Set();
 function featBoxes(sel, attr) {
   const opt = (f) => { const ok = AV.includes(f.key), on = ok && sel.includes(f.key);
-    return `<label class="fopt ${on ? 'on' : ''} ${ok ? '' : 'dim'}" title="${ok ? '' : 'Your company\'s plan does not include this'}"><input type="checkbox" ${attr}="${f.key}" ${on ? 'checked' : ''} ${ok ? '' : 'disabled'}><span><b>${esc(f.label)}</b><small>${esc(f.hint)}</small></span></label>`; };
+    return `<label class="fopt ${on ? 'on' : ''} ${ok ? '' : 'dim'}" title="${ok ? '' : esc(t('em.notInPlan'))}"><input type="checkbox" ${attr}="${f.key}" ${on ? 'checked' : ''} ${ok ? '' : 'disabled'}><span><b>${esc(fl(f))}</b><small>${esc(fh(f))}</small></span></label>`; };
   return ['feature', 'action'].map((k) => { const cat = CAT.filter((f) => f.kind === k), groups = [...new Set(cat.map((f) => f.group))];
-    return `<div class="kind">${k === 'feature' ? 'What they can see' : 'What they can do'}</div>` + groups.map((g) => `<div class="fgroup"><h4>${esc(g)}</h4><div class="fgrid">${cat.filter((f) => f.group === g).map(opt).join('')}</div></div>`).join(''); }).join('');
+    return `<div class="kind">${k === 'feature' ? t('ft.seeLabel') : t('ft.doLabel')}</div>` + groups.map((g) => `<div class="fgroup"><h4>${esc(fg(g))}</h4><div class="fgrid">${cat.filter((f) => f.group === g).map(opt).join('')}</div></div>`).join(''); }).join('');
 }
 const ticked = (box, attr) => [...box.querySelectorAll(`[${attr}]:checked`)].map((c) => c.getAttribute(attr));
 function sync(box, attr, changed) {   // Live wall needs Live dashboard, AI needs Analytics
@@ -97,66 +103,66 @@ function sync(box, attr, changed) {   // Live wall needs Live dashboard, AI need
     if (changed.checked) (f.needs || []).forEach((n) => { const x = on(n); if (x && !x.disabled) x.checked = true; });
     else CAT.filter((x) => (x.needs || []).includes(f.key)).forEach((x) => { const y = on(x.key); if (y) y.checked = false; }); }
   box.querySelectorAll('.fopt').forEach((l) => l.classList.toggle('on', l.querySelector('input').checked));
-  const n = box.querySelector('.fcount'); if (n) n.textContent = `${ticked(box, attr).length} of ${AV.length} selected`;
+  const n = box.querySelector('.fcount'); if (n) n.textContent = t('em.selected', { n: ticked(box, attr).length, total: AV.length });
 }
 function renderUsers() {
   $('#ulist').innerHTML = U.map((u) => {
     const sel = u.access || [], n = sel.filter((k) => AV.includes(k)).length;
     return `<div class="ucard ${openU.has(u.id) ? 'open' : ''}" data-uid="${u.id}"><div class="user"><div class="av">${avatarInner('user', u.id, u.avatarTs, u.username[0].toUpperCase())}</div><div><b>${esc(u.username)}</b><small>${esc(u.name)}</small></div>
     <div class="sp"><select data-u="role">${Object.entries(ROLE).map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
-      <button class="btn sm" data-u="pic">Photo</button><button class="chip-a" data-u="acc" title="Choose what this person can use"><i>▸</i>Access · ${u.role === 'manager' ? 'full' : n + ' of ' + AV.length}</button>
-      <button class="btn sm" data-u="pw">Reset password</button><button class="btn sm danger" data-u="del">Remove</button></div></div>
-    <div class="acc">${u.role === 'manager' ? '<div class="full">Administrators can use everything your company has. Change the role to Operator or Viewer to limit what they can use.</div>'
-      : `<div data-box>${featBoxes(sel, 'data-p')}<div class="fbar"><span class="fcount">${n} of ${AV.length} selected</span><button class="btn sm" data-u="all">Select all</button><button class="btn sm" data-u="none">Clear</button><button class="btn sm pri" data-u="save">Save access</button></div></div>`}</div></div>`;
-  }).join('') || '<div class="empty">No users yet.</div>';
+      <button class="btn sm" data-u="pic">${t('em.photo')}</button><button class="chip-a" data-u="acc" title="${esc(t('em.accessTitle'))}"><i class="flip">▸</i>${esc(t('em.access', { what: u.role === 'manager' ? t('em.accessFull') : t('em.accessN', { n, total: AV.length }) }))}</button>
+      <button class="btn sm" data-u="pw">${t('em.reset')}</button><button class="btn sm danger" data-u="del">${t('em.remove')}</button></div></div>
+    <div class="acc">${u.role === 'manager' ? `<div class="full">${t('em.adminFull')}</div>`
+      : `<div data-box>${featBoxes(sel, 'data-p')}<div class="fbar"><span class="fcount">${esc(t('em.selected', { n, total: AV.length }))}</span><button class="btn sm" data-u="all">${t('em.selectAll')}</button><button class="btn sm" data-u="none">${t('em.clear')}</button><button class="btn sm pri" data-u="save">${t('em.saveAccess')}</button></div></div>`}</div></div>`;
+  }).join('') || `<div class="empty">${t('em.noUsers')}</div>`;
 }
 $('#ur').onchange = newAcc;
-$('#addUser').onclick = () => api('POST', '/api/company/users', { username: $('#uu').value.trim(), name: $('#un').value.trim(), password: $('#up').value, role: $('#ur').value, perms: ticked($('#newAcc'), 'data-np') }).then(() => { $('#uu').value = $('#un').value = $('#up').value = ''; toast('User added'); newAcc(); return loadUsers(); }).catch(fail);
+$('#addUser').onclick = () => api('POST', '/api/company/users', { username: $('#uu').value.trim(), name: $('#un').value.trim(), password: $('#up').value, role: $('#ur').value, perms: ticked($('#newAcc'), 'data-np') }).then(() => { $('#uu').value = $('#un').value = $('#up').value = ''; toast(t('em.userAdded')); newAcc(); return loadUsers(); }).catch(fail);
 document.addEventListener('change', (e) => { const c = e.target.closest('[data-p],[data-np]'); if (c) { const box = c.closest('[data-box]'); sync(box, c.hasAttribute('data-p') ? 'data-p' : 'data-np', c); } });
-$('#ulist').addEventListener('change', (e) => { const s = e.target.closest('select[data-u]'); if (s) api('PATCH', `/api/company/users/${s.closest('.ucard').dataset.uid}`, { role: s.value }).then(() => { toast('Saved'); return loadUsers(); }).catch((x) => { fail(x); loadUsers(); }); });
+$('#ulist').addEventListener('change', (e) => { const s = e.target.closest('select[data-u]'); if (s) api('PATCH', `/api/company/users/${s.closest('.ucard').dataset.uid}`, { role: s.value }).then(() => { toast(t('em.saved')); return loadUsers(); }).catch((x) => { fail(x); loadUsers(); }); });
 $('#ulist').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-u]'); if (!b) return; const card = b.closest('.ucard'), id = card.dataset.uid, box = card.querySelector('[data-box]');
-  if (b.dataset.u === 'pic') return pickPicture('user', Number(id)).then((ok) => ok && (toast('Picture saved'), loadUsers())).catch(fail);
+  if (b.dataset.u === 'pic') return pickPicture('user', Number(id)).then((ok) => ok && (toast(t('em.pictureSaved')), loadUsers())).catch(fail);
   if (b.dataset.u === 'acc') { card.classList.toggle('open'); card.classList.contains('open') ? openU.add(Number(id)) : openU.delete(Number(id)); return; }
   if (b.dataset.u === 'all' || b.dataset.u === 'none') { box.querySelectorAll('[data-p]:not(:disabled)').forEach((c) => { c.checked = b.dataset.u === 'all'; }); sync(box, 'data-p'); return; }
-  if (b.dataset.u === 'save') return api('PATCH', `/api/company/users/${id}`, { perms: ticked(box, 'data-p') }).then(() => { toast('Access saved. It applies at once.'); return loadUsers(); }).catch(fail);
-  if (b.dataset.u === 'pw') { const pw = prompt('New password (8+ characters):', genPw()); if (pw) api('POST', `/api/company/users/${id}/password`, { password: pw }).then(() => toast('Password changed. Give it to the user.')).catch(fail); }
-  else if (confirm('Remove this user? They are signed out at once.')) api('DELETE', `/api/company/users/${id}`).then(loadUsers).catch(fail);
+  if (b.dataset.u === 'save') return api('PATCH', `/api/company/users/${id}`, { perms: ticked(box, 'data-p') }).then(() => { toast(t('em.accessSaved')); return loadUsers(); }).catch(fail);
+  if (b.dataset.u === 'pw') { const pw = prompt(t('em.promptPw'), genPw()); if (pw) api('POST', `/api/company/users/${id}/password`, { password: pw }).then(() => toast(t('em.pwChanged'))).catch(fail); }
+  else if (confirm(t('em.confirmUser'))) api('DELETE', `/api/company/users/${id}`).then(loadUsers).catch(fail);
 });
 const load = () => api('GET', '/api/employees').then((d) => { D = d; render(); });
 function render() {
-  $('#ttl').textContent = `Employees · ${D.company || ''}`;
+  $('#ttl').textContent = t('em.employees', { company: D.company || '' });
   $('#list').innerHTML = D.employees.map((u) => `<div class="user ${u.active ? '' : 'off'}" data-id="${u.id}"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}</div>
-    <div><b>${esc(u.name)}${u.holding ? `<span class="tag">has ${esc(u.holding)}</span>` : ''}${u.active ? '' : '<span class="tag off">switched off</span>'}</b><small>${u.employeeNo ? 'No. ' + esc(u.employeeNo) + (u.username !== u.employeeNo ? ' · ' + esc(u.username) : '') : esc(u.username)}</small></div>
-    <div class="sp"><button class="btn sm" data-a="edit">Edit</button><button class="btn sm" data-a="pw">Reset password</button><button class="btn sm" data-a="tog">${u.active ? 'Switch off' : 'Switch on'}</button><button class="btn sm danger" data-a="del">Remove</button></div></div>`).join('') || '<div class="empty">No employees yet. Add the people who will carry cameras.</div>';
-  $('#creds').innerHTML = creds.length ? `<div class="cred"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b>Logins to hand out (${creds.length})</b><span class="muted" style="font-size:12.5px">Shown only now. Save them.</span><button class="btn sm" id="cp">Copy</button><button class="btn sm" id="csv">Download CSV</button></div>
-    <table>${creds.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.employeeNo || '')}</td><td>${esc(c.username)}</td><td>${esc(c.password)}</td></tr>`).join('')}</table></div>` : '';
+    <div><b>${esc(u.name)}${u.holding ? `<span class="tag">${esc(t('em.has', { camera: u.holding }))}</span>` : ''}${u.active ? '' : `<span class="tag off">${t('em.off')}</span>`}</b><small>${u.employeeNo ? esc(t('em.no', { n: u.employeeNo })) + (u.username !== u.employeeNo ? ' · ' + esc(u.username) : '') : esc(u.username)}</small></div>
+    <div class="sp"><button class="btn sm" data-a="edit">${t('em.edit')}</button><button class="btn sm" data-a="pw">${t('em.reset')}</button><button class="btn sm" data-a="tog">${u.active ? t('em.switchOff') : t('em.switchOn')}</button><button class="btn sm danger" data-a="del">${t('em.remove')}</button></div></div>`).join('') || `<div class="empty">${t('em.noEmps')}</div>`;
+  $('#creds').innerHTML = creds.length ? `<div class="cred"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b>${esc(t('em.logins', { n: creds.length }))}</b><span class="muted" style="font-size:12.5px">${t('em.shownOnce')}</span><button class="btn sm" id="cp">${t('em.copy')}</button><button class="btn sm" id="csv">${t('em.csv')}</button></div>
+    <table class="ltr">${creds.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.employeeNo || '')}</td><td>${esc(c.username)}</td><td>${esc(c.password)}</td></tr>`).join('')}</table></div>` : '';
 }
 function created(r) {
-  if (r.skipped.length) alert('Not created:\n' + r.skipped.map((x) => `${x.name || '(no name)'}: ${x.reason}`).join('\n'));
-  creds = r.created; toast(`${r.created.length} created`); return load();
+  if (r.skipped.length) alert(t('em.notCreated') + '\n' + r.skipped.map((x) => `${x.name || t('em.noName')}: ${x.reason}`).join('\n'));
+  creds = r.created; toast(t('em.nCreated', { n: r.created.length })); return load();
 }
 $('#addOne').onclick = () => api('POST', '/api/employees', { employees: [{ name: $('#en').value.trim(), employeeNo: $('#eno').value.trim(), username: $('#eu').value.trim() }] }).then((r) => { if (!r.skipped.length) { $('#en').value = $('#eno').value = $('#eu').value = ''; } return created(r); }).catch(fail);
 $('#addMany').onclick = () => {
-  const employees = $('#bulk').value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const p = l.split(/[,;\t]/).map((x) => x.trim()); return { name: p[0], employeeNo: p[1] || '', username: p[2] || '' }; });
-  if (!employees.length) return toast('Type at least one line.');
+  const employees = $('#bulk').value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const p = l.split(/[,;،\t]/).map((x) => x.trim()); return { name: p[0], employeeNo: p[1] || '', username: p[2] || '' }; });
+  if (!employees.length) return toast(t('em.oneLine'));
   api('POST', '/api/employees', { employees }).then((r) => { $('#bulk').value = ''; return created(r); }).catch(fail);
 };
 document.addEventListener('click', (e) => {
-  if (e.target.id === 'cp') return navigator.clipboard?.writeText(creds.map((c) => `${c.name}\t${c.employeeNo || ''}\t${c.username}\t${c.password}`).join('\n')).then(() => toast('Copied'));
+  if (e.target.id === 'cp') return navigator.clipboard?.writeText(creds.map((c) => `${c.name}\t${c.employeeNo || ''}\t${c.username}\t${c.password}`).join('\n')).then(() => toast(t('em.copied')));
   if (e.target.id === 'csv') { const q = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"'; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + 'name,employee_no,username,password\n' + creds.map((c) => [c.name, c.employeeNo, c.username, c.password].map(q).join(',')).join('\n')], { type: 'text/csv' })); a.download = 'employee-logins.csv'; a.click(); return; }
   const b = e.target.closest('[data-a]'); if (!b) return;
   const row = b.closest('.user'), id = row.dataset.id, u = D.employees.find((x) => String(x.id) === id);
-  if (b.dataset.a === 'edit') { const name = prompt('Employee name:', u.name); if (name === null) return; const no = prompt('Employee number (blank for none):', u.employeeNo || ''); if (no === null) return; api('PATCH', `/api/employees/${id}`, { name, employeeNo: no }).then(() => { toast('Saved'); return load(); }).catch(fail); }
-  else if (b.dataset.a === 'pw') { const pw = prompt('New password (8+ characters):', genPw()); if (pw) api('POST', `/api/employees/${id}/password`, { password: pw }).then(() => { creds = [{ name: u.name, employeeNo: u.employeeNo, username: u.username, password: pw }]; toast('Password changed'); render(); }).catch(fail); }
-  else if (b.dataset.a === 'tog') { if (!u.active || confirm('Switch this employee off? They are signed out at once and cannot take a camera. Their history stays.')) api('PATCH', `/api/employees/${id}`, { active: !u.active }).then(load).catch(fail); }
-  else if (b.dataset.a === 'del') { if (confirm('Remove this employee? Their history stays in the reports.')) api('DELETE', `/api/employees/${id}`).then(load).catch(fail); }
+  if (b.dataset.a === 'edit') { const name = prompt(t('em.promptName'), u.name); if (name === null) return; const no = prompt(t('em.promptNo'), u.employeeNo || ''); if (no === null) return; api('PATCH', `/api/employees/${id}`, { name, employeeNo: no }).then(() => { toast(t('em.saved')); return load(); }).catch(fail); }
+  else if (b.dataset.a === 'pw') { const pw = prompt(t('em.promptPw'), genPw()); if (pw) api('POST', `/api/employees/${id}/password`, { password: pw }).then(() => { creds = [{ name: u.name, employeeNo: u.employeeNo, username: u.username, password: pw }]; toast(t('em.pwChangedShort')); render(); }).catch(fail); }
+  else if (b.dataset.a === 'tog') { if (!u.active || confirm(t('em.confirmOff'))) api('PATCH', `/api/employees/${id}`, { active: !u.active }).then(load).catch(fail); }
+  else if (b.dataset.a === 'del') { if (confirm(t('em.confirmDel'))) api('DELETE', `/api/employees/${id}`).then(load).catch(fail); }
 });
-function logoBox(me) { const l = $('#lg'); l.classList.toggle('has', !!me.logoTs); l.innerHTML = avatarInner('company', me.companyId, me.logoTs, (me.company || '?')[0].toUpperCase()); $('#lgRm').style.display = me.logoTs ? '' : 'none'; $('#lgUp').textContent = me.logoTs ? 'Change logo' : 'Upload logo'; }
+function logoBox(me) { const l = $('#lg'); l.classList.toggle('has', !!me.logoTs); l.innerHTML = avatarInner('company', me.companyId, me.logoTs, (me.company || '?')[0].toUpperCase()); $('#lgRm').style.display = me.logoTs ? '' : 'none'; $('#lgUp').textContent = me.logoTs ? t('em.change') : t('em.upload'); }
 portalReady.then((me) => { logoBox(me);
   $('#lgUp').onclick = () => pickPicture('company', me.companyId).then((ok) => ok && location.reload()).catch(fail);
   $('#lgRm').onclick = () => removePicture('company', me.companyId).then(() => location.reload()).catch(fail);
-  loadUsers(); if (me && me.features && !me.features.includes('checkout')) { const t = $('#ttl'); if (t) t.closest('section').style.display = 'none'; } else load(); });
+  loadUsers(); if (me && me.features && !me.features.includes('checkout')) { const el = $('#ttl'); if (el) el.closest('section').style.display = 'none'; } else load(); });
 </script>
 </body>
 </html>

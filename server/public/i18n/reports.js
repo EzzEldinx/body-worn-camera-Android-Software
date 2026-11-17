@@ -1,0 +1,33 @@
+/* Reports page words. Keys: rp.* */
+(function (g, d) { if (typeof module === 'object' && module.exports) module.exports = d; else if (g.VG) g.VG.add(d); })(typeof window !== 'undefined' ? window : globalThis, {
+  en: {
+    'rp.pageTitle': 'Reports - VisionGuard', 'rp.title': 'Reports',
+    'rp.intro': 'Pick the dates once, then download any report. A PDF is for reading and printing, a spreadsheet (CSV) opens in Excel. You only get what you are allowed to see.',
+    'rp.company': 'Company', 'rp.from': 'From', 'rp.to': 'To', 'rp.allCompanies': 'All companies', 'rp.companyTitle': 'Company for the Operations report',
+    'rp.today': 'Today', 'rp.yesterday': 'Yesterday', 'rp.last7': 'Last 7 days', 'rp.last30': 'Last 30 days', 'rp.thisMonth': 'This month', 'rp.lastMonth': 'Last month',
+    'rp.hintBad': '"From" is after "To"', 'rp.hintMax': '{n} days: the most is 92', 'rp.pick': 'Pick 1 to 92 days.',
+    'rp.fmtCsv': 'CSV (Excel)', 'rp.latest': ' · always the latest', 'rp.download': 'Download',
+    'rp.ops.t': 'Operations report', 'rp.ops.d': 'Alarms, recordings, distance, activity, who carried which camera and a timeline. One day or up to 92 days.',
+    'rp.sos.t': 'SOS alarms', 'rp.sos.d': 'Every SOS: when, which camera, who carried it, who answered and how fast.',
+    'rp.fleet.t': 'Cameras right now', 'rp.fleet.d': 'Every camera: online, recording, battery, who has it, last seen and position.',
+    'rp.bat.t': 'Low-battery history', 'rp.bat.d': 'Every time a camera fell under 20 %: when, how low, who dismissed it, when it recovered.',
+    'rp.rec.t': 'Recordings', 'rp.rec.d': 'The recordings that reached the cloud: camera, file, size, time and the SHA-256 fingerprint.',
+    'rp.shift.t': 'Who carried which camera', 'rp.shift.d': 'Check-outs: employee, camera, taken, returned, time out, battery.',
+    'rp.audit.t': 'Audit trail', 'rp.audit.d': 'Every step of every file and every change, sealed so it cannot be altered.', 'rp.audit.own': ' You see the lines about your own company.',
+  },
+  ar: {
+    'rp.pageTitle': 'التقارير - VisionGuard', 'rp.title': 'التقارير',
+    'rp.intro': 'اختر التواريخ مرة واحدة ثم نزّل أي تقرير. ملف PDF للقراءة والطباعة، وجدول البيانات (CSV) يُفتح في إكسل. ولا تحصل إلا على ما يُسمح لك برؤيته.',
+    'rp.company': 'الشركة', 'rp.from': 'من', 'rp.to': 'إلى', 'rp.allCompanies': 'كل الشركات', 'rp.companyTitle': 'الشركة المعنية بتقرير العمليات',
+    'rp.today': 'اليوم', 'rp.yesterday': 'أمس', 'rp.last7': 'آخر 7 أيام', 'rp.last30': 'آخر 30 يوماً', 'rp.thisMonth': 'هذا الشهر', 'rp.lastMonth': 'الشهر الماضي',
+    'rp.hintBad': 'تاريخ «من» بعد تاريخ «إلى»', 'rp.hintMax': '{n} يوماً: الحد الأقصى 92', 'rp.pick': 'اختر من يوم واحد إلى 92 يوماً.',
+    'rp.fmtCsv': 'CSV (إكسل)', 'rp.latest': ' · دائماً الأحدث', 'rp.download': 'تنزيل',
+    'rp.ops.t': 'تقرير العمليات', 'rp.ops.d': 'الإنذارات والتسجيلات والمسافة والنشاط ومن حمل أي كاميرا وخط زمني. يوم واحد أو حتى 92 يوماً.',
+    'rp.sos.t': 'إنذارات SOS', 'rp.sos.d': 'كل إنذار SOS: متى، وأي كاميرا، ومن كان يحملها، ومن استجاب وبأي سرعة.',
+    'rp.fleet.t': 'الكاميرات الآن', 'rp.fleet.d': 'كل كاميرا: متصلة، تسجّل، البطارية، من يحملها، آخر ظهور والموقع.',
+    'rp.bat.t': 'سجل البطارية المنخفضة', 'rp.bat.d': 'في كل مرة انخفضت فيها بطارية كاميرا عن 20%: متى، وإلى أي مستوى، ومن أخفى التنبيه، ومتى عادت.',
+    'rp.rec.t': 'التسجيلات', 'rp.rec.d': 'التسجيلات التي وصلت إلى السحابة: الكاميرا والملف والحجم والوقت وبصمة SHA-256.',
+    'rp.shift.t': 'من حمل أي كاميرا', 'rp.shift.d': 'عمليات الاستلام: الموظف والكاميرا ووقت الاستلام والإرجاع والمدة والبطارية.',
+    'rp.audit.t': 'سجل التدقيق', 'rp.audit.d': 'كل خطوة لكل ملف وكل تغيير، مختومة بحيث لا يمكن تعديلها.', 'rp.audit.own': ' ترى الأسطر المتعلقة بشركتك فقط.',
+  },
+});

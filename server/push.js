@@ -2,6 +2,7 @@
 // Off until FCM_SERVICE_ACCOUNT points at the Firebase service-account JSON; without it SOS still reaches every open app over the socket.
 const crypto = require('crypto');
 const fs = require('fs');
+const i18n = require('./i18n');
 
 const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
 const b64u = (b) => Buffer.from(b).toString('base64url');
@@ -15,11 +16,12 @@ function jwtAssertion(sa, now = Math.floor(Date.now() / 1000)) {
 }
 
 // What the phone shows (title/body) plus the data the app uses to open the right screen.
-function buildMessage(token, platform, alarm, label) {
-    const where = alarm.lat != null && alarm.lng != null ? `${alarm.lat.toFixed(4)}, ${alarm.lng.toFixed(4)}` : 'no GPS fix';
+function buildMessage(token, platform, alarm, label, lang = 'en') {
+    const T = (key, params) => i18n.tr(lang, key, params);
+    const where = alarm.lat != null && alarm.lng != null ? `${alarm.lat.toFixed(4)}, ${alarm.lng.toFixed(4)}` : T('push.noGps');
     const msg = {
         token,
-        notification: { title: `SOS: ${label}`, body: `Emergency alert from ${label} (${where}). Tap to open.` },
+        notification: { title: T('push.sosTitle', { label }), body: T('push.sosBody', { label, where }) },
         data: { type: 'sos', alarmId: String(alarm.id), cameraId: alarm.cameraId, ts: String(alarm.ts) },
     };
     if (platform === 'android') msg.android = { priority: 'HIGH', notification: { channel_id: 'sos', sound: 'default', default_vibrate_timings: true } };
@@ -46,7 +48,9 @@ function createPush({ db, env = process.env, fetchImpl = fetch, log = console })
     }
 
     // Everyone who may see this camera: its company's users, plus Smart Way staff.
-    const recipients = (companyId) => db.prepare(`SELECT d.token, d.platform FROM push_devices d JOIN users u ON u.id = d.user_id
+    let hasLang = null;   // push_devices.lang (the language the app is in) exists once the server has migrated the table
+    const langCol = () => (hasLang === null ? (hasLang = db.prepare('PRAGMA table_info(push_devices)').all().some((c) => c.name === 'lang')) : hasLang) ? 'd.lang' : 'NULL';
+    const recipients = (companyId) => db.prepare(`SELECT d.token, d.platform, ${langCol()} AS lang FROM push_devices d JOIN users u ON u.id = d.user_id
         WHERE u.company_id IS NULL ${companyId ? 'OR u.company_id = ?' : ''}`).all(...(companyId ? [companyId] : []));
 
     async function notifyAlarm(alarm, companyId) {
@@ -58,7 +62,7 @@ function createPush({ db, env = process.env, fetchImpl = fetch, log = console })
             for (const d of recipients(companyId)) {
                 const r = await fetchImpl(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
                     method: 'POST', headers: { authorization: `Bearer ${bearer}`, 'content-type': 'application/json' },
-                    body: JSON.stringify({ message: buildMessage(d.token, d.platform, alarm, label) }),
+                    body: JSON.stringify({ message: buildMessage(d.token, d.platform, alarm, label, d.lang) }),
                 });
                 if (r.ok) sent++;
                 else if (r.status === 404 || r.status === 400) db.prepare('DELETE FROM push_devices WHERE token = ?').run(d.token); // app was uninstalled
@@ -75,7 +79,7 @@ function createPush({ db, env = process.env, fetchImpl = fetch, log = console })
             for (const d of recipients(companyId)) {
                 const r = await fetchImpl(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
                     method: 'POST', headers: { authorization: `Bearer ${bearer}`, 'content-type': 'application/json' },
-                    body: JSON.stringify({ message: buildAlertMessage(d.token, d.platform, alert, label) }),
+                    body: JSON.stringify({ message: buildAlertMessage(d.token, d.platform, alert, label, d.lang) }),
                 });
                 if (r.ok) sent++;
                 else if (r.status === 404 || r.status === 400) db.prepare('DELETE FROM push_devices WHERE token = ?').run(d.token);
@@ -87,13 +91,14 @@ function createPush({ db, env = process.env, fetchImpl = fetch, log = console })
 }
 
 // Low-battery notice: "BWC-03 battery is 18%".
-function buildAlertMessage(token, platform, alert, label) {
+function buildAlertMessage(token, platform, alert, label, lang = 'en') {
+    const T = (key, params) => i18n.tr(lang, key, params);
     const critical = alert.level === 'critical';
-    const geo = { geo_exit: ['Left the zone', 'left'], geo_enter: ['Entered a zone', 'entered'], checkpoint_missed: ['Checkpoint missed', 'did not reach'] }[alert.kind];
+    const geo = { geo_exit: 'geoExit', geo_enter: 'geoEnter', checkpoint_missed: 'checkpoint' }[alert.kind];
     if (geo) {
         const m = {
             token,
-            notification: { title: `${geo[0]}: ${label}`, body: alert.kind === 'checkpoint_missed' ? `${label} did not reach checkpoint "${alert.zone}" in time.` : `${label} ${geo[1]} "${alert.zone}".` },
+            notification: { title: T(`push.${geo}Title`, { label }), body: T(`push.${geo}Body`, { label, zone: alert.zone }) },
             data: { type: 'geofence', alertId: String(alert.id), cameraId: alert.cameraId, kind: alert.kind, level: alert.level, ts: String(alert.ts) },
         };
         if (platform === 'android') m.android = { priority: critical ? 'HIGH' : 'NORMAL', notification: { channel_id: 'alerts' } };
@@ -102,7 +107,7 @@ function buildAlertMessage(token, platform, alert, label) {
     }
     const msg = {
         token,
-        notification: { title: `${critical ? 'Battery critical' : 'Low battery'}: ${label}`, body: `${label} battery is ${alert.value}%. Put it on the dock to charge.` },
+        notification: { title: T(critical ? 'push.batCriticalTitle' : 'push.batLowTitle', { label }), body: T('push.batBody', { label, value: alert.value }) },
         data: { type: 'battery', alertId: String(alert.id), cameraId: alert.cameraId, level: alert.level, ts: String(alert.ts) },
     };
     if (platform === 'android') msg.android = { priority: critical ? 'HIGH' : 'NORMAL', notification: { channel_id: 'alerts' } };
