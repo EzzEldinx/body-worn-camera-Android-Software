@@ -30,6 +30,7 @@
         android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true"
         android:label="swg_bwc"
+        android:icon="@mipmap/ic_launcher"
         android:name="${applicationName}">
         <activity
             android:name=".MainActivity"
