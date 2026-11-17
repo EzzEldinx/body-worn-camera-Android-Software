@@ -507,7 +507,7 @@ function paintFiles() {
   const mode = FD.policy?.mode || 'ask', can = me?.role === 'admin' || (me?.role === 'manager' && (me.features || []).includes('files')), c = FD.counts;
   $('#fmode').innerHTML = MODES.map((k) => `<button data-mode="${k}" class="${mode === k ? 'on' : ''}" ${can ? '' : 'disabled'}><b>${t('dc.m.' + k)}</b><span>${t('dc.m.' + k + 'D')}</span></button>`).join('');
   const dk = agentOf(), st = dk?.storage;
-  $('#fnote').innerHTML = t('dc.uploadQuality') + (st?.dir ? t('dc.dockStorage') + '<span class="mono ltr">' + esc(st.dir) + '</span>' + (st.freeBytes != null ? esc(t('dc.freeSz', { size: fmtB(st.freeBytes) })) : '') : '') +
+  $('#fnote').innerHTML = t('dc.uploadQuality') + (st?.dir ? t('dc.dockStorage') + (me?.super ? '<span class="mono ltr">' + esc(st.dir) + '</span>' : '') + (st.freeBytes != null ? esc(t('dc.freeSz', { size: fmtB(st.freeBytes) })).replace(me?.super ? /^$/ : /^ · /, '') : '') : '') +
     (can ? '' : t('dc.onlyAdmin'));
   const tot = { n: 0, bytes: 0 }; Object.values(c).forEach((x) => { tot.n += x.n; tot.bytes += x.bytes; });
   const cc = { ...c, all: tot };
