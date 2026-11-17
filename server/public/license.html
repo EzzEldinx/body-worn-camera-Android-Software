@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>License - VisionGuard</title>
+<title data-i18n="lc.pageTitle">License - VisionGuard</title>
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <script src="/i18n.js"></script>
+<script src="/i18n/license.js"></script>
 <link rel="stylesheet" href="/portal.css">
 <style>
 .lic{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;align-items:start}
@@ -45,7 +46,7 @@
 .terms input{display:none}
 .terms span{display:inline-block;padding:9px 16px;border-radius:11px;border:1px solid var(--line);background:var(--raise);font-weight:700;font-size:13.5px}
 .terms input:checked+span{border-color:var(--sel);background:var(--panel);box-shadow:var(--glow-amber)}
-.steps{margin:0;padding-left:20px;color:var(--mut);font-size:13.5px;line-height:1.7}
+.steps{margin:0;padding-inline-start:20px;color:var(--mut);font-size:13.5px;line-height:1.7}
 .steps b{color:var(--text)}
 textarea{width:100%;min-height:90px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:12.5px/1.45 ui-monospace,Menlo,Consolas,monospace}
 .drop{border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--mut);cursor:pointer;transition:.15s}
@@ -53,7 +54,7 @@ textarea{width:100%;min-height:90px;padding:10px 12px;border-radius:10px;border:
 .msg{margin-top:12px;padding:11px 14px;border-radius:11px;font-size:13.5px;display:none}
 .msg.on{display:block}.msg.ok{background:color-mix(in srgb,var(--ok) 13%,var(--panel));border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line))}
 .msg.err{background:color-mix(in srgb,var(--rec) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--rec) 45%,var(--line))}
-table{width:100%;border-collapse:collapse;font-size:13.5px}th{text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);border-bottom:1px solid var(--line)}td{padding:9px 10px;border-bottom:1px solid var(--line-soft)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th{text-align:start;padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);border-bottom:1px solid var(--line)}td{padding:9px 10px;border-bottom:1px solid var(--line-soft)}
 .warnbox{padding:13px 16px;border-radius:12px;background:color-mix(in srgb,var(--sel) 13%,var(--panel));border:1px solid color-mix(in srgb,var(--sel) 50%,var(--line));font-size:13.5px;line-height:1.5}
 </style>
 <link rel="stylesheet" href="/i18n.css">
@@ -61,86 +62,79 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th{text-align:left;pa
 <body>
 <header id="top"></header>
 <main>
-  <section class="card hero" id="hero"><div class="muted" style="color:#fff">Loading…</div></section>
+  <section class="card hero" id="hero"><div class="muted" style="color:#fff" data-i18n="lc.loading">Loading…</div></section>
   <div id="problem"></div>
   <div class="lic">
     <div class="stack">
-      <section class="card"><h3>Your licence</h3><div class="facts" id="facts"></div></section>
-      <section class="card"><h3>What you use</h3><div class="use" id="use"></div><p class="muted" style="margin:14px 0 0;font-size:12.5px" id="useNote"></p></section>
-      <section class="card"><h3>Included</h3><div class="feat" id="feat"></div></section>
-      <section class="card"><h3>History</h3><div style="overflow:auto"><table id="hist"></table></div></section>
+      <section class="card"><h3 data-i18n="lc.yours">Your licence</h3><div class="facts" id="facts"></div></section>
+      <section class="card"><h3 data-i18n="lc.use">What you use</h3><div class="use" id="use"></div><p class="muted" style="margin:14px 0 0;font-size:12.5px" id="useNote"></p></section>
+      <section class="card"><h3 data-i18n="lc.included">Included</h3><div class="feat" id="feat"></div></section>
+      <section class="card"><h3 data-i18n="lc.history">History</h3><div style="overflow:auto"><table id="hist"></table></div></section>
     </div>
     <div class="stack">
-      <section class="card" id="renew"><h3>Renew or extend</h3>
-        <ol class="steps"><li><b>Pick a term</b> and download the request.</li><li><b>Send it</b> to Smart Way (<span id="mailTo">sdpt@smart-way.com.sa</span>). It carries this installation's ID, so the new licence only works here.</li><li><b>Install the file</b> we send back, below. No restart, no internet needed.</li></ol>
+      <section class="card" id="renew"><h3 data-i18n="lc.renew">Renew or extend</h3>
+        <ol class="steps"><li data-i18n-html="lc.step1"><b>Pick a term</b> and download the request.</li><li data-i18n-html="lc.step2"><b>Send it</b> to Smart Way (<span id="mailTo">sdpt@smart-way.com.sa</span>). It carries this installation's ID, so the new licence only works here.</li><li data-i18n-html="lc.step3"><b>Install the file</b> we send back, below. No restart, no internet needed.</li></ol>
         <div class="terms" id="terms"></div>
-        <textarea id="note" placeholder="Anything we should know? (optional: more cameras, more employees…)" maxlength="300" style="min-height:62px"></textarea>
+        <textarea id="note" placeholder="Anything we should know? (optional: more cameras, more employees…)" data-i18n-ph="lc.phNote" maxlength="300" style="min-height:62px"></textarea>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-          <a class="btn pri" id="dl" href="#">Download request file</a><button class="btn" id="cp">Copy request text</button><a class="btn" id="mail" href="#">Write the e-mail</a></div>
+          <a class="btn pri" id="dl" href="#" data-i18n="lc.dl">Download request file</a><button class="btn" id="cp" data-i18n="lc.cpReq">Copy request text</button><a class="btn" id="mail" href="#" data-i18n="lc.mail">Write the e-mail</a></div>
         <div class="msg" id="reqMsg"></div>
       </section>
-      <section class="card"><h3>Install a licence</h3>
-        <div class="drop" id="drop">Drop the licence file here, or click to choose it<input type="file" id="file" accept=".vglic,.json,application/json" style="display:none"></div>
-        <textarea id="paste" placeholder="…or paste the contents of the licence file here" style="margin-top:12px"></textarea>
-        <div style="margin-top:12px"><button class="btn pri" id="install">Install licence</button></div>
+      <section class="card"><h3 data-i18n="lc.install">Install a licence</h3>
+        <div class="drop" id="drop"><span data-i18n="lc.drop">Drop the licence file here, or click to choose it</span><input type="file" id="file" accept=".vglic,.json,application/json" style="display:none"></div>
+        <textarea id="paste" placeholder="…or paste the contents of the licence file here" data-i18n-ph="lc.phPaste" style="margin-top:12px"></textarea>
+        <div style="margin-top:12px"><button class="btn pri" id="install" data-i18n="lc.installBtn">Install licence</button></div>
         <div class="msg" id="instMsg"></div>
       </section>
-      <section class="card"><h3>This installation</h3>
-        <p class="muted" style="margin:0 0 10px;font-size:13px">A licence is issued for this ID. Moving VisionGuard to a new server with a copy of its data keeps the ID; a fresh installation has a new one and needs its own licence.</p>
-        <div class="id"><code id="iid">-</code><button class="btn sm" id="cpid">Copy</button></div></section>
+      <section class="card"><h3 data-i18n="lc.inst">This installation</h3>
+        <p class="muted" style="margin:0 0 10px;font-size:13px" data-i18n="lc.instNote">A licence is issued for this ID. Moving VisionGuard to a new server with a copy of its data keeps the ID; a fresh installation has a new one and needs its own licence.</p>
+        <div class="id"><code id="iid" class="ltr">-</code><button class="btn sm" id="cpid" data-i18n="lc.copy">Copy</button></div></section>
     </div>
   </div>
 </main>
 <script src="/portal.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
+const t = VG.t;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const day = (t) => (t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
+const day = (ts) => (ts ? VG.date(ts) : '-');
+const ltr = (s) => `<span class="ltr">${s}</span>`;
 let L = null, term = '12m';
-const TERM_LABEL = { '3m': '3 months', '6m': '6 months', '12m': '1 year', '24m': '2 years', '36m': '3 years' };
-const FEATURES = { reports: 'PDF reports', ai: 'AI analysis', docking: 'Docking station', checkout: 'Employee check-out', mobile: 'Mobile apps' };
-const NOUN = { cameras: 'Cameras', employees: 'Employees', users: 'Dashboard users', companies: 'Companies', live: 'Live streams now' };
-const STATE = {
-  off: ['No licence needed', 'This is a Smart Way hosted server.', '#2EE6A6', ''],
-  trial: ['Trial', 'You are trying VisionGuard. Request a licence before the trial ends to keep going.', '#FFC857', 'warn'],
-  valid: ['Licensed', 'Everything is switched on.', '#2EE6A6', ''],
-  expiring: ['Renew soon', 'Your licence ends soon. Request a renewal now so there is no gap.', '#FFC857', 'warn'],
-  grace: ['Expired · grace period', 'The licence has ended. Everything still works for a few more days; then the system goes into limited mode.', '#FF5D77', 'bad'],
-  restricted: ['Limited mode', 'Live view, alarms and evidence keep working. New cameras, users, reports and exports are paused until the licence is renewed.', '#FF5D77', 'bad'],
-  locked: ['Locked', 'The licence has ended and dashboards are closed. Cameras and docks still deliver evidence. Install a new licence to open it again.', '#FF5D77', 'bad'],
-};
+const FEATURES = ['reports', 'ai', 'docking', 'checkout', 'mobile'];
+const NOUN = ['cameras', 'employees', 'users', 'companies', 'live'];
+const STATE = { off: ['#2EE6A6', ''], trial: ['#FFC857', 'warn'], valid: ['#2EE6A6', ''], expiring: ['#FFC857', 'warn'], grace: ['#FF5D77', 'bad'], restricted: ['#FF5D77', 'bad'], locked: ['#FF5D77', 'bad'] };
 
 function render() {
-  const d = L, st = STATE[d.state] || STATE.valid, c = st[2];
+  const d = L, key = STATE[d.state] ? d.state : 'valid', c = STATE[key][0];
   const total = d.state === 'trial' ? 30 : d.start && d.expires ? Math.max(1, Math.round((d.expires - d.start) / 864e5)) : 365;
   const left = d.daysLeft ?? 0, frac = d.state === 'off' ? 1 : Math.max(0, Math.min(1, left / total)), R = 56, C = 2 * Math.PI * R;
-  $('#hero').className = 'card hero ' + st[3];
+  $('#hero').className = 'card hero ' + STATE[key][1];
   $('#hero').style.setProperty('--c', c);
   $('#hero').innerHTML = `<div class="ring"><svg viewBox="0 0 132 132"><circle class="tr" cx="66" cy="66" r="${R}"/><circle class="v" cx="66" cy="66" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C * (1 - frac)}"/></svg>
-      <b>${d.state === 'off' ? '∞' : left < 0 ? '0' : left}<small>${d.state === 'off' ? 'no limit' : left === 1 ? 'day left' : 'days left'}</small></b></div>
-    <div style="flex:1;min-width:260px"><span class="badge"><i></i>${st[0]}</span>
-      <h1>${d.customer ? esc(d.customer) : d.state === 'trial' ? 'Trial installation' : d.state === 'off' ? 'Smart Way hosted' : 'No licence installed'}</h1>
-      <p>${st[1]}${d.state === 'grace' && d.graceUntil ? ` Limited mode starts on ${day(d.graceUntil)}.` : ''}${d.state === 'trial' && d.trialEnds ? ` The trial ends on ${day(d.trialEnds)}.` : ''}${d.clock ? ' The server clock is behind the last time it ran: correct the clock.' : ''}</p></div>
-    ${['expiring', 'grace', 'restricted', 'locked', 'trial'].includes(d.state) ? '<a class="btn pri" href="#renew">Renew now</a>' : ''}`;
+      <b>${d.state === 'off' ? '∞' : left < 0 ? '0' : left}<small>${d.state === 'off' ? t('lc.noLimit') : left === 1 ? t('lc.dayLeft') : t('lc.daysLeft')}</small></b></div>
+    <div style="flex:1;min-width:260px"><span class="badge"><i></i>${t('lc.s.' + key)}</span>
+      <h1>${d.customer ? esc(d.customer) : d.state === 'trial' ? t('lc.trialInst') : d.state === 'off' ? t('lc.hosted') : t('lc.none')}</h1>
+      <p>${t('lc.s.' + key + 'D')}${d.state === 'grace' && d.graceUntil ? esc(t('lc.graceStarts', { date: day(d.graceUntil) })) : ''}${d.state === 'trial' && d.trialEnds ? esc(t('lc.trialEnds', { date: day(d.trialEnds) })) : ''}${d.clock ? t('lc.clock') : ''}</p></div>
+    ${['expiring', 'grace', 'restricted', 'locked', 'trial'].includes(d.state) ? `<a class="btn pri" href="#renew">${t('lc.renewNow')}</a>` : ''}`;
   setTimeout(() => { const v = $('#hero .v'); if (v) v.style.strokeDashoffset = v.dataset.off; }, 80);
   $('#problem').innerHTML = d.problem ? `<div class="warnbox">${esc(d.problem)}</div>` : '';
 
-  $('#facts').innerHTML = d.mode === 'off' ? '<div class="fact"><span>Mode</span><b>Hosted by Smart Way</b></div>' : [
-    ['Licensed to', d.customer || '-'], ['Licence no.', d.serial || '-'], ['Edition', d.edition || '-'], ['Term', d.term ? TERM_LABEL[d.term] : '-'],
-    ['Starts', day(d.start)], ['Ends', day(d.expires)], ['Grace after the end', d.graceDays != null ? d.graceDays + ' days' : '-'], ['After that', d.state === 'off' ? '-' : d.afterExpiry === 'locked' ? 'Locked' : 'Limited mode'],
-  ].map(([k, v]) => `<div class="fact"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+  $('#facts').innerHTML = d.mode === 'off' ? `<div class="fact"><span>${t('lc.mode')}</span><b>${t('lc.hostedBy')}</b></div>` : [
+    [t('lc.f.to'), d.customer || '-'], [t('lc.f.no'), d.serial || '-'], [t('lc.f.edition'), d.edition || '-'], [t('lc.f.term'), d.term ? t('lc.term.' + d.term) : '-'],
+    [t('lc.f.starts'), day(d.start)], [t('lc.f.ends'), day(d.expires)], [t('lc.f.grace'), d.graceDays != null ? t('lc.nDays', { n: d.graceDays }) : '-'], [t('lc.f.after'), d.state === 'off' ? '-' : d.afterExpiry === 'locked' ? t('lc.afterLocked') : t('lc.afterLimited')],
+  ].map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
 
-  const use = d.usage || {}, rows = Object.keys(NOUN).filter((k) => d.limits[k] !== undefined || use[k] !== undefined);
+  const use = d.usage || {}, rows = NOUN.filter((k) => d.limits[k] !== undefined || use[k] !== undefined);
   $('#use').innerHTML = rows.map((k) => {
     const lim = d.limits[k], u = use[k] ?? 0, p = lim ? Math.min(1, u / lim) : 0, col = lim && p >= 1 ? 'var(--rec)' : lim && p >= .85 ? 'var(--sel)' : 'var(--ok)';
-    return `<div class="row" style="--c:${col}"><span>${NOUN[k]}</span><div class="meter"><i style="width:${lim ? (p * 100).toFixed(1) : 8}%"></i></div><b>${u}${lim !== undefined ? ' / ' + lim : ''}${lim === undefined ? '<small class="muted"> · no limit</small>' : ''}</b></div>`;
-  }).join('') || '<p class="muted" style="margin:0">Nothing counted yet.</p>';
-  $('#useNote').textContent = d.limits.cameras !== undefined && d.state !== 'off' ? 'When a limit is reached the next camera, user or employee is refused until the licence is enlarged.' : '';
-  $('#feat').innerHTML = Object.entries(FEATURES).map(([k, v]) => `<span class="${d.features.includes(k) ? '' : 'no'}">${d.features.includes(k) ? '✓ ' : ''}${v}</span>`).join('');
-  $('#hist').innerHTML = '<thead><tr><th>Licence</th><th>Customer</th><th>From</th><th>To</th><th>Installed</th></tr></thead><tbody>' + (d.history.length ? d.history.map((h) =>
-    `<tr><td><b>${esc(h.serial)}</b></td><td>${esc(h.customer)}</td><td>${day(h.start)}</td><td>${day(h.expires)}</td><td>${day(h.installedAt)}<div class="muted" style="font-size:11.5px">${esc(h.installedBy || '')}</div></td></tr>`).join('') : '<tr><td colspan="5" class="muted">No licence has been installed yet.</td></tr>') + '</tbody>';
+    return `<div class="row" style="--c:${col}"><span>${t('lc.n.' + k)}</span><div class="meter"><i style="width:${lim ? (p * 100).toFixed(1) : 8}%"></i></div><b>${ltr(u + (lim !== undefined ? ' / ' + lim : ''))}${lim === undefined ? `<small class="muted">${t('lc.noLimitSmall')}</small>` : ''}</b></div>`;
+  }).join('') || `<p class="muted" style="margin:0">${t('lc.nothing')}</p>`;
+  $('#useNote').textContent = d.limits.cameras !== undefined && d.state !== 'off' ? t('lc.limitNote') : '';
+  $('#feat').innerHTML = FEATURES.map((k) => `<span class="${d.features.includes(k) ? '' : 'no'}">${d.features.includes(k) ? '✓ ' : ''}${t('lc.ft.' + k)}</span>`).join('');
+  $('#hist').innerHTML = `<thead><tr><th>${t('lc.hLicence')}</th><th>${t('lc.hCustomer')}</th><th>${t('lc.hFrom')}</th><th>${t('lc.hTo')}</th><th>${t('lc.hInstalled')}</th></tr></thead><tbody>` + (d.history.length ? d.history.map((h) =>
+    `<tr><td><b>${esc(h.serial)}</b></td><td>${esc(h.customer)}</td><td>${day(h.start)}</td><td>${day(h.expires)}</td><td>${day(h.installedAt)}<div class="muted" style="font-size:11.5px">${esc(h.installedBy || '')}</div></td></tr>`).join('') : `<tr><td colspan="5" class="muted">${t('lc.noHistory')}</td></tr>`) + '</tbody>';
   $('#iid').textContent = d.installId;
-  $('#terms').innerHTML = d.terms.map((t) => `<label><input type="radio" name="t" value="${t}" ${t === term ? 'checked' : ''}><span>${TERM_LABEL[t]}</span></label>`).join('');
+  $('#terms').innerHTML = d.terms.map((x) => `<label><input type="radio" name="t" value="${x}" ${x === term ? 'checked' : ''}><span>${t('lc.term.' + x)}</span></label>`).join('');
   if (d.mode === 'off') document.getElementById('renew').style.display = 'none';
 }
 const query = () => new URLSearchParams({ term, note: $('#note').value.trim() });
@@ -151,20 +145,21 @@ portalReady.then(async (me) => {
   const load = async () => { const r = await fetch('/api/license'); if (r.status === 401) { location.href = '/login.html'; return; } if (!r.ok) return; L = await r.json(); render(); };
   await load();
   $('#terms').onchange = (e) => { term = e.target.value; $('#mail').href = mailHref(); };
-  const mailHref = () => `mailto:${encodeURIComponent('sdpt@smart-way.com.sa')}?subject=${encodeURIComponent(`VisionGuard licence renewal - ${L.customer || 'new customer'} - ${L.installId}`)}&body=${encodeURIComponent(
-    `Hello Smart Way,\n\nPlease renew our VisionGuard licence.\n\nCustomer: ${L.customer || '-'}\nCurrent licence: ${L.serial || 'none'}\nInstallation: ${L.installId}\nTerm wanted: ${TERM_LABEL[term]}\n\nThe request file is attached (VisionGuard-renewal-request-${L.installId}.vgreq).\n\nThank you.`)}`;
+  // the e-mail goes to Smart Way: the subject is always English (their inbox rules), the text follows the page language
+  const mailHref = () => `mailto:${encodeURIComponent('sdpt@smart-way.com.sa')}?subject=${encodeURIComponent(VG.t('lc.mailSubject', { customer: L.customer || 'new customer', id: L.installId }, 'en'))}&body=${encodeURIComponent(
+    t('lc.mailBody', { customer: L.customer || '-', serial: L.serial || t('lc.noneWord'), id: L.installId, term: t('lc.term.' + term) }))}`;
   $('#mail').href = mailHref();
-  $('#dl').onclick = (e) => { e.preventDefault(); location.href = '/api/license/request?' + query(); setTimeout(() => msg($('#reqMsg'), 'The request file was downloaded. Attach it to the e-mail to Smart Way.', 'ok'), 400); };
-  $('#cp').onclick = async () => { const r = await fetch('/api/license/request?' + query()); if (!r.ok) return msg($('#reqMsg'), (await r.json()).error, 'err'); await navigator.clipboard?.writeText(await r.text()); msg($('#reqMsg'), 'Copied. Paste it into your message to Smart Way.', 'ok'); };
-  $('#cpid').onclick = () => navigator.clipboard?.writeText(L.installId).then(() => toast('Copied'));
+  $('#dl').onclick = (e) => { e.preventDefault(); location.href = '/api/license/request?' + query(); setTimeout(() => msg($('#reqMsg'), t('lc.reqDownloaded'), 'ok'), 400); };
+  $('#cp').onclick = async () => { const r = await fetch('/api/license/request?' + query()); if (!r.ok) return msg($('#reqMsg'), (await r.json()).error, 'err'); await navigator.clipboard?.writeText(await r.text()); msg($('#reqMsg'), t('lc.reqCopied'), 'ok'); };
+  $('#cpid').onclick = () => navigator.clipboard?.writeText(L.installId).then(() => toast(t('lc.copied')));
 
   async function install(text) {
     const r = await fetch('/api/license', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ license: text }) });
     const j = await r.json();
-    if (!r.ok) return msg($('#instMsg'), j.error || 'The licence was not accepted.', 'err');
-    L = j; render(); $('#paste').value = ''; msg($('#instMsg'), `Installed: ${j.customer}, valid until ${day(j.expires)}. Thank you.`, 'ok'); toast('Licence installed');
+    if (!r.ok) return msg($('#instMsg'), j.error || t('lc.notAccepted'), 'err');
+    L = j; render(); $('#paste').value = ''; msg($('#instMsg'), t('lc.installed', { customer: j.customer, date: day(j.expires) }), 'ok'); toast(t('lc.toastInstalled'));
   }
-  $('#install').onclick = () => { const t = $('#paste').value.trim(); if (!t) return msg($('#instMsg'), 'Choose the file or paste its contents first.', 'err'); install(t); };
+  $('#install').onclick = () => { const x = $('#paste').value.trim(); if (!x) return msg($('#instMsg'), t('lc.pickFirst'), 'err'); install(x); };
   const read = (f) => f && f.text().then(install);
   $('#drop').onclick = () => $('#file').click();
   $('#file').onchange = (e) => read(e.target.files[0]);

@@ -128,9 +128,9 @@
       // the notice is written in English and in Arabic by Smart Way: show the one that matches the page, the other as a second paragraph
       const ar = VG.lang === 'ar', first = ar && n.bodyAr ? n.bodyAr : n.body, second = n.bodyAr && n.body ? (ar ? n.body : n.bodyAr) : '';
       const wait = u.waiting || 0, el = document.createElement('div');
-      el.className = 'vgmodal'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', n.title);
+      el.className = 'vgmodal'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); const title = ar && n.titleAr ? n.titleAr : n.title; el.setAttribute('aria-label', title);
       el.innerHTML = `<div class="box"><button class="x" data-a="close" aria-label="${VG.esc(t('common.close'))}">&times;</button>
-        <span class="beat big">${HEART}</span><h2>${html(n.title)}</h2><p>${html(first)}</p>
+        <span class="beat big">${HEART}</span><h2>${html(title)}</h2><p>${html(first)}</p>
         ${second ? `<p lang="${ar ? 'en' : 'ar'}" dir="${ar ? 'ltr' : 'rtl'}" class="alt">${html(second)}</p>` : ''}
         ${wait ? `<span class="wait">${VG.esc(t('upd.waitingN', { n: wait }))}</span>` : ''}
         <div class="row"><button class="btn" data-a="close">${t('common.close')}</button><a class="btn pri" href="/updates.html" data-a="open">${t('upd.see')}</a></div></div>`;

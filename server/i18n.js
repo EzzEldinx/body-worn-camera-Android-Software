@@ -38,7 +38,7 @@ function middleware(req, res, next) {
         res.json = function (body) {
             if (body && typeof body === 'object' && !Array.isArray(body)) {
                 let b = null;
-                for (const k of ['error', 'note', 'reason']) if (typeof body[k] === 'string') { const v = error(req.lang, body[k]); if (v !== body[k]) (b = b || { ...body })[k] = v; }
+                for (const k of ['error', 'note', 'reason', 'problem']) if (typeof body[k] === 'string') { const v = error(req.lang, body[k]); if (v !== body[k]) (b = b || { ...body })[k] = v; }
                 if (Array.isArray(body.skipped)) (b = b || { ...body }).skipped = body.skipped.map((s) => (s && typeof s.reason === 'string' ? { ...s, reason: error(req.lang, s.reason) } : s));
                 if (b) body = b;
             }
