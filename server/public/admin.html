@@ -176,7 +176,7 @@ function subChip(co) {
 function render() {
   $('#coCount').textContent = data.companies.length ? `· ${data.companies.length}` : '';
   $('#coPkg').innerHTML = pkgOptions(20).replace(t('ad.unlimitedLegacy'), t('ad.unlimited'));
-  if (!$('#newFeat').children.length) { const all = (data.catalog || []).filter((f) => f.kind === 'feature').map((f) => f.key); $('#newFeat').innerHTML = featBoxes(all, all, 'data-nf'); }
+  if (!$('#newFeat').children.length) { const all = (data.catalog || []).map((f) => f.key); $('#newFeat').innerHTML = featBoxes(all, all, 'data-nf', ['feature', 'action']); }
   const byCo = (id) => data.cameras.filter((c) => c.companyId === id);
   $('#companies').innerHTML = data.companies.length ? data.companies.map((co) => {
     const nUsers = co.users.filter((u) => u.role !== 'officer').length, nEmps = co.users.length - nUsers, nCams = byCo(co.id).length;
@@ -195,7 +195,7 @@ function render() {
       <div class="piccell"><div class="logo ${co.logoTs ? 'has' : ''}" style="width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--blue));overflow:hidden">${avatarInner('company', co.id, co.logoTs, co.name[0].toUpperCase())}</div>
         <button class="btn sm" data-act="logo">${co.logoTs ? t('em.change') : t('em.upload')}</button>${co.logoTs ? `<button class="btn sm" data-act="logorm">${t('em.remove')}</button>` : ''}<span class="muted" style="font-size:12.5px">${t('ad.logoNote')}</span></div>
       <div class="sub">${t('ad.canUse')} <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:500">${t('ad.alwaysOn')}</span></div>
-      <div class="feat" data-feat="${co.id}">${featBoxes(co.features, (data.catalog || []).map((f) => f.key), 'data-f')}
+      <div class="feat" data-feat="${co.id}">${featBoxes(co.features, (data.catalog || []).map((f) => f.key), 'data-f', ['feature', 'action'])}
         <div class="fbar"><span class="fcount">${esc(t('em.selected', { n: co.features.length, total: nFeat() }))}</span><button class="btn sm" data-act="fall">${t('em.selectAll')}</button><button class="btn sm" data-act="fnone">${t('em.clear')}</button><button class="btn sm pri" data-act="fsave">${t('ad.saveFeat')}</button></div></div>
       <div class="sub">${t('ad.assigned')}</div>
       <div class="chips">${byCo(co.id).map((c) => `<span class="cam">${esc(c.id)}</span>`).join('') || `<span class="muted" style="font-size:13px">${t('ad.noneYet')}</span>`}</div>
@@ -207,7 +207,7 @@ function render() {
           <div><b>${esc(u.username)}</b><small>${esc(u.name)} · ${ROLE(u.role)}</small></div>
           <div class="sp"><button class="btn sm" data-act="upic">${t('em.photo')}</button><button class="btn sm" data-act="uacc">${esc(t('ad.accessOn', { what: u.role === 'manager' ? t('em.accessFull') : t('ad.on', { n: u.access.filter((k) => co.features.includes(k) || (data.catalog.find((f) => f.key === k) || {}).kind === 'action').length }) }))}</button><button class="btn sm" data-act="pw">${t('em.reset')}</button><button class="btn sm danger" data-act="deluser">${t('em.remove')}</button></div></div>
           <div class="uacc">${u.role === 'manager' ? `<div class="muted" style="padding-top:12px;font-size:13px">${t('ad.adminFull')}</div>`
-            : `<div data-ubox>${featBoxes(u.access, [...co.features, ...data.catalog.filter((f) => f.kind === 'action').map((f) => f.key)], 'data-up', ['feature', 'action'])}<div class="fbar"><span class="fcount">${esc(t('ad.nSelected', { n: u.access.length }))}</span><button class="btn sm" data-act="uall">${t('em.selectAll')}</button><button class="btn sm" data-act="unone">${t('em.clear')}</button><button class="btn sm pri" data-act="usave">${t('em.saveAccess')}</button></div></div>`}</div></div>`).join('') || `<div class="empty">${t('em.noUsers')}</div>`}</div>
+            : `<div data-ubox>${featBoxes(u.access, co.features, 'data-up', ['feature', 'action'])}<div class="fbar"><span class="fcount">${esc(t('ad.nSelected', { n: u.access.length }))}</span><button class="btn sm" data-act="uall">${t('em.selectAll')}</button><button class="btn sm" data-act="unone">${t('em.clear')}</button><button class="btn sm pri" data-act="usave">${t('em.saveAccess')}</button></div></div>`}</div></div>`).join('') || `<div class="empty">${t('em.noUsers')}</div>`}</div>
       ${lastCred[co.id] ? `<div class="cred">${t('ad.loginFor')} <code>${esc(lastCred[co.id].username)}</code> <code>${esc(lastCred[co.id].password)}</code>
         <button class="btn sm" data-act="copy">${t('em.copy')}</button><span class="muted" style="font-size:12px">${t('ad.saveIt')}</span></div>` : ''}
       <div class="adduser">

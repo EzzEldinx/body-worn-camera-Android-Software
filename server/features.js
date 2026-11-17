@@ -37,18 +37,29 @@ function clean(list) {
     return ALL.map((f) => f.key).filter((k) => set.has(k));
 }
 const parse = (text) => { if (text === null || text === undefined || text === '') return null; try { const v = JSON.parse(text); return Array.isArray(v) ? clean(v) : null; } catch { return null; } };
-const store = (list) => (list === null ? null : JSON.stringify(clean(list)));
+// A company's list holds its features AND the actions its administrator may use; the marker says the actions were chosen on purpose
+// (older companies have a list of features only: they keep every action until Smart Way saves the list once).
+const MARK = '~a';
+const actionsSet = (text) => { try { const v = JSON.parse(text); return Array.isArray(v) && v.includes(MARK); } catch { return false; } };
+const store = (list, marked) => (list === null ? null : JSON.stringify(marked ? [...clean(list), MARK] : clean(list)));
+// Everything a company has at most: its features and its actions. Nobody of the company, its administrator included, gets more than this.
+function ceiling(companyFeatures) {
+    const feats = parse(companyFeatures);
+    if (!feats) return ALL.map((f) => f.key);
+    const acts = actionsSet(companyFeatures) ? feats.filter((k) => ACTION_KEYS.includes(k)) : ACTION_KEYS;
+    return clean([...feats.filter((k) => !ACTION_KEYS.includes(k)), ...acts]);
+}
 
 // raw = { staff, manager, role, companyFeatures (text|null), perms (text|null) } -> everything this person may use or do
 //   features: the company's AND the person's own; actions: what the person was given (nothing chosen = the role's default). Administrators: all of it.
 const defaultsFor = (role) => ACTIONS.filter((a) => a.def.includes(role)).map((a) => a.key);
 function effective({ staff, manager, role, companyFeatures, perms }) {
     if (staff) return ALL.map((f) => f.key);
-    const company = parse(companyFeatures) || [...KEYS];
-    if (manager) return clean([...company, ...ACTION_KEYS]);
+    const cap = ceiling(companyFeatures);
+    if (manager) return cap;
     const own = parse(perms);
-    if (!own) return clean([...company, ...defaultsFor(role)]);
-    return clean(own.filter((k) => ACTION_KEYS.includes(k) || company.includes(k)));
+    if (!own) return clean([...cap.filter((k) => !ACTION_KEYS.includes(k)), ...defaultsFor(role).filter((a) => cap.includes(a))]);
+    return clean(own.filter((k) => cap.includes(k)));
 }
 
 // Which part of the system needs which feature (checked on the server, so a hidden button cannot be bypassed).
@@ -62,4 +73,4 @@ const API_RULES = [
 const PAGE_RULES = { '/': 'live', '/index.html': 'live', '/wall.html': 'wall', '/analytics.html': 'analytics', '/reports.html': 'reports', '/docks.html': 'docks' };
 const ruleFor = (p) => (API_RULES.find(([re]) => re.test(p)) || [])[1] || null;
 
-module.exports = { FEATURES, ACTIONS, ALL, KEYS, ACTION_KEYS, defaultsFor, clean, parse, store, effective, ruleFor, PAGE_RULES };
+module.exports = { FEATURES, ACTIONS, ALL, KEYS, ACTION_KEYS, defaultsFor, clean, parse, store, ceiling, effective, ruleFor, PAGE_RULES };

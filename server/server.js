@@ -335,18 +335,18 @@ app.delete('/api/mobile/push', needUser, (req, res) => {
 const needCompanyManager = (req, res, next) => (req.user.companyId && req.user.role === 'manager' ? next() : res.status(403).json({ error: 'Only your company\'s administrators manage users.' }));
 const ownUser = (req) => db.prepare("SELECT * FROM users WHERE id = ? AND company_id = ? AND role IN ('manager','client','viewer')").get(Number(req.params.id), req.user.companyId);
 const companyFeaturesRaw = (companyId) => db.prepare('SELECT features FROM companies WHERE id = ?').get(companyId)?.features ?? null;
-const companyAvail = (companyId) => features.parse(companyFeaturesRaw(companyId)) || [...features.KEYS];   // the features a company has
+const companyAvail = (companyId) => features.ceiling(companyFeaturesRaw(companyId));   // the features and actions a company has at most
 // What an administrator ticked for a user: features only if the company has them, any action; the same as the role's default = nothing stored (NULL).
 const permsToStore = (list, companyId, role) => {
     if (!Array.isArray(list)) return undefined;
-    const avail = companyAvail(companyId), l = features.clean(list.filter((k) => features.ACTION_KEYS.includes(k) || avail.includes(k)));
+    const avail = companyAvail(companyId), l = features.clean(list.filter((k) => avail.includes(k)));
     const dflt = features.effective({ role, companyFeatures: companyFeaturesRaw(companyId), perms: null });
     return l.length === dflt.length && l.every((k) => dflt.includes(k)) ? null : JSON.stringify(l);
 };
 // A user row as the administrators see it: `access` = everything the person may see and do right now.
 const withAccess = ({ perms, ...u }, companyId) => ({ ...u, access: features.effective({ manager: u.role === 'manager', role: u.role, companyFeatures: companyFeaturesRaw(companyId), perms }), custom: perms != null });
 app.get('/api/company/users', needUser, needCompanyManager, (req, res) => res.json({ users: db.prepare("SELECT id,username,name,role,perms,avatar_ts AS avatarTs FROM users WHERE company_id = ? AND role IN ('manager','client','viewer') ORDER BY username").all(req.user.companyId).map((u) => withAccess(u, req.user.companyId)),
-    available: [...companyAvail(req.user.companyId), ...features.ACTION_KEYS], catalog: features.ALL, defaults: Object.fromEntries(['manager', 'client', 'viewer'].map((r) => [r, features.effective({ manager: r === 'manager', role: r, companyFeatures: companyFeaturesRaw(req.user.companyId) })])) }));
+    available: companyAvail(req.user.companyId), catalog: features.ALL, defaults: Object.fromEntries(['manager', 'client', 'viewer'].map((r) => [r, features.effective({ manager: r === 'manager', role: r, companyFeatures: companyFeaturesRaw(req.user.companyId) })])) }));
 app.post('/api/company/users', needUser, needCompanyManager, (req, res) => {
     const username = String(req.body?.username ?? '').trim(), password = String(req.body?.password ?? ''), name = String(req.body?.name ?? '').trim().slice(0, 60) || username, role = String(req.body?.role || 'client');
     if (!ROLES.includes(role)) return res.status(400).json({ error: 'Pick Administrator, Operator or Viewer.' });
@@ -689,7 +689,7 @@ app.post('/api/admin/companies', adminOnly, (req, res) => {
     try {
         const pkg = packages.parsePackage(req.body?.maxCameras, req.body?.maxLive);
         if (pkg.error) return res.status(400).json({ error: pkg.error });
-        const r = db.prepare('INSERT INTO companies(name,created,max_cameras,max_live,features) VALUES(?,?,?,?,?)').run(name, Date.now(), pkg.maxCameras, pkg.maxLive, Array.isArray(req.body?.features) ? features.store(req.body.features) : null);
+        const r = db.prepare('INSERT INTO companies(name,created,max_cameras,max_live,features) VALUES(?,?,?,?,?)').run(name, Date.now(), pkg.maxCameras, pkg.maxLive, Array.isArray(req.body?.features) ? features.store(req.body.features, true) : null);
         const id = Number(r.lastInsertRowid);
         // optionally with the company's administrator account (the person who manages its users, employees and pictures)
         const au = String(req.body?.adminUsername ?? '').trim(), ap = String(req.body?.adminPassword ?? '');
@@ -732,7 +732,7 @@ app.put('/api/admin/companies/:id/features', adminOnly, (req, res) => {
     if (!c) return res.status(404).json({ error: 'Company not found.' });
     if (!Array.isArray(req.body?.features)) return res.status(400).json({ error: 'Send the list of features.' });
     const list = features.clean(req.body.features);
-    db.prepare('UPDATE companies SET features = ? WHERE id = ?').run(list.length === features.KEYS.length ? null : JSON.stringify(list), id);
+    db.prepare('UPDATE companies SET features = ? WHERE id = ?').run(list.length === features.ALL.length ? null : features.store(list, true), id);
     auditlog.add(db, req.user.username, 'company_features_set', null, { company: c.name, features: list.join(',') || 'none' });
     kickUsers(db.prepare('SELECT id FROM users WHERE company_id = ?').all(id).map((r) => r.id));   // their open pages reload with the new menu
     res.json({ ok: true, features: list });

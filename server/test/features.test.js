@@ -84,7 +84,7 @@ test('company features and per-user access are enforced by the server, not only 
 
     // a company created without choosing gets everything (nothing is taken away by default)
     const plain = await json('/api/admin/companies', { method: 'POST', sid: admin, body: { name: 'Plain Co' } });
-    assert.strictEqual((await json('/api/admin/companies', { sid: admin })).body.companies.find((x) => x.id === plain.body.id).features.length, features.KEYS.length);
+    assert.strictEqual((await json('/api/admin/companies', { sid: admin })).body.companies.find((x) => x.id === plain.body.id).features.length, features.ALL.length);
     // staff are never limited
     assert.strictEqual((await json('/api/me', { sid: admin })).body.features.length, features.ALL.length);
 });
@@ -164,4 +164,13 @@ test('a camera is told its company name together with the assignment (it writes 
     assert.equal(co.payload('C1').company, 'Al Noor');
     assert.equal(co.payload('C1').active, false);
     assert.equal(co.payload('NOPE').company, '');
+});
+
+test('a company administrator gets no more than Smart Way ticked for the company: features and actions', () => {
+    const co = JSON.stringify(['live', 'ack', 'stream', '~a']);                       // actions chosen on purpose: only these two
+    assert.deepStrictEqual(features.effective({ manager: true, role: 'manager', companyFeatures: co, perms: null }), ['live', 'ack', 'stream']);
+    assert.deepStrictEqual(features.effective({ role: 'client', companyFeatures: co, perms: JSON.stringify(['live', 'ack', 'delete']) }), ['live', 'ack'], 'a user cannot be given what the company does not have');
+    const legacy = JSON.stringify(['live', 'docks']);                                          // an older list of features only keeps every action until it is saved again
+    assert.ok(features.effective({ manager: true, role: 'manager', companyFeatures: legacy, perms: null }).includes('delete'));
+    assert.ok(!features.effective({ manager: true, role: 'manager', companyFeatures: JSON.stringify(['live', 'docks', '~a']), perms: null }).includes('delete'));
 });
