@@ -2,7 +2,7 @@
    Uses the page's own globals: map, cams, me, alerts, socket, esc, flash, currentLang, regionList, companyList. The rules live on the server (geofence.js there). */
 (function () {
   'use strict';
-  const L = (en, ar) => (currentLang === 'ar' ? ar : en);
+  const L = (en, ar) => (VG.lang === 'ar' ? ar : en);   // both words are written at the call, so a missing Arabic text is visible in the source (and tested)
   const KIND_COLOR = { allowed: '#00B87C', forbidden: '#FF3355', both: '#FFB300', checkpoint: '#2F7BFF', none: '#9AA8BD', off: '#9AA8BD' };
   const DAYS = [[0, 'Sun', 'أحد'], [1, 'Mon', 'إثنين'], [2, 'Tue', 'ثلاثاء'], [3, 'Wed', 'أربعاء'], [4, 'Thu', 'خميس'], [5, 'Fri', 'جمعة'], [6, 'Sat', 'سبت']];
   const state = { open: null, status: null, zones: [], canEdit: false, history: [], panel: false, draw: null, ready: false, labels: new Map() };
@@ -472,6 +472,7 @@
     load();
   }
   window.geoInit = init;
+  window.geoLangChanged = () => { if (!state.ready) return; syncButton(); drawZones(); if (state.panel) renderPanel(); };   // the language was switched: the button, the zone names and the panel are drawn again
   window.geoAlertsChanged = () => { if (!state.ready) return; syncButton(); drawZones(); if (state.panel) { renderPanel(); if (state.open) loadStatus(state.open); } };
   if (typeof me !== 'undefined' && me.features) init();
 })();

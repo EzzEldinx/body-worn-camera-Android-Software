@@ -203,7 +203,7 @@
       'common.show': 'عرض', 'common.hide': 'إخفاء', 'common.all': 'الكل', 'common.none': 'لا شيء', 'common.optional': 'اختياري', 'common.unknown': 'غير معروف', 'common.dash': '–',
       'common.online': 'متصل', 'common.offline': 'غير متصل', 'common.recording': 'جاري التسجيل', 'common.never': 'أبداً', 'common.noSignal': 'لا توجد إشارة بعد', 'common.now': 'الآن',
       'common.failed': 'حدث خطأ ما. حاول مرة أخرى.', 'common.notAvailable': 'غير متاح حالياً.', 'common.couldNotSave': 'تعذّر الحفظ.', 'common.saved': 'تم الحفظ.',
-      'common.agoS': 'قبل {n} ث', 'common.agoM': 'قبل {n} د', 'common.agoH': 'قبل {n} س', 'common.agoD': 'قبل {n} ي',
+      'common.agoS': 'قبل\u00A0{n}\u00A0ث', 'common.agoM': 'قبل\u00A0{n}\u00A0د', 'common.agoH': 'قبل\u00A0{n}\u00A0س', 'common.agoD': 'قبل\u00A0{n}\u00A0ي',
       'common.nCameras': { zero: '{n} كاميرا', one: 'كاميرا واحدة', two: 'كاميرتان', few: '{n} كاميرات', many: '{n} كاميرا', other: '{n} كاميرا' },
       'common.nDays': { zero: '{n} يوم', one: 'يوم واحد', two: 'يومان', few: '{n} أيام', many: '{n} يوماً', other: '{n} يوم' },
       'common.nHours': { zero: '{n} ساعة', one: 'ساعة واحدة', two: 'ساعتان', few: '{n} ساعات', many: '{n} ساعة', other: '{n} ساعة' },
