@@ -437,7 +437,7 @@ const small = (svg, n = 14) => svg.replace('<svg', `<svg width="${n}" height="${
 function vFiles(v) {
   v.innerHTML = head(t('dc.fSub')) +
     `<div class="card"><h3>${t('dc.fNew')}</h3><div class="mode" id="fmode"></div>
-       <p class="muted" style="margin:12px 0 0;font-size:13px" id="fnote"></p></div>
+       <p class="muted" style="margin:12px 0 0;font-size:13px" id="fnote"></p><div id="fdir" style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"></div></div>
      <div class="card"><div class="bar2"><div class="fchips" id="fchips"></div></div></div>
      <div class="card" id="fbulk" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
        <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" id="fall"> ${t('dc.selectAll')}</label>
@@ -509,6 +509,7 @@ function paintFiles() {
   const dk = agentOf(), st = dk?.storage;
   $('#fnote').innerHTML = t('dc.uploadQuality') + (st?.dir ? t('dc.dockStorage') + (me?.super ? '<span class="mono ltr">' + esc(st.dir) + '</span>' : '') + (st.freeBytes != null ? esc(t('dc.freeSz', { size: fmtB(st.freeBytes) })).replace(me?.super ? /^$/ : /^ · /, '') : '') : '') +
     (can ? '' : t('dc.onlyAdmin'));
+  const dbx = $('#fdir'); if (dbx) dbx.innerHTML = (FD.storageDir ? `<span class="muted">${esc(t('dc.br.mine'))} <span class="mono ltr">${esc(FD.storageDir)}</span></span>` : '') + (can ? `<button class="btn sm" id="fbrowse">${t('dc.browse')}</button>` : '');
   const tot = { n: 0, bytes: 0 }; Object.values(c).forEach((x) => { tot.n += x.n; tot.bytes += x.bytes; });
   const cc = { ...c, all: tot };
   $('#fchips').innerHTML = BUCKETS.map((k) => `<button class="pill ${fstate === k ? 'on' : ''}" data-b="${k}">${t('dc.b.' + k)}<small>${cc[k].n}${cc[k].bytes ? ' · ' + fmtB(cc[k].bytes) : ''}</small></button>`).join('');
@@ -602,6 +603,38 @@ function openMedia(id) {
     <div class="mbody muted">${when(x.recordedTs || x.uploadedTs)} · ${fmtB(x.size)} · SHA-256 <span class="mono ltr" style="word-break:break-all">${x.sha256}</span></div>`;
   $('#modal').classList.add('on');
 }
+
+/* ---------- choose the folder this company's files are kept in on the dock computer (the Dock Agent lists its folders) ---------- */
+let brCo = null;
+async function browseTo(p) {
+  $('#mbox').innerHTML = `<header><b>${esc(t('dc.br.title'))}</b><button class="btn sm" data-close>${t('dc.br.cancel')}</button></header><div class="mbody muted">${esc(t('dc.br.wait'))}</div>`;
+  $('#modal').classList.add('on');
+  const r = await fetch('/api/dock/browse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: p || '' }) }).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : {};
+  if (!r || !r.ok || !j.ok) { $('#mbox').innerHTML = `<header><b>${esc(t('dc.br.title'))}</b><button class="btn sm" data-close>${t('dc.br.cancel')}</button></header><div class="mbody" style="color:var(--rec)">${esc(j.error || t('dc.br.fail'))}</div>`; return; }
+  const co = me?.super ? `<div style="margin-bottom:8px"><select id="brCo">${(window.__cos || []).map((c) => `<option value="${c.id}" ${String(brCo) === String(c.id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>` : '';
+  $('#mbox').innerHTML = `<header><b>${esc(t('dc.br.title'))}</b><button class="btn sm" data-close>${t('dc.br.cancel')}</button></header>
+    <div class="mbody">${co}<div class="mono ltr" style="margin-bottom:8px;word-break:break-all">${esc(j.path)}</div>
+    <div style="max-height:46vh;overflow:auto;display:grid;gap:4px">${j.parent ? `<button class="btn sm" data-bpath="${esc(j.parent)}">⬆ ${esc(t('dc.br.up'))}</button>` : ''}
+    ${j.dirs.length ? j.dirs.map((d) => `<button class="btn sm" style="justify-content:flex-start" data-bpath="${esc(j.path.replace(/\/$/, '') + '/' + d)}">📁 <bdi>${esc(d)}</bdi></button>`).join('') : `<span class="muted">${esc(t('dc.br.empty'))}</span>`}</div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button class="btn pri" data-buse="${esc(j.path)}">${esc(t('dc.br.use'))}</button></div></div>`;
+}
+async function openBrowse() {
+  if (me?.super && !window.__cos) { try { window.__cos = (await (await fetch('/api/admin/companies')).json()).companies || []; } catch { window.__cos = []; } brCo = window.__cos[0]?.id; }
+  browseTo('');
+}
+async function useFolder(p) {
+  const body = { path: p }; if (me?.super) { body.companyId = Number($('#brCo')?.value || brCo); }
+  const r = await fetch('/api/admin/dock/storage', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : {};
+  if (!r || !r.ok) { alert(j.error || t('dc.br.fail')); return; }
+  closeModal(); alert(t('dc.br.saved')); loadFiles();
+}
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#fbrowse')) return openBrowse();
+  const g = e.target.closest('[data-bpath]'); if (g) return browseTo(g.dataset.bpath);
+  const u = e.target.closest('[data-buse]'); if (u) return useFolder(u.dataset.buse);
+});
 function closeModal() { $('#modal').classList.remove('on'); const m = $('#mbox video'); if (m) m.pause(); $('#mbox').innerHTML = ''; }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 

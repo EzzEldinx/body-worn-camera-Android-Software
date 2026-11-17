@@ -21,6 +21,7 @@
     'dc.durMin': '{n} min', 'dc.durHM': '{h} h {m} min',
     // bays
     'dc.bayPickTitle': 'Which bay is this camera really in?', 'dc.bayAria': 'Bay', 'dc.bayOpt': 'Bay {n}',
+    'dc.browse': 'Choose folder…', 'dc.br.title': 'Choose where the dock computer keeps your files', 'dc.br.up': 'Up', 'dc.br.use': 'Use this folder', 'dc.br.cancel': 'Cancel', 'dc.br.wait': 'Asking the dock computer…', 'dc.br.fail': 'The dock computer did not answer. Is the Dock Agent running and up to date?', 'dc.br.empty': 'No folders here', 'dc.br.saved': 'Saved: new files of your cameras go to this folder, and the ones already copied are moved there.', 'dc.br.mine': 'Your folder on the dock computer:',
     'dc.s.idle': 'Idle', 'dc.s.connected': 'Ready', 'dc.s.offloading': 'Offloading', 'dc.s.updating': 'Updating app', 'dc.s.synced': 'Synced', 'dc.s.error': 'Needs attention', 'dc.s.other': 'In use',
     'dc.docked': 'Docked', 'dc.anotherAccount': 'Another account', 'dc.notYours': 'A camera is docked here but it is not assigned to your company.', 'dc.synced': 'Synced', 'dc.updating': 'Updating', 'dc.error': 'Error',
     'dc.free': '{size} free', 'dc.fileOf': '{file} · {done} of {total}', 'dc.verified': '{files} verified · {ago}', 'dc.failedVerify': 'A file failed verification', 'dc.updatingApp': 'Updating the camera app…', 'dc.waitingSync': 'Waiting for the next sync…',
@@ -104,6 +105,7 @@
     'dc.by.dock': 'المحطة', 'dc.by.timeout': 'انتهت المهلة', 'dc.by.station': 'محطة الاستلام', 'dc.noHistory': 'لا يوجد سجل بعد لهذه التصفية.', 'dc.empNo': 'رقم {n}',
     'dc.durMin': '{n} د', 'dc.durHM': '{h} س {m} د',
     'dc.bayPickTitle': 'في أي خانة توجد هذه الكاميرا فعلياً؟', 'dc.bayAria': 'الخانة', 'dc.bayOpt': 'الخانة {n}',
+    'dc.browse': 'اختيار المجلد…', 'dc.br.title': 'اختر المكان الذي يحفظ فيه كمبيوتر المحطة ملفاتك', 'dc.br.up': 'للأعلى', 'dc.br.use': 'استخدم هذا المجلد', 'dc.br.cancel': 'إلغاء', 'dc.br.wait': 'جارٍ سؤال كمبيوتر المحطة…', 'dc.br.fail': 'لم يستجب كمبيوتر المحطة. هل برنامج محطة الإرساء يعمل ومحدّث؟', 'dc.br.empty': 'لا توجد مجلدات هنا', 'dc.br.saved': 'تم الحفظ: ستُحفظ ملفات كاميراتك الجديدة في هذا المجلد، وتُنقل إليه الملفات المنسوخة سابقاً.', 'dc.br.mine': 'مجلدك على كمبيوتر المحطة:',
     'dc.s.idle': 'فارغة', 'dc.s.connected': 'جاهزة', 'dc.s.offloading': 'جارٍ النقل', 'dc.s.updating': 'تحديث التطبيق', 'dc.s.synced': 'تمت المزامنة', 'dc.s.error': 'تحتاج إلى انتباه', 'dc.s.other': 'قيد الاستخدام',
     'dc.docked': 'على المحطة', 'dc.anotherAccount': 'حساب آخر', 'dc.notYours': 'توجد كاميرا على هذه الخانة لكنها غير مخصصة لشركتك.', 'dc.synced': 'تمت المزامنة', 'dc.updating': 'جارٍ التحديث', 'dc.error': 'خطأ',
     'dc.free': 'المتاح {size}', 'dc.fileOf': '{file} · {done} من {total}', 'dc.verified': 'تم التحقق من {files} · {ago}', 'dc.failedVerify': 'فشل التحقق من ملف', 'dc.updatingApp': 'جارٍ تحديث تطبيق الكاميرا…', 'dc.waitingSync': 'بانتظار المزامنة التالية…',

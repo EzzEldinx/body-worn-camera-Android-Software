@@ -31,3 +31,25 @@ test('a company administrator chooses for his company only; an operator cannot; 
     assert.strictEqual(await modeOf(mgrB), 'auto_local', 'Smart Way default reaches a company that never chose');
     assert.strictEqual(await modeOf(mgrA), 'auto_cloud', 'and not one that did');
 });
+
+test('a company administrator browses the dock computer through the agent and saves a folder; the agent then gets it per camera', async () => {
+    const H = { 'x-dock-token': 'dt' };
+    const agent = setInterval(async () => {   // a pretend Dock Agent
+        const q = await json(await api('/api/dock/browse-pending', 'GET', undefined, H));
+        for (const r of q.requests || []) await api('/api/dock/browse-result', 'POST', r.type === 'check' ? { id: r.id, ok: true, path: r.path } : { id: r.id, ok: true, path: '/home/dock', parent: null, dirs: ['Evidence', 'Other'] }, H);
+    }, 100);
+    try {
+        const l = await json(await api('/api/dock/browse', 'POST', { path: '' }, mgrA));
+        assert.deepStrictEqual([l.status, l.ok, l.dirs], [200, true, ['Evidence', 'Other']]);
+        assert.strictEqual((await api('/api/dock/browse', 'POST', { path: '' }, opA)).status, 403, 'an operator cannot browse');
+        assert.strictEqual((await api('/api/admin/dock/storage', 'PUT', { path: '/home/dock/Evidence' }, mgrA)).status, 200);
+        const cam = (await import('socket.io-client')).io(BASE, { auth: { token: 't' }, transports: ['websocket'] });
+        await new Promise((r) => cam.on('connect', r)); cam.emit('camera_status', { cameraId: 'D-1', recording: false });
+        await new Promise((r) => setTimeout(r, 300));
+        await api('/api/admin/cameras/D-1/company', 'PUT', { companyId: (await json(await api('/api/admin/companies', 'GET', undefined, admin))).companies.find((c) => c.name === 'Alpha Co').id }, admin);
+        const p = await json(await api('/api/dock/policy', 'GET', undefined, H));
+        assert.strictEqual(p.dirs['D-1'], '/home/dock/Evidence'); cam.close();
+        assert.strictEqual((await json(await api('/api/dock/files', 'GET', undefined, mgrA))).storageDir, '/home/dock/Evidence');
+        assert.strictEqual((await json(await api('/api/dock/files', 'GET', undefined, mgrB))).storageDir, null, 'the other company has its own');
+    } finally { clearInterval(agent); }
+});

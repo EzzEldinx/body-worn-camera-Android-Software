@@ -107,14 +107,41 @@ function forget(serial) {
 // (it stays here). The server's policy can also decide automatically (Ask / Auto-cloud / Auto-local).
 const STORE = path.resolve(process.env.DOCK_STORAGE || path.join(os.homedir(), 'VisionGuard-Dock'));
 const PURGE_UPLOADED = process.env.DOCK_PURGE_UPLOADED === '1';   // free the dock's disk once a file is verified in the cloud (default: keep the local copy)
-const localPath = (cameraId, name) => path.join(STORE, cameraId, name);
+// A company can choose its own folder on this PC (dashboard > Docking > Files > Choose folder): policy.dirs = { cameraId: folder }.
+// When it changes, the camera's files are moved there (copied, checked, then removed from the old place).
+let dirs = {};
+const ROOTS_FILE = path.join(STORE, '.roots.json');
+const roots = (() => { try { return JSON.parse(fs.readFileSync(ROOTS_FILE, 'utf8')); } catch { return {}; } })();
+const rootOf = (cameraId) => path.resolve(dirs[cameraId] || roots[cameraId] || STORE);
+const localPath = (cameraId, name) => path.join(rootOf(cameraId), cameraId, name);
+function relocate() {
+    for (const [cameraId, want] of Object.entries(dirs)) {
+        const from = path.resolve(roots[cameraId] || STORE), to = path.resolve(want);
+        if (from === to) { roots[cameraId] = to; continue; }
+        try {
+            const src = path.join(from, cameraId), dst = path.join(to, cameraId);
+            fs.mkdirSync(dst, { recursive: true });
+            if (fs.existsSync(src)) {
+                for (const f of fs.readdirSync(src)) {
+                    const a = path.join(src, f), b = path.join(dst, f);
+                    if (!fs.existsSync(b) || fs.statSync(b).size !== fs.statSync(a).size) fs.copyFileSync(a, b);
+                    if (fs.statSync(b).size !== fs.statSync(a).size) throw new Error('copy of ' + f + ' is incomplete');
+                }
+                for (const f of fs.readdirSync(src)) fs.rmSync(path.join(src, f), { force: true });
+                try { fs.rmdirSync(src); } catch { /* not empty: leave it */ }
+            }
+            roots[cameraId] = to; log(cameraId, 'files moved to', to);
+        } catch (e) { dirs[cameraId] = roots[cameraId] || STORE; log(cameraId, 'could not use', want, ':', e.message); }
+    }
+    try { fs.mkdirSync(STORE, { recursive: true }); fs.writeFileSync(ROOTS_FILE, JSON.stringify(roots)); } catch { /* the default folder is not writable: nothing to remember */ }
+}
 const shaCache = new Map();   // camera-side hash by serial|name|size|mtime: a 1.9 GB file is hashed once, not every cycle
 let policy = { mode: 'ask', legacy: false };
 const legacyPending = [];     // old servers without the catalog: upload straight after the copy, like before
 const uploadFailedAt = new Map();
 
 async function loadPolicy() {
-    try { policy = { ...(await api('GET', '/api/dock/policy')), legacy: false }; }
+    try { policy = { ...(await api('GET', '/api/dock/policy')), legacy: false }; dirs = policy.dirs || {}; relocate(); }
     catch (e) { if (/-> 404/.test(e.message)) policy = { mode: 'auto_cloud', legacy: true }; }
 }
 function storageInfo() {
@@ -125,7 +152,7 @@ const deleteOnCamera = async (serial, tag, name) => { await shell(serial, `rm "$
 async function offload(info, stats) {
     const { serial, cameraId } = info; const tag = cameraId || serial;
     if (!cameraId) { log(tag, 'no config.json id on the camera: skipped'); return; }
-    fs.mkdirSync(path.join(STORE, cameraId), { recursive: true });
+    fs.mkdirSync(path.join(rootOf(cameraId), cameraId), { recursive: true });
     const st = status.get(serial) || {}; status.set(serial, st);
     let todo = info.files.filter((f) => f.size > 0 && !(ONLY && f.name !== ONLY) && Date.now() - f.mtimeMs >= MIN_AGE_MS);
     if (SINCE) todo = todo.filter((f) => f.mtimeMs >= SINCE);
@@ -350,6 +377,30 @@ async function updateOnce(info) {
     try { await updateApp(info); } finally { updating.delete(info.serial); }
 }
 
+// ---------- the dashboard browses this PC's folders (only folders, only under the home folder, /Volumes or the storage folder) ----------
+const BROWSE_ROOTS = [os.homedir(), STORE, ...(process.platform === 'darwin' ? ['/Volumes'] : []), ...String(process.env.DOCK_BROWSE_ROOTS || '').split(path.delimiter).filter(Boolean)].map((x) => path.resolve(x));
+const inRoots = (p) => BROWSE_ROOTS.some((r) => p === r || p.startsWith(r + path.sep));
+async function browseOnce() {
+    let q; try { q = await api('GET', '/api/dock/browse-pending'); } catch { return; }
+    for (const r of q.requests || []) {
+        let out = { id: r.id, ok: false, error: 'Folder not allowed' };
+        try {
+            const p = path.resolve(r.path || os.homedir());
+            if (inRoots(p)) {
+                if (r.type === 'check') {
+                    fs.mkdirSync(p, { recursive: true }); const t = path.join(p, '.visionguard-write-test'); fs.writeFileSync(t, 'ok'); fs.rmSync(t, { force: true });
+                    out = { id: r.id, ok: true, path: p };
+                } else {
+                    const dirsList = fs.readdirSync(p, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith('.')).map((d) => d.name).sort((a, b) => a.localeCompare(b)).slice(0, 300);
+                    const up = path.dirname(p);
+                    out = { id: r.id, ok: true, path: p, parent: p !== up && inRoots(up) ? up : null, dirs: dirsList };
+                }
+            }
+        } catch (e) { out = { id: r.id, ok: false, error: String(e.message || e).slice(0, 140) }; }
+        api('POST', '/api/dock/browse-result', { body: out }).catch(() => {});
+    }
+}
+
 async function report(force) {
     if (!force && Date.now() - lastReportAt < 1500) return;   // progress updates are throttled
     lastReportAt = Date.now();
@@ -454,7 +505,7 @@ async function heartbeat() {
 (async () => {
     if (!TOKEN) { console.error('Set DOCK_TOKEN (same value as on the server).'); process.exit(2); }
     log('', `Dock Agent ${DOCK_ID} -> ${SERVER} ${DELETE ? '(will delete verified files from cameras)' : '(copy only, nothing is deleted)'}`);
-    if (!flag('once')) { setInterval(heartbeat, 2000); setInterval(() => { if (!UPDATE_ONLY) loadPolicy().then(() => Promise.all([processQueue(), processDeletions()])).catch(() => {}); }, 10_000); }   // act on the user's choices within seconds, camera docked or not
+    if (!flag('once')) { setInterval(heartbeat, 2000); setInterval(browseOnce, 1500); setInterval(() => { if (!UPDATE_ONLY) loadPolicy().then(() => Promise.all([processQueue(), processDeletions()])).catch(() => {}); }, 10_000); }   // act on the user's choices within seconds, camera docked or not
     do {
         try { await cycle(); } catch (e) { log('', 'cycle error:', e.message); }
         if (flag('once')) break;

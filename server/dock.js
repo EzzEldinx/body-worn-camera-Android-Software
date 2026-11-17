@@ -245,12 +245,14 @@ function register(app, ctx) {
             recordings: db.prepare('SELECT COUNT(*) n FROM recordings WHERE camera_id = ?').get(id).n }));
         const fc = { awaiting: 0, local: 0, queued: 0, cloud: 0, failed: 0 };
         for (const r of db.prepare('SELECT camera_id,state,choice FROM dock_files').all()) if (mine(req.user, r.camera_id)) fc[r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued']++;
-        res.json({ slots: SLOTS, calibration: [...calibrating].map(([id, c]) => ({ dock: id, next: c.next })), enabled: !!DOCK_TOKEN, policy: policy(req.user.companyId), fileCounts: fc, docks: list, cameras: known,
+        res.json({ slots: SLOTS, calibration: [...calibrating].map(([id, c]) => ({ dock: id, next: c.next })), enabled: !!DOCK_TOKEN, policy: policy(req.user.companyId), storageDir: req.user.companyId ? getSetting('dir:' + req.user.companyId, null) : null, fileCounts: fc, docks: list, cameras: known,
             storage: { retentionDays: RETENTION_DAYS, recordings: rec.n, recordingsBytes: rec.bytes, todayCount: td.n, todayBytes: td.bytes, ...(disk || {}) } });
     });
 
     // ---------- what to do with the files a dock has copied ----------
-    app.get('/api/dock/policy', needDock, (req, res) => res.json(policy()));
+    // Where each camera's files are kept on the dock computer when its company chose a folder (cameraId -> folder).
+    const dirsFor = () => { const o = {}; for (const [id, c] of cams) { const d = c.companyId && getSetting('dir:' + c.companyId, null); if (d) o[id] = d; } return o; };
+    app.get('/api/dock/policy', needDock, (req, res) => res.json({ ...policy(), dirs: dirsFor() }));
     app.get('/api/admin/dock/policy', needUser, (req, res) => res.json(policy(req.user.companyId)));
     // Smart Way sets the default (or one company's choice: companyId); a company's administrator with "Decide on recordings" sets his own company's.
     app.put('/api/admin/dock/policy', needUser, (req, res) => {
@@ -263,6 +265,33 @@ function register(app, ctx) {
         db.prepare('INSERT INTO dock_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, mode);
         audit(u.username, `dock_policy_${mode}`, null, { mode, was, companyId: cid });
         res.json(policy(cid));
+    });
+
+    // Browsing the dock computer's folders: the dashboard asks, the Dock Agent (polling every 1.5 s) answers. Only folders, only under the agent's own allowed places.
+    const browse = new Map(); let browseSeq = 0;
+    const askAgent = (type, p) => new Promise((resolve) => { const id = ++browseSeq; browse.set(id, { id, type, path: p, taken: false, resolve }); setTimeout(() => { if (browse.delete(id)) resolve(null); }, 20000); });
+    const mayChoose = (u) => (!u.companyId ? u.role === 'admin' : u.role === 'manager' && (u.features || []).includes('files'));
+    app.get('/api/dock/browse-pending', needDock, (req, res) => { const out = [...browse.values()].filter((r) => !r.taken); out.forEach((r) => { r.taken = true; }); res.json({ requests: out.map(({ id, type, path: p }) => ({ id, type, path: p })) }); });
+    app.post('/api/dock/browse-result', needDock, (req, res) => { const r = browse.get(Number(req.body?.id)); if (r) { browse.delete(r.id); r.resolve(req.body); } res.json({ ok: true }); });
+    app.post('/api/dock/browse', needUser, async (req, res) => {
+        if (!mayChoose(req.user)) return res.status(403).json({ error: 'You are not allowed to decide on recordings.' });
+        const r = await askAgent('list', String(req.body?.path || '').slice(0, 500));
+        if (!r) return res.status(504).json({ error: 'The dock computer did not answer. Is the Dock Agent running and up to date?' });
+        res.json({ ok: !!r.ok, path: r.path || '', parent: r.parent || null, dirs: Array.isArray(r.dirs) ? r.dirs.slice(0, 300) : [], error: r.error || null });
+    });
+    // The folder a company keeps its files in on the dock computer: checked by the agent (created and written to) before it is saved.
+    app.put('/api/admin/dock/storage', needUser, async (req, res) => {
+        const u = req.user;
+        if (!mayChoose(u)) return res.status(403).json({ error: 'You are not allowed to decide on recordings.' });
+        const cid = u.companyId || (Number(req.body?.companyId) > 0 ? Number(req.body.companyId) : null), p = String(req.body?.path || '').slice(0, 500);
+        if (!cid) return res.status(400).json({ error: 'Pick the company.' });
+        if (!p) return res.status(400).json({ error: 'Pick a folder.' });
+        const r = await askAgent('check', p);
+        if (!r) return res.status(504).json({ error: 'The dock computer did not answer. Is the Dock Agent running and up to date?' });
+        if (!r.ok) return res.status(400).json({ error: String(r.error || 'The dock computer cannot use that folder.').slice(0, 160) });
+        db.prepare('INSERT INTO dock_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('dir:' + cid, r.path);
+        audit(u.username, 'dock_storage_set', null, { companyId: cid, dir: r.path });
+        res.json({ ok: true, dir: r.path });
     });
 
     // The agent announces files that are now safe on the dock's own storage; the answer says what to do with each.
@@ -310,7 +339,7 @@ function register(app, ctx) {
         const counts = { awaiting: { n: 0, bytes: 0 }, local: { n: 0, bytes: 0 }, queued: { n: 0, bytes: 0 }, cloud: { n: 0, bytes: 0 }, failed: { n: 0, bytes: 0 } };
         for (const r of rows) { const b = bucket(r); counts[b].n++; counts[b].bytes += r.size; }
         const files = rows.filter((r) => !state || bucket(r) === state).slice(0, 500).map((r) => ({ ...r, bucket: bucket(r) }));
-        res.json({ policy: policy(req.user.companyId), counts, files });
+        res.json({ policy: policy(req.user.companyId), storageDir: req.user.companyId ? getSetting('dir:' + req.user.companyId, null) : null, counts, files });
     });
     // The user's decision: push to the cloud, or keep on the dock's own storage. Works on a list of files or on everything waiting.
     app.post('/api/dock/files/choose', needUser, needWrite, (req, res) => {
