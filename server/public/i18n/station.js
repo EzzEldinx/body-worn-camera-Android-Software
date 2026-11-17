@@ -1,0 +1,33 @@
+/* Check-out station words (the screen next to the docking station). Keys: st.* */
+(function (g, d) { if (typeof module === 'object' && module.exports) module.exports = d; else if (g.VG) g.VG.add(d); })(typeof window !== 'undefined' ? window : globalThis, {
+  en: {
+    'st.pageTitle': 'Take a camera - VisionGuard',
+    'st.title': 'Take your <span>camera</span>', 'st.sub': 'Sign in with your own username and password. The system picks a camera that is charged and ready, and shows you where it is.',
+    'st.username': 'Username', 'st.password': 'Password', 'st.continue': 'Continue', 'st.checking': 'Checking…', 'st.done': 'Done',
+    'st.dockOnline': 'Dock online', 'st.dockOffline': 'Dock offline', 'st.noConn': 'No connection', 'st.ready': '{n} camera(s) ready', 'st.onDock': '{n} on the dock',
+    'st.signedAs': 'Signed in as', 'st.youHave': 'You have <span>{cam}</span>', 'st.reservedTxt': 'It is reserved for you and still on the dock. Take it from the bay shown.',
+    'st.outTxt': 'Checked out at {time}. Put it back on the dock when you finish your shift.', 'st.returned': 'I returned it', 'st.close': 'Close', 'st.cancel': 'Cancel', 'st.again': 'Check again',
+    'st.other': 'Choose another', 'st.take': 'Take {cam}', 'st.moment': 'One moment…', 'st.dockOffH': 'The dock is <span>offline</span>', 'st.dockOffTxt': 'The docking station is not reporting right now, so no camera can be issued. Ask your supervisor.',
+    'st.noneH': 'No camera is <span>ready</span>', 'st.noneTxt': 'Every camera on the dock is charging, copying its files or already taken.', 'st.noCams': 'There are no cameras on the dock.', 'st.taken': 'already taken',
+    'st.yourCam': 'Your camera', 'st.bay': 'Bay {n}', 'st.connected': 'Connected', 'st.notConn': 'Not connected yet', 'st.dock': 'Docking station', 'st.top': 'top row', 'st.bottom': 'bottom row',
+    'st.nth1': '1st', 'st.nth2': '2nd', 'st.nth3': '3rd', 'st.nth4': '4th', 'st.nth5': '5th', 'st.fromLeft': '{nth} from the left',
+    'st.yours': '{cam} is yours{where}.', 'st.takeFrom': ' — take it from <b>bay {n}</b>', 'st.stampTxt': 'Your name and ID will be stamped on everything it records.',
+    'st.copying': 'copying files', 'st.copyingN': 'copying files ({i} of {n})', 'st.updating': 'updating its app', 'st.charging': 'charging: {b}%, ready at {m}%', 'st.attention': 'needs attention',
+    'st.m.noReady': 'No camera is ready right now.', 'st.m.notReady': 'That camera is not ready any more. Choose another one.', 'st.m.wrong': 'Something went wrong.',
+  },
+  ar: {
+    'st.pageTitle': 'استلام كاميرا - VisionGuard',
+    'st.title': 'استلم <span>كاميرتك</span>', 'st.sub': 'سجّل الدخول باسم المستخدم وكلمة المرور الخاصين بك. يختار النظام كاميرا مشحونة وجاهزة ويُريك مكانها.',
+    'st.username': 'اسم المستخدم', 'st.password': 'كلمة المرور', 'st.continue': 'متابعة', 'st.checking': 'جارٍ التحقق…', 'st.done': 'تم',
+    'st.dockOnline': 'محطة الإرساء متصلة', 'st.dockOffline': 'محطة الإرساء غير متصلة', 'st.noConn': 'لا يوجد اتصال', 'st.ready': '{n} كاميرا جاهزة', 'st.onDock': '{n} على المحطة',
+    'st.signedAs': 'مسجّل باسم', 'st.youHave': 'معك الكاميرا <span>{cam}</span>', 'st.reservedTxt': 'الكاميرا محجوزة لك وما زالت على المحطة. خذها من الخانة الموضّحة.',
+    'st.outTxt': 'استلمتها الساعة {time}. أعدها إلى المحطة عند نهاية الوردية.', 'st.returned': 'أعدتها', 'st.close': 'إغلاق', 'st.cancel': 'إلغاء', 'st.again': 'تحقق مجدداً',
+    'st.other': 'اختيار كاميرا أخرى', 'st.take': 'استلم {cam}', 'st.moment': 'لحظة…', 'st.dockOffH': 'محطة الإرساء <span>غير متصلة</span>', 'st.dockOffTxt': 'محطة الإرساء لا ترسل بياناتها حالياً، لذلك لا يمكن تسليم كاميرا. اسأل مشرفك.',
+    'st.noneH': 'لا توجد كاميرا <span>جاهزة</span>', 'st.noneTxt': 'كل الكاميرات على المحطة قيد الشحن أو نقل الملفات أو مستلمة.', 'st.noCams': 'لا توجد كاميرات على المحطة.', 'st.taken': 'مستلمة',
+    'st.yourCam': 'كاميرتك', 'st.bay': 'الخانة {n}', 'st.connected': 'متصلة', 'st.notConn': 'غير متصلة بعد', 'st.dock': 'محطة الإرساء', 'st.top': 'الصف العلوي', 'st.bottom': 'الصف السفلي',
+    'st.nth1': 'الأولى', 'st.nth2': 'الثانية', 'st.nth3': 'الثالثة', 'st.nth4': 'الرابعة', 'st.nth5': 'الخامسة', 'st.fromLeft': '{nth} من اليسار',
+    'st.yours': 'الكاميرا {cam} لك{where}.', 'st.takeFrom': ' — خذها من <b>الخانة {n}</b>', 'st.stampTxt': 'سيُسجَّل اسمك ورقمك على كل ما تصوّره.',
+    'st.copying': 'تنقل ملفاتها', 'st.copyingN': 'تنقل ملفاتها ({i} من {n})', 'st.updating': 'تحدّث تطبيقها', 'st.charging': 'قيد الشحن: {b}%، جاهزة عند {m}%', 'st.attention': 'تحتاج متابعة',
+    'st.m.noReady': 'لا توجد كاميرا جاهزة الآن.', 'st.m.notReady': 'هذه الكاميرا لم تعد جاهزة. اختر كاميرا أخرى.', 'st.m.wrong': 'حدث خطأ ما.',
+  },
+});
