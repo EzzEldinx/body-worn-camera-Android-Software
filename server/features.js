@@ -38,16 +38,17 @@ function clean(list) {
 }
 const parse = (text) => { if (text === null || text === undefined || text === '') return null; try { const v = JSON.parse(text); return Array.isArray(v) ? clean(v) : null; } catch { return null; } };
 // A company's list holds its features AND the actions its administrator may use; the marker says the actions were chosen on purpose
-// (older companies have a list of features only: they keep every action until Smart Way saves the list once).
+// (a company without the marker has only the everyday actions: Smart Way ticks the others in the Admin panel).
 const MARK = '~a';
 const actionsSet = (text) => { try { const v = JSON.parse(text); return Array.isArray(v) && v.includes(MARK); } catch { return false; } };
 const store = (list, marked) => (list === null ? null : JSON.stringify(marked ? [...clean(list), MARK] : clean(list)));
 // Everything a company has at most: its features and its actions. Nobody of the company, its administrator included, gets more than this.
+const SAFE_ACTIONS = () => ACTIONS.filter((x) => x.def.includes('client')).map((x) => x.key);   // what a company has until Smart Way ticks more: the everyday actions, never delete, zones or stopping a recording
 function ceiling(companyFeatures) {
-    const feats = parse(companyFeatures);
-    if (!feats) return ALL.map((f) => f.key);
-    const acts = actionsSet(companyFeatures) ? feats.filter((k) => ACTION_KEYS.includes(k)) : ACTION_KEYS;
-    return clean([...feats.filter((k) => !ACTION_KEYS.includes(k)), ...acts]);
+    const feats = parse(companyFeatures), marked = companyFeatures != null && actionsSet(companyFeatures);
+    const base = feats ? feats.filter((k) => !ACTION_KEYS.includes(k)) : [...KEYS];
+    const acts = marked ? feats.filter((k) => ACTION_KEYS.includes(k)) : SAFE_ACTIONS();
+    return clean([...base, ...acts]);
 }
 
 // raw = { staff, manager, role, companyFeatures (text|null), perms (text|null) } -> everything this person may use or do

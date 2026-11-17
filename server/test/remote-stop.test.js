@@ -51,7 +51,7 @@ test.before(async () => {
         env: { ...process.env, PORT, FLV_PORT: 8822, RTMP_PORT: 1822, DATA_DIR: dir, ADMIN_PASSWORD: 'stop-test-pw', BWC_TOKEN: 'camtoken', STREAM_SECRET: 's', DOCK_TOKEN: 'docktoken', SOS_COALESCE_MS: '100' } });
     await new Promise((res, rej) => { proc.stdout.on('data', (d) => /Dashboard is running/.test(String(d)) && res()); proc.on('exit', () => rej(new Error('server exited'))); setTimeout(() => rej(new Error('server start timeout')), 15000); });
     admin = await signIn('admin', 'stop-test-pw');
-    coA = (await json(await api('/api/admin/companies', 'POST', { name: 'Alpha' }, admin))).id;
+    coA = (await json(await api('/api/admin/companies', 'POST', { name: 'Alpha', features: require('../features').ALL.map((f) => f.key) }, admin))).id;
     for (const [u, role] of [['mgr', 'manager'], ['oper', 'client'], ['view', 'viewer']]) {
         const r = await json(await api(`/api/admin/companies/${coA}/users`, 'POST', { username: u, password: PW, name: u, role }, admin));
         assert.ok(r.status < 300, `creating ${u}: ${r.status} ${JSON.stringify(r)}`);

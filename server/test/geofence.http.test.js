@@ -31,8 +31,8 @@ test.after(() => { cam?.close(); dash?.close(); proc?.kill(); fs.rmSync(dir, { r
 const zone = (o = {}) => ({ name: 'Site', kind: 'zone', shape: { type: 'circle', ...C, r: 100 }, onExit: true, ...o });
 
 test('setup: two companies, a manager and a read-only viewer in the first', async () => {
-    coA = (await json(await api('/api/admin/companies', 'POST', { name: 'Alpha' }, admin))).id;
-    coB = (await json(await api('/api/admin/companies', 'POST', { name: 'Beta' }, admin))).id;
+    coA = (await json(await api('/api/admin/companies', 'POST', { name: 'Alpha', features: require('../features').ALL.map((f) => f.key) }, admin))).id;
+    coB = (await json(await api('/api/admin/companies', 'POST', { name: 'Beta', features: require('../features').ALL.map((f) => f.key) }, admin))).id;
     for (const [co, u, role] of [[coA, 'mgr.a', 'manager'], [coA, 'view.a', 'viewer'], [coB, 'mgr.b', 'manager']]) await api(`/api/admin/companies/${co}/users`, 'POST', { username: u, password: 'a-good-password-1', role }, admin);
     mgrA = await signIn('mgr.a', 'a-good-password-1'); viewerA = await signIn('view.a', 'a-good-password-1'); mgrB = await signIn('mgr.b', 'a-good-password-1');
     assert.strictEqual((await api('/api/geofences')).status, 401, 'signed out');

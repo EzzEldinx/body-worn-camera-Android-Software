@@ -210,7 +210,9 @@ test('push: a geofence alert reads as one, and the feature is offered to compani
     const f = require('../features');
     assert.ok(f.KEYS.includes('geofence') && f.ACTION_KEYS.includes('zones'));
     assert.deepStrictEqual(f.clean(['zones']), [], 'managing zones needs the feature');
-    assert.ok(f.effective({ staff: false, manager: true, role: 'manager', companyFeatures: null, perms: null }).includes('zones'), 'a company manager can manage zones');
+    const full = JSON.stringify([...f.ALL.map((x) => x.key), '~a']);
+    assert.ok(f.effective({ staff: false, manager: true, role: 'manager', companyFeatures: full, perms: null }).includes('zones'), 'a company manager can manage zones when Smart Way ticked it for the company');
+    assert.ok(!f.effective({ staff: false, manager: true, role: 'manager', companyFeatures: null, perms: null }).includes('zones'), 'and cannot when it was not ticked');
     assert.ok(!f.effective({ staff: false, manager: false, role: 'client', companyFeatures: null, perms: null }).includes('zones'), 'an operator cannot unless given it');
     assert.strictEqual(f.ruleFor('/api/geofences'), 'geofence');
 });

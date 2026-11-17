@@ -732,7 +732,7 @@ app.put('/api/admin/companies/:id/features', adminOnly, (req, res) => {
     if (!c) return res.status(404).json({ error: 'Company not found.' });
     if (!Array.isArray(req.body?.features)) return res.status(400).json({ error: 'Send the list of features.' });
     const list = features.clean(req.body.features);
-    db.prepare('UPDATE companies SET features = ? WHERE id = ?').run(list.length === features.ALL.length ? null : features.store(list, true), id);
+    db.prepare('UPDATE companies SET features = ? WHERE id = ?').run(features.store(list, true), id);
     auditlog.add(db, req.user.username, 'company_features_set', null, { company: c.name, features: list.join(',') || 'none' });
     kickUsers(db.prepare('SELECT id FROM users WHERE company_id = ?').all(id).map((r) => r.id));   // their open pages reload with the new menu
     res.json({ ok: true, features: list });
