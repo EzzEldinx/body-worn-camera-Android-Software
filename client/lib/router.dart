@@ -16,6 +16,7 @@ import 'features/live/live_screen.dart';
 import 'features/map/map_screen.dart';
 import 'features/recordings/recordings_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/settings/profile_screen.dart';
 import 'features/shell/app_shell.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -62,6 +63,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/dock/files', builder: (_, _) => const FeatureGate(feature: 'recordings', child: DockFilesScreen())),
       GoRoute(path: '/docking', builder: (_, _) => const FeatureGate(feature: 'docks', child: DockingScreen())),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+      GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
     ],
   );
 });

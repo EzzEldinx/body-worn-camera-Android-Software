@@ -36,6 +36,7 @@ class SettingsScreen extends ConsumerWidget {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(session.user.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             Text(session.user.company ?? context.tr('role_staff'), style: TextStyle(color: v.mut)),
+            Text(context.tr(session.user.companyId != null ? 'rc_${session.user.role}' : (session.user.role == 'admin' ? 'rc_staff_admin' : 'rc_staff_viewer')), style: TextStyle(color: v.sel, fontWeight: FontWeight.w700, fontSize: 12.5)),
           ])),
         ])),
         SectionTitle(context.tr('appearance')),

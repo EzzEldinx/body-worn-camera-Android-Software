@@ -72,6 +72,7 @@ class Api {
     return {'token': sid, 'expiresAt': DateTime.now().millisecondsSinceEpoch + 7 * 86400000, 'user': user.toJson()};
   }
   Future<void> logout() async { try { await _post('/api/mobile/logout'); } catch (_) {} }
+  Future<Map> access() async => (await _get('/api/me/access')) as Map;   // who this is and what they may see and do, with the reason for every no
   Future<User> me() async => User.fromJson((await _get('/api/me')) as Map);
   // generic calls for the screens that mirror the web pages (Reports, Check-out, Team, Admin panel)
   Future<dynamic> getJson(String p, [Map<String, String>? q]) => _get(p, q);
