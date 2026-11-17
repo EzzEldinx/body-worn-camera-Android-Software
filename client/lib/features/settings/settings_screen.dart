@@ -116,10 +116,12 @@ class MoreScreen extends ConsumerWidget {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(session.user.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
             Text(session.user.company ?? context.tr('role_staff'), style: TextStyle(color: v.mut)),
+            Text(context.tr(session.user.companyId != null ? 'rc_${session.user.role}' : (session.user.role == 'admin' ? 'rc_staff_admin' : 'rc_staff_viewer')), style: TextStyle(color: v.sel, fontWeight: FontWeight.w700, fontSize: 12.5)),
           ])),
         ])),
         const SizedBox(height: 16),
         if (session.user.can('recordings')) tile(Icons.video_library_rounded, v.blue, context.tr('recordings'), context.tr('recordings_sub'), () => onOpen('/recordings')),
+        tile(Icons.verified_user_rounded, v.ok, context.tr('profile'), context.tr('profile_sub'), () => onOpen('/profile')),
         tile(Icons.settings_rounded, v.brand, context.tr('settings'), null, () => onOpen('/settings')),
         if (session.user.can('docks')) tile(Icons.dock_rounded, v.ok, context.tr('dock_title'), context.tr('dock_sub'), () => onOpen('/docking')),
         if (session.user.can('reports')) tile(Icons.assessment_rounded, v.sel, context.tr('reports'), context.tr('reports_sub'), () => onOpen('/reports')),
