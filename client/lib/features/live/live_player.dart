@@ -151,7 +151,7 @@ class _LivePlayerState extends ConsumerState<LivePlayer> {
               decoration: BoxDecoration(color: const Color(0xB30A101C), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0x2EFFFFFF))),
               child: Row(children: [
                 Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: Text(cam?.name ?? widget.cameraId, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)))),
-                if (playing) const StatusPill(label: 'LIVE', color: Color(0xFFFF5D77), pulse: true),
+                if (playing) StatusPill(label: context.tr('live_pill'), color: const Color(0xFFFF5D77), pulse: true),
                 const SizedBox(width: 4),
                 _OverlayBtn(icon: _listen ? Icons.volume_up_rounded : Icons.volume_off_rounded, on: _listen, onTap: _toggleListen),
                 if (widget.onFullscreen != null) _OverlayBtn(icon: Icons.fullscreen_rounded, onTap: widget.onFullscreen!),
@@ -173,7 +173,7 @@ class _OverlayBtn extends StatelessWidget {
   Widget build(BuildContext context) => InkResponse(
         onTap: onTap, radius: 22,
         child: Container(
-          width: 34, height: 34, margin: const EdgeInsets.only(left: 4),
+          width: 34, height: 34, margin: const EdgeInsetsDirectional.only(start: 4),
           decoration: BoxDecoration(color: on ? const Color(0x592EE6A6) : const Color(0x1AFFFFFF), borderRadius: BorderRadius.circular(9), border: Border.all(color: on ? const Color(0xB32EE6A6) : const Color(0x24FFFFFF))),
           child: Icon(icon, size: 19, color: Colors.white),
         ),

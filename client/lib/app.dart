@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/api/api.dart';
 import 'core/settings.dart';
 import 'core/theme/vg_theme.dart';
 import 'features/auth/lock_gate.dart';
@@ -11,6 +12,8 @@ class VgApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final st = ref.watch(settingsProvider);
+    // the server answers in the language of the app (what is chosen in Settings, or else the phone's)
+    Api.language = (st.language ?? WidgetsBinding.instance.platformDispatcher.locale.languageCode) == 'ar' ? 'ar' : 'en';
     return MaterialApp.router(
       title: 'VisionGuard',
       debugShowCheckedModeBanner: false,

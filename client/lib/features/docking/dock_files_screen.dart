@@ -96,7 +96,7 @@ class _DockFilesScreenState extends ConsumerState<DockFilesScreen> {
                 borderRadius: BorderRadius.circular(14),
                 onTap: !_admin || on ? null : () => _run(() => _api.setDockPolicy(m.$1)),
                 child: Container(
-                  margin: wide ? const EdgeInsets.only(right: 8) : const EdgeInsets.only(bottom: 8),
+                  margin: wide ? const EdgeInsetsDirectional.only(end: 8) : const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: on ? v.sel : v.line, width: on ? 2 : 1), color: on ? v.sel.withValues(alpha: .08) : null),
                   child: Row(children: [
