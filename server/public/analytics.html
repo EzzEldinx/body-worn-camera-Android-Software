@@ -329,12 +329,12 @@ function renderInsights(a) {
   $('#integ').textContent = ok ? t('an.verified', { n: i.checked }) : t('an.broken');
   $('#aHead').textContent = i.head ? t('an.sealHead', { head: i.head, legacy: i.legacy ? t('an.sealLegacy', { n: i.legacy }) : '' }) : '';
 }
-async function loadInsights() { try { renderInsights(await (await fetch('/api/analytics/insights')).json()); } catch (e) { console.error('insights', e); } }
+async function loadInsights() { try { renderInsights(await (await fetch('/api/analytics/insights?lang=' + VG.lang, { cache: 'no-store' })).json()); } catch (e) { console.error('insights', e); } }
 
 $('#aiBtn').onclick = async () => {
   const b = $('#aiBtn'); b.disabled = true; b.textContent = t('an.analysing');
   try {
-    const r = await fetch('/api/analytics/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: true }) });
+    const r = await fetch('/api/analytics/ai?lang=' + VG.lang, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: true }) });
     const j = await r.json();
     $('#aiOut').innerHTML = r.ok ? `<div class="ai"><small>${j.ai ? esc(t('an.aiBy', { model: j.model })) : t('an.aiAuto')}${j.error ? ' · ' + esc(j.error) : ''}</small>${esc(j.text)}</div>` : `<div class="ai">${esc(j.error || t('an.notNow'))}</div>`;
   } catch (e) { $('#aiOut').innerHTML = `<div class="ai">${t('an.notNow')}</div>`; }
