@@ -253,6 +253,15 @@ Each employee has a username and password; at the **check-out station** (`/stati
 ### 8.3j Licence (self-hosted customers)
 Customers who run VisionGuard on their own server need a licence you issue (3, 6, 12, 24 or 36 months) and renew; the system degrades gently (grace, then limited mode, safety never stops). Full guide: **LICENSING.md**; page **License** (administrators).
 
+### 8.3k Newer features (2026-11)
+* **Profile and access** (button in the top bar; mobile app: More > Profile and access): shows the user's role, company and exactly which features and actions the account has. Answers "why can't I see this button?".
+* **What a company administrator can do is capped by Smart Way.** In Admin panel > Companies, Smart Way ticks the features AND the actions (stop recording, zones, files, delete...) for each company. A company without a tick for an action cannot give it to anyone, even its own administrator. Without any action ticked a company gets only the everyday actions. After this change a company may need its actions ticked again.
+* **Stop recording** (Live dashboard, the Stop button on a recording camera): ends an officer's recording from the control room. Needs the `stoprec` permission, a camera build that reports `remote-stop`, no open SOS in the last 2 h; it is audited (`remote_record_stop`). The cross only closes the viewing window.
+* **Dock storage per company** (Docking > Settings): each company has its own "ask me / cloud / keep on dock" policy and its own folder. "Choose folder" browses the dock computer through the Dock Agent (restart the Dock Agent after updating it: `launchctl kickstart -k gui/$(id -u)/com.visionguard.dock-agent`). The folder path is hidden from customers.
+* **Owner app:** play and download recordings and dock files (save to Photos or Files, AirDrop), role-aware buttons.
+* **Cameras use HTTPS.** The camera app moves itself from `http://<ip>:3000` to `https://visionguard.smartwaygroup.com.sa` at start-up when the domain answers `/healthz`, and rewrites its `config.json`. New cameras are provisioned with the domain by default. Once every camera shows the new build, port 3000 can be closed.
+* **Health and load:** `/healthz`, a Docker healthcheck, `tools/health-watch.sh` (outside watcher) and `tools/loadtest.js` (3000 pretend cameras, only against a throwaway server).
+
 ### 8.4 The docking station updates the cameras by itself (Dock Agent 1.6)
 Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that is put on the dock is checked **the moment it is docked** (within a couple of seconds, before its recordings are copied) and then again every cycle (about 30 s):
 * installed app = latest build -> nothing happens;
@@ -307,7 +316,7 @@ Logs el-server: `%TEMP%\bwc-server.log` law ba3d-et fel-hidden window.
 ## 11. Amn (Security) w 7udood
 
 - Cameras kolaha b-**token wa7ed** (`BWC_TOKEN`). Camera mokhtaraqa te2dar te-act ka camera tanya. (El-7al el-mostaqbal: token le kol camera.)
-- El-server **HTTP** (mesh HTTPS) 3ala el-shabaka el-dakhliya. Lel-internet el-mafto7: HTTPS + VPN.
+- El-cameras wel-dashboard bet-etasel bel-domain 3ala HTTPS (el-camera app bet-7awwel nafsaha). Port 3000 yetaffel ba3d ma kol el-cameras tet7awwel. Lel-internet el-mafto7: HTTPS + VPN.
 - **Backup**: e2fel el-server w en2el `server/data/` (bwc.db + .wal + .shm + updates/) w `cameras.json`.
 - `cameras.json` feeh el-token — mesh bey-etraf3 3ala git (ignored).
 - Provisioning mesh sahl yet-3ayyar 3akso men 8eir `-Unprovision` (aw factory reset).
