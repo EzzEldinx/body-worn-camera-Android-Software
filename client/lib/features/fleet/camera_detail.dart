@@ -7,6 +7,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../live/live_player.dart';
+import '../live/watch.dart';
 
 /// Everything about one camera. On a phone it is a page; on a tablet it is the right-hand pane.
 class CameraDetailView extends ConsumerStatefulWidget {
@@ -110,7 +111,7 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
         ],
         const SizedBox(height: 16),
         Row(children: [
-          if (cam.hasPosition) Expanded(child: OutlinedButton.icon(onPressed: () => context.go('/map?cam=${cam.id}'), icon: const Icon(Icons.map_outlined), label: Text(context.tr('show_map')))),
+          if (cam.hasPosition) Expanded(child: OutlinedButton.icon(onPressed: () { showOnMap(ref, cam.id); if (!widget.embedded) context.go('/fleet'); }, icon: const Icon(Icons.map_outlined), label: Text(context.tr('show_map')))),
           if (cam.hasPosition) const SizedBox(width: 10),
           Expanded(child: OutlinedButton.icon(onPressed: () => context.push('/recordings?cam=${cam.id}'), icon: const Icon(Icons.video_library_outlined), label: Text(context.tr('recordings')))),
         ]),

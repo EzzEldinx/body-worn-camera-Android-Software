@@ -13,7 +13,6 @@ import 'features/more/more_screens.dart';
 import 'features/fleet/camera_detail.dart';
 import 'features/fleet/fleet_screen.dart';
 import 'features/live/live_screen.dart';
-import 'features/map/map_screen.dart';
 import 'features/recordings/recordings_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/settings/profile_screen.dart';
@@ -43,7 +42,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _, shell) => AppShell(shell: shell),
         branches: [
           StatefulShellBranch(routes: [GoRoute(path: '/fleet', builder: (_, _) => const FleetScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/map', builder: (_, s) => MapScreen(focusCam: s.uri.queryParameters['cam']))]),
           StatefulShellBranch(routes: [GoRoute(path: '/live', builder: (_, _) => const FeatureGate(feature: 'live', child: LiveScreen()))]),
           StatefulShellBranch(routes: [GoRoute(path: '/dock', builder: (_, _) => const FeatureGate(feature: 'docks', child: DockingScreen()))]),
           StatefulShellBranch(routes: [GoRoute(path: '/alerts', builder: (_, _) => const AlertsScreen())]),

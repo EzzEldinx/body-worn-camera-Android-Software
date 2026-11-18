@@ -7,6 +7,8 @@ const _t = <String, List<String>>{
   'powered_by': ['Powered by', 'بدعم من'],
   'tab_fleet': ['Cameras', 'الكاميرات'],
   'tab_map': ['Map', 'الخريطة'],
+  'show_list': ['Cameras list', 'قائمة الكاميرات'],
+  'fit_all': ['Show all cameras', 'عرض كل الكاميرات'],
   'tab_live': ['Live', 'مباشر'],
   'live_pill': ['LIVE', 'مباشر'],
   'tab_dock': ['Docking', 'الدوك'],

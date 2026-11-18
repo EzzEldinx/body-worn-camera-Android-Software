@@ -102,7 +102,7 @@ class AlarmCard extends ConsumerWidget {
             icon: const Icon(Icons.play_circle_outline_rounded), label: Text(context.tr('open_live')),
           ),
           if (alarm.lat != null && alarm.lng != null) OutlinedButton.icon(
-            onPressed: () => context.go('/map?cam=${alarm.cameraId}'),
+            onPressed: () { showOnMap(ref, alarm.cameraId); context.go('/fleet'); },
             icon: const Icon(Icons.place_outlined), label: Text(context.tr('show_map')),
           ),
         ]),

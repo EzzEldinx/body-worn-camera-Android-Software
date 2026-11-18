@@ -10,15 +10,16 @@ import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../live/watch.dart';
 
-/// Live map: same OpenFreeMap style as the web dashboard, one coloured dot per camera.
-class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key, this.focusCam});
+/// Live map: same OpenFreeMap style as the web dashboard, one coloured dot per camera. It sits inside the Cameras screen
+/// (beside the list on a tablet, behind the list/map switch on a phone), so it has no app bar of its own.
+class MapPane extends ConsumerStatefulWidget {
+  const MapPane({super.key, this.focusCam});
   final String? focusCam;
   @override
-  ConsumerState<MapScreen> createState() => _MapScreenState();
+  ConsumerState<MapPane> createState() => _MapPaneState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapPaneState extends ConsumerState<MapPane> {
   MapLibreMapController? _c;
   Timer? _debounce;
   String? _selected;
@@ -30,7 +31,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void initState() { super.initState(); _selected = widget.focusCam; }
 
   @override
-  void didUpdateWidget(MapScreen old) {
+  void didUpdateWidget(MapPane old) {
     super.didUpdateWidget(old);
     if (widget.focusCam != null && widget.focusCam != old.focusCam) { _selected = widget.focusCam; _focus(); }
   }
@@ -96,11 +97,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ref.listen(fleetProvider.select((s) => s.cams), (_, _) => _schedule());
     final v = context.vg;
     final cam = ref.watch(fleetProvider.select((s) => s.cams[_selected]));
-    return Scaffold(
-      appBar: BrandBar(title: context.tr('tab_map'), actions: [
-        IconButton(icon: const Icon(Icons.center_focus_strong_rounded), onPressed: () => _fitAll(ref.read(fleetProvider).cams.values.where((x) => x.hasPosition).toList())),
-      ]),
-      body: Stack(children: [
+    return ClipRect(
+      child: Stack(children: [
         MapLibreMap(
           styleString: 'https://tiles.openfreemap.org/styles/liberty',
           initialCameraPosition: const CameraPosition(target: LatLng(24.7136, 46.6753), zoom: 9),
@@ -135,6 +133,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ]),
             ),
           ),
+        Positioned(
+          top: 10, right: 10,
+          child: Material(
+            color: v.panel, shape: const CircleBorder(), elevation: 2,
+            child: IconButton(icon: const Icon(Icons.center_focus_strong_rounded), tooltip: context.tr('fit_all'), onPressed: () => _fitAll(ref.read(fleetProvider).cams.values.where((x) => x.hasPosition).toList())),
+          ),
+        ),
       ]),
     );
   }

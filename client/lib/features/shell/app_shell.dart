@@ -47,7 +47,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 8),
       backgroundColor: a.critical ? context.vg.rec : const Color(0xFFB87800),
       content: Text(a.isGeo ? '${context.tr(a.kind)}: ${a.zone}  ·  ${cam?.name ?? a.cameraId}' : '${context.tr(a.critical ? 'bat_critical' : 'bat_low')}: ${cam?.name ?? a.cameraId}  ${ltr('$level%')}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-      action: SnackBarAction(label: context.tr('tab_alerts'), textColor: Colors.white, onPressed: () => widget.shell.goBranch(4)),
+      action: SnackBarAction(label: context.tr('tab_alerts'), textColor: Colors.white, onPressed: () => widget.shell.goBranch(3)),
     ));
   }
 
@@ -85,7 +85,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     final open = ref.watch(fleetProvider.select((s) => s.openAlarms + s.openAlerts)); // SOS alarms plus low-battery alerts nobody has dismissed
     final items = <(IconData, IconData, String)>[
       (Icons.videocam_outlined, Icons.videocam_rounded, 'tab_fleet'),
-      (Icons.map_outlined, Icons.map_rounded, 'tab_map'),
       (Icons.live_tv_outlined, Icons.live_tv_rounded, 'tab_live'),
       (Icons.dock_outlined, Icons.dock_rounded, 'tab_dock'),
       (Icons.notifications_outlined, Icons.notifications_rounded, 'tab_alerts'),
@@ -93,7 +92,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     ];
     Widget icon(int i, bool sel) {
       final ic = Icon(sel ? items[i].$2 : items[i].$1);
-      if (i != 4) return ic;
+      if (i != 3) return ic;
       return Badge(label: Text('$open'), isLabelVisible: open > 0, backgroundColor: context.vg.rec, child: ic);
     }
     void go(int i) { HapticFeedback.selectionClick(); shell.goBranch(i, initialLocation: i == shell.currentIndex); }

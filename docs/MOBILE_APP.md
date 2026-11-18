@@ -46,7 +46,7 @@ Sign in (+ Face ID / fingerprint lock) · Fleet list with live status, search an
 
 ## 4. Experience and styling
 
-* **Phone:** bottom bar *Cameras · Map · Live · Alerts · More*. **Tablet (≥ 720 px):** navigation rail; the Cameras screen becomes list + detail, the Live screen a 2×2 wall. **Landscape** live view hides everything but the video and a glass control bar.
+* **Phone:** bottom bar *Cameras · Live · Docking · Alerts · More* (the map is a switch in the Cameras screen). **Tablet (≥ 720 px):** navigation rail; the Cameras screen becomes list + detail, the Live screen a 2×2 wall. **Landscape** live view hides everything but the video and a glass control bar.
 * **Look:** the dashboard tokens (`client/lib/core/theme/vg_theme.dart` mirrors `server/public/portal.css`): purple brand, amber call-to-action gradient, status colours (green online, red recording/SOS, grey offline), brand strip under the header, glass overlays on video, 16 px radius cards, tabular numbers. Light and dark.
 * **SOS** is the loudest thing in the app: red banner from the top, heavy haptic, alert sound, badge on the tab; one tap opens the camera live.
 * **Arabic:** full RTL (Flutter mirrors layouts), Arabic strings reviewed by the team before store release. Map and video are never mirrored.
@@ -85,6 +85,7 @@ Apple Developer Program (US$99/yr, organisation account needs a D-U-N-S number) 
 * **Role-aware screens:** Docking > Files and Recordings follow the real permissions (files, delete); buttons that the account may not use are not offered.
 * **Play and download:** recordings and dock files can be played in the app and downloaded (share sheet: Save to Photos or Files, AirDrop) with `share_plus` and `path_provider`.
 * **English and Arabic** with full right-to-left layout; the server answers in the app's language (`x-lang`).
+* **The map is inside Cameras** (there is no Map tab any more): on a tablet it fills the right-hand pane until a camera is selected (a camera's *Show on map* returns to it); on a phone the map/list button in the top bar switches between the list and the map. From an alarm, *Show on map* also opens it on that camera.
 * Stop recording and live wall controls follow the same permissions as the web (the `stoprec` action).
 
 **Tests:** 29 app tests pass (`cd client && flutter test`), plus the server tests.

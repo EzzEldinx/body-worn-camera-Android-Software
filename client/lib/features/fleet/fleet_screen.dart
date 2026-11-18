@@ -7,6 +7,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../live/watch.dart';
+import '../map/map_screen.dart';
 import 'camera_detail.dart';
 import 'camera_tile.dart';
 
@@ -37,6 +38,8 @@ class _FleetScreenState extends ConsumerState<FleetScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(fleetProvider);
     final selected = ref.watch(selectedCamProvider);
+    final mapOpen = ref.watch(mapOpenProvider);
+    final mapFocus = ref.watch(mapFocusProvider);
     final wide = MediaQuery.sizeOf(context).width >= 900;
     final list = _visible(s);
     final sosIds = {for (final a in s.alarms.where((a) => !a.ack)) a.cameraId};
@@ -98,16 +101,23 @@ class _FleetScreenState extends ConsumerState<FleetScreen> {
     ]);
 
     return Scaffold(
-      appBar: BrandBar(actions: [_ConnDot(connected: s.connected, error: s.error)]),
+      appBar: BrandBar(actions: [
+        if (!wide) IconButton(
+          tooltip: context.tr(mapOpen ? 'show_list' : 'tab_map'),
+          icon: Icon(mapOpen ? Icons.view_list_rounded : Icons.map_outlined),
+          onPressed: () { ref.read(mapFocusProvider.notifier).set(null); ref.read(mapOpenProvider.notifier).set(!mapOpen); },
+        ),
+        _ConnDot(connected: s.connected, error: s.error),
+      ]),
       body: wide
           ? Row(children: [
               SizedBox(width: 400, child: listPane),
               VerticalDivider(width: 1, color: context.vg.line),
               Expanded(child: selected == null
-                  ? EmptyState(icon: Icons.touch_app_outlined, title: context.tr('select_camera'), subtitle: context.tr('select_camera_sub'))
+                  ? MapPane(focusCam: mapFocus)
                   : CameraDetailView(key: ValueKey(selected), cameraId: selected, embedded: true)),
             ])
-          : listPane,
+          : (mapOpen ? MapPane(focusCam: mapFocus) : listPane),
     );
   }
 }
