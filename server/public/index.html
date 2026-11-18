@@ -833,6 +833,9 @@ function updateTabBadges() {
 function renderInfo() {
   const c = cams.get(selected), box = $('#info');
   if (!c) { box.style.display = 'none'; return; }
+  // The quality drop-down: while it is open the panel must not be rebuilt (the camera reports every second or two and a rebuild
+  // would close the list at once, before a quality can be picked). It is drawn again when the list closes.
+  if (document.activeElement && document.activeElement.id === 'qSel' && box.contains(document.activeElement) && box.dataset.qcam === c.cameraId) return;
   const label = c.recording ? t('recording') : c.online ? t('online') : t('offline');
   box.style.display = 'block';
   // The camera sends an update every second or two. While the edit form is open it must NOT be rebuilt, or every
@@ -877,7 +880,16 @@ function renderInfo() {
     ${c.online ? `<div class="row qrow"><span>${t('quality')}</span><select id="qSel">${['auto', '480p', '720p', '1080p'].map((q) => `<option value="${q}" ${(c.qualityAuto ? 'auto' : c.quality) === q ? 'selected' : ''}>${q === 'auto' ? t('qAuto') : q}${q === 'auto' && c.qualityAuto && c.quality ? ' · ' + c.quality : ''}</option>`).join('')}</select></div>` : ''}
     ${c.remote ? `<div class="row"><button class="btn" id="bX">${t('stopRemote')}</button></div>` : (c.recording && canEndRec()) ? `<div class="row"><button class="btn" id="bS">${t('stopRec')}</button></div>` : ''}`;
   $('#bW').onclick = () => openLive(c.cameraId);
-  if ($('#qSel')) $('#qSel').onchange = (e) => { socket.emit('set_quality', { cameraId: c.cameraId, quality: e.target.value }); flash(t('qSent')); };
+  box.dataset.qcam = c.online ? c.cameraId : '';
+  if ($('#qSel')) {
+    $('#qSel').onchange = (e) => {
+      const q = e.target.value;
+      socket.emit('set_quality', { cameraId: c.cameraId, quality: q }); flash(t('qSent'));
+      c.qualityAuto = q === 'auto'; if (q !== 'auto') c.quality = q;   // show the choice at once; the camera confirms a moment later
+      e.target.blur();
+    };
+    $('#qSel').onblur = () => setTimeout(renderInfo, 0);
+  }
   if ($('#bX')) $('#bX').onclick = () => requestStream(c.cameraId, 'stop');
   if ($('#bS')) $('#bS').onclick = () => stopMenu(c.cameraId);
   if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };

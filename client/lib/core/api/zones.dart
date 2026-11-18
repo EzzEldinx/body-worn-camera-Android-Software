@@ -4,7 +4,7 @@ import '../../features/auth/auth_controller.dart';
 
 /// A geofence zone as the server sends it (GET /api/geofences). Only what the map needs.
 class Zone {
-  Zone({required this.id, required this.name, required this.kind, required this.mode, required this.circle, required this.ring, required this.active, required this.critical});
+  Zone({required this.id, required this.name, required this.kind, required this.mode, required this.circle, required this.ring, required this.active, required this.critical, required this.raw});
   final int id;
   final String name;
   final String kind;              // zone | checkpoint
@@ -12,6 +12,7 @@ class Zone {
   final ({double lat, double lng, double r})? circle;
   final List<({double lat, double lng})> ring;   // the outline: the polygon's corners, or a circle drawn as 64 points
   final bool active, critical;
+  final Map raw;                  // the zone exactly as the server sent it: an edit sends it back with only the changed fields, so what the app does not show (per-camera rules) is kept
 
   factory Zone.fromJson(Map j) {
     final sh = (j['shape'] as Map?) ?? const {};
@@ -27,7 +28,7 @@ class Zone {
     } else if (sh['type'] == 'polygon') {
       ring = [for (final p in (sh['pts'] as List)) _pt(p)];
     }
-    return Zone(id: (j['id'] as num).toInt(), name: '${j['name'] ?? ''}', kind: kind, mode: mode, circle: circle, ring: ring, active: j['active'] != false, critical: j['severity'] == 'critical');
+    return Zone(id: (j['id'] as num).toInt(), name: '${j['name'] ?? ''}', kind: kind, mode: mode, circle: circle, ring: ring, active: j['active'] != false, critical: j['severity'] == 'critical', raw: j);
   }
 
   static ({double lat, double lng}) _pt(dynamic p) => p is Map ? (lat: (p['lat'] as num).toDouble(), lng: (p['lng'] as num).toDouble()) : (lat: (p[0] as num).toDouble(), lng: (p[1] as num).toDouble());
@@ -48,12 +49,27 @@ class Zone {
   }
 }
 
+class ZonesData {
+  const ZonesData(this.zones, this.canEdit);
+  final List<Zone> zones;
+  final bool canEdit;
+}
+
 /// The zones of this company (empty when the account has no Geofencing feature or the server is older). Reload with ref.invalidate(zonesProvider).
-final zonesProvider = FutureProvider<List<Zone>>((ref) async {
+final zonesProvider = FutureProvider<ZonesData>((ref) async {
   final session = ref.watch(sessionProvider);
-  if (session == null) return const [];
+  if (session == null) return const ZonesData([], false);
   try {
     final d = await session.api.getJson('/api/geofences') as Map;
-    return [for (final z in (d['zones'] as List? ?? const [])) Zone.fromJson(z as Map)].where((z) => z.ring.length >= 3).toList();
-  } catch (_) { return const []; }
+    final zones = [for (final z in (d['zones'] as List? ?? const [])) Zone.fromJson(z as Map)].where((z) => z.ring.length >= 3).toList();
+    return ZonesData(zones, d['canEdit'] == true);
+  } catch (_) { return const ZonesData([], false); }
 });
+
+/// Distance in metres between two points (haversine).
+double metresBetween(double lat1, double lng1, double lat2, double lng2) {
+  const earth = 6371000.0;
+  double rad(double d) => d * math.pi / 180;
+  final a = math.pow(math.sin(rad(lat2 - lat1) / 2), 2) + math.cos(rad(lat1)) * math.cos(rad(lat2)) * math.pow(math.sin(rad(lng2 - lng1) / 2), 2);
+  return 2 * earth * math.asin(math.min(1, math.sqrt(a)));
+}

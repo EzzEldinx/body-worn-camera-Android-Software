@@ -10,6 +10,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../live/watch.dart';
+import 'zone_editor.dart';
 
 /// Live map: same OpenFreeMap style as the web dashboard, one coloured dot per camera. It sits inside the Cameras screen
 /// (beside the list on a tablet, behind the list/map switch on a phone), so it has no app bar of its own.
@@ -55,6 +56,7 @@ class _MapPaneState extends ConsumerState<MapPane> {
     _byCircle.clear();
     _bySymbol.clear();
     await _drawZones(c);
+    await _drawDraft(c);
     if (cams.isEmpty) return;
     final opts = [
       for (final cam in cams) CircleOptions(
@@ -82,7 +84,7 @@ class _MapPaneState extends ConsumerState<MapPane> {
 
   // Geofence zones (read only): a soft fill and an outline in the colour of the rule, red while a camera is breaking it, with the name in the middle.
   Future<void> _drawZones(MapLibreMapController c) async {
-    final zones = (ref.read(zonesProvider).value ?? const <Zone>[]).where((z) => z.active).toList();
+    final zones = (ref.read(zonesProvider).value?.zones ?? const <Zone>[]).where((z) => z.active).toList();
     if (zones.isEmpty) return;
     final v = context.vg;
     final broken = {for (final a in ref.read(fleetProvider).alerts.where((a) => a.isGeo)) a.zone};
@@ -99,6 +101,18 @@ class _MapPaneState extends ConsumerState<MapPane> {
         fontNames: const ['Noto Sans Bold'], textMaxWidth: 10, textJustify: 'center',
       ),
     ]);
+  }
+
+  // The zone being drawn: its corners, or its centre and radius, in the brand colour.
+  Future<void> _drawDraft(MapLibreMapController c) async {
+    final d = ref.read(zoneDraftProvider);
+    if (d == null || d.pts.isEmpty) return;
+    final col = _hex(context.vg.brand);
+    List<LatLng> ring = d.pts;
+    if (d.shape == 'circle' && d.pts.length >= 2) ring = [for (final p in Zone.circlePoints(d.pts[0].latitude, d.pts[0].longitude, d.radius!)) LatLng(p.lat, p.lng)];
+    if (ring.length >= 3) await c.addFill(FillOptions(geometry: [ring], fillColor: col, fillOpacity: .18, fillOutlineColor: col));
+    if (ring.length >= 2) await c.addLine(LineOptions(geometry: d.shape == 'polygon' && ring.length >= 3 ? [...ring, ring.first] : (d.shape == 'circle' && ring.length > 2 ? [...ring, ring.first] : ring), lineColor: col, lineWidth: 3, lineOpacity: .95));
+    await c.addCircles([for (final p in d.pts) CircleOptions(geometry: p, circleRadius: 7, circleColor: col, circleStrokeColor: '#FFFFFF', circleStrokeWidth: 3)]);
   }
 
   void _fitAll(List<Camera> cams) {
@@ -121,6 +135,8 @@ class _MapPaneState extends ConsumerState<MapPane> {
   Widget build(BuildContext context) {
     ref.listen(fleetProvider.select((s) => s.cams), (_, _) => _schedule());
     ref.listen(zonesProvider, (_, _) => _schedule());
+    ref.listen(zoneDraftProvider, (_, _) => _draw());
+    final drawing = ref.watch(zoneDraftProvider) != null;
     ref.listen(fleetProvider.select((s) => s.alerts), (_, _) => _schedule());
     final v = context.vg;
     final cam = ref.watch(fleetProvider.select((s) => s.cams[_selected]));
@@ -132,13 +148,17 @@ class _MapPaneState extends ConsumerState<MapPane> {
           compassEnabled: false, attributionButtonPosition: AttributionButtonPosition.bottomLeft,
           onMapCreated: (c) {
             _c = c;
-            c.onSymbolTapped.add((sym) { final id = _bySymbol[sym.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
-            c.onCircleTapped.add((circle) { final id = _byCircle[circle.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
+            c.onSymbolTapped.add((sym) { if (ref.read(zoneDraftProvider) != null) return; final id = _bySymbol[sym.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
+            c.onCircleTapped.add((circle) { if (ref.read(zoneDraftProvider) != null) return; final id = _byCircle[circle.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
           },
           onStyleLoadedCallback: _draw,
-          onMapClick: (_, _) { if (_selected != null) { setState(() => _selected = null); _draw(); } },
+          onMapClick: (_, ll) {
+            if (ref.read(zoneDraftProvider) != null) { ref.read(zoneDraftProvider.notifier).tap(ll); return; }
+            if (_selected != null) { setState(() => _selected = null); _draw(); }
+          },
         ),
-        if (cam != null)
+        const ZoneTools(),
+        if (cam != null && !drawing)
           Positioned(
             left: 12, right: 12, bottom: 12,
             child: VgCard(

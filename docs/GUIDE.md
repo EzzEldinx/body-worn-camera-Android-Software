@@ -102,7 +102,7 @@ Where: dashboard > the building icon at the top, or `/admin.html` (super admin o
 | Start live | ▶ or **Start live view** |
 | Stop the stream or the recording | The **■ Stop** button on the camera picture (or **Stop recording...** in the panel under the map). It asks what exactly you want to stop: **Stop streaming** for a live view you started, or **Stop recording and streaming** for a recording the **officer** started. The second needs the **Stop a recording** permission (company managers and Smart Way staff have it; others can be given it), a camera on the new app (it reports `remote-stop`), and no SOS from that camera that is still unanswered (2 hours, `STOPREC_SOS_GUARD_MS`). The officer sees "Recording stopped by the control room" on the camera and the file is kept. It is written to the audit trail (`remote_record_stop`). |
 | Close the window only | The **✕** button on the picture (or **Close window only** in the menu): the camera carries on exactly as before and nothing changes on it. |
-| Change the quality | Panel > **Video quality**: 240p / 480p / 720p / **1080p (default)** / 4K |
+| Change the quality | Panel > **Video quality**: auto / 480p / 720p / 1080p (the list stays open while you choose) |
 | Talk to the officer | PTT / chat / voice note from the chat panel |
 
 - Changing the quality during a live stream restarts it, about **3.5 seconds** (a small gap).
@@ -256,6 +256,7 @@ Draw an area on the dashboard map and get an alert when a camera leaves it, ente
 * **Each camera on its own:** in the zone's edit dialog, the section *Each camera on its own* lists the company's cameras. Every camera can follow the zone ("Same as the zone"), be left out ("Not watched here"), or get its own rule: *Allowed*, *Forbidden*, *Both ways* or *Checkpoint*. The ⚙ button opens that camera's own urgency, its own checkpoint interval and its own days and hours. So in one zone one camera can be allowed, another forbidden, another a checkpoint, and another left out. A camera with a rule of its own is watched even when the zone's "Which cameras" does not include it. The type *No default rule* makes the zone watch only the cameras you set there.
 * **Calm by design:** a change of side counts only after about 15 seconds and two fixes, a fix closer to the edge than its own accuracy is ignored, "left the zone" needs the camera to have been inside first, and a camera on a docking station is not judged. Tunable with `GEOFENCE_DEBOUNCE_MS` and `GEOFENCE_GRACE_MS` (grace after a checkpoint is due, default 2 minutes).
 * **Who may:** everyone with the *Geofencing* feature can see zones; managers (and users given *Manage zones*) can draw, edit and delete. Zones are per company; Smart Way staff pick the company when they draw one. Every change is in the audit log (`geofence_created`, `geofence_edited`, `geofence_removed`, `geo_exit`, `geo_enter`, `checkpoint_missed`).
+* **In the mobile app** the same zones show on the map, and managers can draw, edit and delete them (Cameras > map > Zones); per-camera rules are changed on the web.
 * Limits: 200 zones per company, 100 corners per polygon, radius 10 m to 50 km. Zones follow the device clock of the person who draws them for the time zone (Riyadh = +3).
 
 ### 8.3h The live wall on a second screen
