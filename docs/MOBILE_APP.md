@@ -86,6 +86,7 @@ Apple Developer Program (US$99/yr, organisation account needs a D-U-N-S number) 
 * **Play and download:** recordings and dock files can be played in the app and downloaded (share sheet: Save to Photos or Files, AirDrop) with `share_plus` and `path_provider`.
 * **English and Arabic** with full right-to-left layout; the server answers in the app's language (`x-lang`).
 * **The map is inside Cameras** (there is no Map tab any more): on a tablet it fills the right-hand pane until a camera is selected (a camera's *Show on map* returns to it); on a phone the map/list button in the top bar switches between the list and the map. From an alarm, *Show on map* also opens it on that camera.
+* **Geofence zones on the map** (read only): the zones drawn on the web show on the app's map (green allowed, red forbidden, blue both ways, amber checkpoint; red and thicker while a camera is breaking the rule) and follow changes by themselves. Drawing and editing zones is done on the web for now.
 * Stop recording and live wall controls follow the same permissions as the web (the `stoprec` action).
 
 **Tests:** 29 app tests pass (`cd client && flutter test`), plus the server tests.

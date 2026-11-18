@@ -5,6 +5,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../../features/auth/auth_controller.dart';
 import 'api.dart';
 import 'models.dart';
+import 'zones.dart';
 
 class StreamResult {
   StreamResult(this.cameraId, this.ok, this.reason, this.action);
@@ -95,6 +96,7 @@ class FleetController extends Notifier<FleetState> {
     });
     s.on('remote_stream_result', (d) { final m = d as Map; _results.add(StreamResult('${m['cameraId']}', m['ok'] == true, m['reason'] as String?, '${m['action'] ?? ''}')); });
     s.on('stream_up', (d) => _streamUp.add('${(d as Map)['cameraId']}'));
+    s.on('geofences_changed', (_) => ref.invalidate(zonesProvider)); // a zone was drawn, edited or removed on the web: the map follows
     s.connect();
   }
 

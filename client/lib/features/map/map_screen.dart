@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../core/api/fleet.dart';
 import '../../core/api/models.dart';
+import '../../core/api/zones.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
@@ -49,8 +50,11 @@ class _MapPaneState extends ConsumerState<MapPane> {
     final sos = {for (final a in ref.read(fleetProvider).alarms.where((a) => !a.ack)) a.cameraId};
     await c.clearCircles();
     await c.clearSymbols();
+    await c.clearFills();
+    await c.clearLines();
     _byCircle.clear();
     _bySymbol.clear();
+    await _drawZones(c);
     if (cams.isEmpty) return;
     final opts = [
       for (final cam in cams) CircleOptions(
@@ -76,6 +80,27 @@ class _MapPaneState extends ConsumerState<MapPane> {
     if (widget.focusCam != null && _selected == widget.focusCam) _focus();
   }
 
+  // Geofence zones (read only): a soft fill and an outline in the colour of the rule, red while a camera is breaking it, with the name in the middle.
+  Future<void> _drawZones(MapLibreMapController c) async {
+    final zones = (ref.read(zonesProvider).value ?? const <Zone>[]).where((z) => z.active).toList();
+    if (zones.isEmpty) return;
+    final v = context.vg;
+    final broken = {for (final a in ref.read(fleetProvider).alerts.where((a) => a.isGeo)) a.zone};
+    Color colour(Zone z) => broken.contains(z.name) ? v.rec : switch (z.mode) { 'forbidden' => v.rec, 'allowed' => v.ok, 'checkpoint' => v.sel, _ => v.blue };
+    for (final z in zones) {
+      final pts = [for (final p in z.ring) LatLng(p.lat, p.lng)];
+      final hot = broken.contains(z.name);
+      await c.addFill(FillOptions(geometry: [pts], fillColor: _hex(colour(z)), fillOpacity: hot ? .30 : .16, fillOutlineColor: _hex(colour(z))));
+      await c.addLine(LineOptions(geometry: [...pts, pts.first], lineColor: _hex(colour(z)), lineWidth: hot ? 3.5 : 2.2, lineOpacity: .95));
+    }
+    await c.addSymbols([
+      for (final z in zones) SymbolOptions(
+        geometry: LatLng(z.centre.lat, z.centre.lng), textField: z.name, textSize: 12, textColor: _hex(colour(z)), textHaloColor: '#FFFFFF', textHaloWidth: 2,
+        fontNames: const ['Noto Sans Bold'], textMaxWidth: 10, textJustify: 'center',
+      ),
+    ]);
+  }
+
   void _fitAll(List<Camera> cams) {
     if (cams.length == 1) { _c?.animateCamera(CameraUpdate.newLatLngZoom(LatLng(cams.first.lat!, cams.first.lng!), 14)); return; }
     final lats = cams.map((e) => e.lat!), lngs = cams.map((e) => e.lng!);
@@ -95,6 +120,8 @@ class _MapPaneState extends ConsumerState<MapPane> {
   @override
   Widget build(BuildContext context) {
     ref.listen(fleetProvider.select((s) => s.cams), (_, _) => _schedule());
+    ref.listen(zonesProvider, (_, _) => _schedule());
+    ref.listen(fleetProvider.select((s) => s.alerts), (_, _) => _schedule());
     final v = context.vg;
     final cam = ref.watch(fleetProvider.select((s) => s.cams[_selected]));
     return ClipRect(
