@@ -298,6 +298,19 @@ app.delete('/api/geofences/:id', needUser, needZones, (req, res) => {
 app.get('/api/alerts', needUser, (req, res) => res.json({ alerts: battery.open((id) => canSee(req.user, id)), low: battery.LOW, critical: battery.CRITICAL }));
 app.post('/api/alerts/:id/ack', needUser, (req, res) => (battery.ack(req.params.id, req.user.username, (id) => canSee(req.user, id)) ? res.json({ ok: true }) : res.status(404).json({ error: 'Alert not found.' })));
 
+// ---------- Health check (public, no data): for an uptime monitor and the Docker healthcheck. 503 = something is wrong. ----------
+const HEALTH_MIN_FREE = Number(process.env.HEALTH_MIN_FREE_PCT) || 5;   // % of the data disk that must stay free
+app.get('/healthz', (req, res) => {
+    const out = { ok: true, uptimeSec: Math.round(process.uptime()), checks: {} };
+    try { db.prepare('SELECT 1').get(); out.checks.db = 'ok'; } catch (e) { out.checks.db = 'failed'; out.ok = false; }
+    try {
+        const f = fs.statfsSync(process.env.DATA_DIR || path.join(__dirname, 'data')), free = Math.round((f.bavail / f.blocks) * 100);
+        out.checks.diskFreePct = free; if (free < HEALTH_MIN_FREE) out.ok = false;
+    } catch (e) { out.checks.disk = 'unknown'; }
+    out.camerasOnline = [...cams.values()].filter((c) => c.online).length;
+    res.status(out.ok ? 200 : 503).json(out);
+});
+
 // ---------- Mobile apps (iOS / Android) ----------
 // Public: lets the app check it can talk to this server and whether it must be updated (no data is exposed).
 const MOBILE_API = 1;
