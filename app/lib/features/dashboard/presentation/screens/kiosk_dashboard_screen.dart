@@ -598,7 +598,14 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         await Future.delayed(const Duration(milliseconds: 1500) - since);
       }
       final dir = await _mediaDir();
-      final path = '$dir/VID_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      // Every attempt gets its OWN file name: a failed attempt may already have created its file, and the plugin refuses to overwrite
+      // ("fileExists"), which is what used to end a quality change with "REC FAILED" and a camera that would not stream any more.
+      var seq = 0;
+      String freshPath() => '$dir/VID_${DateTime.now().millisecondsSinceEpoch}${seq++ == 0 ? '' : '_$seq'}.mp4';
+      Future<void> dropEmpty(String p) async {
+        try { final f = File(p); if (await f.exists() && await f.length() == 0) await f.delete(); } catch (_) {/* a partial file with data stays: it is evidence */}
+      }
+      var path = freshPath();
       _currentFile = path;
 
       var streamed = true;
@@ -609,13 +616,25 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
           bitrate: _quality.bitrate,
         );
       } catch (e) {
-        // Evidence must never depend on the network: fall back to local only.
-        streamed = false;
         debugPrint('Stream failed: $e');
+        try { await c.stopEverything(); } catch (_) {}
+        await dropEmpty(path);
+        // The server may still be closing the previous stream (a quality change just ended one): wait and try to stream once more.
+        await Future.delayed(const Duration(seconds: 2));
+        path = freshPath();
+        _currentFile = path;
         try {
-          await c.stopEverything();
-        } catch (_) {}
-        await c.startVideoRecording(path);
+          await c.startVideoRecordingAndStreaming(path, CentralConfig.rtmpUrl, bitrate: _quality.bitrate);
+        } catch (e2) {
+          // Evidence must never depend on the network: fall back to local only.
+          streamed = false;
+          debugPrint('Stream failed again: $e2');
+          try { await c.stopEverything(); } catch (_) {}
+          await dropEmpty(path);
+          path = freshPath();
+          _currentFile = path;
+          await c.startVideoRecording(path);
+        }
       }
 
       if (mounted) {
