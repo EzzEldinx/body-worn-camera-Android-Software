@@ -113,7 +113,7 @@ Feen: dashboard > el-eyqona fo2 (bena2 mabna) aw `http://192.168.100.75:3000/adm
 - **El-3araby RTL**: el-saf7a kolha bet-enqeleb (el-menu, el-gadawel, el-forms, el-charts, el-flow diagram). El-ar2am bel-ingilizi (0-9) w el-tawareekh Gregorian w el-sa3a 24h fel lughatein. El-camera IDs w el-units (MB, GB) bet-fdal Latin.
 - **El-kalam fein?** `server/public/i18n.js` (el-engine + el-kalam el-moshtarak), `server/public/i18n/<page>.js` (kalam kol saf7a, EN + AR bel nafs el-keys), `server/lang/errors.js` (rodood el-API), `server/lang/texts.js` (el-insights, el-written analysis, el-push, el-emails). **Text gedeed** = key gedeed fel **lughatein** (el-test `server/test/i18n.test.js` yefshal law key fi lugha w mesh fel tanya, aw law fi error gedeed fel server bela tarjama).
 - **El-server beyrod bel-lugha**: el-browser by-ib3at cookie `vglang`; el-app el-mobile by-ib3at header `x-lang`. El-API errors, el-written analysis, el-push notifications (kol gehaz bel-lugha bta3to) w el-support emails (bel-lugha bta3et elly katab el-ticket, aw `SUPPORT_EMAIL_LANG=en|ar` fel `.env` 3ashan el-desk yestalem bel-lugha el-sabta).
-- **Mesh metargam (3amdan)**: el-CSV exports (headers w codes bel-ingilizi 3ashan Excel w el-audit hashes), el-PDF report (el-font Latin bas, el-asma' el-3arabiya betetshal — Arabic PDF mumken bas mehtaga font + layout mirror, shof el-report), el-date pickers (shakl el-browser nafso), w ay kalam katabo el-nas (asma' el-companies, el-notices...).
+- **Mesh metargam (3amdan)**: el-CSV exports (headers w codes bel-ingilizi 3ashan Excel w el-audit hashes), el-date pickers (shakl el-browser nafso), w ay kalam katabo el-nas (asma' el-companies, el-notices...).
 
 ---
 
@@ -128,7 +128,7 @@ Analytics > card **Reports**: pick **From** and **To** (or a shortcut: Today, Ye
 The report has: banner, 4 KPIs (active cameras, SOS, recorded time, distance), the fleet donut, **activity by hour** (one day) or **recorded time by day with the SOS count** (several days), the SOS table with response times, a **Day by day** table (several days), **Camera custody** (who took which camera, when, how long, from the check-out station), camera activity, control-room actions and a timeline. Days are cut in **your own time zone** (the browser sends it).
 * Endpoint: `/api/report?from=YYYY-MM-DD&to=YYYY-MM-DD&tz=<minutes>&company=<id>` (the old `?date=` still means one day). Every download is written to the audit trail.
 * Events (online/offline, recording, PTT, messages) are logged **from the moment of that update**; earlier days have SOS + GPS + control-room actions only.
-* Arabic in company/camera names is dropped in the PDF (Latin font only): use English names.
+* **Arabic PDF:** with the website in Arabic the report is downloaded in Arabic (the language comes from the same switch; `?lang=ar` forces it): right to left, mirrored layout, Arabic month and day names, Arabic names kept. In the English report Arabic names are still dropped (Latin font). Arabic font: DejaVu Sans in `server/fonts/` (licence file beside it; `server/report.js` does the mirroring and the Arabic/number ordering, words in `server/lang/report-text.js`). A nicer Arabic font (Noto Naskh, Cairo) can replace the two files if wanted.
 
 ---
 

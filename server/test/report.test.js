@@ -115,3 +115,18 @@ test('the PDF builds for one day and for a long range', async () => {
     assert.ok(pages(many) > pages(one), `long range should need more pages (${pages(many)} vs ${pages(one)})`);
     db.close();
 });
+
+test('the Arabic PDF builds (right to left, Arabic font embedded) and does not change the English one', async () => {
+    const db = fixture();
+    const range = { from: local(2026, 11, 3), to: local(2026, 11, 4) };
+    const en = await pdf(db, range), ar = await pdf(db, { ...range, lang: 'ar', scopeLabel: 'شركة الأمل' });
+    assert.strictEqual(ar.subarray(0, 5).toString(), '%PDF-'); assert.match(ar.subarray(-8).toString(), /%%EOF/);
+    assert.match(ar.toString('latin1'), /DejaVuSans/, 'the Arabic font is embedded');
+    assert.doesNotMatch(en.toString('latin1'), /DejaVuSans/, 'the English report still uses its own font');
+    const many = await pdf(db, { from: local(2026, 8, 10), to: local(2026, 11, 10), lang: 'ar' });   // a long Arabic range spills over pages too
+    assert.ok(pages(many) > pages(ar));
+    // the same texts exist in both languages
+    const T = require('../lang/report-text');
+    assert.deepStrictEqual(Object.keys(T.ar).sort(), Object.keys(T.en).sort());
+    db.close();
+});

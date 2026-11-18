@@ -455,7 +455,7 @@ app.get('/api/report', needUser, license.gate('reports'), (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="VisionGuard-Report-${String(label).replace(/[^\w.-]+/g, '_')}-${stamp}.pdf"`);
     report.build(db, {
         title: range.days > 1 ? 'Operations report' : 'Daily operations report', scopeLabel: label, cameras, from: range.from, to: range.to, tz: range.tz,
-        regionOf: (c) => c?.region, nameOf: (c) => (c && c.name) || c?.cameraId,
+        regionOf: (c) => c?.region, nameOf: (c) => (c && c.name) || c?.cameraId, lang: req.lang === 'ar' ? 'ar' : 'en',
     }, res);
 });
 
