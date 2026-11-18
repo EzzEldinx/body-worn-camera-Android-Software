@@ -32,8 +32,30 @@ class CentralConfig {
       if (j['id'] is String && (j['id'] as String).isNotEmpty) cameraId = j['id'] as String;
       if (j['server'] is String && (j['server'] as String).isNotEmpty) serverUrl = j['server'] as String;
       if (j['token'] is String && (j['token'] as String).isNotEmpty) token = j['token'] as String;
+      await _moveToHttps(f, Map<String, dynamic>.from(j));
     } catch (e) {
       debugPrint('config.json ignored: $e');
+    }
+  }
+
+  /// Cameras provisioned earlier talk to `http://<ip>:3000`. When that is the case, and the HTTPS address built into this app
+  /// answers /healthz, switch to it and remember it in config.json. If it does not answer, nothing changes (the old address keeps working).
+  static Future<void> _moveToHttps(File f, Map<String, dynamic> j) async {
+    const secure = String.fromEnvironment('BWC_SERVER', defaultValue: 'https://visionguard.smartwaygroup.com.sa');
+    if (!serverUrl.startsWith('http://') || !secure.startsWith('https://')) return;
+    final c = HttpClient()..connectionTimeout = const Duration(seconds: 6);
+    try {
+      final r = await (await c.getUrl(Uri.parse('$secure/healthz'))).close().timeout(const Duration(seconds: 8));
+      await r.drain<void>();
+      if (r.statusCode != 200) return;
+      serverUrl = secure;
+      j['server'] = secure;
+      await f.writeAsString(jsonEncode(j));
+      debugPrint('server address moved to $secure');
+    } catch (e) {
+      debugPrint('https not reachable, keeping $serverUrl ($e)');
+    } finally {
+      c.close(force: true);
     }
   }
 
