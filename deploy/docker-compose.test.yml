@@ -1,7 +1,6 @@
-# TEST ONLY: also publish the dashboard over plain HTTP on the dedicated IP (no domain/TLS yet).
+# TEST ONLY: publishes the HTTP-FLV port 8000 on the dedicated IP. (Plain HTTP port 3000 was closed 2026-11-18: cameras, Dock Agent and apps use the HTTPS domain.)
 # Remove this file from the command (and close the port) once the domain + TLS are in place.
 services:
   visionguard:
     ports:
-      - "${RTMP_BIND_IP:?set RTMP_BIND_IP}:3000:3000"
       - "${RTMP_BIND_IP:?set RTMP_BIND_IP}:8000:8000"   # TEST ONLY: dashboard pulls HTTP-FLV directly (prod: nginx /live/)
