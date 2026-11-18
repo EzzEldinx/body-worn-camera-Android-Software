@@ -1,5 +1,7 @@
 # Putting the VisionGuard owner app in the stores
 
+**Status (2026-11-18): the owner app is not in any store yet.** It runs on a registered iPad from a development build (the iOS development profile includes only that iPad and expires 2027-11-08). This guide is for when the store accounts are ready.
+
 The owner/supervisor app (`client/`) is for Google Play and the App Store. The **camera app (`app/`) is not**: it runs as the device owner on the company's cameras and updates itself from the server and the docking stations.
 
 Recommended: distribute **privately** (Apple *Custom App* through Apple Business Manager, Google Play *closed testing* or a managed private app). Review is lighter and it stays under your control.
@@ -9,12 +11,12 @@ Recommended: distribute **privately** (Apple *Custom App* through Apple Business
 * Android is signed with an upload key when `android/key.properties` exists. A store bundle (`.aab`) cannot be built without it.
 * `ios/Runner/PrivacyInfo.xcprivacy` (Apple's privacy manifest) is part of the project.
 * The privacy policy page (English and Arabic) is `https://<your server>/privacy.html` (public, no sign-in). Use that address in both stores. Have it checked by your legal adviser.
-* `tool/release_guard.sh https://<your server>` checks all of this and fails if something is wrong.
+* `client/tool/release_guard.sh https://<your server>` checks all of this and fails if something is wrong.
 
 ## What only you can provide
 | | |
 |---|---|
-| **HTTPS address** | a domain with a certificate (the stores refuse plain HTTP). `docs/DEPLOYMENT.md` |
+| **HTTPS address** | done: `https://visionguard.smartwaygroup.com.sa` (the stores refuse plain HTTP). See `DEPLOYMENT.md` |
 | **Apple** | an Apple Developer account, an App Store Connect record for bundle id `sa.com.smartwaygroup.visionguard`, a distribution certificate (Xcode: Runner > Signing, your team) |
 | **Google** | the Play Console app with the same application id, *Play App Signing* on |
 | **Push (optional)** | a Firebase project: `google-services.json` in `android/app/`, `GoogleService-Info.plist` in `ios/Runner/`, and an APNs key uploaded to Firebase |

@@ -22,7 +22,8 @@ See what matters, wherever you are:
 - Map: see where every camera is.
 - Fleet: online status, who carries each camera, battery level and recording state.
 - Docking stations: the real layout of the dock, which camera sits in which slot, and what it is doing.
-- Recordings: browse the recordings that were offloaded from your cameras.
+- Recordings: browse, play and download the recordings that were offloaded from your cameras.
+- Your profile: see your role and exactly what you are allowed to do.
 - Support: open a ticket with the Smart Way support team from the app.
 
 Built for companies:
@@ -56,7 +57,8 @@ VisionGuard هو تطبيق الجوال لملّاك ومشرفي أساطيل 
 - الخريطة: اعرف مكان كل كاميرا.
 - الأسطول: حالة الاتصال، ومن يحمل كل كاميرا، ومستوى البطارية، وحالة التسجيل.
 - محطات الإرساء: التخطيط الحقيقي للمحطة، وأي كاميرا في أي خانة، وماذا تفعل.
-- التسجيلات: تصفّح التسجيلات التي نُقلت من كاميراتك.
+- التسجيلات: تصفّح التسجيلات التي نُقلت من كاميراتك وشغّلها ونزّلها.
+- ملفك الشخصي: اعرف دورك وما يُسمح لك به بالضبط.
 - الدعم: افتح تذكرة لدى فريق دعم سمارت واي من داخل التطبيق.
 
 مصمَّم للشركات:
@@ -74,7 +76,7 @@ VisionGuard هو تطبيق الجوال لملّاك ومشرفي أساطيل 
 | Category | Business |
 | Price | Free |
 | Support email | sdpt@smart-way.com.sa |
-| Privacy policy URL | https://visionguard.smartwaygroup.com.sa/privacy.html (available after the server update) |
+| Privacy policy URL | https://visionguard.smartwaygroup.com.sa/privacy.html (live) |
 | Support URL | Apple requires a public web page. Use the privacy page until Smart Way has a support page. |
 | Age rating | 4+ / Everyone. No objectionable content; answer "no" to every content question |
 | Export compliance (Apple) | Uses only standard encryption (HTTPS): "exempt" |

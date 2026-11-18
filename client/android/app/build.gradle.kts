@@ -62,7 +62,7 @@ android {
 // A bundle for the store must never be signed with the debug key.
 gradle.taskGraph.whenReady {
     if (!hasUploadKey && allTasks.any { it.name == "bundleRelease" }) {
-        throw GradleException("No upload key: create android/key.properties first (see client/STORE.md).")
+        throw GradleException("No upload key: create android/key.properties first (see docs/STORE_PUBLISHING.md).")
     }
 }
 

@@ -21,7 +21,7 @@ Code: `client/` (Flutter, one codebase for iPhone, iPad, Android phone and Andro
 
 * **Battery and alerts.** Every camera shows its battery (live from the camera, or read on the dock) with a bolt while charging. Under 20 % and not charging the server raises a *low battery* alert (`dashboard_alert` / `dashboard_alert_resolved` over the socket, `alerts` in the snapshot, `ack_alert` to dismiss): the Alerts tab lists it above the SOS alarms, a notice appears wherever the user is, and a push notice goes out when FCM is configured.
 * **Who carries the camera.** The holder shows with the employee number (and *reserved / carrying*); an SOS shows who carried the camera when it was pressed.
-* **Licence notice.** `GET /api/license/status` (and `license` in `/api/mobile/config`): the app shows an amber / red line above the tab bar when the licence is ending or ended (see docs/LICENSING.md).
+* **Licence notice.** `GET /api/license/status` (and `license` in `/api/mobile/config`): the app shows an amber / red line above the tab bar when the licence is ending or ended (see LICENSING.md).
 
 ## 2. Decisions
 
@@ -37,7 +37,7 @@ Code: `client/` (Flutter, one codebase for iPhone, iPad, Android phone and Andro
 
 ## 3. Features by phase
 
-**v1 (the build that goes to the two test tablets)**
+**v1 (built)**
 Sign in (+ Face ID / fingerprint lock) · Fleet list with live status, search and filters · Camera detail (status, GPS fix ± accuracy, quality picker) · **Live viewer** (one tap, full screen, 2×2 wall on tablets) · Map with live positions · Alerts (SOS banner, vibration, acknowledge) · Recordings (evidence from the docking station, play/download) · Settings (theme, language, security, account) · Light/dark, English/Arabic.
 
 **v1.1** Push notifications (needs Firebase) · Chat and push-to-talk with officers · Share a live link with an expiry · Daily report PDF.
@@ -55,7 +55,7 @@ Sign in (+ Face ID / fingerprint lock) · Fleet list with live status, search an
 ## 5. Security
 
 * Tokens only in Keychain/Keystore; screen shows the lock if the app is idle > 30 s and biometrics are on.
-* **HTTPS is mandatory for store builds.** Test builds on the two tablets use plain HTTP to the test server. Before any store build: domain + TLS live, then run `client/tool/release_guard.sh` (fails if cleartext traffic is still allowed).
+* **HTTPS is mandatory for store builds.** Test builds use plain HTTP only against a local test server; the default server is the HTTPS domain. Before any store build: domain + TLS live, then run `client/tool/release_guard.sh` (fails if cleartext traffic is still allowed).
 * Server side: login rate-limit (same as web), per-user company scoping on every endpoint and socket room, signed short-lived stream URLs, audit log for login and live start/stop, token revoked on logout.
 * Privacy: remote live view of a body camera is a sensitive capability. It is limited to authorised company users, logged with who/when, and the customer contract must cover it (the stores ask for a privacy policy URL and the data-use declarations).
 * Later: certificate pinning, device list with remote revoke, per-user permission matrix (owner / supervisor / viewer).
@@ -68,19 +68,29 @@ Sign in (+ Face ID / fingerprint lock) · Fleet list with live status, search an
 
 ## 7. Testing on the two tablets
 
-* **Android tablet:** enable developer mode, connect by USB, `cd client && flutter run -d <id> --dart-define=VG_SERVER=http://<test-server>:3000`.
+* **Android tablet:** enable developer mode, connect by USB, `cd client && flutter run -d <id>` (the default server is `https://visionguard.smartwaygroup.com.sa`; override with `--dart-define=VG_SERVER=...`).
 * **iPad:** needs Xcode signing (a free Apple ID works for 7-day builds; TestFlight needs the paid Apple Developer account). Open `client/ios/Runner.xcworkspace`, pick the team, run on the iPad.
 * Test matrix: login/logout, wrong password, airplane mode and reconnect, Arabic + dark mode, SOS while the app is open / in background / locked (push), live on Wi-Fi and on cellular, rotate, split-screen on the tablets, 2 cameras at once, company user vs staff user (visibility).
 
 ## 8. Store checklist (later)
 
-Apple Developer Program (US$99/yr, organisation account needs a D-U-N-S number) · Google Play Console (US$25 once, organisation verification) · Firebase project (FCM + APNs key) · domain with TLS · privacy policy URL · app icon 1024 px, screenshots (iPhone 6.9", iPad 13", Android phone/tablet), description EN/AR · demo account for Apple review · remove `NSAllowsArbitraryLoads` and `usesCleartextTraffic`.
+Apple Developer Program (US$99/yr, organisation account needs a D-U-N-S number) · Google Play Console (US$25 once, organisation verification) · Firebase project (FCM + APNs key) · domain with TLS · privacy policy URL · app icon 1024 px, screenshots (iPhone 6.9", iPad 13", Android phone/tablet), description EN/AR · demo account for Apple review · remove `NSAllowsArbitraryLoads` and `usesCleartextTraffic` (`client/tool/release_guard.sh` checks this). Full steps: `STORE_PUBLISHING.md`; listing text: `STORE_LISTING.md`.
 
-## 9. Status
+## 9. Status (2026-11-18)
 
-Built and verified on the iPad Pro 11" and iPhone 17 simulators (against a local server with simulated cameras):
-sign in / sign out with the bearer token, live fleet and SOS over the socket, acknowledge (reaches the server database), camera detail, quality picker, map (OpenFreeMap, one dot per camera), alerts, recordings with in-app playback of a real body-camera MP4 over the authenticated URL (libmpv on iOS), settings, light/dark, English/Arabic with full RTL, phone layout (bottom bar) and tablet layout (rail). 17 server tests and 6 app tests pass.
+**Running:** the app runs on a registered iPad (development build; the iOS development profile includes only that iPad and expires 2027-11-08) and was verified on iPad Pro 11" and iPhone simulators. An iPhone needs its device added to the profile and Developer Mode switched on, then a rebuild while it is connected.
 
-Not verified yet (needs the real hardware or accounts): live FLV from a real camera inside the app, push notifications, Face ID, the Android build on a real tablet, and the iPad itself (Xcode signing).
+**Done since v1:**
+* **Profile and access** (More): the role, the company and exactly what the account may do (`GET /api/me/access`), and the role shown on the More screen.
+* **Role-aware screens:** Docking > Files and Recordings follow the real permissions (files, delete); buttons that the account may not use are not offered.
+* **Play and download:** recordings and dock files can be played in the app and downloaded (share sheet: Save to Photos or Files, AirDrop) with `share_plus` and `path_provider`.
+* **English and Arabic** with full right-to-left layout; the server answers in the app's language (`x-lang`).
+* Stop recording and live wall controls follow the same permissions as the web (the `stoprec` action).
 
-Next: run on the two tablets against the test server, then the items in section 3 (v1.1).
+**Tests:** 29 app tests pass (`cd client && flutter test`), plus the server tests.
+
+**Not verified yet (needs hardware or accounts):** push notifications (needs Firebase), Face ID on a device, the Android build on a real tablet, live FLV from a real camera inside the app for long sessions.
+
+**Not done:** publishing to the App Store / Google Play (see `STORE_PUBLISHING.md`; the app is not in any store).
+
+Next: the v1.1 items in section 3, then the store accounts.

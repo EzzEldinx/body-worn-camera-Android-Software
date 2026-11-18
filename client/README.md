@@ -1,17 +1,9 @@
-# visionguard_client
+# VisionGuard owner app
 
-VisionGuard for owners and supervisors (iOS and Android)
+Flutter app for owners and supervisors (iPhone, iPad, Android). Documentation: [`docs/MOBILE_APP.md`](../docs/MOBILE_APP.md) (design, API, status), [`docs/STORE_PUBLISHING.md`](../docs/STORE_PUBLISHING.md) (stores) and [`docs/STORE_LISTING.md`](../docs/STORE_LISTING.md) (listing text).
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter pub get
+flutter run            # server: https://visionguard.smartwaygroup.com.sa (override with --dart-define=VG_SERVER=...)
+flutter test
+```
