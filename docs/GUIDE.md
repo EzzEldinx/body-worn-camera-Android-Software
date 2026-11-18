@@ -290,6 +290,9 @@ Switch off with `--no-update`; `--update-only` updates apps without copying reco
    A camera that already runs the new app and only needs a token: `tools/provision-camera.sh --config-only <serial> <id> <token>`.
 4. Within seconds it shows *Link* on the camera screen and online on the dashboard; set its company, region and holder there.
 
+### 9.2 Many new cameras in a row (`tools/provision-batch.sh`)
+`tools/provision-batch.sh --watch` asks for an admin login once, then for each new camera you plug in (USB or dock, USB debugging on, "Allow" tapped) it picks the next free name (`BWC-07-RIY`, ...), issues its own token, installs the app and writes the HTTPS address. A camera that already has the app and a `config.json` is never touched. Names already on the server are never reused. Tokens are not printed or saved; `~/.visionguard-provisioned.csv` lists serial, name, date. `--dry-run` shows the names without changing anything; `--prefix/--suffix/--start` change the naming. Afterwards set company, region and holder in the dashboard.
+
 ---
 
 ## 10. Moshkelat sha2e3a
