@@ -2,8 +2,10 @@
 #   cd /opt/visionguard/deploy
 #   docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.transcribe.yml up -d --build
 # Needs TRANSCRIBE_TOKEN in .env (any long random string). Smart Way then switches "Live captions" on per company in the Admin panel.
-# The service is limited to 2 CPUs and 3 GB so it can never starve the other apps on a shared server; raise the limits (or move it to its own
-# machine and point TRANSCRIBE_URL at it) when many cameras stream at once. No port is published: only the VisionGuard container talks to it.
+# The service is limited to 8 CPUs and 6 GB so it can never starve the other apps on a shared server (the host has 40 CPUs and 128 GB, almost idle).
+# While someone talks it re-reads the last seconds of audio about once a second, so each streaming camera keeps roughly 2-3 CPUs busy: with the
+# default limit expect 3-4 cameras talking at once. For more, raise cpus/WHISPER_THREADS/TRANSCRIBE_MAX_STREAMS or move it to its own machine
+# (point TRANSCRIBE_URL at it). No port is published: only the VisionGuard container talks to it.
 services:
   visionguard:
     environment:
@@ -19,10 +21,11 @@ services:
       TRANSCRIBE_TOKEN: ${TRANSCRIBE_TOKEN:?set TRANSCRIBE_TOKEN in .env}
       WHISPER_MODEL: ${WHISPER_MODEL:-small}
       MAX_STREAMS: ${TRANSCRIBE_MAX_STREAMS:-4}
+      WHISPER_THREADS: ${WHISPER_THREADS:-8}
     volumes:
       - transcriber-models:/models
     deploy:
       resources:
-        limits: { cpus: "2", memory: 3g }
+        limits: { cpus: "8", memory: 6g }
 volumes:
   transcriber-models:

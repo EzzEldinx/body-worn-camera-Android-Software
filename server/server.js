@@ -468,7 +468,7 @@ app.post('/api/internal/transcript', (req, res) => {
     if (!transcribe.tokenOk(req.headers['x-transcribe-token'])) return res.status(401).json({ error: 'unauthorised' });
     const id = str(req.body?.cameraId);
     if (!id || !cams.has(id) || !transcribeAllowed(id)) return res.status(404).json({ error: 'Camera not found.' });
-    const line = transcribe.record({ cameraId: id, text: req.body?.text, lang: req.body?.lang, ts: Number(req.body?.ts) });
+    const line = transcribe.record({ cameraId: id, text: req.body?.text, lang: req.body?.lang, ts: Number(req.body?.ts), partial: req.body?.partial === true, utt: Number(req.body?.utt) });
     if (!line) return res.status(400).json({ error: 'empty' });
     for (const s of io.sockets.sockets.values()) {            // only people who may see this camera AND may read captions
         const u = s.data.user;

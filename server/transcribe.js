@@ -45,13 +45,16 @@ function init({ db, audit, log = console, env = process.env }) {
     }
 
     const insert = db.prepare('INSERT INTO transcripts(ts,camera_id,text,lang) VALUES(?,?,?,?)');
-    function record({ cameraId, text, lang: l, ts }) {
+    // A "final" sentence is kept; a "partial" is a draft of the sentence being spoken right now: shown, never kept (the final replaces it).
+    // `utt` numbers the sentence so a dashboard can replace the draft with its final.
+    function record({ cameraId, text, lang: l, ts, partial, utt }) {
         const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT);
         if (!cameraId || !t) return null;
         const when = Number.isFinite(ts) && Math.abs(Date.now() - ts) < 10 * 60 * 1000 ? ts : Date.now();
-        const lang2 = typeof l === 'string' ? l.slice(0, 5) : null;
+        const lang2 = typeof l === 'string' ? l.slice(0, 5) : null, u = Number.isInteger(utt) && utt > 0 ? utt : 0;
+        if (partial === true) return { id: 0, cameraId: String(cameraId), ts: when, text: t, lang: lang2, partial: true, utt: u };
         const id = Number(insert.run(when, String(cameraId), t, lang2).lastInsertRowid);
-        return { id, cameraId: String(cameraId), ts: when, text: t, lang: lang2 };
+        return { id, cameraId: String(cameraId), ts: when, text: t, lang: lang2, partial: false, utt: u };
     }
     // newest last; `after` = only lines newer than this id (a dashboard that already has some)
     function history(cameraId, { after = 0, limit = 100 } = {}) {

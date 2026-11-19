@@ -12,7 +12,7 @@ It keeps no audio and no text: it only forwards them. It can run on the same mac
 
 Every request must carry the header  x-transcribe-token: <TRANSCRIBE_TOKEN>.
 Settings (environment): TRANSCRIBE_TOKEN (required), WHISPER_MODEL (default small), WHISPER_DEVICE (cpu|cuda, default cpu),
-WHISPER_COMPUTE (default int8), PORT (default 5100), BIND (default 127.0.0.1), MAX_STREAMS (default 8).
+WHISPER_COMPUTE (default int8), WHISPER_THREADS, PARTIAL_EVERY_S, PARTIAL_WINDOW_S, PAUSE_S, PORT (default 5100), BIND (default 127.0.0.1), MAX_STREAMS (default 8).
 """
 import json, os, subprocess, sys, threading, time, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -30,14 +30,17 @@ FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 
 RATE = 16000                       # Whisper wants 16 kHz mono
 FRAME = RATE // 50                 # 20 ms
-PAUSE_S = 0.7                      # this much silence ends a sentence
+PAUSE_S = float(os.environ.get("PAUSE_S", "0.6"))             # this much silence ends a sentence (the "final" text)
 MIN_S = 0.8                        # shorter than this is a click or a cough: skipped
 MAX_S = 12.0                       # a very long sentence is cut here so the text does not lag
+PARTIAL_EVERY_S = float(os.environ.get("PARTIAL_EVERY_S", "0.8"))   # while someone is talking, a fresh draft of the text this often (0 = no drafts)
+PARTIAL_WINDOW_S = float(os.environ.get("PARTIAL_WINDOW_S", "8"))   # a draft covers the last this-many seconds of the sentence
+THREADS = int(os.environ.get("WHISPER_THREADS", "0"))         # 0 = the library's default (4)
 DEBUG = os.environ.get("DEBUG") == "1"
 SILENCE_RMS = float(os.environ.get("SILENCE_RMS", "0.012"))   # below this (0..1) a frame counts as silence
 
 _model = None
-_model_lock = threading.Lock()     # one model, one sentence at a time (a second stream waits its turn)
+_model_lock = threading.Lock()     # one model, one piece of audio at a time (a second stream waits its turn)
 streams = {}                       # cameraId -> Worker
 streams_lock = threading.Lock()
 
@@ -46,7 +49,7 @@ def model():
     global _model
     if _model is None:
         from faster_whisper import WhisperModel
-        _model = WhisperModel(MODEL_NAME, device=DEVICE, compute_type=COMPUTE)
+        _model = WhisperModel(MODEL_NAME, device=DEVICE, compute_type=COMPUTE, cpu_threads=THREADS)
     return _model
 
 
@@ -59,7 +62,15 @@ def transcribe(samples, lang):
     return text, info.language
 
 
+def to_samples(frames):
+    return np.frombuffer(b"".join(frames), dtype=np.int16).astype(np.float32) / 32768.0
+
+
 class Worker(threading.Thread):
+    """Two threads per camera: this one only reads the audio and finds the pauses (it never waits for the model, so no audio is lost),
+    and `infer` turns what it hands over into text. A finished sentence ("final") is always transcribed; a draft ("partial", sent while the
+    person is still talking) is dropped when a newer one or the final arrives, so a slow model shows older drafts less often, never later ones."""
+
     def __init__(self, camera, url, callback, lang):
         super().__init__(daemon=True)
         self.camera, self.url, self.callback, self.lang = camera, url, callback, lang
@@ -67,6 +78,12 @@ class Worker(threading.Thread):
         self.proc = None
         self.started = time.time()
         self.sentences = 0
+        self.cv = threading.Condition()
+        self.finals = []           # [(utt, samples, t0)]
+        self.partial = None        # (utt, samples, t0): only the newest draft is kept
+        self.done = False
+        self.utt = 0
+        self.guess = None          # the language the last finished sentence was in
 
     def stop(self):
         self.stop_flag.set()
@@ -75,28 +92,52 @@ class Worker(threading.Thread):
         except Exception:
             pass
 
-    def post(self, text, lang, t0):
-        body = json.dumps({"cameraId": self.camera, "text": text, "lang": lang, "ts": int(t0 * 1000)}).encode()
+    def post(self, text, lang, t0, utt, partial):
+        body = json.dumps({"cameraId": self.camera, "text": text, "lang": lang, "ts": int(t0 * 1000), "utt": utt, "partial": partial}).encode()
         req = urllib.request.Request(self.callback, data=body, headers={"content-type": "application/json", "x-transcribe-token": TOKEN})
         try:
             urllib.request.urlopen(req, timeout=8).read()
         except Exception as e:
             print(f"[{self.camera}] callback failed: {e}", file=sys.stderr, flush=True)
 
-    def flush(self, buf, t0):
-        if len(buf) * FRAME < MIN_S * RATE:   # buf holds 20 ms frames
-            return
-        samples = np.frombuffer(b"".join(buf), dtype=np.int16).astype(np.float32) / 32768.0
-        if DEBUG: print(f"[{self.camera}] sentence of {len(samples) / RATE:.1f} s -> model", flush=True)
-        try:
-            text, lang = transcribe(samples, self.lang)
-        except Exception as e:
-            print(f"[{self.camera}] transcribe failed: {e}", file=sys.stderr, flush=True)
-            return
-        if DEBUG: print(f"[{self.camera}] text: {text!r}", flush=True)
-        if text and len(text) > 1:
-            self.sentences += 1
-            self.post(text, lang, t0)
+    def hand_over(self, kind, utt, frames, t0):
+        with self.cv:
+            if kind == "final":
+                if len(frames) * FRAME < MIN_S * RATE: return
+                self.finals.append((utt, to_samples(frames), t0))
+                if self.partial and self.partial[0] == utt: self.partial = None
+            else:
+                self.partial = (utt, to_samples(frames), t0)
+            self.cv.notify()
+
+    def infer(self):
+        while True:
+            with self.cv:
+                while not self.finals and self.partial is None and not self.done:
+                    self.cv.wait()
+                if self.finals:
+                    kind, (utt, samples, t0) = "final", self.finals.pop(0)
+                elif self.partial is not None:
+                    kind, (utt, samples, t0) = "partial", self.partial
+                    self.partial = None
+                else:
+                    return
+            if DEBUG: print(f"[{self.camera}] {kind} {utt}: {len(samples) / RATE:.1f} s of audio -> model", flush=True)
+            t = time.time()
+            try:
+                # a draft is a short clip, where guessing the language goes wrong: it takes the language the last full sentence had
+                text, lang = transcribe(samples, self.lang or (self.guess if kind == "partial" else None))
+                if kind == "final" and lang: self.guess = lang
+            except Exception as e:
+                print(f"[{self.camera}] transcribe failed: {e}", file=sys.stderr, flush=True)
+                continue
+            if DEBUG: print(f"[{self.camera}] {kind} {utt} in {time.time() - t:.1f} s: {text!r}", flush=True)
+            if kind == "partial":
+                with self.cv:
+                    if any(f[0] == utt for f in self.finals): continue   # the final of this sentence is already waiting: the draft is old news
+            if text and len(text) > 1:
+                if kind == "final": self.sentences += 1
+                self.post(text, lang, t0, utt, kind == "partial")
 
     def run(self):
         cmd = [FFMPEG, "-nostdin", "-loglevel", "error", "-i", self.url, "-vn", "-ac", "1", "-ar", str(RATE), "-f", "s16le", "-"]
@@ -105,7 +146,8 @@ class Worker(threading.Thread):
         except Exception as e:
             print(f"[{self.camera}] cannot start ffmpeg: {e}", file=sys.stderr, flush=True)
             return
-        buf, speech, quiet, t0 = [], 0, 0, time.time()
+        worker = threading.Thread(target=self.infer, daemon=True); worker.start()
+        buf, quiet, t0, last_draft = [], 0, time.time(), 0
         if DEBUG: print(f"[{self.camera}] listening", flush=True)
         try:
             while not self.stop_flag.is_set():
@@ -116,17 +158,24 @@ class Worker(threading.Thread):
                 x = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
                 loud = float(np.sqrt(np.mean(x * x))) > SILENCE_RMS
                 if loud:
-                    if not buf: t0 = time.time()
-                    buf.append(chunk); speech += 1; quiet = 0
+                    if not buf: t0 = time.time(); self.utt += 1; last_draft = 0
+                    buf.append(chunk); quiet = 0
                 elif buf:
                     buf.append(chunk); quiet += 1
                     if quiet * FRAME / RATE >= PAUSE_S:
-                        self.flush(buf, t0); buf, speech, quiet = [], 0, 0
+                        self.hand_over("final", self.utt, buf, t0); buf, quiet = [], 0
+                        continue
                 if buf and len(buf) * FRAME / RATE >= MAX_S:
-                    self.flush(buf, t0); buf, speech, quiet = [], 0, 0
+                    self.hand_over("final", self.utt, buf, t0); buf, quiet = [], 0
+                elif buf and PARTIAL_EVERY_S > 0 and len(buf) * FRAME >= MIN_S * RATE and (len(buf) - last_draft) * FRAME >= PARTIAL_EVERY_S * RATE:
+                    last_draft = len(buf)
+                    self.hand_over("partial", self.utt, buf[-int(PARTIAL_WINDOW_S * RATE / FRAME):], t0)
             if buf and not self.stop_flag.is_set():
-                self.flush(buf, t0)
+                self.hand_over("final", self.utt, buf, t0)
         finally:
+            with self.cv:
+                self.done = True; self.cv.notify()
+            worker.join(15)
             self.stop()
             with streams_lock:
                 if streams.get(self.camera) is self:

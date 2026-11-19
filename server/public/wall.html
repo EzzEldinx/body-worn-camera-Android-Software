@@ -8,6 +8,7 @@
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"dark"}catch(e){document.documentElement.dataset.theme="dark"}</script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/vendor/flv.min.js"></script>
+<script src="/captions.js"></script>
 <script src="/i18n.js"></script>
 <script src="/i18n/wall.js"></script>
 <script src="/i18n/stopstream.js"></script>
@@ -162,8 +163,9 @@ function tile(i) {
       <button data-e title="${esc(tr('wl.big'))}"><svg viewBox="0 0 24 24">${ico.big}</svg></button>
       <button data-k title="${esc(tr('wl.stopT'))}"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg><span class="lbl">${tr('wl.stop')}</span></button>
       <button data-x title="${esc(tr('wl.closeT'))}"><svg viewBox="0 0 24 24">${ico.x}</svg></button></div>
+    ${VGCap.html(id)}
     <div class="wait"><span data-w>${c?.online === false ? tr('wl.offline') : tr('wl.waiting', { name: nameOf(id) })}</span><button class="reqbtn" data-r>${tr('wl.startLive')}</button></div>`;
-  info(i); sound(i);
+  info(i); sound(i); VGCap.sync(id);
   if (cams.get(id)?.recording) play(i, id, t.querySelector('video'));
   t.classList.toggle('cover', cover.has(id));
 }
@@ -318,6 +320,7 @@ function upsert(c) {
   });
 }
 socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); build(); });
+socket.on('transcript', (l) => VGCap.line(l));
 socket.on('dashboard_cam', upsert);
 socket.on('dashboard_cam_removed', ({ cameraId }) => { cams.delete(cameraId); slots.forEach((id, i) => { if (id === cameraId) { slots[i] = null; tile(i); } }); save(); });
 socket.on('stream_up', ({ cameraId }) => slots.forEach((id, i) => { if (id === cameraId) setTimeout(() => { if (slots[i] === id) tile(i); }, 700); }));

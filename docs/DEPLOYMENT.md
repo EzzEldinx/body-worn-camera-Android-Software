@@ -37,7 +37,7 @@ Speech-to-text for streaming cameras runs as a separate container, never inside 
 
 `docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.transcribe.yml up -d --build`
 
-The first start downloads the Whisper model (about 480 MB, `small`) into a volume. The service is limited to 2 CPUs and 3 GB so it cannot starve the other apps on the shared host; it publishes no port. A company only gets captions after Smart Way ticks **Live captions** for it. Check: `docker logs visionguard-transcriber` ("model ready") and, while a camera streams, `curl` is not needed: the text appears under the camera on the dashboard. More in `transcriber/README.md`.
+The first start downloads the Whisper model (about 480 MB, `small`) into a volume. The service is limited to 8 CPUs and 6 GB so it cannot starve the other apps on the shared host; it publishes no port. A company only gets captions after Smart Way ticks **Live captions** for it. Check: `docker logs visionguard-transcriber` ("model ready") and, while a camera streams, `curl` is not needed: the text appears under the camera on the dashboard. More in `transcriber/README.md`.
 
 ## 4. Backups (what must exist)
 Back up, off the server, at least: the database and its journal (`server/data/bwc.db`, `.wal`, `.shm`), `server/data/updates/`, the `.env` file, the licence keys, and (optionally, they are large) the recordings.

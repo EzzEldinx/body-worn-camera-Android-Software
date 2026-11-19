@@ -43,6 +43,18 @@ test('sentences are kept in order, cleaned and limited', () => {
     assert.equal(t.history('C1', { after: b.id }).length, 1, '"after" returns only newer lines');
 });
 
+test('a draft is shown but never kept; the final of the same sentence is kept', () => {
+    const { t } = make({ TRANSCRIBE_URL: 'http://x', TRANSCRIBE_TOKEN: 't' });
+    const d = t.record({ cameraId: 'C1', text: 'مرحبا', partial: true, utt: 4 });
+    assert.deepEqual([d.partial, d.id, d.utt], [true, 0, 4]);
+    assert.equal(t.history('C1').length, 0, 'a draft is not stored');
+    const f = t.record({ cameraId: 'C1', text: 'مرحبا بك', partial: false, utt: 4 });
+    assert.deepEqual([f.partial, f.utt], [false, 4]);
+    assert.ok(f.id > 0);
+    assert.equal(t.history('C1').length, 1);
+    assert.equal(t.record({ cameraId: 'C1', text: 'x', utt: 'abc' }).utt, 0, 'a bad sentence number is ignored');
+});
+
 test('a clock that is far off is replaced by the server time', () => {
     const { t } = make({ TRANSCRIBE_URL: 'http://x', TRANSCRIBE_TOKEN: 't' });
     const l = t.record({ cameraId: 'C1', text: 'x', ts: 5 });
