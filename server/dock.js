@@ -162,8 +162,8 @@ function register(app, ctx) {
                 if (!cam) continue;
                 const ownFresh = cam.posSrc !== 'dock' && cam.fixTs && now - cam.fixTs < 120000;
                 if (ownFresh) continue;
-                if (cam.posSrc === 'dock' && cam.lat === loc.lat && cam.lng === loc.lng && now - (cam.fixTs || 0) < 30000) continue; // refresh every 30 s, not every report
-                publish(c.cameraId, { lat: loc.lat, lng: loc.lng, acc, fixTs: now, posSrc: 'dock' });
+                if (cam.posSrc === 'dock' && cam.lat === loc.lat && cam.lng === loc.lng && now - (cam.fixTs || 0) < 10000) continue; // refresh every 10 s, not every report
+                publish(c.cameraId, { lat: loc.lat, lng: loc.lng, acc, fixTs: now, ts: now, posSrc: 'dock' });
             }
         }
         docks.set(dockId, { ts: Date.now(), storage: req.body?.storage && typeof req.body.storage === 'object' ? { dir: String(req.body.storage.dir || '').slice(0, 200), freeBytes: num(req.body.storage.freeBytes), usedBytes: num(req.body.storage.usedBytes) } : null, agent: String(req.body?.agent || '').slice(0, 20), mode: req.body?.deleteAfter ? 'move' : 'copy', cameras: list });

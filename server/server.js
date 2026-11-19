@@ -132,6 +132,9 @@ function publish(id, patch) {
         cameraId: id, name: id, grp: '', online: false, recording: false, lat: null, lng: null, ts: 0, companyId: null,
         ...cams.get(id), ...patch,
     };
+    // "Last seen": any message from a camera that is online (status, battery, GPS...) or the dock seeing it over USB refreshes it. Before, only a GPS fix did,
+    // so a camera that was connected but indoors without a fix read "13 h ago" in the list.
+    if (patch.online === true && patch.ts === undefined) state.ts = Date.now();
     if (state.online && !prev?.online) state.onlineSince = Date.now();   // how long it has stayed connected (a new build only counts as proven on a camera that does)
     if (!!prev?.online !== !!state.online) logEvent(id, state.online ? 'online' : 'offline');
     if (!!prev?.recording !== !!state.recording) logEvent(id, state.recording ? 'rec_start' : 'rec_stop');
