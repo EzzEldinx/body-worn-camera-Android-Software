@@ -76,10 +76,27 @@ async function api(method, p, { body, headers } = {}) {
     return j;
 }
 
+// Only cameras belong in a bay. A phone or tablet plugged into the same PC (a developer's, or the owner app's test tablet) used to take a bay as an
+// "Unregistered" camera. A device counts when its model is a known camera model (DOCK_MODELS, default SDJW: a new camera before provisioning)
+// or when the camera app is installed on it. The answer is remembered per serial, so the 2-second heartbeat does not ask adb again.
+const CAMERA_MODELS = String(process.env.DOCK_MODELS || 'SDJW').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean);
+const isCamera = new Map();   // serial -> true | false
 async function devices() {
     const out = await run(['devices', '-l']);
-    return out.split('\n').slice(1).map((l) => l.trim().split(/\s+/)).filter((p) => p[1] === 'device')
-        .map((p) => ({ serial: p[0], port: (p.find((x) => x.startsWith('usb:')) || '').slice(4) || p[0] }));   // usb:<location> = the physical dock port
+    const all = out.split('\n').slice(1).map((l) => l.trim().split(/\s+/)).filter((p) => p[1] === 'device')
+        .map((p) => ({ serial: p[0], port: (p.find((x) => x.startsWith('usb:')) || '').slice(4) || p[0], model: (p.find((x) => x.startsWith('model:')) || '').slice(6).toUpperCase() }));   // usb:<location> = the physical dock port
+    const cams = [];
+    for (const d of all) {
+        if (!isCamera.has(d.serial)) {
+            let yes = CAMERA_MODELS.some((m) => d.model.includes(m));
+            if (!yes) yes = !!(await run(['-s', d.serial, 'shell', `pm path ${PKG}`]).catch(() => '')).trim();
+            isCamera.set(d.serial, yes);
+            if (!yes) log(d.serial, `not a camera (${d.model || 'unknown model'}, no camera app): left out of the dock`);
+        }
+        if (isCamera.get(d.serial)) cams.push({ serial: d.serial, port: d.port });
+    }
+    for (const k of [...isCamera.keys()]) if (!all.some((d) => d.serial === k)) isCamera.delete(k);   // unplugged: ask again next time
+    return cams;
 }
 
 async function inspect(serial) {

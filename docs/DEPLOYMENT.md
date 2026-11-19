@@ -31,6 +31,16 @@ Camera app builds are published separately (no server restart): `tools/publish-b
 * `tools/loadtest.js` simulates thousands of cameras and dashboards; run it only against a throwaway server.
 * Logs: `cd /opt/visionguard/deploy && sudo docker compose -p visionguard logs --tail 200`.
 
+## 3.0 Who may push a live stream
+
+Before, anybody who could reach port 1935 and knew a camera id could push a picture in its place. Now every camera gets its own publish key from the server over its signed-in socket and adds it to its RTMP address (`server/publishkey.js`). `RTMP_PUBLISH_AUTH` in `.env`:
+
+* `warn` (default): a push without a valid key is still allowed, and the log says `without a valid camera key` (once per camera every 10 minutes). Use this until every camera runs a build that sends its key (Dashboard > Updates).
+* `on`: a push without the camera's key is refused. A dashboard viewer's play link does not work for pushing either.
+* `off`: no check.
+
+The key is HMAC(secret, camera id). The secret is `PUBLISH_SECRET`, or one generated on the first start and kept in the data folder (`publish.secret`), so keys survive restarts. Changing it gives every camera a new key the next time it connects.
+
 ## 3.1 Live captions (optional service)
 
 Speech-to-text for streaming cameras runs as a separate container, never inside the VisionGuard one. To switch it on: put a long random `TRANSCRIBE_TOKEN` in `.env`, then add the third file to the usual command:

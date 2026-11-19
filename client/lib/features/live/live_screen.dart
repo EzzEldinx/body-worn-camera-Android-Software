@@ -27,7 +27,7 @@ List<String> wallOrder(Map<String, dynamic> cams, List<String> picked, Set<Strin
 const _phoneLayouts = [1, 2, 4, 6], _wideLayouts = [1, 4, 6, 9, 16];
 int _colsFor(int layout, bool wide) => wide ? const {1: 1, 4: 2, 6: 3, 9: 3, 16: 4}[layout]! : const {1: 1, 2: 1, 4: 2, 6: 2}[layout]!;
 
-/// Live tab: every online camera on one wall, filled automatically. Layout buttons choose how many at once (a phone: 1, 2, 4, 6; a tablet: 1, 4, 6, 9, 16).
+/// Live tab: every online camera on one wall. A camera that is not streaming shows "Start live view" (nothing is started just by opening the tab). Layout buttons choose how many at once (a phone: 1, 2, 4, 6; a tablet: 1, 4, 6, 9, 16).
 class LiveScreen extends ConsumerWidget {
   const LiveScreen({super.key});
   @override
@@ -131,7 +131,8 @@ class _Tile extends ConsumerWidget {
   final String id;
   @override
   Widget build(BuildContext context, WidgetRef ref) => Stack(children: [
-        Positioned.fill(child: LivePlayer(key: ValueKey('live-$id'), cameraId: id, compact: true, onFullscreen: () => context.push('/watch/$id'))),
+        // only a camera somebody picked (Watch live on its card or the map) starts by itself; the rest wait for a tap on the tile
+        Positioned.fill(child: LivePlayer(key: ValueKey('live-$id'), cameraId: id, compact: true, autoStart: ref.watch(watchProvider).contains(id), onFullscreen: () => context.push('/watch/$id'))),
         PositionedDirectional(
           end: 8, bottom: 8,
           child: Material(

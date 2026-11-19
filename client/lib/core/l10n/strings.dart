@@ -206,6 +206,8 @@ const _t = <String, List<String>>{
   'no_gps': ['No GPS fix yet', 'لا يوجد تحديد للموقع بعد'],
   'gps_stale': ['Last known position', 'آخر موقع معروف'],
   'watch_live': ['Watch live', 'مشاهدة مباشرة'],
+  'start_live_view': ['Start live view', 'بدء البث المباشر'],
+  'tap_to_start': ['Not streaming. Start it when you want to watch: the officer does not have to do anything.', 'لا يوجد بث. ابدأه عندما تريد المشاهدة، ولا يحتاج الضابط إلى فعل أي شيء.'],
   'stop_stream': ['Stop stream', 'إيقاف البث'],
   'stream_stopped': ['Stream stopped', 'تم إيقاف البث'],
   'requesting': ['Requesting live view…', 'جارٍ طلب البث المباشر…'],

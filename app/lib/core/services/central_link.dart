@@ -18,6 +18,9 @@ class CentralConfig {
       const String.fromEnvironment('BWC_ID', defaultValue: 'BWC-01');
   static String token =
       const String.fromEnvironment('BWC_TOKEN', defaultValue: 'change-me');
+  /// This camera's own key for pushing its live stream (the server sends it over the socket, event `push_key`; kept in config.json so a
+  /// recording started before the socket is up still has it). Without it a server with RTMP_PUBLISH_AUTH=on refuses the stream.
+  static String pushKey = '';
 
   /// ... overridden per camera by config.json in the app's files folder, which
   /// tools/update-cameras.ps1 writes: {"id": "BWC-05-RIY", "server": "http://...:3000", "token": "..."}.
@@ -33,6 +36,7 @@ class CentralConfig {
       if (j['id'] is String && (j['id'] as String).isNotEmpty) cameraId = j['id'] as String;
       if (j['server'] is String && (j['server'] as String).isNotEmpty) serverUrl = j['server'] as String;
       if (j['token'] is String && (j['token'] as String).isNotEmpty) token = j['token'] as String;
+      if (j['pushKey'] is String) pushKey = j['pushKey'] as String;
       await _moveToHttps(f, Map<String, dynamic>.from(j));
     } catch (e) {
       debugPrint('config.json ignored: $e');
@@ -44,6 +48,8 @@ class CentralConfig {
   static Future<void> _moveToHttps(File f, Map<String, dynamic> j) async {
     const secure = String.fromEnvironment('BWC_SERVER', defaultValue: 'https://visionguard.smartwaygroup.com.sa');
     if (!serverUrl.startsWith('http://') || !secure.startsWith('https://')) return;
+    final host = Uri.tryParse(serverUrl)?.host ?? '';
+    if (host == '127.0.0.1' || host == 'localhost') return; // a test server reached through `adb reverse`: never moved away
     final c = HttpClient()..connectionTimeout = const Duration(seconds: 6);
     try {
       final r = await (await c.getUrl(Uri.parse('$secure/healthz'))).close().timeout(const Duration(seconds: 8));
@@ -61,7 +67,24 @@ class CentralConfig {
   }
 
   static String get rtmpUrl =>
-      'rtmp://${Uri.parse(serverUrl).host}:1935/live/$cameraId';
+      'rtmp://${Uri.parse(serverUrl).host}:1935/live/$cameraId${pushKey.isEmpty ? '' : '?key=$pushKey'}';
+
+  /// Remembers the push key the server sent (only when it changed).
+  static Future<void> savePushKey(String key) async {
+    if (key == pushKey || !RegExp(r'^[0-9a-f]{32}$').hasMatch(key)) return;
+    pushKey = key;
+    try {
+      final dir = await getExternalStorageDirectory();
+      if (dir == null) return;
+      final f = File('${dir.path}/config.json');
+      final j = await f.exists() ? jsonDecode(await f.readAsString()) : <String, dynamic>{};
+      if (j is! Map) return;
+      j['pushKey'] = key;
+      await f.writeAsString(jsonEncode(j));
+    } catch (e) {
+      debugPrint('push key not saved: $e');
+    }
+  }
 }
 
 class ChatGroup {
@@ -328,6 +351,9 @@ class CentralLink {
         } else if (a == 'start' || a == 'stop') {
           _remote.add(a as String);
         }
+      })
+      ..on('push_key', (d) {
+        if (d is Map && d['key'] is String && (d['cameraId'] == null || d['cameraId'] == CentralConfig.cameraId)) CentralConfig.savePushKey(d['key'] as String);
       })
       ..on('join_group', (d) {
         if (d is Map && d['groupId'] != null) {

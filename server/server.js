@@ -33,6 +33,7 @@ function authCamera(token) {
 }
 // Live-stream play URLs are signed per request; the secret only lives in memory.
 const STREAM_SECRET = process.env.STREAM_SECRET || crypto.randomBytes(24).toString('hex');
+const publishKey = require('./publishkey').init({ dataDir: process.env.DATA_DIR || path.join(__dirname, 'data'), streamSecret: STREAM_SECRET });
 const DAY = 86400000;
 
 // ---------- First run: create the admin account ----------
@@ -1208,6 +1209,7 @@ io.on('connection', (socket) => {
             db.prepare('UPDATE alarms SET ack_by=?, ack_ts=? WHERE id=? AND ack_ts IS NULL')
                 .run(user.username, Date.now(), id);
             toCam(a.camera_id, 'dashboard_alarm_ack', { id });
+            io.to(`room:camera_${a.camera_id}`).emit('dashboard_alarm_ack', { id });   // and the officer is told somebody is answering
         });
         return;
     }
@@ -1217,6 +1219,7 @@ io.on('connection', (socket) => {
         live.set(id, socket.id);
         socket.join(`room:camera_${id}`);
         socket.join(`room:public_${cams.get(id)?.companyId || 0}`);
+        if (socket.data.keyFor !== id) { socket.data.keyFor = id; socket.emit('push_key', { cameraId: id, key: publishKey.keyOf(id) }); }   // the camera adds it to its RTMP address (publishkey.js)
         if (socket.data.assignFor !== id) { socket.data.assignFor = id; socket.emit('assignment', checkout.payload(id)); }   // who carries this camera now (the camera stamps it on the picture)
     };
     on('get_assignment', () => { if (socket.data.cameraId) socket.emit('assignment', checkout.payload(socket.data.cameraId)); });
@@ -1304,6 +1307,7 @@ io.on('connection', (socket) => {
         const r = db.prepare('INSERT INTO alarms(camera_id,lat,lng,ts,holder,holder_no) VALUES(?,?,?,?,?,?)').run(id, lat, lng, ts, carrier?.holder || null, carrier?.holderNo || null);
         const alarm = { id: Number(r.lastInsertRowid), cameraId: id, lat, lng, ts, ack: false, holder: carrier?.holder || null, holderNo: carrier?.holderNo || null };
         toCam(id, 'dashboard_sos', alarm);
+        io.to(`room:camera_${id}`).emit('dashboard_sos', alarm);   // the officer's camera is told the control room has it (it shows "SOS received")
         push.notifyAlarm(alarm, cams.get(id)?.companyId || null); // locked phones: no-op until FCM_SERVICE_ACCOUNT is set
     });
 
@@ -1325,15 +1329,16 @@ server.headersTimeout = 60 * 1000;
 server.listen(PORT, () => console.log(`Central Dashboard is running on: http://localhost:${PORT}`));
 
 // RTMP media server. Stream key = cameraId, e.g. rtmp://HOST:1935/live/BWC-01
-// Playing needs a signed URL from /api/stream/:id (publishing stays open for the cameras).
+// Playing needs a signed URL from /api/stream/:id. Pushing needs the camera's own key (publishkey.js, RTMP_PUBLISH_AUTH).
 const nms = new NodeMediaServer({
     rtmp: { port: Number(process.env.RTMP_PORT) || 1935, chunk_size: 60000, gop_cache: true, ping: 10, ping_timeout: 20 },
     http: { port: Number(process.env.FLV_PORT) || 8000, allow_origin: '*' },
-    auth: { play: true, publish: false, secret: STREAM_SECRET },
+    auth: { play: true, publish: publishKey.enforce, secret: STREAM_SECRET },   // publish: see publishkey.js (the camera's own key, checked in prePublish)
 });
 // When a camera (re)starts its stream (quality / camera switch / restart) tell the dashboards, so an open
 // live tile reconnects by itself instead of staying frozen until it is closed and opened again.
 const pathOf = (a, b) => String((a && typeof a === 'object' ? a.streamPath : b) || '');   // node-media-server 4 passes the session, version 2 passed (id, path)
+nms.on('prePublish', (a) => { publishKey.check(a); });
 nms.on('postPublish', (a, b) => {
     const id = pathOf(a, b).split('/').pop();
     if (!id) return;
