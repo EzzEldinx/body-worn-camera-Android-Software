@@ -11,7 +11,34 @@ class StreamResult {
   StreamResult(this.cameraId, this.ok, this.reason, this.action);
   final String cameraId, action;
   final bool ok;
-  final String? reason; // offline | live_limit
+  final String? reason; // offline | live_limit | not_allowed | not_recording | needs_update | sos_open
+}
+
+/// One piece of live captions: a draft while somebody still talks (`partial`) or the final text of a sentence.
+class CaptionLine {
+  CaptionLine({required this.cameraId, required this.text, required this.partial, required this.utt, this.id = 0, this.ts = 0, this.lang});
+  final String cameraId, text;
+  final bool partial;
+  final int utt, id, ts;
+  final String? lang;
+  factory CaptionLine.fromJson(Map j) => CaptionLine(
+        cameraId: '${j['cameraId']}', text: '${j['text'] ?? ''}', partial: j['partial'] == true, utt: (j['utt'] as num?)?.toInt() ?? 0,
+        id: (j['id'] as num?)?.toInt() ?? 0, ts: (j['ts'] as num?)?.toInt() ?? 0, lang: j['lang'] as String?,
+      );
+}
+
+/// A chat message between the control room (the app counts as one) and the officers' cameras.
+class ChatMessage {
+  ChatMessage({required this.chatType, required this.target, required this.sender, required this.text, required this.ts, required this.mine, this.audio, this.senderId = ''});
+  final String chatType, target, sender, text, senderId; // chatType: PUBLIC | PRIVATE | GROUP; target: ALL or a camera id
+  final int ts;
+  final bool mine;
+  final String? audio; // data:audio/...;base64,...
+  factory ChatMessage.fromJson(Map j, {required bool mine}) => ChatMessage(
+        chatType: '${j['chatType'] ?? 'PUBLIC'}', target: '${j['targetId'] ?? 'ALL'}', sender: '${j['senderName'] ?? j['senderId'] ?? ''}', senderId: '${j['senderId'] ?? ''}',
+        text: '${j['message'] ?? ''}', ts: (j['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch, mine: mine, audio: j['audio'] is String ? j['audio'] as String : null,
+      );
+  bool get isVoice => audio != null;
 }
 
 @immutable
@@ -45,6 +72,10 @@ class FleetController extends Notifier<FleetState> {
   Stream<BatteryAlert> get batteryEvents => _battery.stream; // a camera fell under 20 % (or under 10 %)
   Stream<StreamResult> get results => _results.stream;
   Stream<String> get streamUps => _streamUp.stream;
+  final _captions = StreamController<CaptionLine>.broadcast();
+  Stream<CaptionLine> get captions => _captions.stream; // live captions of a streaming camera (only sent to people who may read them)
+  final _chat = StreamController<ChatMessage>.broadcast();
+  Stream<ChatMessage> get chatEvents => _chat.stream;
 
   @override
   FleetState build() {
@@ -96,6 +127,8 @@ class FleetController extends Notifier<FleetState> {
     });
     s.on('remote_stream_result', (d) { final m = d as Map; _results.add(StreamResult('${m['cameraId']}', m['ok'] == true, m['reason'] as String?, '${m['action'] ?? ''}')); });
     s.on('stream_up', (d) => _streamUp.add('${(d as Map)['cameraId']}'));
+    s.on('transcript', (d) { if (d is Map) _captions.add(CaptionLine.fromJson(d)); });
+    s.on('receive_message', (d) { if (d is Map) _chat.add(ChatMessage.fromJson(d, mine: false)); });
     s.on('geofences_changed', (_) => ref.invalidate(zonesProvider)); // a zone was drawn, edited or removed on the web: the map follows
     s.connect();
   }
@@ -103,6 +136,11 @@ class FleetController extends Notifier<FleetState> {
   // The officer does nothing: the camera starts or stops its stream on this command.
   void startLive(String id) => _s?.emit('remote_stream', {'cameraId': id, 'action': 'start'});
   void stopLive(String id) => _s?.emit('remote_stream', {'cameraId': id, 'action': 'stop'});
+  /// Ends a recording the OFFICER started (needs the "Stop a recording" permission and a camera that can obey; the officer is told and the file is saved).
+  void endRecording(String id) => _s?.emit('remote_stream', {'cameraId': id, 'action': 'stop', 'recording': true});
+  /// Chat with the officers. `target` is 'ALL' for everybody, or a camera id for a private message; `audio` is a data:audio/... URL (a voice note).
+  void sendChat({required String chatType, required String target, required String message, String? audio}) =>
+      _s?.emit('send_message', {'chatType': chatType, 'targetId': target, 'message': message, if (audio != null) 'audio': audio});
   void setQuality(String id, String q) => _s?.emit('set_quality', {'cameraId': id, 'quality': q});
   void ackAlert(int id) {
     _s?.emit('ack_alert', id);

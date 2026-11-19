@@ -1,8 +1,8 @@
-# VisionGuard mobile app (iOS + Android)
+# VisionGuard app (iPhone, iPad, Android and Mac)
 
 For **owners and supervisors**: open the app, see every camera of the company, watch any camera live and get SOS alerts on a locked phone, without asking the control-room supervisor. Same accounts, same companies and same permissions as the web dashboard.
 
-Code: `client/` (Flutter, one codebase for iPhone, iPad, Android phone and Android tablet). Server API: `server/server.js` (`/api/mobile/*`), `server/push.js`.
+Code: `client/` (Flutter, one codebase for iPhone, iPad, Android phone, Android tablet and Mac). Server API: `server/server.js` (`/api/mobile/*`), `server/push.js`.
 
 ## 1. How it is connected
 
@@ -76,22 +76,23 @@ Sign in (+ Face ID / fingerprint lock) · Fleet list with live status, search an
 
 Apple Developer Program (US$99/yr, organisation account needs a D-U-N-S number) · Google Play Console (US$25 once, organisation verification) · Firebase project (FCM + APNs key) · domain with TLS · privacy policy URL · app icon 1024 px, screenshots (iPhone 6.9", iPad 13", Android phone/tablet), description EN/AR · demo account for Apple review · remove `NSAllowsArbitraryLoads` and `usesCleartextTraffic` (`client/tool/release_guard.sh` checks this). Full steps: `STORE_PUBLISHING.md`; listing text: `STORE_LISTING.md`.
 
-## 9. Status (2026-11-18)
+## 9. Status (2026-11-19)
 
-**Running:** the app runs on a registered iPad (development build; the iOS development profile includes only that iPad and expires 2027-11-08) and was verified on iPad Pro 11" and iPhone simulators. An iPhone needs its device added to the profile and Developer Mode switched on, then a rebuild while it is connected.
+**Version 1.1.0 (build 3): the app has every function of the web dashboard, on Android, iOS and the Mac.**
 
-**Done since v1:**
-* **Profile and access** (More): the role, the company and exactly what the account may do (`GET /api/me/access`), and the role shown on the More screen.
-* **Role-aware screens:** Docking > Files and Recordings follow the real permissions (files, delete); buttons that the account may not use are not offered.
-* **Play and download:** recordings and dock files can be played in the app and downloaded (share sheet: Save to Photos or Files, AirDrop) with `share_plus` and `path_provider`.
-* **English and Arabic** with full right-to-left layout; the server answers in the app's language (`x-lang`).
-* **The map is inside Cameras** (there is no Map tab any more): on a tablet it fills the right-hand pane until a camera is selected (a camera's *Show on map* returns to it); on a phone the map/list button in the top bar switches between the list and the map. From an alarm, *Show on map* also opens it on that camera.
-* **Geofence zones on the map, drawn and edited in the app:** the zones drawn on the web show on the app's map (green allowed, red forbidden, blue both ways, amber checkpoint; red and thicker while a camera is breaking the rule) and follow changes by themselves. Users who may manage zones (company managers, or users given *Manage zones*) get a **Zones** button on the map: *New zone* (tap the centre and a point on the edge for a circle, or tap each corner for a polygon), then name, when to alert (leaves / enters / both ways / checkpoint every N minutes), urgent, which cameras, days and hours, active; the list also edits, redraws and deletes. Per-camera rules inside a zone are kept when a zone is edited in the app but are changed on the web. Smart Way staff (no company) draw company zones on the web. * Stop recording and live wall controls follow the same permissions as the web (the `stoprec` action).
+New in 1.1.0:
+* **Mac app** (`client/macos`, bundle id `sa.com.smartwaygroup.visionguard`): the same screens and the same server. The map is drawn with `flutter_map` because `maplibre_gl` has no desktop build (cameras, names, geofence zones and the zone editor work the same; the picture comes from OpenStreetMap by default, set `--dart-define=VG_MAP_TILES=https://.../{z}/{x}/{y}.png` for a tile server of your own). Run: `cd client && flutter run -d macos` (or `flutter build macos --release`). The token is kept in the file-based keychain; a debug build that was rebuilt asks once for access to it, a build signed with the team certificate does not.
+* **Stop menu** like the web (`showStopMenu`): close the window only, stop a live view started from the control room, or end a recording the officer started (needs *Stop a recording* and a camera that reports `remote-stop`; refused while an SOS is open; the answer of the server is shown).
+* **Live captions** (*Live captions* permission): subtitles over every live picture (a draft while someone talks, the final text at the pause, fading after 6 s) and a *Live captions* box on the camera panel with the last sentences (`GET /api/transcripts/:id`).
+* **Chat and voice notes** (*Voice & chat*): More > *Chat with officers*, or *Message* on a camera: everybody or one camera, text and voice notes (recorded as AAC, played in the app), a notice when an officer writes.
+* **Analytics** (*Analytics*, *AI insights*): fleet and SOS numbers, what needs attention, SOS per day and per hour, the recordings pipeline, camera health, audit seal and the written summary.
 
-**Tests:** 29 app tests pass (`cd client && flutter test`), plus the server tests.
+Also in the app (earlier): Profile and access, role-aware screens, play and download, English and Arabic with full RTL, the map inside Cameras, geofence zones drawn and edited in the app.
 
-**Not verified yet (needs hardware or accounts):** push notifications (needs Firebase), Face ID on a device, the Android build on a real tablet, live FLV from a real camera inside the app for long sessions.
+**Tests:** `cd client && flutter test` (all pass), plus the server tests.
 
-**Not done:** publishing to the App Store / Google Play (see `STORE_PUBLISHING.md`; the app is not in any store).
+**Not verified yet (needs hardware or accounts):** push notifications (needs Firebase), Face ID on a device, the Android build on a real phone or tablet, subtitles and live FLV from a real camera for long sessions, voice notes from the app played by a real camera.
 
-Next: the v1.1 items in section 3, then the store accounts.
+**Not done:** publishing to the App Store / Google Play / Mac App Store (see `STORE_PUBLISHING.md`).
+
+Next: the v1.1 items in section 3 that are still open (share a live link, daily report PDF), then the store accounts.

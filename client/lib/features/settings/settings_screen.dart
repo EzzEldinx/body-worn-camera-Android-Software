@@ -124,6 +124,8 @@ class MoreScreen extends ConsumerWidget {
         tile(Icons.verified_user_rounded, v.ok, context.tr('profile'), context.tr('profile_sub'), () => onOpen('/profile')),
         tile(Icons.settings_rounded, v.brand, context.tr('settings'), null, () => onOpen('/settings')),
         if (session.user.can('docks')) tile(Icons.dock_rounded, v.ok, context.tr('dock_title'), context.tr('dock_sub'), () => onOpen('/docking')),
+        if (session.user.can('talk')) tile(Icons.forum_rounded, v.ok, context.tr('chat'), context.tr('chat_sub'), () => onOpen('/chat')),
+        if (session.user.can('analytics')) tile(Icons.insights_rounded, v.blue, context.tr('analytics'), context.tr('analytics_sub'), () => onOpen('/analytics')),
         if (session.user.can('reports')) tile(Icons.assessment_rounded, v.sel, context.tr('reports'), context.tr('reports_sub'), () => onOpen('/reports')),
         if (session.user.can('checkout')) tile(Icons.badge_rounded, v.brand, context.tr('checkout'), context.tr('checkout_sub'), () => onOpen('/checkout')),
         if (session.user.role == 'manager' && session.user.companyId != null) tile(Icons.groups_rounded, v.blue, context.tr('team'), context.tr('team_sub'), () => onOpen('/team')),

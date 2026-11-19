@@ -6,6 +6,9 @@ import '../../core/api/models.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../auth/auth_controller.dart';
+import '../live/stop_menu.dart';
+import '../live/subtitles.dart';
 import '../live/live_player.dart';
 import '../live/watch.dart';
 
@@ -67,17 +70,25 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
               ? LivePlayer(cameraId: cam.id, onFullscreen: () => context.push('/watch/${cam.id}'))
               : _Poster(cam: cam, onWatch: () { if (widget.embedded) { setState(() => _inline = true); } else { context.push('/watch/${cam.id}'); } }),
         ),
-        if (cam.remote) ...[
+        if (stoppable(cam)) ...[
           const SizedBox(height: 10),
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: OutlinedButton.icon(
-              onPressed: () { fleet.stopLive(cam.id); setState(() => _inline = false); },
+              onPressed: () async { if (await showStopMenu(context, ref, cam.id) && mounted) setState(() => _inline = false); },
               icon: const Icon(Icons.stop_circle_outlined), label: Text(context.tr('stop_stream')),
               style: OutlinedButton.styleFrom(foregroundColor: v.rec, side: BorderSide(color: v.rec.withValues(alpha: .6)), shape: const StadiumBorder()),
             ),
           ),
         ],
+        if (ref.watch(sessionProvider)?.user.can('talk') ?? false) ...[
+          const SizedBox(height: 10),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(onPressed: () => context.push('/chat?cam=${Uri.encodeComponent(cam.id)}'), icon: const Icon(Icons.forum_rounded), label: Text(context.tr('chat_message_btn')), style: OutlinedButton.styleFrom(shape: const StadiumBorder())),
+          ),
+        ],
+        if ((ref.watch(sessionProvider)?.user.can('transcribe') ?? false) && cam.online) ...[const SizedBox(height: 14), CaptionsBox(cameraId: cam.id)],
         if (!cam.hasPosition) Padding(
           padding: const EdgeInsets.only(top: 14),
           child: VgCard(child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

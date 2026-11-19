@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_map/flutter_map.dart' as fm;
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../core/api/fleet.dart';
 import '../../core/api/models.dart';
@@ -10,6 +12,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../live/watch.dart';
+import 'desktop_map.dart';
 import 'zone_editor.dart';
 
 /// Live map: same OpenFreeMap style as the web dashboard, one coloured dot per camera. It sits inside the Cameras screen
@@ -23,6 +26,8 @@ class MapPane extends ConsumerStatefulWidget {
 
 class _MapPaneState extends ConsumerState<MapPane> {
   MapLibreMapController? _c;
+  final _dm = fm.MapController(); // the desktop (macOS / Windows / Linux) map
+  bool _dmReady = false;
   Timer? _debounce;
   String? _selected;
   bool _fitted = false;
@@ -30,7 +35,11 @@ class _MapPaneState extends ConsumerState<MapPane> {
   final _bySymbol = <String, String>{}; // label id -> camera id
 
   @override
-  void initState() { super.initState(); _selected = widget.focusCam; }
+  void initState() {
+    super.initState();
+    _selected = widget.focusCam;
+    if (useDesktopMap) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) { _dmReady = true; _draw(); } });
+  }
 
   @override
   void didUpdateWidget(MapPane old) {
@@ -39,11 +48,18 @@ class _MapPaneState extends ConsumerState<MapPane> {
   }
 
   @override
-  void dispose() { _debounce?.cancel(); super.dispose(); }
+  void dispose() { _debounce?.cancel(); _dm.dispose(); super.dispose(); }
 
   String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
   Future<void> _draw() async {
+    if (useDesktopMap) { // the desktop map redraws itself from the providers; only the first fit and the focus are done here
+      if (!_dmReady) return;
+      final cams = ref.read(fleetProvider).cams.values.where((x) => x.hasPosition).toList();
+      if (cams.isNotEmpty && !_fitted) { _fitted = true; _fitAll(cams); }
+      if (widget.focusCam != null && _selected == widget.focusCam) _focus();
+      return;
+    }
     final c = _c;
     if (c == null) return;
     final cams = ref.read(fleetProvider).cams.values.where((x) => x.hasPosition).toList();
@@ -116,6 +132,12 @@ class _MapPaneState extends ConsumerState<MapPane> {
   }
 
   void _fitAll(List<Camera> cams) {
+    if (useDesktopMap) {
+      if (cams.isEmpty || !_dmReady) return;
+      if (cams.length == 1) { _dm.move(ll.LatLng(cams.first.lat!, cams.first.lng!), 14); return; }
+      _dm.fitCamera(fm.CameraFit.coordinates(coordinates: [for (final c in cams) ll.LatLng(c.lat!, c.lng!)], padding: const EdgeInsets.fromLTRB(60, 100, 60, 180), maxZoom: 16));
+      return;
+    }
     if (cams.length == 1) { _c?.animateCamera(CameraUpdate.newLatLngZoom(LatLng(cams.first.lat!, cams.first.lng!), 14)); return; }
     final lats = cams.map((e) => e.lat!), lngs = cams.map((e) => e.lng!);
     _c?.animateCamera(CameraUpdate.newLatLngBounds(
@@ -126,6 +148,7 @@ class _MapPaneState extends ConsumerState<MapPane> {
 
   void _focus() {
     final cam = ref.read(fleetProvider).cams[_selected];
+    if (useDesktopMap) { if (cam != null && cam.hasPosition && _dmReady) _dm.move(ll.LatLng(cam.lat!, cam.lng!), 15); return; }
     if (cam != null && cam.hasPosition) _c?.animateCamera(CameraUpdate.newLatLngZoom(LatLng(cam.lat!, cam.lng!), 15));
   }
 
@@ -142,7 +165,12 @@ class _MapPaneState extends ConsumerState<MapPane> {
     final cam = ref.watch(fleetProvider.select((s) => s.cams[_selected]));
     return ClipRect(
       child: Stack(children: [
-        MapLibreMap(
+        if (useDesktopMap)
+          DesktopMap(
+            selected: _selected, controller: _dm,
+            onSelect: (id) => setState(() => _selected = id),
+          )
+        else MapLibreMap(
           styleString: 'https://tiles.openfreemap.org/styles/liberty',
           initialCameraPosition: const CameraPosition(target: LatLng(24.7136, 46.6753), zoom: 9),
           compassEnabled: false, attributionButtonPosition: AttributionButtonPosition.bottomLeft,

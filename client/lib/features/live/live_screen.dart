@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../auth/auth_controller.dart';
 import '../../core/api/fleet.dart';
 import '../../core/l10n/strings.dart';
+import 'stop_menu.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import 'live_player.dart';
@@ -137,7 +138,9 @@ class _Tile extends ConsumerWidget {
             color: const Color(0xB30A101C), shape: const StadiumBorder(side: BorderSide(color: Color(0x2EFFFFFF))),
             child: InkWell(
               customBorder: const StadiumBorder(),
-              onTap: () { ref.read(fleetProvider.notifier).stopLive(id); ref.read(watchProvider.notifier).remove(id); ref.read(dismissedProvider.notifier).add(id); },
+              onTap: () async {
+                if (await showStopMenu(context, ref, id)) { ref.read(watchProvider.notifier).remove(id); ref.read(dismissedProvider.notifier).add(id); }
+              },
               child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7), child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.stop_circle_outlined, size: 17, color: Color(0xFFFF5D77)),
                 const SizedBox(width: 6),

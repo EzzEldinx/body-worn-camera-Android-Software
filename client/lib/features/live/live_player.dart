@@ -10,6 +10,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../auth/auth_controller.dart';
+import 'subtitles.dart';
 
 enum LivePhase { requesting, connecting, playing, offline, limit, stopped }
 
@@ -143,6 +144,7 @@ class _LivePlayerState extends ConsumerState<LivePlayer> {
         color: const Color(0xFF0A111D),
         child: Stack(fit: StackFit.expand, children: [
           Video(controller: _video, controls: NoVideoControls, fit: widget.fit, fill: const Color(0xFF0A111D)),
+          if (playing) Positioned(left: 10, right: 10, bottom: widget.compact ? 46 : 18, child: Subtitles(cameraId: widget.cameraId, compact: widget.compact)),
           if (!playing) _Status(text: status, phase: _phase, onRetry: () { _asked = false; _tries = 0; _begin(); }),
           Positioned(
             left: 8, right: 8, top: 8,

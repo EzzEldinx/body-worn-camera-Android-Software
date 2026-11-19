@@ -9,6 +9,8 @@ import '../../core/api/models.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../auth/auth_controller.dart';
+import '../chat/chat_controller.dart';
 import '../live/watch.dart';
 
 /// Bottom bar on phones, navigation rail on tablets. Also shows the SOS banner wherever the user is.
@@ -22,6 +24,7 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   StreamSubscription<Alarm>? _sub;
   StreamSubscription<BatteryAlert>? _batSub;
+  StreamSubscription<ChatMessage>? _chatSub;
   Timer? _licTimer;
 
   @override
@@ -29,11 +32,26 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.initState();
     _sub = ref.read(fleetProvider.notifier).sosEvents.listen(_onSos);
     _batSub = ref.read(fleetProvider.notifier).batteryEvents.listen(_onBattery);
+    _chatSub = ref.read(chatProvider.notifier).incoming.listen(_onChat);
     _licTimer = Timer.periodic(const Duration(minutes: 30), (_) => ref.invalidate(licenseProvider));
   }
 
   @override
-  void dispose() { _sub?.cancel(); _batSub?.cancel(); _licTimer?.cancel(); super.dispose(); }
+  void dispose() { _sub?.cancel(); _batSub?.cancel(); _chatSub?.cancel(); _licTimer?.cancel(); super.dispose(); }
+
+  // An officer wrote (or sent a voice note): a short notice with a shortcut to the chat (not while the chat itself is open).
+  void _onChat(ChatMessage m) {
+    if (!mounted || GoRouter.of(context).routerDelegate.currentConfiguration.uri.path == '/chat') return;
+    final user = ref.read(sessionProvider)?.user;
+    if (user == null || !user.can('talk')) return;
+    final sc = ScaffoldMessenger.of(context);
+    sc.hideCurrentSnackBar();
+    sc.showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 6),
+      content: Text('${m.sender}: ${m.isVoice ? '🎤' : m.text}', maxLines: 2, overflow: TextOverflow.ellipsis),
+      action: SnackBarAction(label: context.tr('chat_message_btn'), onPressed: () => context.push(m.chatType == 'PRIVATE' ? '/chat?cam=${Uri.encodeComponent(m.target)}' : '/chat')),
+    ));
+  }
 
   // A camera fell under 20 % (or 10 %): a quieter notice than an SOS, with a shortcut to the Alerts tab.
   void _onBattery(BatteryAlert a) {
