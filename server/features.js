@@ -21,6 +21,7 @@ const ACTIONS = [
     { key: 'stream', group: 'Watching', label: 'Start & stop live', hint: 'Switch a camera\'s live stream on or off from the dashboard', def: ['client'], needs: ['live'] },
     { key: 'quality', group: 'Watching', label: 'Change video quality', hint: 'Set a camera to 480p, 720p or 1080p', def: ['client'], needs: ['live'] },
     { key: 'stoprec', group: 'Watching', label: 'Stop a recording', hint: 'End a recording the officer started, from the dashboard. The officer is told and the file is saved', def: [], needs: ['live'] },
+    { key: 'transcribe', group: 'Watching', label: 'Live captions', hint: 'Turn what a camera hears into text while it streams, and keep it for search. Voices are personal data: Smart Way switches this on per company', def: [], needs: ['live'] },
     { key: 'zones', group: 'Watching', label: 'Manage zones', hint: 'Draw, change and delete geofence zones', def: [], needs: ['geofence'] },
     { key: 'files', group: 'Evidence', label: 'Decide on recordings', hint: 'Choose to keep or move recordings that are on the docks', def: ['client'], needs: ['docks'] },
     { key: 'delete', group: 'Evidence', label: 'Delete files', hint: 'Delete recordings from cameras. This cannot be undone', def: [], needs: ['docks'] },
@@ -69,7 +70,7 @@ const API_RULES = [
     [/^\/api\/analytics\/ai$/, 'ai'], [/^\/api\/analytics/, 'analytics'],
     [/^\/api\/(report$|reports\/|audit\/export)/, 'reports'],
     [/^\/api\/docks$/, 'docks'], [/^\/api\/dock\/files/, 'recordings'],
-    [/^\/api\/employees/, 'checkout'], [/^\/api\/geofences/, 'geofence'], [/^\/api\/alerts\/[^/]+\/ack$/, 'ack'],
+    [/^\/api\/employees/, 'checkout'], [/^\/api\/geofences/, 'geofence'], [/^\/api\/transcripts\//, 'transcribe'], [/^\/api\/alerts\/[^/]+\/ack$/, 'ack'],
 ];
 const PAGE_RULES = { '/': 'live', '/index.html': 'live', '/wall.html': 'wall', '/analytics.html': 'analytics', '/reports.html': 'reports', '/docks.html': 'docks' };
 const ruleFor = (p) => (API_RULES.find(([re]) => re.test(p)) || [])[1] || null;

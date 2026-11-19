@@ -451,6 +451,38 @@ app.get('/api/stream/:id', needUser, (req, res) => {
     res.json({ sign: `${exp}-${hash}` });
 });
 
+// ---------- Live captions (text of what a streaming camera hears; the speech-to-text service is separate, see /transcriber) ----------
+const transcribe = require('./transcribe').init({ db, audit: (action, cam) => auditlog.add(db, 'system', action, cam || null, null) });
+const signedPlayPath = (id) => { const exp = Math.floor(Date.now() / 1000) + 6 * 3600; return `/live/${id}?sign=${exp}-${crypto.createHash('md5').update(`/live/${id}-${exp}-${STREAM_SECRET}`).digest('hex')}`; };
+// Only cameras of a company that has the `transcribe` action (or cameras that belong to nobody, i.e. Smart Way's own) are ever listened to.
+const transcribeAllowed = (id) => { const c = cams.get(id); if (!c) return false; return !c.companyId || features.ceiling(companyFeaturesRaw(c.companyId)).includes('transcribe'); };
+const transcribeStart = (id) => {
+    if (!transcribe.enabled || !transcribeAllowed(id)) return;
+    transcribe.start(id, {
+        playUrl: `rtmp://${process.env.TRANSCRIBE_RTMP_HOST || '127.0.0.1'}:${Number(process.env.RTMP_PORT) || 1935}${signedPlayPath(id)}`,
+        callback: `${process.env.TRANSCRIBE_CALLBACK_BASE || `http://127.0.0.1:${PORT}`}/api/internal/transcript`,
+    });
+};
+// The service posts each sentence here. The shared token is the only key: it never reaches a browser.
+app.post('/api/internal/transcript', (req, res) => {
+    if (!transcribe.tokenOk(req.headers['x-transcribe-token'])) return res.status(401).json({ error: 'unauthorised' });
+    const id = str(req.body?.cameraId);
+    if (!id || !cams.has(id) || !transcribeAllowed(id)) return res.status(404).json({ error: 'Camera not found.' });
+    const line = transcribe.record({ cameraId: id, text: req.body?.text, lang: req.body?.lang, ts: Number(req.body?.ts) });
+    if (!line) return res.status(400).json({ error: 'empty' });
+    for (const s of io.sockets.sockets.values()) {            // only people who may see this camera AND may read captions
+        const u = s.data.user;
+        if (s.data.role === 'dashboard' && u && canSee(u, id) && can(u, 'transcribe')) s.emit('transcript', line);
+    }
+    res.json({ ok: true });
+});
+app.get('/api/transcripts/:id', needUser, (req, res) => {
+    const id = str(req.params.id);
+    if (!can(req.user, 'transcribe')) return res.status(403).json({ error: 'Live captions are not included in your account.', code: 'feature' });
+    if (!id || !cams.has(id) || !canSee(req.user, id)) return res.status(404).json({ error: 'Camera not found.' });
+    res.json({ enabled: transcribe.enabled, lines: transcribe.history(id, { after: Number(req.query.after) || 0, limit: Number(req.query.limit) || 100 }) });
+});
+
 // ---------- PDF report: one day, or any range of days (from - to, both included, up to 92 days) ----------
 // A company downloads its own report; Smart Way staff can pick a company or take every company.
 // ?from=2026-11-01&to=2026-11-07 (or the old ?date=2026-11-09 for a single day); tz = the browser's Date.getTimezoneOffset() so days are cut in the reader's own zone.
@@ -1286,10 +1318,14 @@ const nms = new NodeMediaServer({
 });
 // When a camera (re)starts its stream (quality / camera switch / restart) tell the dashboards, so an open
 // live tile reconnects by itself instead of staying frozen until it is closed and opened again.
-nms.on('postPublish', (sid, streamPath) => {
-    const id = String(streamPath || '').split('/').pop();
-    if (id) toCam(id, 'stream_up', { cameraId: id, ts: Date.now() });
+const pathOf = (a, b) => String((a && typeof a === 'object' ? a.streamPath : b) || '');   // node-media-server 4 passes the session, version 2 passed (id, path)
+nms.on('postPublish', (a, b) => {
+    const id = pathOf(a, b).split('/').pop();
+    if (!id) return;
+    toCam(id, 'stream_up', { cameraId: id, ts: Date.now() });
+    setTimeout(() => transcribeStart(id), 2500).unref();     // the stream is playable a moment after it is announced
 });
+nms.on('donePublish', (a, b) => { const id = pathOf(a, b).split('/').pop(); if (id) transcribe.stop(id); });
 nms.run();
 
 // SIGTERM (every deploy, every "docker stop"): stop taking connections, tell cameras and dashboards, close the database, exit 0.

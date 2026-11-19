@@ -1,0 +1,28 @@
+# OPTIONAL: live captions. Adds the speech-to-text service next to VisionGuard and tells the server about it.
+#   cd /opt/visionguard/deploy
+#   docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.transcribe.yml up -d --build
+# Needs TRANSCRIBE_TOKEN in .env (any long random string). Smart Way then switches "Live captions" on per company in the Admin panel.
+# The service is limited to 2 CPUs and 3 GB so it can never starve the other apps on a shared server; raise the limits (or move it to its own
+# machine and point TRANSCRIBE_URL at it) when many cameras stream at once. No port is published: only the VisionGuard container talks to it.
+services:
+  visionguard:
+    environment:
+      TRANSCRIBE_URL: http://transcriber:5100
+      TRANSCRIBE_TOKEN: ${TRANSCRIBE_TOKEN:?set TRANSCRIBE_TOKEN in .env}
+      TRANSCRIBE_RTMP_HOST: visionguard
+      TRANSCRIBE_CALLBACK_BASE: http://visionguard:3000
+  transcriber:
+    build: ../transcriber
+    container_name: visionguard-transcriber
+    restart: unless-stopped
+    environment:
+      TRANSCRIBE_TOKEN: ${TRANSCRIBE_TOKEN:?set TRANSCRIBE_TOKEN in .env}
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      MAX_STREAMS: ${TRANSCRIBE_MAX_STREAMS:-4}
+    volumes:
+      - transcriber-models:/models
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 3g }
+volumes:
+  transcriber-models:

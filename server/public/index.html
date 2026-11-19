@@ -95,6 +95,7 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .pw{white-space:nowrap;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut);letter-spacing:.6px;text-transform:uppercase}
 .pw img{height:11px!important;width:auto}
 
+.caps{margin-top:8px;padding-top:6px;border-top:1px solid var(--line-soft);font-size:12px;line-height:1.55}.caps h4{margin:0 0 4px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--mut)}.caps .cl{max-height:150px;overflow:auto}.caps p{margin:0 0 4px}.caps time{color:var(--mut);margin-inline-end:6px;font-size:11px}.caps .w{color:var(--mut)}
 .stats{display:flex;gap:12px;margin-inline-start:10px}
 .stat{display:flex;align-items:center;gap:12px;min-width:150px;padding-block:8px;padding-inline:10px 16px;background:linear-gradient(135deg,var(--panel),var(--raise));border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);transition:.2s}
 .stat .si{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 38%,transparent)}
@@ -830,6 +831,17 @@ function updateTabBadges() {
   });
 }
 
+/* ---------- Live captions: what a streaming camera hears, as text (only for people who have the `transcribe` permission) ---------- */
+const canCaptions = () => (me.features || []).includes('transcribe');
+const capLines = new Map(), capLoaded = new Set();   // cameraId -> [{id, ts, text}], last 40 lines
+function drawCaptions(id) {
+  const box = document.getElementById('capBox'); if (!box) return;
+  if (!capLoaded.has(id)) { capLoaded.add(id); fetch('/api/transcripts/' + encodeURIComponent(id) + '?limit=40').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.lines) { capLines.set(id, d.lines); if (selected === id) drawCaptions(id); } }).catch(() => {}); }
+  const lines = capLines.get(id) || [];
+  const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 24;
+  box.innerHTML = lines.length ? lines.map((l) => `<p dir="auto"><time>${new Date(l.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>${esc(l.text)}</p>`).join('') : `<p class="w">${t('capWait')}</p>`;
+  if (stick || !box.dataset.s) { box.scrollTop = box.scrollHeight; box.dataset.s = '1'; }
+}
 function renderInfo() {
   const c = cams.get(selected), box = $('#info');
   if (!c) { box.style.display = 'none'; return; }
@@ -878,7 +890,9 @@ function renderInfo() {
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
     <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? `<button class="btn" id="bE">${t('edit')}</button>` : ''}</div>
     ${c.online ? `<div class="row qrow"><span>${t('quality')}</span><select id="qSel">${['auto', '480p', '720p', '1080p'].map((q) => `<option value="${q}" ${(c.qualityAuto ? 'auto' : c.quality) === q ? 'selected' : ''}>${q === 'auto' ? t('qAuto') : q}${q === 'auto' && c.qualityAuto && c.quality ? ' · ' + c.quality : ''}</option>`).join('')}</select></div>` : ''}
-    ${c.remote ? `<div class="row"><button class="btn" id="bX">${t('stopRemote')}</button></div>` : (c.recording && canEndRec()) ? `<div class="row"><button class="btn" id="bS">${t('stopRec')}</button></div>` : ''}`;
+    ${c.remote ? `<div class="row"><button class="btn" id="bX">${t('stopRemote')}</button></div>` : (c.recording && canEndRec()) ? `<div class="row"><button class="btn" id="bS">${t('stopRec')}</button></div>` : ''}
+    ${c.online && canCaptions() ? `<div class="caps"><h4>${t('capTitle')}</h4><div class="cl" id="capBox"></div></div>` : ''}`;
+  drawCaptions(c.cameraId);
   $('#bW').onclick = () => openLive(c.cameraId);
   box.dataset.qcam = c.online ? c.cameraId : '';
   if ($('#qSel')) {
@@ -1417,6 +1431,10 @@ socket.on('connect', () => {
 });
 
 socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; alerts = s.alerts || []; renderAlarms(); });
+socket.on('transcript', (l) => {
+  const a = capLines.get(l.cameraId) || []; a.push(l); if (a.length > 40) a.shift(); capLines.set(l.cameraId, a);
+  if (selected === l.cameraId) drawCaptions(l.cameraId);
+});
 socket.on('dashboard_cam', upsert);
 // A camera fell under 20 % (or under 10 %): a soft two-tone beep and a notice; the alert stays in the Alarms list until it clears.
 function softBeep() {

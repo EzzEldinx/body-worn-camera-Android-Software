@@ -31,6 +31,14 @@ Camera app builds are published separately (no server restart): `tools/publish-b
 * `tools/loadtest.js` simulates thousands of cameras and dashboards; run it only against a throwaway server.
 * Logs: `cd /opt/visionguard/deploy && sudo docker compose -p visionguard logs --tail 200`.
 
+## 3.1 Live captions (optional service)
+
+Speech-to-text for streaming cameras runs as a separate container, never inside the VisionGuard one. To switch it on: put a long random `TRANSCRIBE_TOKEN` in `.env`, then add the third file to the usual command:
+
+`docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.transcribe.yml up -d --build`
+
+The first start downloads the Whisper model (about 480 MB, `small`) into a volume. The service is limited to 2 CPUs and 3 GB so it cannot starve the other apps on the shared host; it publishes no port. A company only gets captions after Smart Way ticks **Live captions** for it. Check: `docker logs visionguard-transcriber` ("model ready") and, while a camera streams, `curl` is not needed: the text appears under the camera on the dashboard. More in `transcriber/README.md`.
+
 ## 4. Backups (what must exist)
 Back up, off the server, at least: the database and its journal (`server/data/bwc.db`, `.wal`, `.shm`), `server/data/updates/`, the `.env` file, the licence keys, and (optionally, they are large) the recordings.
 * A backup is only real after a **restore test**. Never rely on one nobody has restored.
