@@ -34,8 +34,11 @@ object CameraUtils {
     fun encoderSize(cameraName: String, preset: ResolutionPreset): Size {
         val cam = cameraCaptureSize(cameraName)
         val want = when (preset) {
-            ResolutionPreset.low -> Size(426, 240)
-            ResolutionPreset.medium -> Size(854, 480)
+            // RootEncoder restarts the camera at the encoder size whenever the encoder is prepared, so the encoder size must be a size this camera
+            // opens. It opens 16:9 only at 1920x1080 and 1280x720 (854x480 gave "This camera resolution cant be opened"): the 480p tier is
+            // therefore sent at 1280x720 and gets its saving from the lower bitrate (see video_quality.dart).
+            ResolutionPreset.low -> Size(1280, 720)
+            ResolutionPreset.medium -> Size(1280, 720)
             ResolutionPreset.high -> Size(1280, 720)
             ResolutionPreset.veryHigh -> Size(1920, 1080)
             else -> Size(3840, 2160)

@@ -23,6 +23,11 @@ class SelfHeal {
   /// Returns true when it restarted the app (the call does not return in that case).
   static Future<bool> restartIfPluginLost(Object error, {required String where, void Function(String)? report}) async {
     if (!isPluginLost(error)) return false;
+    return restartNow(where: where, report: report);
+  }
+
+  /// Restarts the app unless it already did 3 times in 10 minutes (a real fault must not loop). Used when the camera stalls again and again.
+  static Future<bool> restartNow({required String where, void Function(String)? report}) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     List<int> times = [];
     try {
@@ -30,10 +35,10 @@ class SelfHeal {
       if (await f.exists()) times = (jsonDecode(await f.readAsString()) as List).map((e) => (e as num).toInt()).toList();
     } catch (_) {}
     if (!mayRestart(times, now)) {
-      report?.call('Camera plugin lost ($where) and the restart limit is reached');
+      report?.call('Camera problem ($where) and the restart limit is reached');
       return false;
     }
-    report?.call('Camera plugin lost ($where): restarting the app');
+    report?.call('Camera problem ($where): restarting the app');
     try {
       final recent = times.where((t) => now - t < _window.inMilliseconds).toList()..add(now);
       await (await _file()).writeAsString(jsonEncode(recent));

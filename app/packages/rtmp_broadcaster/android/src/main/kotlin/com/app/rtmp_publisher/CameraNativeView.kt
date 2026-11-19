@@ -13,6 +13,9 @@ import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CameraMetadata
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.View
@@ -64,6 +67,20 @@ class CameraNativeView(
     // camera is tuned right after it (re)starts, see [tuneCamera].
     private val previewFps: Int = 30
 
+    // Watchdog: a camera that stops delivering pictures (it failed to open, or the driver stalled) leaves a frozen screen that nothing notices,
+    // and every later start fails too. Every 3 seconds the view checks that the preview runs and that frames keep coming.
+    private val watchdogHandler: Handler = Handler(Looper.getMainLooper())
+    private var watchdogRunning: Boolean = false
+    private var previewPaused: Boolean = false
+    private var lastFrameAt: Long = SystemClock.elapsedRealtime()
+    private var framesSeen: Boolean = false   // the fps callback has fired since the preview started: only then is silence a stall
+    private val frameWatchdog: Runnable = object : Runnable {
+        override fun run() {
+            checkCamera()
+            if (watchdogRunning) watchdogHandler.postDelayed(this, 3000L)
+        }
+    }
+
     // The release build is minified, so the library's fields are found by their TYPE, not by name.
     private fun findFieldValue(owner: Any, type: Class<*>): Any? {
         var cls: Class<*>? = owner.javaClass
@@ -101,13 +118,14 @@ class CameraNativeView(
         glView.holder.addCallback(this)
         rtmpCamera = RtmpCamera1(glView, this)
         rtmpCamera.getStreamClient().setReTries(10)
-        rtmpCamera.setFpsListener { fps = it }
+        rtmpCamera.setFpsListener { fps = it; lastFrameAt = SystemClock.elapsedRealtime(); framesSeen = true }
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         Log.d("CameraNativeView", "surfaceCreated")
         isSurfaceCreated = true
         startPreview(cameraName)
+        startWatchdog()
         // Notify Dart once the native preview surface actually exists, so callers can
         // safely wait for it before starting streaming (see startVideoStreaming in
         // camera_controller.dart). Without this, startVideoStreaming can be invoked
@@ -120,6 +138,7 @@ class CameraNativeView(
     }
 
     override fun surfaceDestroyed(p0: SurfaceHolder) {
+        stopWatchdog()
         isSurfaceCreated = false
         releaseCamera()
     }
@@ -217,6 +236,10 @@ class CameraNativeView(
             )*/
 
         if (!rtmpCamera.isStreaming()) {
+            if (!ensurePreview()) {
+                result.error("cameraNotReady", "The camera preview is not running", null)
+                return
+            }
             if (rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
                     enc.width,
                     enc.height,
@@ -246,6 +269,10 @@ class CameraNativeView(
 
         try {
             if (!rtmpCamera.isStreaming) {
+                if (!ensurePreview()) {
+                    result.error("cameraNotReady", "The camera preview is not running", null)
+                    return
+                }
                 val streamingSize = CameraUtils.getBestAvailableCamcorderProfileForResolutionPreset(cameraName, preset)
                 val enc = CameraUtils.encoderSize(cameraName, preset)
                 if (rtmpCamera.isRecording || rtmpCamera.prepareAudio() && rtmpCamera.prepareVideo(
@@ -289,6 +316,10 @@ class CameraNativeView(
             result.error("fileExists", "Must specify a url.", null)
             return
         }
+        if (!ensurePreview()) {   // checked once here, so the two calls below never answer the same request twice
+            result.error("cameraNotReady", "The camera preview is not running", null)
+            return
+        }
         try {
             targetBitrate = bitrate
             startVideoRecording(filePath, result)
@@ -306,6 +337,7 @@ class CameraNativeView(
             // To pause video without dropping the RTMP connection, stop the camera so it stops
             // feeding frames into the encoder; the stream stays connected but sends no new
             // video data until the camera is reopened in resumeVideoStreaming.
+            previewPaused = true
             rtmpCamera.stopCamera()
             rtmpCamera.disableAudio()
             result.success(null)
@@ -318,6 +350,7 @@ class CameraNativeView(
         try {
             // Reopen the camera at the previously configured preview size so frames flow into
             // the encoder/stream again.
+            previewPaused = false
             startPreview(cameraName)
             rtmpCamera.enableAudio()
             result.success(null)
@@ -458,6 +491,8 @@ class CameraNativeView(
                 }
 
                 rtmpCamera.startPreview(if (isFrontFacing(targetCamera)) FRONT else BACK, previewSize.width, previewSize.height, previewFps, pictureRotation)
+                lastFrameAt = SystemClock.elapsedRealtime()
+                framesSeen = false
                 tuneCamera()
                 forgetStamp()
             } catch (e: CameraAccessException) {
@@ -466,6 +501,63 @@ class CameraNativeView(
                 return
             }
         }
+    }
+
+    private fun startWatchdog() {
+        if (watchdogRunning) return
+        watchdogRunning = true
+        watchdogHandler.postDelayed(frameWatchdog, 3000L)
+    }
+
+    private fun stopWatchdog() {
+        watchdogRunning = false
+        watchdogHandler.removeCallbacks(frameWatchdog)
+    }
+
+    /**
+     * Idle camera (not recording, not streaming): a preview that is off, or that stopped delivering frames for 8 seconds, is simply started again.
+     * While recording or streaming the file and the stream cannot be repaired from here, so Dart is told ("camera_stalled") and reopens the
+     * camera and the recording itself.
+     */
+    private fun checkCamera() {
+        if (!isSurfaceCreated || previewPaused) return
+        val busy: Boolean = rtmpCamera.isRecording || rtmpCamera.isStreaming
+        val silent: Boolean = framesSeen && SystemClock.elapsedRealtime() - lastFrameAt > 8000L
+        val off: Boolean = !rtmpCamera.isOnPreview
+        if (!off && !silent) return
+        Log.w("CameraNativeView", "watchdog: preview off=$off, no frames for ${SystemClock.elapsedRealtime() - lastFrameAt} ms, busy=$busy")
+        if (busy) {
+            lastFrameAt = SystemClock.elapsedRealtime()   // tell Dart once per stall, not every 3 seconds
+            activity?.runOnUiThread { dartMessenger?.send(DartMessenger.EventType.ERROR, "camera_stalled") }
+            return
+        }
+        try {
+            if (rtmpCamera.isOnPreview) rtmpCamera.stopPreview()
+        } catch (e: Exception) {
+            Log.w("CameraNativeView", "watchdog: stopPreview: $e")
+        }
+        try {
+            startPreview(cameraName)
+        } catch (e: Exception) {
+            Log.w("CameraNativeView", "watchdog: could not start the preview, trying again in 3 s: $e")
+        }
+    }
+
+    /**
+     * Recording or streaming started while the camera preview is NOT running makes the library open the camera itself, at the ENCODER size
+     * (854x480 for 480p), which the legacy camera API of this device refuses: "This camera resolution cant be opened". So the preview is
+     * (re)started first, always at the capture size the camera is known to open (1920x1080). Returns false when the camera cannot be opened.
+     */
+    private fun ensurePreview(): Boolean {
+        if (rtmpCamera.isOnPreview) return true
+        if (!isSurfaceCreated) return false
+        try {
+            startPreview(cameraName)
+        } catch (e: Exception) {
+            Log.w("CameraNativeView", "could not restart the preview: $e")
+            return false
+        }
+        return rtmpCamera.isOnPreview
     }
 
     fun getStreamStatistics(result: MethodChannel.Result) {
@@ -489,6 +581,7 @@ class CameraNativeView(
     }
 
     override fun dispose() {
+        stopWatchdog()
         isSurfaceCreated = false
         releaseCamera()
         activity = null
