@@ -87,6 +87,9 @@ class MainActivity : FlutterActivity() {
                 }
                 Log.i("BWC", "gps assist: $r")
                 result.success(r)
+            } else if (call.method == "gnssQuality") {
+                GnssQuality.start(this)
+                result.success(GnssQuality.snapshot())
             } else result.notImplemented()
         }
 

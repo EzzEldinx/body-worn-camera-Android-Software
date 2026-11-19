@@ -1231,11 +1231,16 @@ io.on('connection', (socket) => {
         const acc = Number.isFinite(d?.acc) && d.acc > 0 && d.acc < 100000 ? Math.round(d.acc * 10) / 10 : null;
         const fixTs = Number.isFinite(d?.fixTs) && d.fixTs > now - 3600000 && d.fixTs <= now + 60000 ? d.fixTs : now;
         if (acc !== null && acc > 100) { publish(id, { online: true }); return; }
+        // A camera that reports how good its fix was (satellites used, mean signal in dB-Hz) is not believed with fewer than 4 satellites or a weak signal:
+        // indoors the chip claims an accuracy of a few metres while the position wanders hundreds of metres. (The camera app already filters; this
+        // protects against a camera that does not, and against a bad value of an older build that sends these fields.)
+        const sats = Number.isFinite(d?.sats) ? d.sats : null, cn0 = Number.isFinite(d?.cn0) ? d.cn0 : null;
+        if ((sats !== null && sats < 4) || (cn0 !== null && cn0 > 0 && cn0 < 18)) { publish(id, { online: true, gpsSats: sats, gpsCn0: cn0 }); return; }
         if (now - (lastPos.get(id) || 0) >= 5000) { // keep a trail, one point per 5 s
             db.prepare('INSERT INTO positions(camera_id,lat,lng,ts,acc) VALUES(?,?,?,?,?)').run(id, lat, lng, now, acc);
             lastPos.set(id, now);
         }
-        publish(id, { lat, lng, acc, fixTs, online: true, ts: now, posSrc: null });
+        publish(id, { lat, lng, acc, fixTs, online: true, ts: now, posSrc: null, gpsSats: sats, gpsCn0: cn0 });
         geofence.position(id, lat, lng, { acc, ts: now, fixTs: Number.isFinite(d?.fixTs) ? fixTs : null });   // fixTs: only a fix the camera really made counts, not its repeats
         if (d.battery !== undefined) battery.set(id, { battery: d.battery, charging: d.charging });
     });

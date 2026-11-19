@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
+import 'gps_filter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class CentralConfig {
@@ -360,48 +361,66 @@ class CentralLink {
   // kilometres away from where they really were.
   // Indoors / on a dock the chip often returns a rough fix (100-1000 m). Report it with its accuracy so the dashboard
   // can show the camera and "±N m" instead of nothing; stale or zero fixes are still rejected below.
-  static const double _maxAccuracyM = 2000;
-  static const Duration _maxFixAge = Duration(seconds: 20);
   DateTime? _lastFixAt;
   final ValueNotifier<double?> gpsAccuracy = ValueNotifier(null); // metres of the last accepted fix
 
-  // A chip that has just started (cold) can report a position with a small "accuracy" that is nonsense: kilometres away, altitude of -11000 m or
-  // +8600 m (all seen on real cameras). Reject an impossible altitude, and a jump that no person or vehicle could make since the last good fix.
-  // After 8 rejected fixes in a row the new place is accepted (the old one may have been the wrong one).
-  int _rejected = 0;
-  bool _implausible(Position p, DateTime now) {
-    bool bad = false;
-    if (p.altitude != 0 && (p.altitude < -300 || p.altitude > 3500)) bad = true;
-    final last = _last, at = _lastFixAt;
-    if (!bad && last != null && at != null) {
-      final dt = now.difference(at).inSeconds;
-      if (dt < 180) {
-        final meters = Geolocator.distanceBetween(last.latitude, last.longitude, p.latitude, p.longitude);
-        if (meters > 300 && meters / (dt < 1 ? 1 : dt) > 70) bad = true; // faster than 250 km/h
-      }
+  // What the chip cannot tell by itself (see GnssQuality.kt and gps_filter.dart): satellites used and their signal strength, and whether the
+  // camera lies still. Indoors the chip claims "accuracy 1-10 m" with 3-4 weak satellites while the position wanders hundreds of metres.
+  final GpsFilter _filter = GpsFilter();
+  final ValueNotifier<bool> gpsWeak = ValueNotifier(false); // true while the chip has a position but it is not trustworthy (indoors, no sky)
+  Map<String, dynamic> _gnssInfo = const {};
+  bool _fixBusy = false;
+
+  DateTime _gpsLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+  void _logGps(String m) { // one line every 10 s (adb logcat -s flutter), to see why a position was or was not used
+    final now = DateTime.now();
+    if (now.difference(_gpsLogAt) < const Duration(seconds: 10)) return;
+    _gpsLogAt = now;
+    // ignore: avoid_print
+    print('GPS: $m');
+  }
+
+  Future<Map<String, dynamic>> _gnss() async {
+    try {
+      final m = await _device.invokeMethod('gnssQuality');
+      return m is Map ? m.map((k, v) => MapEntry('$k', v)) : const {};
+    } catch (_) {
+      return const {};
     }
-    if (!bad) { _rejected = 0; return false; }
-    if (++_rejected > 8) { _rejected = 0; return false; }
-    return true;
   }
 
   void _onFix(Position p) {
+    if (_fixBusy) return; // fixes come every second; one that arrives while the last is still being judged is dropped
+    _fixBusy = true;
+    _judgeFix(p).whenComplete(() => _fixBusy = false);
+  }
+
+  Future<void> _judgeFix(Position p) async {
     final now = DateTime.now();
-    final fixTime = p.timestamp;
-    final age = now.difference(fixTime);
-    final bad = p.isMocked || age > _maxFixAge || p.accuracy <= 0 || p.accuracy > _maxAccuracyM ||
-        (p.latitude == 0 && p.longitude == 0) || _implausible(p, now);
-    if (bad) {
+    final q = await _gnss();
+    _gnssInfo = q;
+    final age = (q['statusAgeMs'] as num?)?.toInt() ?? -1;
+    final sample = GpsSample(
+      lat: p.latitude, lng: p.longitude, accuracy: p.accuracy, time: p.timestamp, altitude: p.altitude, vertAccuracy: p.altitudeAccuracy,
+      mocked: p.isMocked, satellites: (q['used'] as num?)?.toInt(), meanCn0: (q['meanCn0'] as num?)?.toDouble(),
+      satelliteInfoFresh: age >= 0 && age < 10000, stillMs: (q['stillMs'] as num?)?.toInt() ?? 0,
+    );
+    final d = _filter.judge(sample, now);
+    gpsWeak.value = d.weak && !p.isMocked;
+    _logGps('${d.verdict.name}${d.reason == null ? '' : ' (${d.reason})'}: acc ${p.accuracy.round()} m, sats ${q['used']}, cn0 ${(q['meanCn0'] as num?)?.toStringAsFixed(0)}, still ${q['stillMs']} ms');
+    if (d.verdict == GpsVerdict.rejected) {
       // keep the last good fix for the heartbeat, but do not let a poor one replace it
       gpsAccuracy.value = p.accuracy > 0 ? p.accuracy : null;
       if (_lastFixAt == null || now.difference(_lastFixAt!) > const Duration(seconds: 45)) gpsFix.value = false;
       return;
     }
-    _last = p;
+    final s = d.sample!;
+    _last = Position(latitude: s.lat, longitude: s.lng, timestamp: now, accuracy: s.accuracy, altitude: s.altitude, altitudeAccuracy: s.vertAccuracy.isFinite ? s.vertAccuracy : 0,
+        heading: p.heading, headingAccuracy: p.headingAccuracy, speed: p.speed, speedAccuracy: p.speedAccuracy);
     _lastFixAt = now;
     gpsFix.value = true;
-    gpsAccuracy.value = p.accuracy;
-    _sendGps(p);
+    gpsAccuracy.value = s.accuracy;
+    _sendGps(_last!);   // a held position goes out again with a fresh time, so the dashboard shows it live and not "last known"
   }
 
   void _sendGps(Position p) {
@@ -413,6 +432,10 @@ class CentralLink {
       'acc': p.accuracy,
       'fixTs': (_lastFixAt ?? DateTime.now()).millisecondsSinceEpoch,
       if (p.speed.isFinite && p.speed >= 0) 'speed': p.speed,
+      // for the diagnosis on the server: how good the fix was (satellites used, their mean signal in dB-Hz) and whether the camera lies still
+      if (_gnssInfo['used'] != null) 'sats': _gnssInfo['used'],
+      if (_gnssInfo['meanCn0'] != null) 'cn0': ((_gnssInfo['meanCn0'] as num) * 10).round() / 10,
+      if (_gnssInfo['stillMs'] != null) 'still': (_gnssInfo['stillMs'] as num) >= _filter.stillAfter.inMilliseconds,
     });
   }
 
@@ -430,6 +453,9 @@ class CentralLink {
     _gpsWatchdog?.cancel();
     _gpsWatchdog = Timer.periodic(const Duration(minutes: 1), (_) async {
       final now = DateTime.now();
+      final g = await _gnss(); // once a minute, so the log shows the sky the chip sees even when it makes no fix (indoors)
+      // ignore: avoid_print
+      print('GPS-sky: used ${g['used']} of ${g['visible']} satellites, mean ${(g['meanCn0'] as num?)?.toStringAsFixed(1)} dB-Hz, best ${(g['maxCn0'] as num?)?.toStringAsFixed(1)}, still ${g['stillMs']} ms');
       final since = _lastFixAt ?? _gpsStartedAt;
       if (now.difference(since) < _stuckAfter || now.difference(_gpsStartedAt) < _stuckAfter) return;
       await _gpsSub?.cancel();
