@@ -7,6 +7,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../auth/auth_controller.dart';
+import '../chat/chat_controller.dart';
 import '../live/stop_menu.dart';
 import '../live/subtitles.dart';
 import '../live/live_player.dart';
@@ -85,7 +86,7 @@ class _CameraDetailViewState extends ConsumerState<CameraDetailView> {
           const SizedBox(height: 10),
           Align(
             alignment: AlignmentDirectional.centerStart,
-            child: OutlinedButton.icon(onPressed: () => context.push('/chat?cam=${Uri.encodeComponent(cam.id)}'), icon: const Icon(Icons.forum_rounded), label: Text(context.tr('chat_message_btn')), style: OutlinedButton.styleFrom(shape: const StadiumBorder())),
+            child: OutlinedButton.icon(onPressed: () { ref.read(chatFocusProvider.notifier).show(cam.id); context.go('/chats'); }, icon: const Icon(Icons.forum_rounded), label: Text(context.tr('chat_message_btn')), style: OutlinedButton.styleFrom(shape: const StadiumBorder())),
           ),
         ],
         if ((ref.watch(sessionProvider)?.user.can('transcribe') ?? false) && cam.online) ...[const SizedBox(height: 14), CaptionsBox(cameraId: cam.id)],

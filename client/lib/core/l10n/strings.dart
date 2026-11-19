@@ -24,6 +24,8 @@ const _t = <String, List<String>>{
   'ss_r_not_allowed': ['You are not allowed to stop an officer\'s recording', 'ليست لديك صلاحية إيقاف تسجيل الضابط'],
   'ss_r_not_recording': ['This camera is not recording', 'هذه الكاميرا لا تسجّل'],
   // chat and voice notes
+  'tab_chat': ['Chat', 'المحادثة'],
+  'chat_voice_note': ['Voice note', 'ملاحظة صوتية'],
   'chat': ['Chat with officers', 'محادثة مع الضباط'],
   'chat_sub': ['Messages and voice notes', 'رسائل وملاحظات صوتية'],
   'chat_to': ['To', 'إلى'],

@@ -47,6 +47,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [GoRoute(path: '/live', builder: (_, _) => const FeatureGate(feature: 'live', child: LiveScreen()))]),
           StatefulShellBranch(routes: [GoRoute(path: '/dock', builder: (_, _) => const FeatureGate(feature: 'docks', child: DockingScreen()))]),
           StatefulShellBranch(routes: [GoRoute(path: '/alerts', builder: (_, _) => const AlertsScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/chats', builder: (_, _) => const FeatureGate(feature: 'talk', child: ChatScreen(embedded: true)))]),
           StatefulShellBranch(routes: [GoRoute(path: '/more', builder: (c, _) => MoreScreen(onOpen: (r) => c.push(r)))]),
         ],
       ),

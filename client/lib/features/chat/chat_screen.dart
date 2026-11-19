@@ -16,8 +16,9 @@ import 'chat_controller.dart';
 
 /// Talk to the officers: a message (or a voice note) to everybody, or to one camera. Same as the dashboard's chat panel ("Voice & chat").
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({super.key, this.camera});
+  const ChatScreen({super.key, this.camera, this.embedded = false});
   final String? camera; // open the private thread of this camera
+  final bool embedded;  // inside the Chat tab: no back arrow, and the shell (not this screen) clears the unread count
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
@@ -34,7 +35,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     _camera = widget.camera;
-    WidgetsBinding.instance.addPostFrameCallback((_) => ref.read(chatUnreadProvider.notifier).clear());
+    final focus = ref.read(chatFocusProvider); // the tab is built the first time it is opened, after a notice has already said which thread to show
+    if (focus != null) {
+      _camera = focus == 'ALL' ? null : focus;
+      WidgetsBinding.instance.addPostFrameCallback((_) => ref.read(chatFocusProvider.notifier).show(null));
+    }
+    if (!widget.embedded) WidgetsBinding.instance.addPostFrameCallback((_) => ref.read(chatUnreadProvider.notifier).clear());
   }
 
   @override
@@ -83,10 +89,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final user = ref.watch(sessionProvider)?.user;
     final canSend = user != null && user.can('talk') && user.role != 'viewer';
     final msgs = all.where((m) => _camera == null ? m.chatType == 'PUBLIC' : (m.chatType == 'PRIVATE' && m.target == _camera)).toList();
-    ref.listen(chatProvider, (_, _) { ref.read(chatUnreadProvider.notifier).clear(); _toEnd(); });
+    ref.listen(chatProvider, (_, _) { if (!widget.embedded) ref.read(chatUnreadProvider.notifier).clear(); _toEnd(); });
+    ref.listen(chatFocusProvider, (_, t) {
+      if (t == null) return;
+      setState(() => _camera = t == 'ALL' ? null : t);
+      ref.read(chatFocusProvider.notifier).show(null);
+      _toEnd();
+    });
     final ids = cams.keys.toList()..sort();
     return Scaffold(
-      appBar: AppBar(title: Text(context.tr('chat'))),
+      appBar: AppBar(title: Text(context.tr('chat')), automaticallyImplyLeading: !widget.embedded),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),

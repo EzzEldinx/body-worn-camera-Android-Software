@@ -43,3 +43,12 @@ class ChatUnread extends Notifier<int> {
 }
 
 final chatUnreadProvider = NotifierProvider<ChatUnread, int>(ChatUnread.new);
+
+/// Which thread the Chat tab should show: a camera id, 'ALL' for the broadcast, or null (keep what is open). Set by a notice or by the camera panel.
+class ChatFocus extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void show(String? target) => state = target;
+}
+
+final chatFocusProvider = NotifierProvider<ChatFocus, String?>(ChatFocus.new);
