@@ -1083,7 +1083,11 @@ $('#wall').addEventListener('click', (e) => {
     return;
   }
   const rb = e.target.closest('[data-r]');
-  if (rb) { requestStream(rb.dataset.r, 'start'); rb.textContent = tt('requesting'); return; }
+  if (rb) {
+    const id = rb.dataset.r; requestStream(id, 'start'); rb.textContent = tt('requesting');
+    setTimeout(() => { if (!cams.get(id)?.recording) { flash(t('noStart')); slots.forEach((sl, i) => { if (sl === id) renderTile(i); }); } }, 25000);   // the camera did not start: the button comes back
+    return;
+  }
   const eb = e.target.closest('[data-e]');
   if (eb) { toggleTheater(eb.closest('.tile')); return; }
   const fb = e.target.closest('[data-f]');

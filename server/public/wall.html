@@ -259,7 +259,11 @@ $('#wall').addEventListener('click', (e) => {
   if (e.target.closest('[data-s]')) { if (listen.has(id)) listen.delete(id); else listen.add(id); sound(i); return; }
   if (e.target.closest('[data-f]')) { if (cover.has(id)) cover.delete(id); else cover.add(id); t.classList.toggle('cover', cover.has(id)); return; }
   if (e.target.closest('[data-e]')) { solo = solo === i ? -1 : i; applySolo(); return; }
-  if (e.target.closest('[data-r]')) { request(id); e.target.textContent = tr('wl.requesting'); return; }
+  if (e.target.closest('[data-r]')) {
+    request(id); e.target.textContent = tr('wl.requesting');
+    setTimeout(() => { if (!cams.get(id)?.recording) { toast(tr('wl.noStart')); slots.forEach((sl, i) => { if (sl === id) tile(i); }); } }, 25000);   // the camera did not start: the button comes back
+    return;
+  }
 });
 $('#lay').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; layout = +b.dataset.n; solo = -1; build(); save(); });
 /* ---------- Stop (the menu is shared with the dashboard, see stopstream.js) ---------- */

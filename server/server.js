@@ -1054,6 +1054,7 @@ setInterval(() => { eventRate.prune(); voiceRate.prune(); rateWarned.clear(); },
 const SOS_COALESCE_MS = process.env.SOS_COALESCE_MS === undefined ? 3000 : Math.max(0, Number(process.env.SOS_COALESCE_MS) || 0);
 const lastSos = new Map();
 
+const lastRemoteStart = new Map();   // cameraId -> when a remote start was last sent to it
 io.on('connection', (socket) => {
     console.log(`${socket.data.role} connected:`, socket.id);
 
@@ -1160,6 +1161,12 @@ io.on('connection', (socket) => {
                 return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'live_limit' });
             }
             if (action === 'start' && !c.recording && !c.remote && !license.allow('live').ok) return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'live_limit' });   // the installation's licensed number of live streams
+            // Two dashboards (or two clicks) asking for the same start within a few seconds: the camera is told once.
+            if (action === 'start') {
+                if (Date.now() - (lastRemoteStart.get(id) || 0) < 6000) return socket.emit('remote_stream_result', { cameraId: id, ok: true, action });
+                lastRemoteStart.set(id, Date.now());
+                if (lastRemoteStart.size > 2000) lastRemoteStart.clear();
+            }
             auditlog.add(db, user.username, endRec ? 'remote_record_stop' : `remote_stream_${action}`, id);
             io.to(`room:camera_${id}`).emit('remote_stream', endRec ? { action, force: true } : { action });
             if (action === 'start') publish(id, { remote: true });
