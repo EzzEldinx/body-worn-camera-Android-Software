@@ -61,7 +61,7 @@
   --canvas:radial-gradient(900px 420px at 8% -8%,rgba(155,134,224,.16),transparent 70%),radial-gradient(800px 420px at 100% 0,rgba(90,169,255,.12),transparent 70%),#0B1322;
   color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;height:100vh;background:var(--canvas);color:var(--text);display:grid;grid-template-rows:var(--header-h) 1fr;overflow:hidden}
+body{margin:0;height:100vh;background:var(--canvas);color:var(--text);display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:var(--header-h) 1fr;overflow:hidden}   /* minmax(0,1fr): the page is never wider than the window, whatever the header holds */
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,.cam:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
 *{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
@@ -125,7 +125,13 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);display:flex;align-items:center;justify-content:center;flex:none;transition:.15s}
 .icon-btn.has-lbl{width:auto;padding:0 12px;gap:7px;font-size:13px;font-weight:600;white-space:nowrap}
 .icon-btn.has-lbl:hover{color:var(--text)}
-@media (max-width:1600px){.icon-btn.has-lbl .bl{display:none}.icon-btn.has-lbl{width:38px;padding:0}}
+/* The header fits itself (fitHeader in the script): it measures and, step by step, hides what does not fit. Fixed screen widths could not
+   know the language, the user's name or the browser's font, so the page came out wider than the window (Chrome and Safari alike). */
+header.fit1 .icon-btn.has-lbl .bl{display:none}header.fit1 .icon-btn.has-lbl{width:38px;padding:0}
+header.fit2 .brand-sep,header.fit2 .clock{display:none}header.fit2 .stat{min-width:0;padding-inline-end:12px}
+header.fit3 .stat div>span{display:none}
+header.fit4 .user #who{display:none}
+header.fit5 .stats{display:none}
 .icon-btn:hover{background:var(--hover);color:var(--text);box-shadow:var(--glow-amber)}
 .icon-btn svg{width:18px;height:18px}
 :root[data-theme="dark"] .ico-moon,:root:not([data-theme="dark"]) .ico-sun{display:none}
@@ -134,8 +140,6 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .user .btn{flex:none;padding:7px 13px;font-weight:500;white-space:nowrap}
 .user{flex:none}
 .user #who{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media (max-width:2100px){.user #who{max-width:110px}}
-@media (max-width:1500px){.user #who{display:none}}
 
 .lang-switch{display:flex;align-items:center;background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex:none}
 .lang-btn{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:7px;border:none;background:transparent;color:var(--mut);font-size:12px;font-weight:600;transition:.2s}
@@ -339,9 +343,6 @@ header.flash{animation:fl 1s 3}
 #snd{position:fixed;top:var(--header-h);left:50%;transform:translateX(-50%);z-index:50;background:var(--sel);color:var(--sel-ink);font-size:14px;font-weight:600;padding:6px 16px;border-radius:0 0 10px 10px;box-shadow:var(--shadow-md)}
 
 @media (max-width:1100px){.brand-text small{display:none}}
-@media (max-width:1800px){.brand-sep,.clock{display:none}.stat{min-width:0;padding-right:12px}}
-@media (max-width:1500px){.stat div>span{display:none}}
-@media (max-width:1280px){.stats{display:none}}
 @media (prefers-reduced-motion:reduce){.mk.rec,.mk.online,header.flash,.wait::before,.tile.live .pill::before,.map-chip::before{animation:none}}
 
 /* ---------- phones: one screen at a time, bottom tab bar ---------- */
@@ -1607,6 +1608,24 @@ phoneInit(); buildWall(); renderList(); renderAlarms();
 // the two status labels of a picture are drawn by CSS: their words are handed over as variables
 const pillVars = () => { const r = document.documentElement.style; r.setProperty('--t-wait', JSON.stringify(t('pWait'))); r.setProperty('--t-rec', JSON.stringify(t('pRec'))); };
 VG.mountSwitch('#langSlot'); pillVars();
+// Fit the header to the window: undo every step, then add steps (fit1..fit5, see the CSS) until nothing sticks out. Runs on every change of size,
+// language, user name or font, so it is right in any browser and at any zoom. The phone layout (<= 900 px) has its own rules.
+function fitHeader() {
+  const h = document.getElementById('top'); if (!h) return;
+  const steps = ['fit1', 'fit2', 'fit3', 'fit4', 'fit5'];
+  h.classList.remove(...steps);
+  const right = h.querySelector('.hdr-right');
+  const over = () => h.scrollWidth > h.clientWidth + 1 || (right && right.scrollWidth > right.clientWidth + 1);
+  for (const s of steps) { if (!over()) break; h.classList.add(s); }
+}
+let fitQueued = false;
+const fitSoon = () => { if (fitQueued) return; fitQueued = true; setTimeout(() => { fitQueued = false; fitHeader(); }, 30); };   // a timer, not requestAnimationFrame: a hidden tab pauses that
+addEventListener('load', fitSoon); document.addEventListener('visibilitychange', fitSoon);
+addEventListener('resize', fitSoon);
+if (window.ResizeObserver) new ResizeObserver(fitSoon).observe(document.getElementById('top'));
+if (document.fonts?.ready) document.fonts.ready.then(fitSoon);
+new MutationObserver(fitSoon).observe(document.getElementById('top'), { subtree: true, childList: true, characterData: true });
+fitSoon();
 VG.onLang(() => {   // the dashboard redraws itself in the new language without reloading (the pictures keep playing)
   pillVars();
   renderList(); renderAlarms(); renderInfo(); buildWall(); updateUserDisplay();
