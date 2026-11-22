@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.location.LocationManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
@@ -75,6 +76,20 @@ class MainActivity : FlutterActivity() {
                 val status = i?.getIntExtra("status", -1) ?: -1
                 val plugged = (i?.getIntExtra("plugged", 0) ?: 0) != 0
                 result.success(mapOf("level" to if (level >= 0 && scale > 0) level * 100 / scale else -1, "charging" to (plugged || status == 2 || status == 5)))
+            } else if (call.method == "gpsAssist") {
+                // Tell the GPS chip the real time and ask for satellite assistance data. After days without a fix its clock reads 2017, so it has to
+                // download everything from the satellites (10-30 minutes indoors). With the time and the data it needs seconds. (The shell command
+                // `cmd location send-extra-command` does not exist on this Android, so only the app can do this.)
+                val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                val r = HashMap<String, Boolean>()
+                for (c in listOf("force_time_injection", "force_xtra_injection")) {
+                    r[c] = try { lm.sendExtraCommand(LocationManager.GPS_PROVIDER, c, null) } catch (e: Exception) { Log.w("BWC", "gps assist $c failed: $e"); false }
+                }
+                Log.i("BWC", "gps assist: $r")
+                result.success(r)
+            } else if (call.method == "gnssQuality") {
+                GnssQuality.start(this)
+                result.success(GnssQuality.snapshot())
             } else result.notImplemented()
         }
 
@@ -270,6 +285,7 @@ class MainActivity : FlutterActivity() {
 
         registerLolaageReceiver()
         Kiosk.applyHome(this) // provisioned cameras: become the Home app so Android restarts us after updates
+        Kiosk.grantLocation(this) // and may use the GPS all the time, screen on or off
     }
 
     private fun registerLolaageReceiver() {

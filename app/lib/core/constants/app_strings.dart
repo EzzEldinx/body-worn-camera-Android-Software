@@ -3,7 +3,7 @@ class AppStrings {
   AppStrings._();
 
   static const String companyName = 'SWG';
-  static const String appTitle = 'SWG Body-Worn Camera';
+  static const String appTitle = 'VisionGuard';
   static const String deviceModel = 'SWG-BWC-04';
   static const String officerPlaceholder = 'OFFICER ID — UNASSIGNED';
   static const String gpsPlaceholder = 'GPS — ACQUIRING';

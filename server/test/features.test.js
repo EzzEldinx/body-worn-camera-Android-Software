@@ -84,14 +84,14 @@ test('company features and per-user access are enforced by the server, not only 
 
     // a company created without choosing gets everything (nothing is taken away by default)
     const plain = await json('/api/admin/companies', { method: 'POST', sid: admin, body: { name: 'Plain Co' } });
-    assert.strictEqual((await json('/api/admin/companies', { sid: admin })).body.companies.find((x) => x.id === plain.body.id).features.length, features.KEYS.length);
+    assert.strictEqual((await json('/api/admin/companies', { sid: admin })).body.companies.find((x) => x.id === plain.body.id).features.length, features.ceiling(null).length);
     // staff are never limited
     assert.strictEqual((await json('/api/me', { sid: admin })).body.features.length, features.ALL.length);
 });
 
 test('actions: a user may only do what was given; defaults follow the role; Smart Way can set them too', async () => {
     const admin = await login('admin', 'feature-admin-pw');
-    const co = await json('/api/admin/companies', { method: 'POST', sid: admin, body: { name: 'Action Co' } });
+    const co = await json('/api/admin/companies', { method: 'POST', sid: admin, body: { name: 'Action Co', features: features.ALL.map((f) => f.key) } });
     const cid = co.body.id;
     await json(`/api/admin/companies/${cid}/users`, { method: 'POST', sid: admin, body: { username: 'boss2', password: 'boss-pass-123', role: 'manager' } });
     const boss = await login('boss2', 'boss-pass-123');
@@ -164,4 +164,14 @@ test('a camera is told its company name together with the assignment (it writes 
     assert.equal(co.payload('C1').company, 'Al Noor');
     assert.equal(co.payload('C1').active, false);
     assert.equal(co.payload('NOPE').company, '');
+});
+
+test('a company administrator gets no more than Smart Way ticked for the company: features and actions', () => {
+    const co = JSON.stringify(['live', 'ack', 'stream', '~a']);                       // actions chosen on purpose: only these two
+    assert.deepStrictEqual(features.effective({ manager: true, role: 'manager', companyFeatures: co, perms: null }), ['live', 'ack', 'stream']);
+    assert.deepStrictEqual(features.effective({ role: 'client', companyFeatures: co, perms: JSON.stringify(['live', 'ack', 'delete']) }), ['live', 'ack'], 'a user cannot be given what the company does not have');
+    const legacy = JSON.stringify(['live', 'docks']);                                          // a list without the marker has the everyday actions only
+    assert.ok(!features.effective({ manager: true, role: 'manager', companyFeatures: legacy, perms: null }).includes('delete'), 'no marker: only the everyday actions');
+    assert.ok(features.effective({ manager: true, role: 'manager', companyFeatures: legacy, perms: null }).includes('files'));
+    assert.ok(!features.effective({ manager: true, role: 'manager', companyFeatures: JSON.stringify(['live', 'docks', '~a']), perms: null }).includes('delete'));
 });

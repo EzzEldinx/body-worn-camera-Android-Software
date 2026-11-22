@@ -7,7 +7,14 @@
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
+<script src="/i18n.js"></script>
+<script src="/i18n/live.js"></script>
+<script src="/i18n/profile.js"></script>
+<script src="/i18n/stopstream.js"></script>
 <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
+<link href="/geofence.css" rel="stylesheet" />
+<link href="/stopstream.css" rel="stylesheet" />
+<link href="/profile.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
 
 <script>
@@ -20,6 +27,7 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/vendor/flv.min.js"></script>
+<script src="/captions.js"></script>
 <style>
 /* =====================================================================
    VisionGuard - Command Center design system
@@ -53,7 +61,7 @@
   --canvas:radial-gradient(900px 420px at 8% -8%,rgba(155,134,224,.16),transparent 70%),radial-gradient(800px 420px at 100% 0,rgba(90,169,255,.12),transparent 70%),#0B1322;
   color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;height:100vh;background:var(--canvas);color:var(--text);display:grid;grid-template-rows:var(--header-h) 1fr;overflow:hidden}
+body{margin:0;height:100vh;background:var(--canvas);color:var(--text);display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:var(--header-h) 1fr;overflow:hidden}   /* minmax(0,1fr): the page is never wider than the window, whatever the header holds */
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,.cam:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
 *{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
@@ -88,8 +96,9 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .pw{white-space:nowrap;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut);letter-spacing:.6px;text-transform:uppercase}
 .pw img{height:11px!important;width:auto}
 
-.stats{display:flex;gap:12px;margin-left:10px}
-.stat{display:flex;align-items:center;gap:12px;min-width:150px;padding:8px 16px 8px 10px;background:linear-gradient(135deg,var(--panel),var(--raise));border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);transition:.2s}
+.caps{margin-top:8px;padding-top:6px;border-top:1px solid var(--line-soft);font-size:12px;line-height:1.55}.caps h4{margin:0 0 4px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--mut)}.caps .cl{max-height:150px;overflow:auto}.caps p{margin:0 0 4px}.caps time{color:var(--mut);margin-inline-end:6px;font-size:11px}.caps .w{color:var(--mut)}
+.stats{display:flex;gap:12px;margin-inline-start:10px}
+.stat{display:flex;align-items:center;gap:12px;min-width:150px;padding-block:8px;padding-inline:10px 16px;background:linear-gradient(135deg,var(--panel),var(--raise));border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-sm);transition:.2s}
 .stat .si{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 38%,transparent)}
 .stat .si svg{width:19px;height:19px}
 .stat div{display:flex;flex-direction:column;line-height:1.05}
@@ -101,20 +110,37 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .stat.low{--c:var(--sel)}
 .stat.low.hot{border-color:color-mix(in srgb,var(--sel) 55%,var(--line));box-shadow:var(--glow-amber)}
 .stat.low.hot b{color:var(--accent-text)}
-.hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.hdr-right{margin-inline-start:auto;display:flex;align-items:center;gap:12px;min-width:0;flex-shrink:1}
 .lic-chip{white-space:nowrap;padding:7px 13px;border-radius:99px;font-size:12.5px;font-weight:800;text-decoration:none;color:var(--text);background:color-mix(in srgb,var(--sel) 24%,var(--panel));border:1px solid color-mix(in srgb,var(--sel) 55%,var(--line))}
 .lic-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:900px){.lic-long{display:none}.lic-chip{padding:5px 9px;font-size:11px}}
-.lic-chip.ok{background:var(--raise);border-color:var(--line);color:var(--mut)}
+.gpsc{display:inline-block;margin-inline-start:4px;padding:0 6px;border-radius:99px;font-size:10.5px;font-weight:700;line-height:16px;white-space:nowrap;border:1px solid var(--line);color:var(--mut);background:var(--raise)}
+.gpsc.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 50%,var(--line))}
+.gpsc.warn{color:var(--accent-text);border-color:color-mix(in srgb,var(--sel) 60%,var(--line))}
+.gpsc.bad{color:var(--rec);border-color:color-mix(in srgb,var(--rec) 50%,var(--line))}
+.lic-chip.ok{position:fixed;inset-inline-start:12px;bottom:3px;z-index:6;padding:0;border:0;background:none;font-size:10.5px;font-weight:400;color:var(--mut);opacity:.6;pointer-events:none}
+@media (max-width:900px){.lic-chip.ok{display:none!important}}
 .lic-chip.bad{background:color-mix(in srgb,var(--rec) 22%,var(--panel));border-color:color-mix(in srgb,var(--rec) 55%,var(--line))}
 .clock{font-size:14px;font-weight:600;padding:8px 14px;background:var(--raise);border:1px solid var(--line);border-radius:10px;letter-spacing:.3px;white-space:nowrap}
 .icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);display:flex;align-items:center;justify-content:center;flex:none;transition:.15s}
+.icon-btn.has-lbl{width:auto;padding:0 12px;gap:7px;font-size:13px;font-weight:600;white-space:nowrap}
+.icon-btn.has-lbl:hover{color:var(--text)}
+/* The header fits itself (fitHeader in the script): it measures and, step by step, hides what does not fit. Fixed screen widths could not
+   know the language, the user's name or the browser's font, so the page came out wider than the window (Chrome and Safari alike). */
+header.fitting,header.fitting *{transition:none!important}   /* while measuring: an animated width (icon-btn has transition:.15s) gave Chrome the old width and the header flipped every second */
+header.fit1 .icon-btn.has-lbl .bl{display:none}header.fit1 .icon-btn.has-lbl{width:38px;padding:0}
+header.fit2 .brand-sep,header.fit2 .clock{display:none}header.fit2 .stat{min-width:0;padding-inline-end:12px}
+header.fit3 .stat div>span{display:none}
+header.fit4 .user #who{display:none}
+header.fit5 .stats{display:none}
 .icon-btn:hover{background:var(--hover);color:var(--text);box-shadow:var(--glow-amber)}
 .icon-btn svg{width:18px;height:18px}
 :root[data-theme="dark"] .ico-moon,:root:not([data-theme="dark"]) .ico-sun{display:none}
-.user{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;padding-left:14px;border-left:1px solid var(--line)}
+.user{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;padding-inline-start:14px;border-inline-start:1px solid var(--line)}
 .user::before{content:"";width:34px;height:34px;border-radius:50%;flex:none;background:center/17px no-repeat url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231a1405'><path d='M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z'/></svg>"),linear-gradient(135deg,var(--sel),#ff8a00);box-shadow:var(--glow-amber)}
-.user .btn{flex:none;padding:7px 13px;font-weight:500}
+.user .btn{flex:none;padding:7px 13px;font-weight:500;white-space:nowrap}
+.user{flex:none}
+.user #who{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .lang-switch{display:flex;align-items:center;background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex:none}
 .lang-btn{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:7px;border:none;background:transparent;color:var(--mut);font-size:12px;font-weight:600;transition:.2s}
@@ -143,11 +169,12 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .cohead:hover{color:var(--text)}
 .cohead i{font-style:normal;display:inline-block;transition:transform .15s;font-size:10px}
 .cohead.shut i{transform:rotate(-90deg)}
-.cohead .cnt{margin-left:auto;font-size:10.5px;padding:2px 8px;border-radius:99px;background:var(--raise);border:1px solid var(--line-soft);letter-spacing:0;text-transform:none;color:var(--text)}
+:root[dir="rtl"] .cohead.shut i{transform:rotate(90deg)}
+.cohead .cnt{margin-inline-start:auto;font-size:10.5px;padding:2px 8px;border-radius:99px;background:var(--raise);border:1px solid var(--line-soft);letter-spacing:0;text-transform:none;color:var(--text)}
 .cohead .cnt b{color:var(--ok)}
 .search{position:relative;margin:0 14px 10px}
-.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--mut);width:15px;height:15px}
-#q{width:100%;padding:10px 12px 10px 34px;border-radius:12px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit;font-size:14px}
+.search svg{position:absolute;inset-inline-start:11px;top:50%;transform:translateY(-50%);color:var(--mut);width:15px;height:15px}
+#q{width:100%;padding-block:10px;padding-inline:34px 12px;border-radius:12px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit;font-size:14px}
 #q:focus{background:var(--panel);border-color:var(--sel);box-shadow:var(--glow-amber)}
 .chips{display:flex;gap:4px;margin:0 14px 12px;padding:3px;background:var(--raise);border:1px solid var(--line-soft);border-radius:12px}
 .chip{flex:1;padding:6px 8px;border-radius:9px;border:0;background:none;font-size:12.5px;color:var(--mut);font-weight:600;transition:.15s}
@@ -228,22 +255,20 @@ aside{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .tag .nm{font-weight:700;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .pill{flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:800;letter-spacing:.8px;background:rgba(154,168,189,.25);color:#C5D0E2}
 .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:#9AA8BD}
-.pill::after{content:"WAITING"}
-body[dir="rtl"] .pill::after{content:"انتظار"}
+.pill::after{content:var(--t-wait,"WAITING")}   /* the words are set from the dictionary (see pillVars) */
 .tile.live .pill{background:rgba(255,51,85,.22);color:#FFB3C0;box-shadow:0 0 12px rgba(255,51,85,.45)}
 .tile.live .pill::before{background:var(--rec);animation:pulseRec 1.4s infinite}
-.tile.live .pill::after{content:"REC"}
-body[dir="rtl"] .tile.live .pill::after{content:"تسجيل"}
+.tile.live .pill::after{content:var(--t-rec,"REC")}
 .tag button{pointer-events:auto;height:26px;min-width:26px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.1);color:#fff;font-size:11.5px;font-weight:600;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:.15s;flex:none}
 .tag button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.4)}
 .tag button.on{background:rgba(0,184,124,.35);border-color:rgba(46,230,166,.7);box-shadow:0 0 12px rgba(0,184,124,.5)}
-.tag button[data-x]:hover{background:rgba(255,51,85,.6);border-color:rgba(255,51,85,.9)}
+.tag button[data-k]:hover{background:rgba(255,51,85,.6);border-color:rgba(255,51,85,.9)}
 .tbat{flex:none;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.14);color:#fff;white-space:nowrap}
 .tbat.low{background:var(--rec)}
 .tbat:empty{display:none}
-@container (max-width:240px){.tbat{display:none}}
-.tag .pill+button{margin-left:auto}
-body[dir="rtl"] .tag .pill+button{margin-left:0;margin-right:auto}
+@container (max-width:300px){.tbat{display:none}}
+@container (max-width:360px){.tag .pill::after{display:none}.tag .pill{padding:2px 7px}}   /* the Stop button needs the room: the status shows as a dot only */
+.tag .pill+button{margin-inline-start:auto}
 .tag button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 @container (max-width:330px){.tag .lbl{display:none}.tag button{padding:0 6px}}
 @container (max-width:240px){.tag .pill{display:none}}
@@ -285,11 +310,11 @@ body.theater::before{content:"";position:fixed;inset:0;background:rgba(8,13,24,.
 .chat-tab.active{background:linear-gradient(135deg,var(--sel),#ff9d00);color:var(--sel-ink);border-color:transparent;box-shadow:0 3px 12px rgba(255,179,0,.4)}
 .chat-tab .close-tab{font-size:11px;opacity:.7;border:none;background:none;padding:0 2px;color:inherit}
 .chat-tab .close-tab:hover{opacity:1;color:var(--rec)}
-.chat-badge{position:absolute;top:-9px;right:-6px;background:var(--rec);color:#fff;border-radius:50%;min-width:18px;height:18px;padding:0 4px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;box-shadow:var(--glow-rec);border:2px solid var(--panel);z-index:10}
+.chat-badge{position:absolute;top:-9px;inset-inline-end:-6px;background:var(--rec);color:#fff;border-radius:50%;min-width:18px;height:18px;padding:0 4px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;box-shadow:var(--glow-rec);border:2px solid var(--panel);z-index:10}
 #chat-msgs{flex:1;overflow:auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px;min-height:0;background:var(--raise)}
 .chat-msg{font-size:13px;padding:7px 11px;border-radius:14px;max-width:88%;box-shadow:var(--shadow-sm)}
-.chat-msg.mine{background:var(--mine);align-self:flex-end;border-bottom-right-radius:4px}
-.chat-msg.other{background:var(--panel);align-self:flex-start;border:1px solid var(--line-soft);border-bottom-left-radius:4px}
+.chat-msg.mine{background:var(--mine);align-self:flex-end;border-end-end-radius:4px}
+.chat-msg.other{background:var(--panel);align-self:flex-start;border:1px solid var(--line-soft);border-end-start-radius:4px}
 .chat-msg b{color:var(--accent-text);font-size:11px;display:block;margin-bottom:2px}
 .chat-composer{display:flex;align-items:center;padding:10px 12px;gap:8px;border-top:1px solid var(--line-soft);background:var(--panel);flex:none}
 .mic-btn{background:var(--raise);border:1px solid var(--line);color:var(--mut);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;flex:none}
@@ -304,17 +329,21 @@ body.theater::before{content:"";position:fixed;inset:0;background:rgba(8,13,24,.
 .voice-wave{flex:1;height:28px;display:flex;align-items:center;gap:2px;cursor:pointer}
 .voice-wave i{flex:1;max-width:4px;min-width:2px;border-radius:2px;background:var(--track);transition:background .1s}
 .voice-wave i.on{background:var(--sel)}
-.voice-duration{font-size:11px;color:var(--mut);flex:none;min-width:30px;text-align:right}
+.voice-duration{font-size:11px;color:var(--mut);flex:none;min-width:30px;text-align:end}
 
 header.flash{animation:fl 1s 3}
 @keyframes fl{50%{background:var(--flash)}}
+:root[dir="rtl"] header::after{background:linear-gradient(270deg,var(--brand),var(--blue) 45%,var(--sel))}
+/* the map stays a left-to-right island; the words on top of it follow the language, and a bar on the side of an alarm sits on the reading side */
+:root[dir="rtl"] #info{direction:rtl;text-align:right}
+:root[dir="rtl"] .al{box-shadow:inset -3px 0 0 var(--rec)}
+:root[dir="rtl"] .al.ack,:root[dir="rtl"] .al.bat.ack{box-shadow:inset -3px 0 0 var(--off)}
+:root[dir="rtl"] .al.bat{box-shadow:inset -3px 0 0 var(--sel)}
+:root[dir="rtl"] .al.bat.crit{box-shadow:inset -3px 0 0 var(--rec)}
 .in{width:100%;margin-top:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--raise);color:var(--text);font:inherit}
 #snd{position:fixed;top:var(--header-h);left:50%;transform:translateX(-50%);z-index:50;background:var(--sel);color:var(--sel-ink);font-size:14px;font-weight:600;padding:6px 16px;border-radius:0 0 10px 10px;box-shadow:var(--shadow-md)}
 
 @media (max-width:1100px){.brand-text small{display:none}}
-@media (max-width:1800px){.brand-sep,.clock{display:none}.stat{min-width:0;padding-right:12px}}
-@media (max-width:1500px){.stat div>span{display:none}}
-@media (max-width:1280px){.stats{display:none}}
 @media (prefers-reduced-motion:reduce){.mk.rec,.mk.online,header.flash,.wait::before,.tile.live .pill::before,.map-chip::before{animation:none}}
 
 /* ---------- phones: one screen at a time, bottom tab bar ---------- */
@@ -324,7 +353,7 @@ header.flash{animation:fl 1s 3}
   body{height:100vh;height:100dvh;grid-template-rows:var(--header-h) minmax(0,1fr) auto}
   header{padding:0 10px;gap:8px}
   .vg-logo{height:22px}
-  a.icon-btn[href="/analytics.html"],a.icon-btn[href="/docks.html"],a.icon-btn[href="/help.html"]{display:none}
+  a.icon-btn[href="/analytics.html"],a.icon-btn[href="/docks.html"],a.icon-btn[href="/help.html"],#adminLink{display:none!important}
   .lang-switch{padding:2px;gap:2px}
   .pw{display:none}
   .stats,.clock,.brand-sep,.user span#who{display:none}
@@ -332,9 +361,10 @@ header.flash{animation:fl 1s 3}
   .icon-btn{width:34px;height:34px}
   .lang-btn{padding:4px 6px;font-size:11px}
   .lang-btn svg{display:none}
-  .user{padding-left:8px}
+  .user{padding-inline-start:8px}
   .user::before{display:none}
-  .user .btn{padding:6px 10px;font-size:12.5px}
+  .user .btn{padding:6px 8px;font-size:12px}
+  header{gap:6px}.hdr-right{gap:4px}
   main{display:block;padding:8px;overflow:hidden}
   main>*,main>#right,main>#mapwrap{display:none;height:100%}
   body[data-tab="cams"] main>aside{display:flex}
@@ -357,73 +387,50 @@ header.flash{animation:fl 1s 3}
   .chat-composer button.send-btn{padding:11px 18px}
   .tile.expanded{width:96vw;max-height:92vh}
   #snd{display:none!important}
-  #mnav{display:grid;grid-template-columns:repeat(4,1fr);background:linear-gradient(180deg,var(--panel),var(--raise));border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+  #mnav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:linear-gradient(180deg,var(--panel),var(--raise));border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
   #mnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 4px 8px;border:0;background:none;color:var(--mut);font-size:11px;font-weight:700;letter-spacing:.3px;min-height:56px;position:relative}
   #mnav button svg{width:22px;height:22px}
+  #mnav button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #mnav button.on{color:var(--text)}
   #mnav button.on::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,var(--sel),var(--brand))}
-  #mnav .nb{position:absolute;top:5px;left:calc(50% + 8px);min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--rec);color:#fff;font-size:10px;line-height:17px;text-align:center;display:none}
+  #mnav .nb{position:absolute;top:5px;inset-inline-start:calc(50% + 8px);min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--rec);color:#fff;font-size:10px;line-height:17px;text-align:center;display:none}
 }
 </style>
-
-
+<link rel="stylesheet" href="/i18n.css">
 </head>
-<body dir="ltr">
-<div id="snd">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
+<body>
+<div id="snd" data-i18n="lv.sound">Sound is off. Click anywhere on this page to hear officers when they use PTT.</div>
 <header id="top">
   <div class="brand">
-    <div class="brand-text"><img class="vg-logo logo-light" src="/brand/visionguard-logo-sm.png" alt="VisionGuard"><img class="vg-logo logo-dark" src="/brand/visionguard-logo-light.png" alt="VisionGuard"><small class="pw">Powered by <img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"></small></div>
+    <div class="brand-text"><img class="vg-logo logo-light" src="/brand/visionguard-logo-sm.png" alt="VisionGuard"><img class="vg-logo logo-dark" src="/brand/visionguard-logo-light.png" alt="VisionGuard"><small class="pw"><span data-i18n="hdr.poweredBy">Powered by</span> <img class="logo-light" src="/logo-light.png" alt="Smart Way"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way"></small></div>
   </div>
   <div class="stats">
     <div class="stat ok"><i class="si"><svg class="i" viewBox="0 0 24 24"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg></i><div><b id="sOn">0</b><span id="txtOnline">online</span></div></div>
     <div class="stat rec"><i class="si"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg></i><div><b id="sRec">0</b><span id="txtRec">recording</span></div></div>
     <div class="stat all"><i class="si"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/></svg></i><div><b id="sAll">0</b><span id="txtReg">registered</span></div></div>
     <div class="stat alert"><i class="si"><svg class="i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg></i><div><b id="sAl">0</b><span id="txtAlarms">open alarms</span></div></div>
-    <div class="stat low" id="statLow" title="Cameras below 20% battery that are not charging"><i class="si"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="8" width="17" height="8" rx="2"/><path d="M22 11v2M6 11v2"/></svg></i><div><b id="sLow">0</b><span id="txtLow">low battery</span></div></div>
+    <div class="stat low" id="statLow" title="Cameras below 20% battery that are not charging" data-i18n-title="lv.lowTitle"><i class="si"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="8" width="17" height="8" rx="2"/><path d="M22 11v2M6 11v2"/></svg></i><div><b id="sLow">0</b><span id="txtLow">low battery</span></div></div>
   </div>
   <div class="hdr-right">
   <a class="lic-chip" id="licChip" href="/license.html" style="display:none"></a>
   <div class="clock" id="clock"></div>
-  <div class="lang-switch" id="langToggle">
-    <button class="lang-btn" data-l="ar">
-      <svg viewBox="0 0 900 600">
-        <rect width="900" height="600" fill="#006C35"/>
-        <path fill="#FFF" d="M220 280h460v40H220z"/>
-        <path fill="#FFF" d="M300 360l200-30 100 30-100 10z"/>
-      </svg>
-      عربي
-    </button>
-    <button class="lang-btn active" data-l="en">
-      <svg viewBox="0 0 60 30">
-        <clipPath id="s"><path d="M0 0v30h60V0z"/></clipPath>
-        <clipPath id="t"><path d="M30 15h30v15zM0 15h30V0zM30 15H0v15zM60 15H30V0z"/></clipPath>
-        <g clip-path="url(#s)">
-          <path d="M0 0v30h60V0z" fill="#012169"/>
-          <path d="M0 0l60 30M60 0L0 30" stroke="#fff" stroke-width="6"/>
-          <path d="M0 0l60 30M60 0L0 30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/>
-          <path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/>
-          <path d="M30 0v30M0 15h60" stroke="#C8102E" stroke-width="6"/>
-        </g>
-      </svg>
-      EN
-    </button>
-  </div>
- <a class="icon-btn" href="/docks.html" title="Docking station" aria-label="Docking station"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h16v4a1 1 0 01-1 1H5a1 1 0 01-1-1zM7 15V9a5 5 0 0110 0v6M12 4v5M9 9h6"/></svg></a>
- <a class="icon-btn" href="/analytics.html" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></a>
- <a class="icon-btn" href="/help.html" title="Support" aria-label="Support"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0116 0v2M4 14a2 2 0 002 2h1v-5H6a2 2 0 00-2 2zM20 14a2 2 0 01-2 2h-1v-5h1a2 2 0 012 2zM18 18a4 4 0 01-4 3h-2"/></svg></a>
-  <a class="icon-btn" id="adminLink" href="/admin.html" title="Companies" aria-label="Companies" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l7-4v17M10 21V10l11 4v7M7 11v.01M7 15v.01M15 15v.01M15 18v.01"/></svg></a>
-  <button class="icon-btn" id="themeBtn" title="Toggle light / dark theme" aria-label="Toggle theme">
+  <span id="langSlot"></span>
+ <a class="icon-btn has-lbl" href="/docks.html" title="Docking station" aria-label="Docking station" data-i18n-title="lv.docks" data-i18n-aria="lv.docks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h16v4a1 1 0 01-1 1H5a1 1 0 01-1-1zM7 15V9a5 5 0 0110 0v6M12 4v5M9 9h6"/></svg><span class="bl" data-i18n="nav.docks">Docking</span></a>
+ <a class="icon-btn has-lbl" href="/analytics.html" title="Analytics" aria-label="Analytics" data-i18n-title="lv.analytics" data-i18n-aria="lv.analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="bl" data-i18n="nav.analytics">Analytics</span></a>
+ <a class="icon-btn has-lbl" href="/help.html" title="Support" aria-label="Support" data-i18n-title="lv.support" data-i18n-aria="lv.support"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0116 0v2M4 14a2 2 0 002 2h1v-5H6a2 2 0 00-2 2zM20 14a2 2 0 01-2 2h-1v-5h1a2 2 0 012 2zM18 18a4 4 0 01-4 3h-2"/></svg><span class="bl" data-i18n="nav.support">Support</span></a>
+  <a class="icon-btn has-lbl" id="adminLink" href="/admin.html" title="Companies" aria-label="Companies" data-i18n-title="lv.companies" data-i18n-aria="lv.companies" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l7-4v17M10 21V10l11 4v7M7 11v.01M7 15v.01M15 15v.01M15 18v.01"/></svg><span class="bl" data-i18n="nav.companies">Companies</span></a>
+  <button class="icon-btn" id="themeBtn" title="Toggle light / dark theme" aria-label="Toggle theme" data-i18n-title="lv.theme" data-i18n-aria="lv.theme">
     <svg class="ico-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
     <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
   </button>
-  <div class="user"><span id="who"></span><button class="btn" id="out">Sign out</button></div>
+  <div class="user"><button class="icon-btn has-lbl" id="profBtn" type="button" title="Profile and access" aria-label="Profile and access" data-i18n-title="pf.open" data-i18n-aria="pf.open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></svg><span class="bl" id="who"></span></button><button class="btn" id="out">Sign out</button></div>
   </div>
 </header>
 <main>
   <aside>
     <div class="sec"><span id="secCameras">Cameras</span> <small id="cnt"></small></div>
     <div class="regions" id="regions"></div>
-    <div class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search by name, group or ID" aria-label="Search cameras"></div>
+    <div class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search by name, group or ID" data-i18n-ph="lv.searchPlaceholder" aria-label="Search cameras" data-i18n-aria="lv.searchAria"></div>
     <div class="chips" id="chips">
       <button class="chip on" data-f="all" id="chipAll">All</button>
       <button class="chip" data-f="online" id="chipOnline">Online</button>
@@ -434,7 +441,7 @@ header.flash{animation:fl 1s 3}
   </aside>
   <section id="mapwrap" dir="ltr">
     <div id="map"></div>
-    <div class="map-chip">LIVE MAP</div>
+    <div class="map-chip" data-i18n="lv.liveMap">LIVE MAP</div>
     <div id="info"></div>
   </section>
 
@@ -445,11 +452,11 @@ header.flash{animation:fl 1s 3}
           <div class="lay" id="lay">
             <button data-n="1">1</button><button data-n="4" class="on">2×2</button><button data-n="9">3×3</button><button data-n="16">4×4</button>
           </div>
-          <button class="icon-btn sm" id="wallFs" title="Full screen" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
-          <button class="icon-btn sm" id="wallPop" title="Open the wall in its own window: drag it onto a second screen and press Full screen there" aria-label="Open the wall in its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg></button>
+          <button class="icon-btn sm" id="wallFs" title="Full screen" aria-label="Full screen" data-i18n-title="lv.fullScreen" data-i18n-aria="lv.fullScreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+          <button class="icon-btn sm" id="wallPop" title="Open the wall in its own window: drag it onto a second screen and press Full screen there" aria-label="Open the wall in its own window" data-i18n-title="lv.popTitle" data-i18n-aria="lv.popAria"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg></button>
         </div>
       </div>
-      <div id="wallBanner"><span id="wallBannerTxt">The live wall is open in its own window. Cameras you pick here appear there.</span><button id="wallBack">Bring it back here</button></div>
+      <div id="wallBanner"><span id="wallBannerTxt" data-i18n="lv.wallBanner">The live wall is open in its own window. Cameras you pick here appear there.</span><button id="wallBack" data-i18n="lv.wallBack">Bring it back here</button></div>
       <div id="wall"></div>
     </div>
     <div class="bottom">
@@ -466,108 +473,31 @@ header.flash{animation:fl 1s 3}
       </div>
       <div id="chat-msgs"></div>
       <div class="chat-composer">
-        <button id="micBtn" class="mic-btn" title="Record Voice Note">
+        <button id="micBtn" class="mic-btn" title="Record Voice Note" data-i18n-title="lv.micTitle">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.39-.9.89 0 2.79-2.25 5.04-5.04 5.04s-5.04-2.25-5.04-5.04c0-.5-.41-.89-.9-.89s-.9.39-.9.89c0 3.18 2.45 5.82 5.5 6.25V21h2v-2.86c3.05-.43 5.5-3.07 5.5-6.25 0-.5-.4-.89-.89-.89z"/></svg>
         </button>
-        <input type="text" id="chatInput" placeholder="Type a message..." />
-        <button id="chatSend" class="send-btn">Send</button>
+        <input type="text" id="chatInput" placeholder="Type a message..." data-i18n-ph="lv.chatPlaceholder" />
+        <button id="chatSend" class="send-btn" data-i18n="lv.send">Send</button>
       </div>
     </div>
     </div>
   </section>
 </main>
-<nav id="mnav" aria-label="Sections">
-  <button data-t="cams" class="on"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/></svg><span data-en="Cameras" data-ar="الكاميرات">Cameras</span></button>
-  <button data-t="map"><svg class="i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span data-en="Map" data-ar="الخريطة">Map</span></button>
-  <button data-t="live"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg><span data-en="Live" data-ar="مباشر">Live</span></button>
-  <button data-t="alerts"><svg class="i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg><span data-en="Alerts" data-ar="تنبيهات">Alerts</span><i class="nb" id="nbAl"></i></button>
+<nav id="mnav" aria-label="Sections" data-i18n-aria="lv.sections">
+  <button data-t="cams" class="on"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3z"/></svg><span data-i18n="lv.navCams">Cameras</span></button>
+  <button data-t="map"><svg class="i" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span data-i18n="lv.navMap">Map</span></button>
+  <button data-t="live"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg><span data-i18n="lv.navLive">Live</span></button>
+  <button data-t="alerts"><svg class="i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg><span data-i18n="lv.navAlerts">Alerts</span><i class="nb" id="nbAl"></i></button>
 </nav>
 
 
 <script>
-const lang = {
-  en: {
-    online: "online",
-    offline: "offline",
-    recording: "recording",
-    registered: "registered",
-    openAlarms: "open alarms",
-    cameras: "Cameras",
-    searchPlaceholder: "Search by name, group or ID",
-    all: "All",
-    onlineChip: "Online",
-    recChip: "Recording",
-    lowChip: "Low battery",
-    lowStat: "low battery",
-    battery: "Battery",
-    batLive: "live from the camera",
-    batDock: "read on the dock, charging",
-    batLast: "last read",
-    batCharging: "charging",
-    batAlert: "Low battery",
-    batCritical: "Battery critical",
-    dismiss: "Dismiss",
-    watchLive: "Watch live",
-    noGps: "No GPS fix yet",
-    noCamerasMatch: "No cameras match. Turn on a body camera and it will appear here automatically.",
-    talking: "Talking now (PTT held)",
-    follow: "Follow",
-    following: "Following",
-    liveWall: "Live wall",
-    alarmsTitle: "Alarms",
-    sosFrom: "SOS from",
-    noAlarms: "No alarms. An SOS held on a body camera shows up here instantly.",
-    signOut: "Sign out",
-    adminRole: "Administrator",
-    publicChat: "Public Chat",
-    privateWith: "Private: ",
-    chatPlaceholder: "Type a message...",
-    send: "Send",
-    selectCameraFirst: "Please select a camera from the fleet list for private chat."
-  },
-  ar: {
-    online: "متصل",
-    offline: "غير متصل",
-    recording: "جاري التسجيل",
-    registered: "مسجل",
-    openAlarms: "إنذارات مفتوحة",
-    cameras: "الكاميرات",
-    searchPlaceholder: "بحث بالاسم، المجموعة أو المعرف",
-    all: "الكل",
-    onlineChip: "متصل",
-    recChip: "تسجيل",
-    lowChip: "بطارية منخفضة",
-    lowStat: "بطارية منخفضة",
-    battery: "البطارية",
-    batLive: "مباشر من الكاميرا",
-    batDock: "قراءة القاعدة، قيد الشحن",
-    batLast: "آخر قراءة",
-    batCharging: "قيد الشحن",
-    batAlert: "بطارية منخفضة",
-    batCritical: "بطارية حرجة",
-    dismiss: "إخفاء",
-    watchLive: "متابعة البث",
-    noGps: "لا يوجد إحداثيات GPS",
-    noCamerasMatch: "لا توجد كاميرات مطابقة. قم بتشغيل كاميرا الجسم وستظهر هنا تلقائياً.",
-    talking: "يتحدث الآن (PTT)",
-    follow: "متابعة",
-    following: "جاري المتابعة",
-    liveWall: "حائط البث المباشر",
-    alarmsTitle: "الإنذارات",
-    sosFrom: "إغاثة SOS من",
-    noAlarms: "لا توجد إنذارات. أي إغاثة SOS من كاميرا الجسم ستظهر هنا فوراً.",
-    signOut: "تسجيل الخروج",
-    adminRole: "مدير النظام",
-    publicChat: "العام (Public)",
-    privateWith: "خاص: ",
-    chatPlaceholder: "اكتب رسالة...",
-    send: "إرسال",
-    selectCameraFirst: "الرجاء اختيار كاميرا من القائمة أولاً للمحادثة الخاصة."
-  }
-};
-
-let currentLang = 'en';
-const t = (key) => lang[currentLang][key] || key;
+// The words are in i18n/live.js and the language is the shared one (i18n.js): the dashboard has always asked `currentLang`, which now is VG.lang.
+const t = (k) => VG.t('lv.' + k);
+Object.defineProperty(window, 'currentLang', { get: () => VG.lang });
+const L = (en, ar) => (VG.lang === 'ar' ? ar : en);
+const SEP = () => (VG.rtl ? '، ' : ', ');   // the comma of the language
+const tt = t;   // some functions have a variable of their own called t (a tile): they use tt
 
 const $ = (s) => document.querySelector(s);
 const host = location.hostname;
@@ -587,7 +517,7 @@ function battNote(c) {
   if (c.battery == null) return '';
   const age = c.batteryTs ? Date.now() - c.batteryTs : null;
   if (c.batterySrc === 'camera' && age != null && age < 300000) return t('batLive');
-  if (c.batterySrc === 'dock') return t('batDock') + (age != null ? ', ' + agoShort(c.batteryTs) : '');
+  if (c.batterySrc === 'dock') return t('batDock') + (age != null ? SEP() + agoShort(c.batteryTs) : '');
   return t('batLast') + (c.batteryTs ? ' ' + agoShort(c.batteryTs) : '');
 }
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -609,7 +539,7 @@ function resolveCameraId(id) {
 
 function getOfficerLabel(camId) {
   if (!camId || camId === 'admin' || camId === 'ALL' || camId === 'all' || camId === 'ADMIN' || camId === 'undefined' || camId === 'UNKNOWN' || camId === 'null') {
-    return 'Control Room';
+    return t('controlRoom');
   }
   const resolvedId = resolveCameraId(camId);
   const c = cams.get(resolvedId);
@@ -624,14 +554,7 @@ function getOfficerLabel(camId) {
 
 const tagOf = (id) => esc(getOfficerLabel(id));
 
-const ago = (ts) => {
-  if (!ts) return currentLang === 'ar' ? 'لا توجد إشارة بعد' : 'no signal yet';
-  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (currentLang === 'ar') {
-    return s < 60 ? s + ' ثانية' : s < 3600 ? Math.floor(s / 60) + ' دقيقة' : Math.floor(s / 3600) + ' ساعة';
-  }
-  return s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s / 60) + 'm ago' : Math.floor(s / 3600) + 'h ago';
-};
+const ago = (ts) => VG.agoShort(ts);
 
 /* ---------- Map ---------- */
 const map = new maplibregl.Map({
@@ -661,7 +584,7 @@ function syncMarker(c) {
 }
 // A position is only "live" if the camera reported a fresh fix in the last 2 minutes; otherwise it is the last known place.
 const gpsStale = (c) => !c.fixTs || Date.now() - c.fixTs > 120000;
-const agoShort = (ts) => { const s = Math.floor((Date.now() - ts) / 1000); return s < 60 ? s + 's' : s < 3600 ? Math.floor(s / 60) + ' min' : s < 86400 ? Math.floor(s / 3600) + ' h' : Math.floor(s / 86400) + ' d'; };
+const agoShort = (ts) => VG.agoShort(ts);
 function circlePoly(lng, lat, r) {
   const pts = [];
   for (let i = 0; i <= 64; i++) { const a = i / 64 * 2 * Math.PI; pts.push([lng + (r * Math.cos(a)) / (111320 * Math.cos(lat * Math.PI / 180)), lat + (r * Math.sin(a)) / 111320]); }
@@ -697,7 +620,7 @@ function renderList() {
   requestAnimationFrame(() => {
     queued = false;
     const rows = visible();
-    $('#cnt').textContent = rows.length + (currentLang === 'ar' ? ' معروض' : ' shown');
+    $('#cnt').textContent = VG.t('lv.shown', { n: rows.length });
     $('#q').placeholder = t('searchPlaceholder');
     $('#chipAll').textContent = t('all');
     $('#chipOnline').textContent = t('onlineChip');
@@ -723,8 +646,18 @@ function renderList() {
       const set = all.filter((c) => key === 'all' || (key === '_none' ? !c.region : c.region === key));
       return `<button class="reg ${region === key ? 'on' : ''}" data-r="${esc(key)}">${esc(label)} <small>${set.filter((c) => c.online).length}/${set.length}</small></button>`;
     };
-    $('#regions').innerHTML = tab('all', t('all')) + names.map((n) => tab(n, n)).join('') + (hasNone && names.length ? tab('_none', currentLang === 'ar' ? 'بدون منطقة' : 'No region') : '');
+    $('#regions').innerHTML = tab('all', t('all')) + names.map((n) => tab(n, n)).join('') + (hasNone && names.length ? tab('_none', t('noRegion')) : '');
 
+    // Where a camera's position comes from, and whether it can be trusted: live GPS of its own, the docking station's place, or lost.
+    const gpsChip = (c) => {
+      const age = c.fixTs ? Date.now() - c.fixTs : null;
+      let cls, txt, tip;
+      if (c.lat == null) { cls = 'bad'; txt = t('gpsNone'); tip = t('gpsNoneTip'); }
+      else if (c.posSrc === 'dock' && age !== null && age < 120000) { cls = 'dock'; txt = t('gpsDock'); tip = t('gpsDockTip'); }
+      else if (age !== null && age < 120000) { cls = 'ok'; txt = 'GPS' + (c.acc ? ' ±' + Math.round(c.acc) + (VG.rtl ? ' م' : ' m') : ''); tip = t('gpsLive'); }
+      else { cls = 'warn'; txt = t('gpsLost') + (age === null ? '' : agoShort(c.fixTs)); tip = c.posSrc === 'dock' ? t('gpsLostDock') : t('gpsLostTip'); }
+      return `<span class="gpsc ${cls}" title="${esc(tip)}">${txt}</span>`;
+    };
     const card = (c) => {
       const resolved = resolveCameraId(c.cameraId);
       const unreadCount = unreadChats[c.cameraId] || unreadChats[resolved] || 0;
@@ -732,11 +665,11 @@ function renderList() {
       <div class="cam ${stateOf(c)} ${selected === c.cameraId ? 'sel' : ''} ${battLow(c) ? 'lowbat' : ''}" data-id="${c.cameraId}" tabindex="0" draggable="true">
         <span class="dot"></span>
         <div class="meta"><b>${esc(getOfficerLabel(c.cameraId))}</b>
-          <small>${c.region ? esc(c.region) + ', ' : ''}${c.grp ? esc(c.grp) + ', ' : ''}${c.lat == null ? t('noGps') : c.lat.toFixed(4) + ', ' + c.lng.toFixed(4)}, <span data-ts="${c.ts}">${ago(c.ts)}</span></small></div>
-        ${unreadCount > 0 ? `<span class="badge" style="background:var(--rec); margin-right:4px;">${unreadCount}</span>` : ''}
+          <small>${c.region ? esc(c.region) + SEP() : ''}${c.grp ? esc(c.grp) + SEP() : ''}${c.lat == null ? t('noGps') : '<bdi>' + c.lat.toFixed(4) + ', ' + c.lng.toFixed(4) + '</bdi>'}${SEP()}<span data-ts="${c.ts}">${ago(c.ts)}</span> ${gpsChip(c)}</small></div>
+        ${unreadCount > 0 ? `<span class="badge" style="background:var(--rec); margin-inline-end:4px;">${unreadCount}</span>` : ''}
         ${c.battery != null ? `<span class="batt ${battLow(c) ? 'low' : ''} ${c.charging ? 'chg' : ''}" title="${esc(t('battery') + ': ' + battNote(c))}">${battTxt(c)}</span>` : ''}
-        ${c.recording ? '<span class="badge">REC</span>' : ''}
-        ${c.ptt ? '<span class="badge talk">TALK</span>' : ''}
+        ${c.recording ? `<span class="badge">${t('badgeRec')}</span>` : ''}
+        ${c.ptt ? `<span class="badge talk">${t('badgeTalk')}</span>` : ''}
         <button data-w="${c.cameraId}" title="${t('watchLive')}" aria-label="${t('watchLive')}">▶</button>
       </div>`;
     };
@@ -744,7 +677,7 @@ function renderList() {
       $('#list').innerHTML = `<div class="none">${t('noCamerasMatch')}</div>`;
     } else {
       // Group by company (collapsible). A single group (a company user) needs no header.
-      const noCo = currentLang === 'ar' ? 'بدون شركة' : 'No company';
+      const noCo = t('noCompany');
       const groups = new Map();
       rows.forEach((c) => { const k = c.company || noCo; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); });
       const keys = [...groups.keys()].sort((x, y) => (x === noCo) - (y === noCo) || x.localeCompare(y));
@@ -825,7 +758,7 @@ function openPrivateTab(rawCamId, autoActivate = false) {
     tabEl.innerHTML = `
       <span>${t('privateWith')}${esc(getOfficerLabel(camId))}</span>
       <span class="chat-badge" id="badge-${camId}" style="display:none;">0</span>
-      <button class="close-tab" title="Close">✕</button>
+      <button class="close-tab" title="${esc(VG.t('common.close'))}">✕</button>
     `;
 
     tabEl.addEventListener('click', (e) => {
@@ -901,9 +834,24 @@ function updateTabBadges() {
   });
 }
 
+/* ---------- Live captions: what a streaming camera hears, as text (only for people who have the `transcribe` permission) ---------- */
+const canCaptions = () => (me.features || []).includes('transcribe');
+const capLines = new Map(), capLoaded = new Set(), capDraft = new Map();   // cameraId -> [{id, ts, text}], last 40 lines
+function drawCaptions(id) {
+  const box = document.getElementById('capBox'); if (!box) return;
+  if (!capLoaded.has(id)) { capLoaded.add(id); fetch('/api/transcripts/' + encodeURIComponent(id) + '?limit=40').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.lines) { capLines.set(id, d.lines); if (selected === id) drawCaptions(id); } }).catch(() => {}); }
+  const lines = capLines.get(id) || [];
+  const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 24;
+  const dr = capDraft.get(id), shown = dr && Date.now() - dr.ts < 15000 ? [...lines, dr] : lines;
+  box.innerHTML = shown.length ? shown.map((l) => `<p dir="auto"${l.partial ? ' class="w"' : ''}><time>${new Date(l.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>${esc(l.text)}</p>`).join('') : `<p class="w">${t('capWait')}</p>`;
+  if (stick || !box.dataset.s) { box.scrollTop = box.scrollHeight; box.dataset.s = '1'; }
+}
 function renderInfo() {
   const c = cams.get(selected), box = $('#info');
   if (!c) { box.style.display = 'none'; return; }
+  // The quality drop-down: while it is open the panel must not be rebuilt (the camera reports every second or two and a rebuild
+  // would close the list at once, before a quality can be picked). It is drawn again when the list closes.
+  if (document.activeElement && document.activeElement.id === 'qSel' && box.contains(document.activeElement) && box.dataset.qcam === c.cameraId) return;
   const label = c.recording ? t('recording') : c.online ? t('online') : t('offline');
   box.style.display = 'block';
   // The camera sends an update every second or two. While the edit form is open it must NOT be rebuilt, or every
@@ -912,14 +860,14 @@ function renderInfo() {
   box.dataset.editing = '';
   if (editing && me.role === 'admin') {
     box.dataset.editing = c.cameraId;
-    box.innerHTML = `<h3>Edit ${c.cameraId}</h3>
-      <input class="in" id="eN" maxlength="40" placeholder="Display name" value="${esc(c.name || '')}" aria-label="Display name">
-      <input class="in" id="eH" maxlength="60" placeholder="Camera holder (who carries it)" value="${esc(c.holder || '')}" aria-label="Camera holder" ${c.custody ? 'disabled title="An employee has this camera checked out: the holder is set by the check-out station."' : ''}>
-      <input class="in" id="eG" maxlength="40" placeholder="Group" value="${esc(c.grp || '')}" aria-label="Group">
-      <select class="in" id="eR" aria-label="Region"><option value="">No region</option>${regionList.map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
-      ${me.super ? `<select class="in" id="eC2" aria-label="Company"><option value="">No company</option>${companyList.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select>` : ''}
-      <div class="row"><button class="btn pri" id="eS">Save changes</button><button class="btn" id="eC">Cancel</button></div>
-      <div class="row"><button class="btn" id="eD">Remove camera</button></div>`;
+    box.innerHTML = `<h3>${esc(VG.t('lv.editTitle', { id: c.cameraId }))}</h3>
+      <input class="in" id="eN" maxlength="40" placeholder="${esc(t('phName'))}" value="${esc(c.name || '')}" aria-label="${esc(t('phName'))}">
+      <input class="in" id="eH" maxlength="60" placeholder="${esc(t('phHolder'))}" value="${esc(c.holder || '')}" aria-label="${esc(t('phHolder'))}" ${c.custody ? `disabled title="${esc(t('holderLocked'))}"` : ''}>
+      <input class="in" id="eG" maxlength="40" placeholder="${esc(t('phGroup'))}" value="${esc(c.grp || '')}" aria-label="${esc(t('phGroup'))}">
+      <select class="in" id="eR" aria-label="${esc(t('aRegion'))}"><option value="">${t('noRegion')}</option>${regionList.map((r) => `<option ${c.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
+      ${me.super ? `<select class="in" id="eC2" aria-label="${esc(t('aCompany'))}"><option value="">${t('noCompany')}</option>${companyList.map((co) => `<option value="${co.id}" ${c.companyId === co.id ? 'selected' : ''}>${esc(co.name)}</option>`).join('')}</select>` : ''}
+      <div class="row"><button class="btn pri" id="eS">${t('save')}</button><button class="btn" id="eC">${t('cancel')}</button></div>
+      <div class="row"><button class="btn" id="eD">${t('removeCam')}</button></div>`;
     const call = (method, body) => fetch('/api/cameras/' + c.cameraId, { method, headers: { 'Content-Type': 'application/json' }, body });
     $('#eS').onclick = async () => {
       // read every field first: the panel re-renders as soon as the first save comes back
@@ -931,24 +879,37 @@ function renderInfo() {
       editing = false; renderInfo();
     };
     $('#eC').onclick = () => { editing = false; renderInfo(); };
-    $('#eD').onclick = () => { if (confirm((currentLang === 'ar' ? 'حذف ' : 'Remove ') + getOfficerLabel(c.cameraId) + (currentLang === 'ar' ? '؟ ستظهر من جديد عندما تبدأ الكاميرا تسجيلاً.' : '? It reappears if the camera starts recording again.'))) call('DELETE').then(() => { editing = false; }); };
+    $('#eD').onclick = () => { if (confirm(VG.t('lv.confirmRemove', { name: getOfficerLabel(c.cameraId) }))) call('DELETE').then(() => { editing = false; }); };
     return;
   }
+  const fixLine = c.lat == null ? '' : (c.posSrc === 'dock' && !gpsStale(c)) ? `<p style="color:var(--ok)">${t('atDock')}</p>` : gpsStale(c) ? `<p style="color:var(--sel)">${t('noLiveGps')}${c.ts ? (VG.rtl ? '، ' : ', ') + agoShort(c.ts) : ''}</p>` : `<p style="color:var(--ok)">${t('gpsFix')} ${c.acc ? '<bdi>±' + Math.round(c.acc) + ' m</bdi>' : ''} · ${agoShort(c.fixTs)}</p>`;
   box.innerHTML = `<h3>${esc(getOfficerLabel(c.cameraId))}</h3>
-    ${c.holder ? `<p>${currentLang === 'ar' ? 'حامل الكاميرا' : 'Holder'}: <b>${esc(c.holder)}</b>${c.holderNo ? ' · ' + esc(c.holderNo) : ''}${c.custody ? ` <span style="color:var(--mut)">(${c.custody === 'reserved' ? (currentLang === 'ar' ? 'محجوزة، ما زالت على القاعدة' : 'reserved, still on the dock') : (currentLang === 'ar' ? 'مستلمة' : 'carrying it')})</span>` : ''}</p>` : ''}
-    <p>${label}, <span data-ts="${c.ts}">${ago(c.ts)}</span></p>
-    <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || (currentLang === 'ar' ? 'غير معيّنة' : 'Unassigned')}</p>
-    <p>${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
-    ${c.lat == null ? '' : (c.posSrc === 'dock' && !gpsStale(c)) ? `<p style="color:var(--ok)">${currentLang === 'ar' ? 'على قاعدة الشحن (موقع القاعدة)' : 'At the docking station (dock location)'}</p>` : gpsStale(c) ? `<p style="color:var(--sel)">${currentLang === 'ar' ? 'لا يوجد تحديد موقع حي. آخر موقع معروف' + (c.ts ? ' منذ ' + agoShort(c.ts) : '') : 'No live GPS fix. Last known position' + (c.ts ? ', ' + agoShort(c.ts) + ' ago' : '')}</p>` : `<p style="color:var(--ok)">${currentLang === 'ar' ? 'GPS دقيق' : 'GPS fix'} ${c.acc ? '±' + Math.round(c.acc) + ' m' : ''} · ${agoShort(c.fixTs)} ${currentLang === 'ar' ? '' : 'ago'}</p>`}
+    ${c.holder ? `<p>${t('holder')}: <b>${esc(c.holder)}</b>${c.holderNo ? ' · ' + esc(c.holderNo) : ''}${c.custody ? ` <span style="color:var(--mut)">(${c.custody === 'reserved' ? t('reserved') : t('carrying')})</span>` : ''}</p>` : ''}
+    <p>${label}${SEP()}<span data-ts="${c.ts}">${ago(c.ts)}</span></p>
+    <p>${[c.company, c.region].filter(Boolean).map(esc).join(' · ') || t('unassigned')}</p>
+    <p class="ltr">${c.lat == null ? t('noGps') : c.lat.toFixed(5) + ', ' + c.lng.toFixed(5)}</p>
+    ${fixLine}
     ${c.battery != null ? `<p>${t('battery')}: <b${battLow(c) ? ' style="color:var(--rec)"' : c.charging ? ' style="color:var(--ok)"' : ''}>${battTxt(c)}</b> <span style="color:var(--mut)">(${battNote(c)})</span></p>` : ''}
     ${c.ptt ? `<p style="color:var(--ok)">${t('talking')}</p>` : ''}
     <div class="row"><button class="btn pri" id="bW">${t('watchLive')}</button>
-    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? '<button class="btn" id="bE">Edit</button>' : ''}</div>
-    ${c.online ? `<div class="row qrow"><span>${currentLang === 'ar' ? 'جودة الفيديو' : 'Video quality'}</span><select id="qSel">${['auto', '480p', '720p', '1080p'].map((q) => `<option value="${q}" ${(c.qualityAuto ? 'auto' : c.quality) === q ? 'selected' : ''}>${q === 'auto' ? (currentLang === 'ar' ? 'تلقائي (حسب الشبكة)' : 'Auto (by network)') : q}${q === 'auto' && c.qualityAuto && c.quality ? ' · ' + c.quality : ''}</option>`).join('')}</select></div>` : ''}
-    ${c.remote ? `<div class="row"><button class="btn" id="bX">${currentLang === 'ar' ? 'إيقاف البث عن بُعد' : 'Stop remote stream'}</button></div>` : ''}`;
+    <button class="btn ${follow ? 'on' : ''}" id="bF">${follow ? t('following') : t('follow')}</button>${me.role === 'admin' ? `<button class="btn" id="bE">${t('edit')}</button>` : ''}</div>
+    ${c.online ? `<div class="row qrow"><span>${t('quality')}</span><select id="qSel">${['auto', '480p', '720p', '1080p'].map((q) => `<option value="${q}" ${(c.qualityAuto ? 'auto' : c.quality) === q ? 'selected' : ''}>${q === 'auto' ? t('qAuto') : q}${q === 'auto' && c.qualityAuto && c.quality ? ' · ' + c.quality : ''}</option>`).join('')}</select></div>` : ''}
+    ${c.remote ? `<div class="row"><button class="btn" id="bX">${t('stopRemote')}</button></div>` : (c.recording && canEndRec()) ? `<div class="row"><button class="btn" id="bS">${t('stopRec')}</button></div>` : ''}
+    ${c.online && canCaptions() ? `<div class="caps"><h4>${t('capTitle')}</h4><div class="cl" id="capBox"></div></div>` : ''}`;
+  drawCaptions(c.cameraId);
   $('#bW').onclick = () => openLive(c.cameraId);
-  if ($('#qSel')) $('#qSel').onchange = (e) => { socket.emit('set_quality', { cameraId: c.cameraId, quality: e.target.value }); flash(currentLang === 'ar' ? 'تم إرسال تغيير الجودة' : 'Quality change sent'); };
+  box.dataset.qcam = c.online ? c.cameraId : '';
+  if ($('#qSel')) {
+    $('#qSel').onchange = (e) => {
+      const q = e.target.value;
+      socket.emit('set_quality', { cameraId: c.cameraId, quality: q }); flash(t('qSent'));
+      c.qualityAuto = q === 'auto'; if (q !== 'auto') c.quality = q;   // show the choice at once; the camera confirms a moment later
+      e.target.blur();
+    };
+    $('#qSel').onblur = () => setTimeout(renderInfo, 0);
+  }
   if ($('#bX')) $('#bX').onclick = () => requestStream(c.cameraId, 'stop');
+  if ($('#bS')) $('#bS').onclick = () => stopMenu(c.cameraId);
   if ($('#bE')) $('#bE').onclick = () => { editing = true; renderInfo(); };
   $('#bF').onclick = () => { follow = !follow; renderInfo(); if (follow && c.lat != null) map.easeTo({ center: [c.lng, c.lat] }); };
 }
@@ -985,6 +946,13 @@ function requestStream(id, action) {
   socket.emit('remote_stream', { cameraId: id, action });
   if (action === 'start') watch(id);
 }
+// "Stop" on a picture or in the camera panel: asks what to stop (see stopstream.js). Ending a recording the officer started needs "Stop a recording".
+const canEndRec = () => (me.features || []).includes('stoprec');
+function stopMenu(id, slot) {
+  if (!id) return;
+  vgStop.open({ id, cam: cams.get(id), name: getOfficerLabel(id), lang: currentLang, socket, canEndRecording: canEndRec(),
+    onCloseWindow: () => { const i = slot ?? slots.indexOf(id); if (i >= 0) { slots[i] = null; renderTile(i); } } });
+}
 function buildWall() {
   const w = $('#wall'), cols = Math.sqrt(layout);
   w.style.gridTemplateColumns = `repeat(${cols},1fr)`;
@@ -999,10 +967,12 @@ function renderTile(i) {
   if (players.has(i)) { players.get(i).destroy(); players.delete(i); }
   t.classList.remove('live');
   t.draggable = !!id;   // drag a picture onto another one to swap them
-  if (!id) { t.innerHTML = `<div class="empty">${currentLang === 'ar' ? 'خانة فارغة' : 'Empty slot'}<small>${currentLang === 'ar' ? 'اضغط ▶ بجوار الكاميرا لعرضها هنا' : 'Press ▶ next to a camera to show it here'}</small></div>`; return; }
+  if (!id) { t.innerHTML = `<div class="empty">${tt('emptySlot')}<small>${tt('emptyHint')}</small></div>`; return; }
   t.innerHTML = `<video muted autoplay playsinline></video>
-    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="tbat"></span><span class="pill"></span><button data-s="${i}" aria-label="Toggle sound"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${currentLang === 'ar' ? 'استماع' : 'Listen'}</span></button><button data-f="${i}" aria-label="Toggle fit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${currentLang === 'ar' ? 'طولي' : 'Portrait'}</span></button><button data-e="${i}" aria-label="Expand" title="Expand"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-x="${i}" aria-label="Close ${id}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-    <div class="wait">${currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…'}<button class="reqbtn" data-r="${id}">${currentLang === 'ar' ? 'بدء البث عن بُعد' : 'Start live view'}</button></div>`;
+    <div class="tag"><span class="nm">${tagOf(id)}</span><span class="tbat"></span><span class="pill"></span><button data-s="${i}" aria-label="${esc(tt('tSound'))}"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span class="lbl">${tt('listen')}</span></button><button data-f="${i}" aria-label="${esc(tt('tFit'))}"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">${tt('portrait')}</span></button><button data-e="${i}" aria-label="${esc(tt('tExpand'))}" title="${esc(tt('tExpand'))}"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button><button data-k="${i}" aria-label="${esc(VG.t('lv.tStop', { id }))}" title="${esc(tt('tStopTitle'))}"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg><span class="lbl">${tt('stop')}</span></button><button data-x="${i}" aria-label="${esc(VG.t('lv.tClose', { id }))}" title="${esc(tt('tCloseTitle'))}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    ${VGCap.html(id)}
+    <div class="wait">${waitMsg(id)}<button class="reqbtn" data-r="${id}">${tt('startLive')}</button></div>`;
+  VGCap.sync(id);
   start(i, id, t.querySelector('video'));
   if (dbgText.has(i)) dbg(i, dbgText.get(i));
   applySound(i);
@@ -1016,7 +986,7 @@ function syncTileBattery(i) {
   b.classList.toggle('low', battLow(c));
 }
 const retry = new Map(), stall = new Map(), lastT = new Map(), startedAt = new Map(), pttHold = new Map();
-const waitMsg = (id) => currentLang === 'ar' ? 'في انتظار ' + tagOf(id) + ' لبدء التسجيل…' : 'Waiting for ' + tagOf(id) + ' to start recording…';
+const waitMsg = (id) => VG.t('lv.waiting', { name: tagOf(id) });
 
 function stopTile(i, msg) {
   if (players.has(i)) { try { players.get(i).destroy(); } catch (e) { } players.delete(i); }
@@ -1065,8 +1035,8 @@ function begin(i, id, v, sign) {
     }, Math.min(500 * n, 4000));
   };
   p.on(flvjs.Events.ERROR, (t, d, info) => { dbg(i, 'player: ' + t + ' / ' + d + (info && info.code ? ' (' + info.code + ')' : '') + (info && info.msg ? ' ' + info.msg : '')); again(); });
-  p.on(flvjs.Events.METADATA_ARRIVED, () => dbg(i, 'stream connected, waiting for picture…'));
-  p.on(flvjs.Events.STATISTICS_INFO, (si) => { if (!v.parentElement.classList.contains('live')) dbg(i, 'receiving ' + Math.round(si.speed || 0) + ' KB/s'); });
+  p.on(flvjs.Events.METADATA_ARRIVED, () => dbg(i, tt('dbgConnected')));
+  p.on(flvjs.Events.STATISTICS_INFO, (si) => { if (!v.parentElement.classList.contains('live')) dbg(i, VG.t('lv.dbgRecv', { n: Math.round(si.speed || 0) })); });
   p.on(flvjs.Events.LOADING_COMPLETE, again);
   v.addEventListener('playing', () => { v.parentElement.classList.add('live'); retry.set(i, 0); dbgText.delete(i); }, { once: true });
   v.addEventListener('error', () => dbg(i, 'video element error ' + (v.error ? v.error.code + ' ' + (v.error.message || '') : '')), { once: true });
@@ -1081,7 +1051,7 @@ function applySound(i) {
   const open = !!t.dataset.listen || !!cams.get(id)?.ptt || pttHold.has(id);
   t.classList.toggle('talking', !!cams.get(id)?.ptt);
   if (v) { v.muted = !open; if (open) Promise.resolve(v.play()).catch(() => {}); }
-  if (b) { b.classList.toggle('on', open); b.querySelector('.lbl').textContent = open ? (currentLang === 'ar' ? 'كتم' : 'Mute') : (currentLang === 'ar' ? 'استماع' : 'Listen'); }
+  if (b) { b.classList.toggle('on', open); b.querySelector('.lbl').textContent = open ? tt('mute') : tt('listen'); }
 }
 const applySoundFor = (id) => slots.forEach((s, i) => { if (s === id) applySound(i); });
 
@@ -1115,7 +1085,11 @@ $('#wall').addEventListener('click', (e) => {
     return;
   }
   const rb = e.target.closest('[data-r]');
-  if (rb) { requestStream(rb.dataset.r, 'start'); rb.textContent = currentLang === 'ar' ? 'جارٍ الطلب…' : 'Requesting…'; return; }
+  if (rb) {
+    const id = rb.dataset.r; requestStream(id, 'start'); rb.textContent = tt('requesting');
+    setTimeout(() => { if (!cams.get(id)?.recording) { flash(t('noStart')); slots.forEach((sl, i) => { if (sl === id) renderTile(i); }); } }, 25000);   // the camera did not start: the button comes back
+    return;
+  }
   const eb = e.target.closest('[data-e]');
   if (eb) { toggleTheater(eb.closest('.tile')); return; }
   const fb = e.target.closest('[data-f]');
@@ -1128,16 +1102,18 @@ $('#wall').addEventListener('click', (e) => {
       t.style.aspectRatio = String(ar); t.style.height = 'auto';
       t.style.width = `min(92vw, calc(86vh * ${ar}))`;
     } else { t.style.aspectRatio = ''; t.style.width = ''; }
-    fb.querySelector('.lbl').textContent = t.classList.contains('port') ? (currentLang === 'ar' ? 'عرضي' : 'Landscape') : (currentLang === 'ar' ? 'طولي' : 'Portrait');
+    fb.querySelector('.lbl').textContent = t.classList.contains('port') ? tt('landscape') : tt('portrait');
     return;
   }
+  const kb = e.target.closest('[data-k]');
+  if (kb) { stopMenu(slots[+kb.dataset.k], +kb.dataset.k); return; }
   const x = e.target.closest('[data-x]'); if (!x) return;
   slots[+x.dataset.x] = null; renderTile(+x.dataset.x);
 });
 /* theater (expanded) mode for one tile; Esc or a click outside closes it */
 function toggleTheater(t) {
   const on = t && !t.classList.contains('expanded');
-  document.querySelectorAll('.tile.expanded').forEach((x) => { x.classList.remove('expanded', 'port'); x.style.aspectRatio = ''; x.style.width = ''; const l = x.querySelector('[data-f] .lbl'); if (l) l.textContent = currentLang === 'ar' ? 'طولي' : 'Portrait'; });
+  document.querySelectorAll('.tile.expanded').forEach((x) => { x.classList.remove('expanded', 'port'); x.style.aspectRatio = ''; x.style.width = ''; const l = x.querySelector('[data-f] .lbl'); if (l) l.textContent = tt('portrait'); });
   document.body.classList.toggle('theater', !!on);
   if (on) {
     const ar = 16 / 9; // opens wide; the Portrait button switches to the upright view
@@ -1201,7 +1177,7 @@ async function popOutWall() {
   if (wallOpen()) { const w = window.open('', 'vg-live-wall'); if (w) { w.focus(); return; } }
   const url = '/wall.html#' + new URLSearchParams({ l: String(layout), c: slots.filter(Boolean).join(',') });
   const w = window.open(url, 'vg-live-wall', 'popup=yes,width=1280,height=720');   // opened first, inside the click, so no pop-up blocker objects
-  if (!w) { flash(currentLang === 'ar' ? 'المتصفح منع النافذة الجديدة. اسمح بالنوافذ المنبثقة لهذا الموقع.' : 'The browser blocked the new window. Allow pop-ups for this site.'); return; }
+  if (!w) { flash(t('popBlocked')); return; }
   slots = slots.map(() => null); buildWall();    // the cameras move to the new window, so nothing is streamed twice
   wallAliveAt = Date.now(); syncWallBanner();
   try {   // two or more screens: put the window on the other one and let it fill that screen (the browser asks once)
@@ -1217,21 +1193,31 @@ $('#wallFs').onclick = () => { if (document.fullscreenElement) document.exitFull
 
 /* ---------- Alarms ---------- */
 // A low-battery alert (below 20 % and not charging; critical below 10 %). It clears by itself once the camera is charging or recovered.
+// A geofence alert: a camera left a zone, entered one, or did not pass a checkpoint in time (see geofence.js on the server).
+const GEO = { geo_exit: ['📍', 'geoLeft'], geo_enter: ['⛔', 'geoEntered'], checkpoint_missed: ['🚩', 'geoCheckpoint'] };
+const geoName = (k) => t(GEO[k][1]);
+function geoAlertRow(a) {
+  const crit = a.level === 'critical', extra = a.kind === 'checkpoint_missed' && a.value ? ' · ' + a.value + t('minNoVisit') : '';
+  return `<div class="al bat ${crit ? 'crit' : ''} ${a.ack ? 'ack' : ''}" data-al="${a.id}"><b>${GEO[a.kind][0]} ${geoName(a.kind)} · ${esc(a.zone || '')} · ${tagOf(a.cameraId)}</b>
+    <small>${VG.time(a.ts)}${extra}</small>${a.ack ? '' : `<button class="ackb" data-ackal="${a.id}">${t('dismiss')}</button>`}</div>`;
+}
 function batAlertRow(a) {
+  if (GEO[a.kind]) return geoAlertRow(a);
   const c = cams.get(a.cameraId), crit = a.level === 'critical', v = c && c.battery != null ? c.battery : a.value;
-  const off = c && !c.online ? (currentLang === 'ar' ? ' · غير متصلة' : ' · offline') : '';
+  const off = c && !c.online ? t('offlineTag') : '';
   return `<div class="al bat ${crit ? 'crit' : ''} ${a.ack ? 'ack' : ''}" data-al="${a.id}"><b>🔋 ${crit ? t('batCritical') : t('batAlert')} · ${tagOf(a.cameraId)}</b>
-    <small>${v}%${off} · ${new Date(a.ts).toLocaleTimeString()}</small>${a.ack ? '' : `<button class="ackb" data-ackal="${a.id}">${t('dismiss')}</button>`}</div>`;
+    <small><bdi>${v}%</bdi>${off} · ${VG.time(a.ts)}</small>${a.ack ? '' : `<button class="ackb" data-ackal="${a.id}">${t('dismiss')}</button>`}</div>`;
 }
 function renderAlarms() {
   const openSos = alarms.filter((a) => !a.ack).length, openBat = alerts.filter((a) => !a.ack).length;
-  $('#aSub').textContent = alarms.length || alerts.length ? (openSos + openBat) + (currentLang === 'ar' ? ' مفتوح' : ' open') : '';
+  $('#aSub').textContent = alarms.length || alerts.length ? VG.t('lv.openN', { n: openSos + openBat }) : '';
   const bats = [...alerts].sort((a, b) => (a.ack - b.ack) || ((b.level === 'critical') - (a.level === 'critical')) || b.ts - a.ts).map(batAlertRow).join('');
   const sos = alarms.map((a) => `
     <div class="al ${a.ack ? 'ack' : ''}" data-a="${a.id}"><b>${t('sosFrom')} ${tagOf(a.cameraId)}${a.holder ? ' · ' + esc(a.holder) + (a.holderNo ? ' #' + esc(a.holderNo) : '') : ''}</b>
-    <small>${new Date(a.ts).toLocaleTimeString()}</small></div>`).join('');
+    <small>${VG.time(a.ts)}</small></div>`).join('');
   $('#alarms').innerHTML = bats || sos ? bats + sos : `<div class="none">${t('noAlarms')}</div>`;
   stats();
+  if (window.geoAlertsChanged) geoAlertsChanged();
 }
 $('#alarms').addEventListener('click', (e) => {
   const ab = e.target.closest('[data-ackal]');
@@ -1335,7 +1321,7 @@ $('#chatSend').onclick = () => {
     chatType: activeChatType,
     targetId: target,
     senderId: 'admin',
-    senderName: currentLang === 'ar' ? 'غرفة التحكم (أنت)' : 'Control Room (You)',
+    senderName: t('controlRoomYou'),
     message: text,
     timestamp: Date.now(),
     mine: true
@@ -1392,7 +1378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 chatType: activeChatType,
                 targetId: target,
                 senderId: 'admin',
-                senderName: currentLang === 'ar' ? 'غرفة التحكم (أنت)' : 'Control Room (You)',
+                senderName: t('controlRoomYou'),
                 message: '[Voice Note]',
                 audio: base64Audio,
                 timestamp: Date.now(),
@@ -1408,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', () => {
           isRecording = true;
           micBtn.classList.add('recording');
         } catch (err) {
-          alert('Microphone access denied or not supported.');
+          alert(t('noMic'));
         }
       } else {
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -1455,6 +1441,15 @@ socket.on('connect', () => {
 });
 
 socket.on('dashboard_snapshot', (s) => { s.cams.forEach(upsert); alarms = s.alarms; alerts = s.alerts || []; renderAlarms(); });
+socket.on('transcript', (l) => {
+  VGCap.line(l);
+  if (l.partial) { capDraft.set(l.cameraId, l); }
+  else {
+    capDraft.delete(l.cameraId);
+    const a = capLines.get(l.cameraId) || []; a.push(l); if (a.length > 40) a.shift(); capLines.set(l.cameraId, a);
+  }
+  if (selected === l.cameraId) drawCaptions(l.cameraId);
+});
 socket.on('dashboard_cam', upsert);
 // A camera fell under 20 % (or under 10 %): a soft two-tone beep and a notice; the alert stays in the Alarms list until it clears.
 function softBeep() {
@@ -1468,8 +1463,8 @@ socket.on('dashboard_alert', (a) => {
   if (i >= 0) alerts[i] = a; else alerts.unshift(a);
   if (!was || (a.level === 'critical' && was.level !== 'critical')) {   // new, or it just got worse (an acknowledgement alone is silent)
     const c = cams.get(a.cameraId);
-    flash((a.level === 'critical' ? t('batCritical') : t('batAlert')) + ': ' + getOfficerLabel(a.cameraId) + ' ' + (c && c.battery != null ? c.battery : a.value) + '%');
-    softBeep();
+    if (GEO[a.kind]) { flash(GEO[a.kind][0] + ' ' + geoName(a.kind) + ': ' + (a.zone || '') + ' · ' + getOfficerLabel(a.cameraId)); if (a.level === 'critical') beep(); else softBeep(); }
+    else { flash((a.level === 'critical' ? t('batCritical') : t('batAlert')) + ': ' + getOfficerLabel(a.cameraId) + ' ' + (c && c.battery != null ? c.battery : a.value) + '%'); softBeep(); }
   }
   renderAlarms(); renderList();
 });
@@ -1480,7 +1475,7 @@ socket.on('stream_up', ({ cameraId }) => {
 });
 function syncTileLabel(i) {
   const t = document.querySelector(`.tile[data-i="${i}"]`); const l = t && t.querySelector('[data-f] .lbl');
-  if (l) l.textContent = t.classList.contains('port') ? (currentLang === 'ar' ? 'عرضي' : 'Landscape') : (currentLang === 'ar' ? 'طولي' : 'Portrait');
+  if (l) l.textContent = t.classList.contains('port') ? tt('landscape') : tt('portrait');
 }
 socket.on('dashboard_alarm_ack', ({ id }) => { const a = alarms.find((x) => x.id === id); if (a) { a.ack = true; renderAlarms(); } });
 socket.on('dashboard_cam_removed', ({ cameraId }) => {
@@ -1492,9 +1487,8 @@ socket.on('dashboard_cam_removed', ({ cameraId }) => {
   renderList();
 });
 socket.on('remote_stream_result', (r) => {
-  if (!r.ok) flash(r.reason === 'live_limit'
-    ? (currentLang === 'ar' ? 'تم الوصول للحد الأقصى للبث المباشر في باقتك' : 'Live-stream limit of your package reached')
-    : (currentLang === 'ar' ? 'الكاميرا غير متصلة' : 'Camera is offline'));
+  if (!r.ok) flash(vgStop.reason(r.reason, currentLang));
+  else if (r.recording) flash(vgStop.sentText(currentLang));   // an officer's recording was stopped on purpose
 });
 socket.on('connect_error', (e) => { if (e.message === 'unauthorized') location.href = '/login.html'; });
 socket.on('dashboard_sos', (a) => {
@@ -1555,7 +1549,7 @@ socket.on('receive_message', (d) => {
 });
 
 setInterval(() => {
-  $('#clock').textContent = new Date().toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  $('#clock').textContent = VG.dateTime(Date.now(), { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   document.querySelectorAll('[data-ts]').forEach((el) => { el.textContent = ago(+el.dataset.ts); });
 }, 1000);
 
@@ -1564,23 +1558,27 @@ function updateUserDisplay() {
   $('#out').textContent = t('signOut');
   const ishebAdmin = currentUser.role === 'admin' || (currentUser.name && currentUser.name.toLowerCase() === 'administrator');
   $('#who').textContent = currentUser.company ? currentUser.company + ' · ' + currentUser.name : (ishebAdmin ? t('adminRole') : currentUser.name);
+  $('#who').title = $('#who').textContent;
+  if (currentUser.companyId) { $('#who').textContent += ' · ' + VG.t('hdr.role.' + currentUser.role); $('#who').title = $('#who').textContent; }
+  $('#profBtn').onclick = () => vgProfile.open({ avatarTs: currentUser.avatarTs });
   $('#adminLink').style.display = currentUser.super ? '' : 'none';
 }
 
 // licence notice: a chip in the header (administrators open the License page from it)
 function showLicense(l) {
+  window.__lic = l;
   const chip = $('#licChip');
   if (!l || !l.show) {   // nothing to warn about: a company still sees until when its subscription runs
-    const s = window.__sub;
-    if (s) { chip.className = 'lic-chip ok'; chip.style.display = ''; chip.textContent = 'Subscription until ' + new Date(s.end).toISOString().slice(0, 10); chip.removeAttribute('href'); } else chip.style.display = 'none';
+    const sub = window.__sub;
+    if (sub) { chip.className = 'lic-chip ok'; chip.style.display = ''; chip.textContent = VG.t('lv.sub.until', { date: VG.iso(sub.end) }); chip.removeAttribute('href'); } else chip.style.display = 'none';
     return;
   }
   const n = l.daysLeft, bad = ['grace', 'restricted', 'locked', 'subexpired'].includes(l.state) || l.clock;
   chip.className = 'lic-chip' + (bad ? ' bad' : ''); chip.style.display = '';
-  const days = `${n} day${n === 1 ? '' : 's'} left`;
-  chip.innerHTML = l.clock ? 'Server clock behind' : l.state === 'expiring' ? `<span class="lic-long">Licence: </span>${days}` : l.state === 'trial' ? `<span class="lic-long">Trial: </span>${days}`
-    : l.state === 'subexpiring' ? `Subscription: ${n} day${n === 1 ? '' : 's'} left` : l.state === 'subexpired' ? 'Subscription ended' : l.state === 'grace' ? 'Licence expired' : '<span class="lic-long">Limited mode: </span>expired';
-  chip.title = l.canManage ? 'Open the License page' : 'Tell your administrator';
+  const nd = VG.t('common.nDays', { n: Math.abs(n) }), days = VG.t('lv.lic.days', { days: nd });
+  chip.innerHTML = l.clock ? t('lic.clock') : l.state === 'expiring' ? `<span class="lic-long">${t('lic.long')}</span>${days}` : l.state === 'trial' ? `<span class="lic-long">${t('lic.trial')}</span>${days}`
+    : l.state === 'subexpiring' ? VG.t('lv.lic.subEnding', { days: nd }) : l.state === 'subexpired' ? t('lic.subEnded') : l.state === 'grace' ? t('lic.grace') : `<span class="lic-long">${t('lic.limited')}</span>${t('lic.expired')}`;
+  chip.title = l.canManage ? t('lic.open') : t('lic.tell');
   if (!l.canManage) chip.removeAttribute('href');
 }
 function loadDirectory() {
@@ -1595,6 +1593,7 @@ fetch('/api/me').then((r) => (r.ok ? r.json() : Promise.reject()))
     showLicense(u.license && u.license.show ? u.license : u.subscription && u.subscription.show ? { show: true, state: u.subscription.state === 'expired' ? 'subexpired' : 'subexpiring', daysLeft: u.subscription.daysLeft } : null);
     updateUserDisplay();
     loadDirectory();
+    if (window.geoInit) geoInit();
     renderInfo(); 
   })
   .catch(() => { location.href = '/login.html'; });
@@ -1607,20 +1606,40 @@ else { addEventListener('pointerdown', unlockAudio, { once: true, capture: true 
 
 phoneInit(); buildWall(); renderList(); renderAlarms();
 
-$('#langToggle').addEventListener('click', (e) => {
-  const btn = e.target.closest('.lang-btn');
-  if (!btn || btn.classList.contains('active')) return;
-  
-  currentLang = btn.dataset.l;
-  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b === btn));
-  document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-  document.querySelectorAll('#mnav [data-en]').forEach((n) => { n.textContent = n.dataset[currentLang]; });
-  
-  renderList();
-  renderAlarms();
-  renderInfo();
-  buildWall();
-  updateUserDisplay();
+// the two status labels of a picture are drawn by CSS: their words are handed over as variables
+const pillVars = () => { const r = document.documentElement.style; r.setProperty('--t-wait', JSON.stringify(t('pWait'))); r.setProperty('--t-rec', JSON.stringify(t('pRec'))); };
+VG.mountSwitch('#langSlot'); pillVars();
+// Fit the header to the window: undo every step, then add steps (fit1..fit5, see the CSS) until nothing sticks out. Runs on every change of size,
+// language, user name or font, so it is right in any browser and at any zoom. The phone layout (<= 900 px) has its own rules.
+function fitHeader(force) {
+  const h = document.getElementById('top'); if (!h) return;
+  // what decides the layout: the width, the language and the header's words, not the clock (it ticks every second and must not start a measurement)
+  const clock = h.querySelector('.clock');
+  const key = h.clientWidth + '|' + document.documentElement.lang + '|' + (h.textContent || '').replace(clock ? clock.textContent : '', '');
+  if (!force && key === fitKey) return;
+  fitKey = key;
+  const steps = ['fit1', 'fit2', 'fit3', 'fit4', 'fit5'];
+  h.classList.add('fitting');
+  h.classList.remove(...steps);
+  const right = h.querySelector('.hdr-right');
+  const over = () => h.scrollWidth > h.clientWidth + 1 || (right && right.scrollWidth > right.clientWidth + 1);
+  for (const s of steps) { if (!over()) break; h.classList.add(s); }
+  void h.offsetWidth;   // settle the layout before the animations come back
+  setTimeout(() => h.classList.remove('fitting'), 0);
+}
+let fitQueued = false, fitKey = '';
+const fitSoon = () => { if (fitQueued) return; fitQueued = true; setTimeout(() => { fitQueued = false; fitHeader(); }, 30); };   // a timer, not requestAnimationFrame: a hidden tab pauses that
+addEventListener('load', () => fitHeader(true)); document.addEventListener('visibilitychange', fitSoon);
+addEventListener('resize', fitSoon);
+if (window.ResizeObserver) new ResizeObserver(fitSoon).observe(document.getElementById('top'));
+if (document.fonts?.ready) document.fonts.ready.then(() => fitHeader(true));
+new MutationObserver(fitSoon).observe(document.getElementById('top'), { subtree: true, childList: true, characterData: true });
+fitSoon();
+VG.onLang(() => {   // the dashboard redraws itself in the new language without reloading (the pictures keep playing)
+  pillVars();
+  renderList(); renderAlarms(); renderInfo(); buildWall(); updateUserDisplay();
+  if (window.__lic !== undefined) showLicense(window.__lic);
+  if (window.geoLangChanged) geoLangChanged();
 });
 
 /* ---------- Voice note playback ---------- */
@@ -1685,5 +1704,8 @@ $('#chat-msgs').addEventListener('click', (e) => {
   else v.el.pause();
 });
 </script>
+<script src="/stopstream.js"></script>
+<script src="/profile.js"></script>
+<script src="/geofence.js"></script>
 </body>
 </html>

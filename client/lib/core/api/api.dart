@@ -19,8 +19,11 @@ class Api {
   final String server;
   final String? token;
 
+  /// The language of the app ('en' | 'ar'). It goes with every request, so the server answers in it: error texts, and the language of the push notifications of this phone.
+  static String language = 'en';
+
   // The token goes both ways: as a bearer (new servers) and as the session cookie (servers that predate /api/mobile).
-  Map<String, String> get headers => {'content-type': 'application/json', if (token != null) ...{'authorization': 'Bearer $token', 'cookie': 'sid=$token'}};
+  Map<String, String> get headers => {'content-type': 'application/json', 'x-lang': language, 'accept-language': language, if (token != null) ...{'authorization': 'Bearer $token', 'cookie': 'sid=$token'}};
 
   Future<dynamic> _send(Future<http.Response> Function() call) async {
     http.Response r;
@@ -54,7 +57,7 @@ class Api {
     // Older server without the mobile API: use the web login and keep its session cookie as the token.
     http.Response r;
     try {
-      r = await http.post(_u('/api/login'), headers: {'content-type': 'application/json'}, body: jsonEncode({'username': username, 'password': password})).timeout(const Duration(seconds: 15));
+      r = await http.post(_u('/api/login'), headers: {'content-type': 'application/json', 'x-lang': language, 'accept-language': language}, body: jsonEncode({'username': username, 'password': password})).timeout(const Duration(seconds: 15));
     } catch (_) {
       throw ApiError(0, 'offline');
     }
@@ -69,6 +72,7 @@ class Api {
     return {'token': sid, 'expiresAt': DateTime.now().millisecondsSinceEpoch + 7 * 86400000, 'user': user.toJson()};
   }
   Future<void> logout() async { try { await _post('/api/mobile/logout'); } catch (_) {} }
+  Future<Map> access() async => (await _get('/api/me/access')) as Map;   // who this is and what they may see and do, with the reason for every no
   Future<User> me() async => User.fromJson((await _get('/api/me')) as Map);
   // generic calls for the screens that mirror the web pages (Reports, Check-out, Team, Admin panel)
   Future<dynamic> getJson(String p, [Map<String, String>? q]) => _get(p, q);
@@ -104,5 +108,5 @@ class Api {
   Future<void> replyTicket(int id, String body) => _post('/api/tickets/$id/messages', {'body': body});
   Future<void> setTicketStatus(int id, String status) => _post('/api/tickets/$id/status', {'status': status});
 
-  Future<void> registerPush(String pushToken, String platform) => _post('/api/mobile/push', {'token': pushToken, 'platform': platform});
+  Future<void> registerPush(String pushToken, String platform) => _post('/api/mobile/push', {'token': pushToken, 'platform': platform, 'lang': language});
 }

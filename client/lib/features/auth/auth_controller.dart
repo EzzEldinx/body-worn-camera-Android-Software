@@ -12,7 +12,8 @@ class Session {
   Api get api => Api(server, token: token);
 }
 
-const _store = FlutterSecureStorage();
+// macOS: the file-based keychain (no keychain-access-groups entitlement, so it also works without an Apple team signature); iOS and Android are unchanged.
+const _store = FlutterSecureStorage(mOptions: MacOsOptions(usesDataProtectionKeychain: false));
 
 /// Holds the signed-in session. The token lives in the Keychain (iOS) / Keystore (Android), never in plain preferences.
 class AuthController extends AsyncNotifier<Session?> {

@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Analytics - VisionGuard</title>
+<title data-i18n="an.pageTitle">Analytics - VisionGuard</title>
+<script src="/i18n.js"></script>
+<script src="/i18n/analytics.js"></script>
+<script src="/i18n/audit.js"></script>
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <link rel="stylesheet" href="/portal.css">
@@ -22,7 +25,7 @@
 .presets{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft)}
 .presets button{padding:6px 13px;border-radius:99px;border:1px solid var(--line);background:var(--raise);font-size:12.5px;font-weight:700;color:var(--mut)}
 .presets button:hover,.presets button.on{background:var(--panel);color:var(--text);border-color:var(--sel);box-shadow:0 0 0 1px rgba(255,179,0,.45)}
-.presets .muted{margin-left:auto;font-size:12.5px}
+.presets .muted{margin-inline-start:auto;font-size:12.5px}
 .hero-btns{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .hero .btn.ghost{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.32);color:#fff}
 .hero .btn.ghost:hover{background:rgba(255,255,255,.22)}
@@ -30,7 +33,7 @@
 .gauges .gauge{padding:16px 18px;gap:14px}
 .gauges .gauge svg{width:88px;height:88px}
 .gauges .gauge b{font-size:28px}
-.attn{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;border-left:4px solid var(--c,var(--sel))}
+.attn{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;border-inline-start:4px solid var(--c,var(--sel))}
 .attn b{font-size:14.5px}.attn span{color:var(--mut);font-size:13px;flex:1;min-width:200px}
 .live{display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:rgba(232,238,247,.75)}
 .live i{width:8px;height:8px;border-radius:50%;background:#2EE6A6;animation:pulse 1.6s infinite}
@@ -53,7 +56,7 @@
 .legend{display:grid;gap:9px;min-width:130px;flex:1}
 .legend div{display:flex;align-items:center;gap:9px;font-size:13.5px}
 .legend i{width:11px;height:11px;border-radius:4px;flex:none}
-.legend b{margin-left:auto;font-size:15px}
+.legend b{margin-inline-start:auto;font-size:15px}
 .empty{color:var(--mut);font-size:13px;padding:18px 0}
 /* bars */
 .bars{display:flex;align-items:flex-end;gap:12px;height:190px;padding-top:10px}
@@ -81,11 +84,12 @@
 @keyframes flowdash{to{stroke-dashoffset:-12}}
 .flow .dotp{fill:var(--sel);filter:drop-shadow(0 0 5px var(--sel))}
 @media (prefers-reduced-motion:reduce){.flow .path,.live i{animation:none}}
+:root[dir="rtl"] .hero::before{mask-image:linear-gradient(270deg,transparent,#000 70%);-webkit-mask-image:linear-gradient(270deg,transparent,#000 70%)}
 
 /* insights, pipeline, health, audit */
 .sev{--c:var(--off)}.sev.critical{--c:var(--rec)}.sev.warning{--c:var(--sel)}.sev.info{--c:var(--blue)}.sev.good{--c:var(--ok)}
 .insgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:14px}
-.insc{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;background:var(--panel)}
+.insc{border:1px solid var(--line);border-inline-start:4px solid var(--c);border-radius:12px;padding:12px 14px;background:var(--panel)}
 .insc b{display:block;font-size:14px;margin-bottom:3px}.insc span{font-size:12.5px;color:var(--mut);line-height:1.45}
 .insc .tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:var(--c);margin-bottom:4px}
 .ins-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -94,30 +98,32 @@
 .pipe{display:grid;gap:10px}.pipe .row{display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:center;font-size:13.5px}
 .pipe .meter{height:10px;border-radius:6px;background:var(--line-soft);overflow:hidden}.pipe .meter i{display:block;height:100%;border-radius:6px;background:var(--c);transition:width .8s}
 .hours{height:150px;gap:4px}.hours .bar span{font-size:9.5px}.hours .bar b{font-size:10px}
-.hth{width:100%;border-collapse:collapse;font-size:13px}.hth th{text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);border-bottom:1px solid var(--line)}
-.hth td{padding:10px;border-bottom:1px solid var(--line-soft)}.hth .r{text-align:right}
-.bat{display:inline-block;width:54px;height:8px;border-radius:5px;background:var(--line-soft);vertical-align:middle;margin-right:7px;overflow:hidden}.bat i{display:block;height:100%;background:var(--ok)}.bat.low i{background:var(--rec)}
-.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--c,var(--off)) 14%,transparent);color:var(--c,var(--mut));margin-right:4px}
+.hth{width:100%;border-collapse:collapse;font-size:13px}.hth th{text-align:start;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);border-bottom:1px solid var(--line)}
+.hth td{padding:10px;border-bottom:1px solid var(--line-soft)}.hth .r{text-align:end}
+.bat{display:inline-block;width:54px;height:8px;border-radius:5px;background:var(--line-soft);vertical-align:middle;margin-inline-end:7px;overflow:hidden}.bat i{display:block;height:100%;background:var(--ok)}.bat.low i{background:var(--rec)}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--c,var(--off)) 14%,transparent);color:var(--c,var(--mut));margin-inline-end:4px}
 .aud-f{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}.aud-f input,.aud-f select{min-width:130px}
 .integ{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:99px;font-size:12.5px;font-weight:800;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c)}
 .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:var(--mut)}
 .scroll{overflow:auto;max-height:520px}
 @media (max-width:700px){.pipe .row{grid-template-columns:110px 1fr auto}}
+@media (max-width:640px){.bars{gap:3px}.bar{min-width:0}.bar span{font-size:9.5px}.bar b{font-size:11px}.hero{padding:20px 18px}}
 </style>
+<link rel="stylesheet" href="/i18n.css">
 </head>
 <body>
 <header id="top"></header>
 <main>
   <section class="card hero">
     <div>
-      <h1 id="hello">Welcome</h1>
-      <p id="scope">Loading your fleet…</p>
-      <div class="live"><i></i><span id="upd">Live data</span></div>
+      <h1 id="hello" data-i18n="an.welcome">Welcome</h1>
+      <p id="scope" data-i18n="an.loadingFleet">Loading your fleet…</p>
+      <div class="live"><i></i><span id="upd" data-i18n="an.liveData">Live data</span></div>
     </div>
     <div class="hero-btns">
-      <a class="btn ghost" href="/reports.html">Reports</a>
-      <a class="btn pri" href="/" style="font-size:16px;padding:14px 26px">Open Live Dashboard
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="btn ghost" href="/reports.html" data-i18n="an.reports">Reports</a>
+      <a class="btn pri" href="/" style="font-size:16px;padding:14px 26px"><span data-i18n="an.openLive">Open Live Dashboard</span>
+        <svg class="flip" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     </div>
   </section>
 
@@ -130,44 +136,44 @@
   </section>
 
   <section class="card">
-    <h3>Evidence &amp; alert flow</h3>
-    <svg class="flow" viewBox="0 0 1080 330" id="flow" role="img" aria-label="System flow"></svg>
+    <h3 data-i18n="an.flowTitle">Evidence &amp; alert flow</h3>
+    <svg class="flow" viewBox="0 0 1080 330" id="flow" role="img" aria-label="System flow" data-i18n-aria="an.flowAria"></svg>
   </section>
 
   <section class="grid g3">
-    <div class="card"><h3>Fleet status</h3><div id="dFleet"></div></div>
-    <div class="card"><h3>Alarm status (30 days)</h3><div id="dAlarm"></div></div>
-    <div class="card"><h3 id="dThirdTitle">Cameras by group</h3><div id="dThird"></div></div>
+    <div class="card"><h3 data-i18n="an.fleetStatus">Fleet status</h3><div id="dFleet"></div></div>
+    <div class="card"><h3 data-i18n="an.alarmStatus">Alarm status (30 days)</h3><div id="dAlarm"></div></div>
+    <div class="card"><h3 id="dThirdTitle" data-i18n="an.byGroup">Cameras by group</h3><div id="dThird"></div></div>
   </section>
 
   <section class="grid g3">
-    <div class="card"><h3>SOS alarms · last 7 days</h3><div class="bars" id="bars"></div></div>
-    <div class="card"><h3>SOS alarms by hour of day · 30 days</h3><div class="bars hours" id="hbars"></div></div>
-    <div class="card"><h3>Overview</h3><div class="stats" id="stats"></div></div>
+    <div class="card"><h3 data-i18n="an.sosWeek">SOS alarms · last 7 days</h3><div class="bars" id="bars"></div></div>
+    <div class="card"><h3 data-i18n="an.sosHour">SOS alarms by hour of day · 30 days</h3><div class="bars hours" id="hbars"></div></div>
+    <div class="card"><h3 data-i18n="an.overview">Overview</h3><div class="stats" id="stats"></div></div>
   </section>
 
   <section class="card" id="insCard">
-    <div class="ins-h"><div><h3 style="margin:0">Insights</h3><p class="muted" style="margin:4px 0 0;font-size:13px">What needs attention, worked out from your cameras, docks and alarms.</p></div>
-      <button class="btn pri" id="aiBtn">&#10022; Written analysis</button></div>
-    <div id="aiOut"></div><div class="insgrid" id="ins"><div class="empty">Analysing…</div></div>
+    <div class="ins-h"><div><h3 style="margin:0" data-i18n="an.insights">Insights</h3><p class="muted" style="margin:4px 0 0;font-size:13px" data-i18n="an.insightsSub">What needs attention, worked out from your cameras, docks and alarms.</p></div>
+      <button class="btn pri" id="aiBtn" data-i18n="an.writtenBtn">&#10022; Written analysis</button></div>
+    <div id="aiOut"></div><div class="insgrid" id="ins"><div class="empty" data-i18n="an.analysing">Analysing…</div></div>
   </section>
 
   <section class="grid g2">
-    <div class="card"><h3>Evidence pipeline</h3><div class="pipe" id="pipe"></div>
-      <p class="muted" style="margin:14px 0 0;font-size:12.5px">From the camera to the dock, then to the cloud or kept on the dock. <a href="/docks.html#files">Open Docking &gt; Files</a></p></div>
-    <div class="card"><h3>Recordings reaching the cloud · 14 days</h3><div class="bars" id="recbars"></div></div>
+    <div class="card"><h3 data-i18n="an.pipeline">Evidence pipeline</h3><div class="pipe" id="pipe"></div>
+      <p class="muted" style="margin:14px 0 0;font-size:12.5px"><span data-i18n="an.pipeNote">From the camera to the dock, then to the cloud or kept on the dock.</span> <a href="/docks.html#files" data-i18n="an.pipeLink">Open Docking &gt; Files</a></p></div>
+    <div class="card"><h3 data-i18n="an.recCloud">Recordings reaching the cloud · 14 days</h3><div class="bars" id="recbars"></div></div>
   </section>
 
-  <section class="card"><h3>Camera health</h3><div class="scroll" style="max-height:420px"><table class="hth" id="hth"></table></div></section>
+  <section class="card"><h3 data-i18n="an.health">Camera health</h3><div class="scroll" style="max-height:420px"><table class="hth" id="hth"></table></div></section>
 
   <section class="card" id="audit">
-    <div class="ins-h"><div><h3 style="margin:0">Audit trail</h3><p class="muted" style="margin:4px 0 0;font-size:13px;max-width:640px">Every step is written by the server, cannot be edited or erased, and each line is chained to the one before it. This is the proof of what happened to every file and who decided it.</p></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="integ" id="integ" style="--c:var(--off)">Checking…</span><button class="btn" id="verBtn">Verify now</button><a class="btn" id="csvBtn" href="/api/audit/export.csv">Export CSV</a></div></div>
+    <div class="ins-h"><div><h3 style="margin:0" data-i18n="an.audit">Audit trail</h3><p class="muted" style="margin:4px 0 0;font-size:13px;max-width:640px" data-i18n="an.auditSub">Every step is written by the server, cannot be edited or erased, and each line is chained to the one before it. This is the proof of what happened to every file and who decided it.</p></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="integ" id="integ" style="--c:var(--off)" data-i18n="an.checking">Checking…</span><button class="btn" id="verBtn" data-i18n="an.verify">Verify now</button><a class="btn" id="csvBtn" href="/api/audit/export.csv" data-i18n="an.csv">Export CSV</a></div></div>
     <div class="aud-f">
-      <select id="aKind"><option value="">Everything</option><option value="dock_file">All file steps</option><option value="dock_file_choice">Decisions (cloud / dock)</option><option value="dock_file_upload">Uploads to the cloud</option><option value="dock_file_delete">Deleted from cameras</option><option value="dock_policy">Automatic-mode changes</option><option value="recording">Recordings (downloaded / expired)</option><option value="camera_edited,camera_removed">Camera changes</option><option value="camera_checkout,camera_picked_up,camera_returned,checkout">Check-outs and returns</option><option value="employee,user_">Employees and users</option><option value="battery">Battery alerts</option><option value="license">Licence</option><option value="report">Reports</option><option value="token">Tokens</option></select>
-      <input id="aCam" placeholder="Camera, e.g. BWC-01-RIY"><input id="aUser" placeholder="User"><input type="date" id="aFrom" title="From"><input type="date" id="aTo" title="To">
-      <button class="btn pri" id="aGo">Show</button><span class="muted" id="aN"></span></div>
-    <div class="scroll"><table class="hth"><thead><tr><th>#</th><th>When</th><th>Who</th><th>What</th><th>Camera</th><th>Details</th><th>Seal</th></tr></thead><tbody id="aBody"></tbody></table></div>
+      <select id="aKind"><option value="" data-i18n="an.k.all">Everything</option><option value="dock_file" data-i18n="an.k.file">All file steps</option><option value="dock_file_choice" data-i18n="an.k.choice">Decisions (cloud / dock)</option><option value="dock_file_upload" data-i18n="an.k.upload">Uploads to the cloud</option><option value="dock_file_delete" data-i18n="an.k.delete">Deleted from cameras</option><option value="dock_policy" data-i18n="an.k.policy">Automatic-mode changes</option><option value="recording" data-i18n="an.k.recording">Recordings (downloaded / expired)</option><option value="camera_edited,camera_removed" data-i18n="an.k.camera">Camera changes</option><option value="camera_checkout,camera_picked_up,camera_returned,checkout" data-i18n="an.k.checkout">Check-outs and returns</option><option value="employee,user_" data-i18n="an.k.people">Employees and users</option><option value="battery" data-i18n="an.k.battery">Battery alerts</option><option value="license" data-i18n="an.k.license">Licence</option><option value="report" data-i18n="an.k.report">Reports</option><option value="token" data-i18n="an.k.token">Tokens</option></select>
+      <input id="aCam" placeholder="Camera, e.g. BWC-01-RIY" data-i18n-ph="an.phCamera"><input id="aUser" placeholder="User" data-i18n-ph="an.phUser"><input type="date" id="aFrom" title="From" data-i18n-title="an.from" data-i18n-aria="an.from"><input type="date" id="aTo" title="To" data-i18n-title="an.to" data-i18n-aria="an.to">
+      <button class="btn pri" id="aGo" data-i18n="an.show">Show</button><span class="muted" id="aN"></span></div>
+    <div class="scroll"><table class="hth"><thead><tr><th>#</th><th data-i18n="an.aWhen">When</th><th data-i18n="an.aWho">Who</th><th data-i18n="an.aWhat">What</th><th data-i18n="an.aCamera">Camera</th><th data-i18n="an.aDetails">Details</th><th data-i18n="an.aSeal">Seal</th></tr></thead><tbody id="aBody"></tbody></table></div>
     <p class="muted mono" id="aHead" style="margin:10px 0 0;word-break:break-all"></p>
   </section>
 </main>
@@ -175,6 +181,7 @@
 <script src="/portal.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
+const t = VG.t;
 const C_OK = 'var(--ok)', C_REC = 'var(--rec)', C_OFF = 'var(--off)', C_BLUE = 'var(--blue)', C_SEL = 'var(--sel)', C_BR = 'var(--brand)';
 let first = true;
 
@@ -190,26 +197,32 @@ function gauge(label, value, pct, color, sub) {
 }
 function donut(segs, centerVal, centerLbl) {
   const R = 54, C = arcLen(R), total = segs.reduce((s, x) => s + x.v, 0);
-  if (!total) return '<div class="empty">No data yet.</div>';
+  if (!total) return `<div class="empty">${t('an.noData')}</div>`;
   let off = 0;
   const arcs = segs.filter((s) => s.v > 0).map((s) => {
     const len = s.v / total * C, el = `<circle cx="70" cy="70" r="${R}" fill="none" style="stroke:${s.c}" stroke-width="17" stroke-dasharray="${Math.max(0, len - 2)} ${C - len + 2}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;
     off += len; return el;
   }).join('');
   return `<div class="donutwrap"><svg viewBox="0 0 140 140"><circle cx="70" cy="70" r="${R}" fill="none" stroke="var(--line-soft)" stroke-width="17"/>${arcs}
-    <text class="c1" x="70" y="72" text-anchor="middle">${centerVal}</text><text class="c2" x="70" y="88" text-anchor="middle">${centerLbl}</text></svg>
-    <div class="legend">${segs.map((s) => `<div><i style="background:${s.c}"></i>${s.n}<b>${s.v}</b></div>`).join('')}</div></div>`;
+    <text class="c1" x="70" y="72" text-anchor="middle">${centerVal}</text><text class="c2" x="70" y="88" text-anchor="middle">${esc(centerLbl)}</text></svg>
+    <div class="legend">${segs.map((s) => `<div><i style="background:${s.c}"></i>${esc(s.n)}<b>${s.v}</b></div>`).join('')}</div></div>`;
 }
-const fmtSec = (s) => (s == null ? '–' : s < 60 ? s + 's' : s < 3600 ? Math.round(s / 60) + 'm' : (s / 3600).toFixed(1) + 'h');
+const fmtSec = (s) => VG.dur(s);
 const pctOf = (a, b) => (b ? a / b : 0);
+const ltr = (s) => `<span class="ltr">${s}</span>`;   // "12 / 36" must not turn into "36 / 12" in an Arabic line
 
 function flow(d) {
-  const f = d.fleet, node = (x, y, w, h, t, v, s, icon, core) => `
-    <g class="node ${core ? 'core' : ''}" transform="translate(${x} ${y})"><rect width="${w}" height="${h}" rx="18"/>
-      <g class="ico" transform="translate(16 ${h / 2 - 12})">${icon}</g>
-      <text class="t" x="52" y="${h / 2 - (v !== '' ? 12 : 3)}">${t}</text>
-      ${v !== '' ? `<text class="v" x="52" y="${h / 2 + 14}">${v}</text>` : ''}
-      <text class="s" x="52" y="${h / 2 + (v !== '' ? 30 : 15)}">${s}</text></g>`;
+  const f = d.fleet, rtl = VG.rtl, W = 1080;
+  // The diagram follows the reading direction: in Arabic the cameras are on the right and the control room on the left.
+  const node = (x, y, w, h, title, v, s, icon, core) => {
+    const nx = rtl ? W - x - w : x, tx = rtl ? w - 52 : 52, ix = rtl ? w - 40 : 16;
+    return `
+    <g class="node ${core ? 'core' : ''}" transform="translate(${nx} ${y})"><rect width="${w}" height="${h}" rx="18"/>
+      <g class="ico" transform="translate(${ix} ${h / 2 - 12})">${icon}</g>
+      <text class="t" x="${tx}" y="${h / 2 - (v !== '' ? 12 : 3)}">${esc(title)}</text>
+      ${v !== '' ? `<text class="v" x="${tx}" y="${h / 2 + 14}">${v}</text>` : ''}
+      <text class="s" x="${tx}" y="${h / 2 + (v !== '' ? 30 : 15)}">${esc(s)}</text></g>`;
+  };
   const I = {
     cam: '<rect x="1" y="5" width="15" height="14" rx="3"/><path d="M16 10l7-4v12l-7-4"/>',
     net: '<path d="M2 9a14 14 0 0120 0M6 13a8 8 0 0112 0M10 17a3 3 0 014 0"/><circle cx="12" cy="21" r="1" fill="currentColor"/>',
@@ -226,44 +239,46 @@ function flow(d) {
   ];
   const dots = paths.map(([id], k) => `<circle class="dotp" r="4"><animateMotion dur="${2.2 + (k % 3) * .4}s" begin="${(k * .3).toFixed(1)}s" repeatCount="indefinite"><mpath href="#${id}"/></animateMotion></circle>`).join('');
   $('#flow').innerHTML = `<defs><linearGradient id="coreGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5E4A9E"/><stop offset="1" stop-color="#2F5BD6"/></linearGradient></defs>
-    ${paths.map(([id, p]) => `<path id="${id}" class="path" d="${p}"/>`).join('')}${dots}
-    ${node(10, 120, 160, 90, 'Body cameras', f.total, f.online + ' online', I.cam)}
-    ${node(205, 120, 160, 90, '4G / Docking', '', 'Secure uplink', I.net)}
-    ${node(400, 105, 170, 120, 'VisionGuard', '', 'Server &amp; storage', I.srv, true)}
-    ${node(640, 15, 160, 90, 'Live streams', f.recording, 'recording now', I.live)}
-    ${node(640, 120, 160, 90, 'GPS tracking', d.gpsPoints24h, 'points · 24h', I.gps)}
-    ${node(640, 225, 160, 90, 'SOS &amp; PTT', d.alarms.open, 'open alarms', I.sos)}
-    ${node(880, 120, 190, 90, 'Control room', '', d.scope.staff ? 'All companies' : (d.scope.company || ''), I.cc)}`;
+    <g${rtl ? ` transform="matrix(-1 0 0 1 ${W} 0)"` : ''}>${paths.map(([id, p]) => `<path id="${id}" class="path" d="${p}"/>`).join('')}${dots}</g>
+    ${node(10, 120, 160, 90, t('an.flowCams'), f.total, t('an.flowOnline', { n: f.online }), I.cam)}
+    ${node(205, 120, 160, 90, t('an.flowNet'), '', t('an.flowUplink'), I.net)}
+    ${node(400, 105, 170, 120, 'VisionGuard', '', t('an.flowServer'), I.srv, true)}
+    ${node(640, 15, 160, 90, t('an.flowLive'), f.recording, t('an.flowRecNow'), I.live)}
+    ${node(640, 120, 160, 90, t('an.flowGps'), d.gpsPoints24h, t('an.flowPoints'), I.gps)}
+    ${node(640, 225, 160, 90, t('an.flowSos'), d.alarms.open, t('an.flowOpenAlarms'), I.sos)}
+    ${node(880, 120, 190, 90, t('an.flowControl'), '', d.scope.staff ? t('an.flowAll') : (d.scope.company || ''), I.cc)}`;
 }
 
+let lastData = null;
 function render(d, me) {
+  lastData = [d, me];
   const f = d.fleet, a = d.alarms, h = new Date().getHours();
-  $('#hello').innerHTML = `${h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}, <span>${me.name.replace(/[<>&]/g, '')}</span>`;
+  $('#hello').innerHTML = `${t(h < 12 ? 'an.greetMorning' : h < 18 ? 'an.greetAfternoon' : 'an.greetEvening')}${VG.rtl ? '،' : ','} <span><bdi>${esc(me.name)}</bdi></span>`;
   $('#scope').textContent = d.scope.staff
-    ? `Powered by Smart Way Group · ${d.totals ? d.totals.companies + ' companies · ' + d.totals.users + ' users · ' : ''}${f.total} cameras`
-    : `${d.scope.company} · ${f.total} assigned camera${f.total === 1 ? '' : 's'}`;
-  $('#upd').textContent = 'Live data · updated ' + new Date().toLocaleTimeString();
+    ? [t('an.poweredBy'), ...(d.totals ? [t('common.nCompanies', { n: d.totals.companies }), t('common.nUsers', { n: d.totals.users })] : []), t('common.nCameras', { n: f.total })].join(' · ')
+    : [d.scope.company, t('an.nAssigned', { n: f.total })].join(' · ');
+  $('#upd').textContent = t('an.updated', { time: VG.time(Date.now()) });
 
   $('#gA').innerHTML =
-    gauge('Cameras online', f.online + '<span class="muted" style="font-size:18px"> / ' + f.total + '</span>', pctOf(f.online, f.total), C_OK, `<span class="pct">${Math.round(pctOf(f.online, f.total) * 100)}%</span> of the fleet`) +
-    gauge('Recording', f.recording, pctOf(f.recording, f.total), C_REC, `<span class="pct">${Math.round(pctOf(f.recording, f.total) * 100)}%</span> streaming evidence`) +
-    gauge('Open alarms', a.open, pctOf(a.open, a.total), C_SEL, `${a.total} SOS in 30 days`) +
-    gauge('Avg response', fmtSec(a.avgResponseSec), a.avgResponseSec == null ? 0 : Math.max(0.05, 1 - Math.min(a.avgResponseSec, 300) / 300), C_BLUE, 'time to acknowledge');
+    gauge(t('an.gCamsOnline'), ltr(f.online + '<span class="muted" style="font-size:18px"> / ' + f.total + '</span>'), pctOf(f.online, f.total), C_OK, `<span class="pct">${Math.round(pctOf(f.online, f.total) * 100)}%</span> ${t('an.gOfFleet')}`) +
+    gauge(t('an.gRecording'), f.recording, pctOf(f.recording, f.total), C_REC, `<span class="pct">${Math.round(pctOf(f.recording, f.total) * 100)}%</span> ${t('an.gStreaming')}`) +
+    gauge(t('an.gOpenAlarms'), a.open, pctOf(a.open, a.total), C_SEL, t('an.gSosIn30', { n: a.total })) +
+    gauge(t('an.gAvgResp'), ltr(fmtSec(a.avgResponseSec)), a.avgResponseSec == null ? 0 : Math.max(0.05, 1 - Math.min(a.avgResponseSec, 300) / 300), C_BLUE, t('an.gTimeToAck'));
 
   $('#dFleet').innerHTML = donut([
-    { n: 'Recording', v: f.recording, c: C_REC }, { n: 'Online (idle)', v: Math.max(0, f.online - f.recording), c: C_OK }, { n: 'Offline', v: f.offline, c: C_OFF }], f.total, 'cameras');
-  $('#dAlarm').innerHTML = donut([{ n: 'Open', v: a.open, c: C_REC }, { n: 'Acknowledged', v: a.acked, c: C_OK }], a.total, 'alarms');
+    { n: t('an.dRecording'), v: f.recording, c: C_REC }, { n: t('an.dIdle'), v: Math.max(0, f.online - f.recording), c: C_OK }, { n: t('an.dOffline'), v: f.offline, c: C_OFF }], f.total, t('an.dCameras'));
+  $('#dAlarm').innerHTML = donut([{ n: t('an.dOpen'), v: a.open, c: C_REC }, { n: t('an.dAcked'), v: a.acked, c: C_OK }], a.total, t('an.dAlarms'));
   const pal = [C_BR, C_BLUE, C_SEL, C_OK, C_REC, C_OFF];
   const third = d.scope.staff ? (d.companies || []) : d.groups;
-  $('#dThirdTitle').textContent = d.scope.staff ? 'Cameras by company' : 'Cameras by group';
-  $('#dThird').innerHTML = donut(third.map((x, i) => ({ n: x.name, v: x.count, c: pal[i % pal.length] })), f.total, 'cameras');
+  $('#dThirdTitle').textContent = d.scope.staff ? t('an.byCompany') : t('an.byGroup');
+  $('#dThird').innerHTML = donut(third.map((x, i) => ({ n: x.unassigned ? t('an.unassigned') : x.none ? t('an.noGroup') : x.name, v: x.count, c: pal[i % pal.length] })), f.total, t('an.dCameras'));
 
   const max = Math.max(1, ...a.days.map((x) => x.count));
-  $('#bars').innerHTML = a.days.map((x) => `<div class="bar"><b>${x.count}</b><i style="height:${first ? 4 : Math.max(4, x.count / max * 140)}px" data-h="${Math.max(4, x.count / max * 140)}"></i><span>${x.day}</span></div>`).join('');
+  $('#bars').innerHTML = a.days.map((x) => `<div class="bar"><b>${x.count}</b><i style="height:${first ? 4 : Math.max(4, x.count / max * 140)}px" data-h="${Math.max(4, x.count / max * 140)}"></i><span>${VG.date(x.ts, { weekday: 'short' })}</span></div>`).join('');
   $('#stats').innerHTML = [
-    [f.total, 'Cameras'], [d.gpsPoints24h, 'GPS points · 24h'], [a.total, 'SOS · 30 days'], [fmtSec(a.avgResponseSec), 'Avg response'],
-    ...(d.totals ? [[d.totals.companies, 'Companies'], [d.totals.users, 'Users']] : []),
-  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+    [f.total, t('an.sCameras')], [d.gpsPoints24h, t('an.sGps')], [a.total, t('an.sSos30')], [ltr(fmtSec(a.avgResponseSec)), t('an.sAvg')],
+    ...(d.totals ? [[d.totals.companies, t('an.sCompanies')], [d.totals.users, t('an.sUsers')]] : []),
+  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${esc(l)}</span></div>`).join('');
   flow(d);
 
   animateGauges();
@@ -274,64 +289,56 @@ function render(d, me) {
 
 /* ---------- insights, pipeline, health, audit ---------- */
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmtB = (b) => { b = Number(b) || 0; if (b >= 1e12) return (b / 1e12).toFixed(2) + ' TB'; if (b >= 1e9) return (b / 1e9).toFixed(1) + ' GB'; if (b >= 1e6) return Math.round(b / 1e6) + ' MB'; return Math.round(b / 1e3) + ' KB'; };
-const whenT = (t) => t ? new Date(t).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
-const STEPS = { dock_file_copied: 'File copied from the camera to the dock (verified)', dock_file_choice_cloud: 'Decision: push to cloud', dock_file_choice_local: 'Decision: keep on dock storage', dock_file_uploaded_cloud: 'Uploaded to the cloud (verified)', dock_file_upload_failed: 'Cloud upload failed',
-  dock_file_delete_requested: 'Deletion from camera requested', dock_file_deleted_from_camera: 'Deleted from the camera', dock_file_delete_refused: 'Deletion refused (no verified copy)', recording_expired: 'Removed from the cloud by retention', recording_downloaded: 'Recording downloaded',
-  dock_policy_ask: 'Mode set: Ask me', dock_policy_auto_cloud: 'Mode set: Automatic · Cloud', dock_policy_auto_local: 'Mode set: Automatic · Dock storage', camera_edited: 'Camera edited', camera_removed: 'Camera removed', token_issued: 'Camera token issued', token_revoked: 'Camera token revoked',
-  audit_exported: 'Audit trail exported', ai_analysis_generated: 'AI analysis generated', summary_generated: 'Summary generated', mobile_login: 'Signed in on the mobile app', report_downloaded: 'Report downloaded', battery_low: 'Battery low (under 20%)', battery_critical: 'Battery critical (under 10%)', battery_recovered: 'Battery recovered or charging',
-  camera_checkout: 'Camera checked out by an employee', camera_picked_up: 'Camera left the dock', camera_returned: 'Camera returned to the dock', checkout_cancelled: 'Check-out cancelled', checkouts_exported: 'Check-outs exported', checkout_settings: 'Check-out settings changed',
-  employee_created: 'Employee account created', employee_updated: 'Employee updated', employee_disabled: 'Employee switched off', employee_enabled: 'Employee switched on', employee_removed: 'Employee removed', user_created: 'Dashboard user created', user_removed: 'Dashboard user removed',
-  license_installed: 'Licence installed', license_renewal_requested: 'Licence renewal requested', license_warning: 'Licence reminder', license_camera_refused: 'Camera refused by the licence' };
-const stepText = (a) => STEPS[a] || a.replace(/^remote_stream_/, 'Live view ').replace(/^set_quality_/, 'Quality set to ').replace(/^update_/, 'Update ').replace(/_/g, ' ');
-const SEVL = { critical: 'Act now', warning: 'Watch', info: 'Good to know', good: 'All good' };
+const fmtB = (b) => VG.bytes(b);
+const whenT = (ts) => (ts ? VG.dateTime(ts, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-');
+const stepText = VG.step, detailText = VG.detail;   // the step is stored as a code; the words come from i18n/audit.js
 
 function renderInsights(a) {
-  $('#ins').innerHTML = a.insights.length ? a.insights.map((i) => `<div class="insc sev ${i.severity}"><span class="tag">${SEVL[i.severity]}</span><b>${esc(i.title)}</b><span>${esc(i.detail)}</span></div>`).join('') : '<div class="empty">Nothing to report yet.</div>';
+  $('#ins').innerHTML = a.insights.length ? a.insights.map((i) => `<div class="insc sev ${i.severity}"><span class="tag">${t('an.sev.' + i.severity)}</span><b>${esc(i.title)}</b><span>${esc(i.detail)}</span></div>`).join('') : `<div class="empty">${t('an.nothing')}</div>`;
   const p = a.pipeline, r = a.recordings;
   $('#gB').innerHTML =
-    gauge('Fleet health', a.score == null ? '–' : a.score + '%', (a.score || 0) / 100, a.score >= 80 ? C_OK : a.score >= 50 ? C_SEL : C_REC, 'cameras with no problem') +
-    gauge('Waiting for you', p.awaiting.n, p.awaiting.n ? Math.min(1, p.awaiting.n / 20) : 0, C_SEL, p.awaiting.n ? fmtB(p.awaiting.bytes) + ' on the dock' : 'nothing to decide') +
-    gauge('In the cloud', r.cloudFiles, Math.min(1, r.cloudFiles / 200), C_BLUE, fmtB(r.cloudBytes)) +
-    gauge('Kept on dock', p.local.n, Math.min(1, p.local.n / 200), C_BR, fmtB(p.local.bytes) + (p.removedFromCameras ? ' · ' + p.removedFromCameras + ' cleared from cameras' : ''));
+    gauge(t('an.gHealth'), a.score == null ? '–' : a.score + '%', (a.score || 0) / 100, a.score >= 80 ? C_OK : a.score >= 50 ? C_SEL : C_REC, t('an.gHealthSub')) +
+    gauge(t('an.gWaiting'), p.awaiting.n, p.awaiting.n ? Math.min(1, p.awaiting.n / 20) : 0, C_SEL, p.awaiting.n ? t('an.gOnDock', { size: fmtB(p.awaiting.bytes) }) : t('an.gNothing')) +
+    gauge(t('an.gCloud'), r.cloudFiles, Math.min(1, r.cloudFiles / 200), C_BLUE, fmtB(r.cloudBytes)) +
+    gauge(t('an.gKept'), p.local.n, Math.min(1, p.local.n / 200), C_BR, fmtB(p.local.bytes) + (p.removedFromCameras ? ' · ' + t('an.gCleared', { n: p.removedFromCameras }) : ''));
   const bt = a.battery || { low: 0, critical: 0, known: 0, charging: 0, threshold: 20 };
-  $('#gBat').innerHTML = gauge('Low battery', bt.low, bt.known ? bt.low / bt.known : 0, bt.critical ? C_REC : bt.low ? C_SEL : C_OK,
-    bt.known ? (bt.low ? `under ${bt.threshold}% and not charging` : 'all cameras above ' + bt.threshold + '%') + (bt.charging ? ' · ' + bt.charging + ' charging' : '') : 'no battery readings yet');
-  $('#gDuty').innerHTML = a.shifts ? gauge('On duty', a.shifts.out, a.shifts.total ? a.shifts.out / a.shifts.total : 0, C_BLUE, `${a.shifts.out} of ${a.shifts.total} cameras carried now` + (a.shifts.ready != null ? ' · ' + a.shifts.ready + ' ready' : '')) : '';
+  $('#gBat').innerHTML = gauge(t('an.gLowBat'), bt.low, bt.known ? bt.low / bt.known : 0, bt.critical ? C_REC : bt.low ? C_SEL : C_OK,
+    bt.known ? (bt.low ? t('an.gBatUnder', { t: bt.threshold }) : t('an.gBatAbove', { t: bt.threshold })) + (bt.charging ? ' · ' + t('an.gCharging', { n: bt.charging }) : '') : t('an.gNoBat'));
+  $('#gDuty').innerHTML = a.shifts ? gauge(t('an.gDuty'), a.shifts.out, a.shifts.total ? a.shifts.out / a.shifts.total : 0, C_BLUE, t('an.gCarried', { out: a.shifts.out, total: a.shifts.total }) + (a.shifts.ready != null ? ' · ' + t('an.gReady', { n: a.shifts.ready }) : '')) : '';
   // what needs attention, as one line right under the greeting
   const hot = a.insights.filter((i) => i.severity === 'critical' || i.severity === 'warning'), at = $('#attn');
-  if (hot.length) { at.style.display = ''; at.style.setProperty('--c', hot.some((i) => i.severity === 'critical') ? 'var(--rec)' : 'var(--sel)'); at.innerHTML = `<b>${hot.length} thing${hot.length === 1 ? '' : 's'} need${hot.length === 1 ? 's' : ''} attention</b><span>${hot.slice(0, 3).map((i) => esc(i.title)).join(' · ')}${hot.length > 3 ? ' …' : ''}</span><a class="btn sm" href="#insCard">See insights</a>`; }
+  if (hot.length) { at.style.display = ''; at.style.setProperty('--c', hot.some((i) => i.severity === 'critical') ? 'var(--rec)' : 'var(--sel)'); at.innerHTML = `<b>${esc(t('an.attn', { n: hot.length }))}</b><span>${hot.slice(0, 3).map((i) => esc(i.title)).join(' · ')}${hot.length > 3 ? ' …' : ''}</span><a class="btn sm" href="#insCard">${t('an.seeInsights')}</a>`; }
   else at.style.display = 'none';
   const tot = Math.max(1, p.awaiting.n + p.queued.n + p.local.n + p.cloud.n + p.failed.n);
   const row = (n, k, c) => `<div class="row" style="--c:${c}"><span>${n}</span><div class="meter"><i style="width:${(p[k].n / tot * 100).toFixed(1)}%"></i></div><b>${p[k].n}<small class="muted"> · ${fmtB(p[k].bytes)}</small></b></div>`;
-  $('#pipe').innerHTML = row('Waiting for decision', 'awaiting', C_SEL) + row('Queued for cloud', 'queued', C_BLUE) + row('Kept on dock storage', 'local', C_BR) + row('In the cloud', 'cloud', C_OK) + row('Failed (retrying)', 'failed', C_REC);
+  $('#pipe').innerHTML = row(t('an.pWaiting'), 'awaiting', C_SEL) + row(t('an.pQueued'), 'queued', C_BLUE) + row(t('an.pLocal'), 'local', C_BR) + row(t('an.pCloud'), 'cloud', C_OK) + row(t('an.pFailed'), 'failed', C_REC);
   const mx = Math.max(1, ...r.days.map((d) => d.count));
-  $('#recbars').innerHTML = r.days.map((d) => `<div class="bar" title="${d.count} files · ${fmtB(d.bytes)}"><b>${d.count || ''}</b><i style="height:${Math.max(4, d.count / mx * 140)}px"></i><span>${d.day.replace(/^\w+ /, '')}</span></div>`).join('');
+  $('#recbars').innerHTML = r.days.map((d) => `<div class="bar" title="${esc(t('an.barFiles', { n: d.count, size: fmtB(d.bytes) }))}"><b>${d.count || ''}</b><i style="height:${Math.max(4, d.count / mx * 140)}px"></i><span>${VG.date(d.ts, { day: 'numeric' })}</span></div>`).join('');
   const hm = Math.max(1, ...a.alarms.byHour.map((h) => h.count));
-  $('#hbars').innerHTML = a.alarms.byHour.map((h) => `<div class="bar" title="${h.count} SOS at ${h.hour}:00"><b>${h.count || ''}</b><i style="height:${Math.max(3, h.count / hm * 110)}px;background:linear-gradient(180deg,var(--rec),#c2185b)"></i><span>${h.hour % 3 === 0 ? h.hour : ''}</span></div>`).join('');
-  const FL = { low_battery: ['Low battery', 'var(--rec)'], offline_24h: ['Offline 24h', 'var(--rec)'], no_gps: ['No GPS', 'var(--blue)'], unstable: ['Unstable', 'var(--sel)'] };
-  $('#hth').innerHTML = '<thead><tr><th>Camera</th><th>State</th><th>Battery</th><th class="r">SOS 30d</th><th class="r">Files 7d</th><th>Flags</th></tr></thead><tbody>' + (a.health.length ? a.health.map((h) => `<tr>
+  $('#hbars').innerHTML = a.alarms.byHour.map((h) => `<div class="bar" title="${esc(t('an.barSos', { n: h.count, h: h.hour }))}"><b>${h.count || ''}</b><i style="height:${Math.max(3, h.count / hm * 110)}px;background:linear-gradient(180deg,var(--rec),#c2185b)"></i><span>${h.hour % 3 === 0 ? h.hour : ''}</span></div>`).join('');
+  const FL = { low_battery: [t('an.fLow'), 'var(--rec)'], offline_24h: [t('an.fOff24'), 'var(--rec)'], no_gps: [t('an.fNoGps'), 'var(--blue)'], unstable: [t('an.fUnstable'), 'var(--sel)'] };
+  $('#hth').innerHTML = `<thead><tr><th>${t('an.hCamera')}</th><th>${t('an.hState')}</th><th>${t('an.hBattery')}</th><th class="r">${t('an.hSos')}</th><th class="r">${t('an.hFiles')}</th><th>${t('an.hFlags')}</th></tr></thead><tbody>` + (a.health.length ? a.health.map((h) => `<tr>
     <td><b>${esc(h.name)}</b>${h.holder ? `<div class="muted" style="font-size:11.5px">${esc(h.holder)}</div>` : ''}</td>
-    <td><span class="chip" style="--c:${h.recording ? 'var(--rec)' : h.online ? 'var(--ok)' : 'var(--off)'}">${h.recording ? 'Recording' : h.online ? 'Online' : 'Offline'}</span></td>
-    <td title="${h.batterySrc === 'dock' ? 'Read on the dock' : h.batterySrc === 'camera' ? 'Reported by the camera' : ''}${h.batteryAgeMin != null ? ', ' + h.batteryAgeMin + ' min ago' : ''}">${h.battery == null ? '<span class="muted">–</span>' : `<span class="bat ${h.battery < 20 && !h.charging ? 'low' : ''}"><i style="width:${h.battery}%"></i></span>${h.charging ? '⚡ ' : ''}${h.battery}%`}</td>
+    <td><span class="chip" style="--c:${h.recording ? 'var(--rec)' : h.online ? 'var(--ok)' : 'var(--off)'}">${h.recording ? t('common.recording') : h.online ? t('common.online') : t('common.offline')}</span></td>
+    <td title="${esc((h.batterySrc === 'dock' ? t('an.batDock') : h.batterySrc === 'camera' ? t('an.batCam') : '') + (h.batteryAgeMin != null ? (VG.rtl ? '، ' : ', ') + t('an.batAge', { n: h.batteryAgeMin }) : ''))}">${h.battery == null ? '<span class="muted">–</span>' : `<span class="bat ${h.battery < 20 && !h.charging ? 'low' : ''}"><i style="width:${h.battery}%"></i></span>${h.charging ? '⚡ ' : ''}${h.battery}%`}</td>
     <td class="r">${h.alarms30d}</td><td class="r">${h.recordings7d}</td>
-    <td>${h.flags.length ? h.flags.map((f) => `<span class="chip" style="--c:${FL[f][1]}">${FL[f][0]}</span>`).join('') : '<span class="muted">–</span>'}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">No cameras.</td></tr>') + '</tbody>';
+    <td>${h.flags.length ? h.flags.map((f) => `<span class="chip" style="--c:${FL[f][1]}">${FL[f][0]}</span>`).join('') : '<span class="muted">–</span>'}</td></tr>`).join('') : `<tr><td colspan="6" class="empty">${t('an.noCameras')}</td></tr>`) + '</tbody>';
   animateGauges();
   const i = a.audit; const ok = i.ok;
   $('#integ').style.setProperty('--c', ok ? 'var(--ok)' : 'var(--rec)');
-  $('#integ').textContent = ok ? `✓ Verified · ${i.checked} steps unbroken` : '✗ Chain broken: see Insights';
-  $('#aHead').textContent = i.head ? `Latest seal: ${i.head}${i.legacy ? ` · ${i.legacy} older entries from before sealing began` : ''}. Keep a copy of this value elsewhere to prove nothing was rewritten.` : '';
+  $('#integ').textContent = ok ? t('an.verified', { n: i.checked }) : t('an.broken');
+  $('#aHead').textContent = i.head ? t('an.sealHead', { head: i.head, legacy: i.legacy ? t('an.sealLegacy', { n: i.legacy }) : '' }) : '';
 }
-async function loadInsights() { try { renderInsights(await (await fetch('/api/analytics/insights')).json()); } catch (e) { console.error('insights', e); } }
+async function loadInsights() { try { renderInsights(await (await fetch('/api/analytics/insights?lang=' + VG.lang, { cache: 'no-store' })).json()); } catch (e) { console.error('insights', e); } }
 
 $('#aiBtn').onclick = async () => {
-  const b = $('#aiBtn'); b.disabled = true; b.textContent = 'Analysing…';
+  const b = $('#aiBtn'); b.disabled = true; b.textContent = t('an.analysing');
   try {
-    const r = await fetch('/api/analytics/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: true }) });
+    const r = await fetch('/api/analytics/ai?lang=' + VG.lang, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh: true }) });
     const j = await r.json();
-    $('#aiOut').innerHTML = r.ok ? `<div class="ai"><small>${j.ai ? '✦ Written by AI (' + esc(j.model) + ') from your numbers only' : 'Automatic summary · connect an AI key on the server for a written analysis'}${j.error ? ' · ' + esc(j.error) : ''}</small>${esc(j.text)}</div>` : `<div class="ai">${esc(j.error || 'Not available right now.')}</div>`;
-  } catch (e) { $('#aiOut').innerHTML = '<div class="ai">Not available right now.</div>'; }
-  b.disabled = false; b.innerHTML = '&#10022; Written analysis';
+    $('#aiOut').innerHTML = r.ok ? `<div class="ai"><small>${j.ai ? esc(t('an.aiBy', { model: j.model })) : t('an.aiAuto')}${j.error ? ' · ' + esc(j.error) : ''}</small>${esc(j.text)}</div>` : `<div class="ai">${esc(j.error || t('an.notNow'))}</div>`;
+  } catch (e) { $('#aiOut').innerHTML = `<div class="ai">${t('an.notNow')}</div>`; }
+  b.disabled = false; b.textContent = t('an.writtenBtn');
 };
 
 function auditQuery() {
@@ -347,15 +354,15 @@ async function loadAudit() {
   const q = auditQuery();
   $('#csvBtn').href = '/api/audit/export.csv?' + q;
   const lines = (await (await fetch('/api/audit?' + q)).json()).lines || [];
-  $('#aN').textContent = lines.length + ' line' + (lines.length === 1 ? '' : 's');
+  $('#aN').textContent = t('common.nLines', { n: lines.length });
   $('#aBody').innerHTML = lines.length ? lines.map((l) => {
-    const d = l.detail ? Object.entries(l.detail).filter(([k]) => k !== 'verifiedSha256').map(([k, v]) => `${k}: ${v}`).join(' · ') : '';
+    const d = l.detail ? detailText(l.detail) : '';
     return `<tr><td class="mono">${l.id}</td><td>${whenT(l.ts)}</td><td>${esc(l.username)}</td><td><b>${esc(stepText(l.action))}</b></td><td>${esc(l.cameraId || '–')}</td><td class="muted" style="max-width:340px;word-break:break-word">${esc(d)}</td>
-      <td class="mono" title="${l.hash || 'older entry, not sealed'}">${l.hash ? l.hash.slice(0, 8) + '…' : '–'}</td></tr>`;
-  }).join('') : '<tr><td colspan="7" class="empty">No lines match.</td></tr>';
+      <td class="mono ltr" title="${esc(l.hash || t('an.unsealed'))}">${l.hash ? l.hash.slice(0, 8) + '…' : '–'}</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="empty">${t('an.noLines')}</td></tr>`;
 }
 $('#aGo').onclick = loadAudit; ['aKind'].forEach((i) => $('#' + i).onchange = loadAudit);
-$('#verBtn').onclick = async () => { $('#integ').textContent = 'Checking…'; $('#integ').style.setProperty('--c', 'var(--off)'); await new Promise((r) => setTimeout(r, 350)); await loadInsights(); };
+$('#verBtn').onclick = async () => { $('#integ').textContent = t('an.checking'); $('#integ').style.setProperty('--c', 'var(--off)'); await new Promise((r) => setTimeout(r, 350)); await loadInsights(); };
 if (location.hash === '#audit') setTimeout(() => $('#audit').scrollIntoView(), 400);
 loadInsights(); setInterval(loadInsights, 30000); loadAudit(); setInterval(() => { if (!document.hidden) loadAudit(); }, 20000);
 

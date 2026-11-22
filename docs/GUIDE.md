@@ -1,192 +1,212 @@
-# VisionGuard (Smart Way Group BWC) — Dalil el-sho8l el-kamel
+# VisionGuard (Smart Way Group BWC): Complete Operations Guide
 
-> El dalil da bel Franco (Arabic bel horof el-ingilizi) w el-awamer bel-ingilizi 3shan tet3ammal copy/paste.
-> Aakher ta7deeth: 2026-10-15. Kol el-awamer PowerShell men **gozr el-project** (`C:\Projects\swg-bwc-system`) ella law ittzakar 8eir keda.
+> Audience: the people who run, support and extend VisionGuard. Commands are given so they can be copied and pasted.
+> Last updated: 2026-11-18. Unless stated otherwise, PowerShell commands are run from the project root folder (`C:\Projects\swg-bwc-system`); the Mac and Linux equivalents are `tools/*.sh`.
 
 ---
 
-## 1. Nazra 3amma (eh elly 3andak)
+## 1. Overview
 
 ```
- [BWC camera x N]  ---- Wi-Fi/4G ---->  [Server (PC)]  <---- browser ----  [Dashboard (el admin + el companies)]
-   app: swg_bwc          socket.io (commands, GPS, chat)         port 3000
-                         RTMP video  --->  port 1935 --> FLV 8000 (el dashboard beyshoofo)
+ [BWC camera x N]  ---- Wi-Fi/4G ---->  [Server]  <---- browser ----  [Dashboard (Smart Way staff + customer companies)]
+   app: swg_bwc          socket.io (commands, GPS, chat)         HTTPS (via nginx) -> app on port 3000 inside the server
+                         RTMP video  --->  port 1935 --> HTTP-FLV (the dashboard plays it)
 ```
 
-| El-goz2 | Feen | Beyshta8al ezzay |
+| Part | Location | How it runs |
 |---|---|---|
-| **Server + Dashboard** | `server/` (Node.js) | `node server.js` — port **3000** (web), **1935** (RTMP video men el-camera), **8000** (video lel browser) |
-| **Camera app** | `app/` (Flutter, package `com.swg.swg_bwc`) | beyetnazzel 3al camera (USB aw online) |
-| **Tools** | `tools/` | `update-cameras.ps1`, `publish-build.ps1` |
-| **El-database** | `server/data/bwc.db` | SQLite, bet-etkawwen lewa7daha |
-| **Build el-OTA** | `server/data/updates/app.apk` | el-APK elly el-cameras betenazzelo |
+| **Server + Dashboard** | `server/` (Node.js) | `node server.js`: port **3000** (web), **1935** (RTMP video from the cameras), **8000** (video for the browser). In production it runs in Docker behind nginx and TLS (section 2.1). |
+| **Camera app** | `app/` (Flutter, package `com.swg.swg_bwc`) | Installed on each camera (USB, dock or online update). |
+| **Owner app** | `client/` (Flutter, iPhone / iPad / Android) | The customer's mobile app. See `MOBILE_APP.md`. |
+| **Dock Agent** | `dock-agent/` | Runs on the PC next to the docking station (section 8.4). |
+| **Tools** | `tools/` | `update-cameras.ps1`, `publish-build.ps1` / `.sh`, `provision-camera.sh`, `provision-batch.sh`, `health-watch.sh`, `loadtest.js`. |
+| **Database** | `server/data/bwc.db` | SQLite, created automatically. |
+| **OTA build** | `server/data/updates/app.apk` | The APK that the cameras download. |
 
-Repo: `https://github.com/EzzEldinx/body-worn-camera-Android-Software` — branches:
-- `feature/dashboard-command-center` → el-server + el-dashboard + el-tools (da el-asasi).
-- `feature/voice-notes-command-center` → el-camera app (`app/` nested repo, nafs el-remote).
+Repositories: the private organisation repository (git remote `org`) and the public repository (git remote `origin`). After every commit, push the branch to both.
 
 ---
 
-## 2. Tashgheel el-server
+## 2. Running the server
 
 ```powershell
 cd C:\Projects\swg-bwc-system\server
-$env:BWC_TOKEN = "yoursecret"      # nafs el-token el-mawgood fe cameras.json — lazem yetatabe2
+$env:BWC_TOKEN = "yoursecret"      # the shared camera token (older cameras); see section 14 for per-camera tokens
 node server.js
 ```
-- El-dashboard: `http://192.168.100.75:3000` (el-IP bta3 el-PC). Law el-IP et8ayyar: 8ayyar `server` fe `cameras.json` w 3awwed el-update lel cameras (khotwat 8).
-- **Awwel mara bas**: el-server beya3mel user `admin` w byetba3 el-password fel-terminal (aw `ADMIN_PASSWORD`).
-- Taghyeer password el-admin: `node tools/create-user.js admin <password-gedeed> "Administrator" admin`
-- User staff gedeed (Smart Way): `node tools/create-user.js <user> <pass 8+> "Esm" admin` (admin = kol el-so2lahat) aw `viewer` (tashoof bas).
-- Law el-PC et3amal restart, el-server **mesh** byeshta8al lewa7do — lazem tshaghghalo tany (el-cameras betrga3 betwassal lewa7daha).
+- The dashboard is at `http://<server-IP>:3000` when run locally (for example `http://192.168.100.75:3000`).
+- **First run only:** the server creates the user `admin` and prints its password in the terminal (or uses `ADMIN_PASSWORD`).
+- Change the admin password: `node tools/create-user.js admin <new-password> "Administrator" admin`
+- Add a Smart Way staff user: `node tools/create-user.js <user> <password, 8+ characters> "Name" admin` (`admin` = every permission) or `viewer` (view only).
+- If the PC restarts, a locally run server does **not** start by itself: start it again (the cameras reconnect on their own).
+- Test new work on a test server first, so the real database is never touched: `PORT=3100 DATA_DIR=<empty folder> RTMP_PORT=1936 FLV_PORT=8100 node server.js`
+
+### 2.1 Production server and deployment
+- Production runs in Docker (project `visionguard`, folder `/opt/visionguard`, compose files in `deploy/`) behind nginx with TLS, at `https://visionguard.smartwaygroup.com.sa`. Port 3000 is **not** published to the internet (closed 2026-11-18): cameras, Dock Agents, mobile apps and browsers all use the HTTPS domain. RTMP (1935) is open.
+- Deploy a new version: pack the repository (`git archive --format=tar.gz -o /tmp/visionguard.tar.gz HEAD`), copy it to the server, unpack it into `/opt/visionguard`, then in `/opt/visionguard/deploy` run `sudo docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml up -d --build`.
+- Health: `GET /healthz` returns `{"ok":true,...}` (database, free disk, cameras online). The Docker image has a healthcheck; `tools/health-watch.sh --install <url>` installs an outside watcher that alerts when the site stops answering.
+- Load test: `tools/loadtest.js` simulates thousands of cameras. Run it only against a throwaway server of your own.
+- Backups: see section 11.
 
 ---
 
-## 3. El-gazaat wel-so2lahat (Roles)
+## 3. Roles and permissions
 
-| Nou3 el-user | Beyshoof eh | Beye3mel eh |
+| User type | Sees | Can do |
 |---|---|---|
-| **Super admin** (`role=admin`, mafeesh company) | **kol 7aga** | kol el-so2lahat: companies, regions, edit/delete camera, updates, quality, remote start |
-| **Staff viewer** (mafeesh company) | kol el-cameras | shoof + live bas |
-| **Company user** (men saf7et Companies) | **cameras el-company bta3to bas** | live, chat, alarms, remote start/stop, quality le cameras bta3to — **mesh** edit/delete/update |
+| **Super admin** (`role=admin`, no company) | **Everything** | Everything: companies, regions, edit/delete cameras, updates, quality, remote start, Admin panel. |
+| **Staff viewer** (no company) | All cameras | View and watch live only. |
+| **Company user** (created on the Companies page) | **Only their own company's cameras** | Depends on the company's features and the user's own permissions (below). |
 
-El-company mamnoo3 yeshoof camera/alarm/chat/video bta3t company tanya — el-server beye3mel el-check (mesh el-browser bas). El-video nafso beyetlab b-**sign** (link mo2aqqat) mesh public.
+**Features and actions.** Smart Way decides, per company, which **features** (Live, Analytics, Docking, Geofencing, ...) and which **actions** (acknowledge alarms, live stream, video quality, **stop recording**, zones, files, delete) the company may use (Admin panel > Companies). This is the company's **ceiling**: a company administrator can give a user only what is inside the ceiling, never more, and cannot do more than the ceiling themselves. A company with no action ticked gets only the everyday actions. Smart Way may need to re-tick actions for existing companies after this rule was introduced.
 
----
+**Every person can see their own access:** the **Profile and access** button (top bar; mobile app: More > Profile and access) shows the role, the company and exactly which features and actions the account has.
 
-## 4. El-companies, el-regions wel-cameras (saf7et **Companies**)
-
-Feen: dashboard > el-eyqona fo2 (bena2 mabna) aw `http://192.168.100.75:3000/admin.html` (super admin bas).
-
-1. **Company gedeeda**: ektob el-esm > Add company.
-2. **User le el-company**: gowwa kart el-company > username + password (8+ a7ruf, fee zorar **Generate**) > Add user. El-password byezhar **marra wa7da** — e3mel Copy w edeeh lel-3ameel. (Reset password / Remove user mawgoodeen.)
-3. **Regions** (Riyadh, Jeddah, Dammam ...): kart **Regions** > ektob el-esm > Add. (X 3ala region = el-cameras betba2a "No region".)
-4. **Camera → company + region**: gadwal **Camera assignment**: e5tar el-company w el-region men el-dropdowns, bey7fezo fawran.
-5. **Delete camera**: ✕ gamb el-camera, aw **Remove all offline cameras** (beyes2al confirm w beyewarreek el-asma2).
-
-### Delete camera — bey7sal eh?
-- El-camera betetshal men el-dashboard.
-- **Matergaash lewa7daha** (7ata law fel-awqat el-GPS/heartbeat shaghal). Betergaa3 bas lama el-camera **te3mel Record** (start video) aw **SOS** aw **PTT** — wa2tha betzhar tany wa7da gedeeda (mesh lazem te3mel 7aga fel-dashboard).
+A company can never see another company's camera, alarm, chat or video. The server enforces this on every request (not only the browser). Video itself needs a signed, time-limited link; it is never public.
 
 ---
 
-## 5. El-dashboard el-yawmi (`/`)
+## 4. Companies, regions and cameras (the **Companies** page)
 
-### El-qa2ema el-yemeen (el-cameras)
-- **Region tabs** fo2 (All / Riyadh / Jeddah / Dammam / No region) — gamb kol tab "online/total".
-- Gowwa kol tab: **companies** (collapsible) w 3ala-ha el-cameras. (El-company el-wa7da mesh betshoof headers.)
-- Search + filter (All / Online / Recording).
-- **▶** = **Watch live**: law el-camera online w mesh bet-record, **beyebda2ha el-stream benafsoh** (el-officer maye3rafsh). Law kanet bet-record asln beyofta7 el-video.
-- Idas 3ala camera → panel taht el-map: eltaf el-esm, el-company/region, **Watch live**, **Follow**, **Edit**, **Video quality**, **Stop remote stream**.
+Where: dashboard > the building icon at the top, or `/admin.html` (super admin only).
 
-### El-Live wall
-- 1 / 2×2 / 3×3 tiles. Kol tile: esm + **REC/WAITING**, **Listen** (sawt), **Fill/Fit**, **Expand** (theater), ✕.
-- **Fit** (default) = el-sora kamla; **Fill** = tekabber w tet2ass. El-camera bet-ba3at sora **tool (9:16)** → fel-Expand beyetgheir shakl el-shasha 3ala hasab el-sora.
-- Law el-camera online bas mesh bet-record: el-tile beyewarreek "Waiting…" w zorar **Start live view**.
+1. **New company:** type the name > Add company.
+2. **A user for the company:** inside the company card enter a username and password (8+ characters; the **Generate** button helps) > Add user. The password is shown **once**: Copy it and give it to the customer. (Reset password and Remove user are available.)
+3. **Regions** (Riyadh, Jeddah, Dammam ...): the **Regions** card > type a name > Add. (Removing a region leaves its cameras as "No region".)
+4. **Camera to company and region:** the **Camera assignment** table: choose the company and region from the drop-downs; they save immediately.
+5. **Delete a camera:** the ✕ next to the camera, or **Remove all offline cameras** (asks for confirmation and lists the names).
 
-### Remote control (men el-dashboard le-camera wa7da)
-| 3ayez | E3mel |
+### What happens when you delete a camera
+- The camera disappears from the dashboard.
+- It does **not** stay away (even if its GPS or heartbeat is still running). It returns when the camera **starts recording**, sends an **SOS** or uses **PTT**: it then appears again as a new camera (nothing has to be done in the dashboard).
+
+---
+
+## 5. The daily dashboard (`/`)
+
+### The right-hand list (cameras)
+- **Region tabs** at the top (All / Riyadh / Jeddah / Dammam / No region), each with "online/total".
+- Inside a tab: **companies** (collapsible), each with its cameras. (A user with a single company does not see the headers.)
+- Search and filter (All / Online / Recording).
+- **▶** = **Watch live**: if the camera is online and not recording, **it starts streaming by itself** (the officer does not notice). If it was already recording, the video simply opens.
+- Click a camera for a panel under the map: name, company/region, **Watch live**, **Follow**, **Edit**, **Video quality**, **Stop remote stream** (or **Stop recording...** for an officer's recording).
+
+### The Live wall
+- 1 / 2x2 / 3x3 tiles. Each tile: name, **REC/WAITING**, **Listen** (sound), **Fill/Fit**, **Expand** (theatre), ✕.
+- **Fit** (default) shows the whole picture; **Fill** enlarges and crops. The camera sends a **portrait (9:16)** picture, so in Expand the screen shape follows the picture.
+- If a camera is online but not recording, its tile shows "Waiting..." and a **Start live view** button.
+
+### Remote control (from the dashboard, to one camera)
+| I want to | Do this |
 |---|---|
-| Ebda2 live | ▶ aw **Start live view** |
-| Wa2af el-stream | **Stop remote stream** (bas lel-stream elly ent bada2to — recording el-officer mesh beyetwa2af) |
-| Ghayyar el-gawda | panel > **Video quality**: 240p / 480p / 720p / **1080p (default)** / 4K |
-| Kalem el-officer | PTT / chat / voice note men el-chat panel |
+| Start live | ▶ or **Start live view** |
+| Stop the stream or the recording | The **■ Stop** button on the camera picture (or **Stop recording...** in the panel under the map). It asks what exactly you want to stop: **Stop streaming** for a live view you started, or **Stop recording and streaming** for a recording the **officer** started. The second needs the **Stop a recording** permission (company managers and Smart Way staff have it; others can be given it), a camera on the new app (it reports `remote-stop`), and no SOS from that camera that is still unanswered (2 hours, `STOPREC_SOS_GUARD_MS`). The officer sees "Recording stopped by the control room" on the camera and the file is kept. It is written to the audit trail (`remote_record_stop`). |
+| Close the window only | The **✕** button on the picture (or **Close window only** in the menu): the camera carries on exactly as before and nothing changes on it. |
+| Change the quality | Panel > **Video quality**: auto / 480p / 720p / 1080p (the list stays open while you choose) |
+| Talk to the officer | PTT / chat / voice note from the chat panel |
 
-- Taghyeer el-quality ma3a stream sha8al = restart 3al 7ala ~**3.5 sanya** (fee gap sghayyar).
-- El-camera 3ala 1080p bet-ba3at ~**4.8 Mbps** (it2ees 3ala camera wa7da); law el-shabaka da3eefa: 720p aw 480p.
-- Kol amr remote (start/stop/quality/update) bey-etsagal fe gadwal `audit` (meen, emta, ayya camera).
+- Changing the quality during a live stream restarts it, about **3.5 seconds** (a small gap).
+- A camera on 1080p sends about **4.8 Mbps** (estimate for one camera); if the network is weak, use 720p or 480p.
+- Every remote command (start / stop / quality / update) is written to the `audit` table (who, when, which camera).
 
 ### Alarms (SOS)
-- Officer by-doos **SOS 2 sawani** → alarm bey-zhar fel-dashboard + sawt + el-camera betetrafa3 3al wall (law betsagel). Law mesh betsagel, e3mel ▶ 3alehaa.
-- El-admin by-doos 3al alarm = acknowledge. El-wa2t ben el-SOS wel-acknowledge beyetsagel w beyezhar fe analytics ka "Avg response".
+- The officer presses **SOS for 2 seconds**: an alarm appears on the dashboard with a sound, and the camera is raised on the wall (if it is recording; if not, press ▶ on it).
+- An administrator clicks the alarm to acknowledge it. The time between the SOS and the acknowledgement is recorded and shown in Analytics as "Avg response".
 
-### Chat wel voice notes
-- Tabs: **Public** (kol el-company), **Private** (el-camera) — zorar mic = voice note (record → send).
-- El-company beshoof chat bta3ha bas; **Staff broadcast** (Public men staff) beywasal lel-kol.
+### Chat and voice notes
+- Tabs: **Public** (the whole company) and **Private** (one camera). The microphone button records and sends a voice note.
+- A company sees only its own chat; a **Staff broadcast** (Public, from Smart Way staff) reaches everyone.
 
-### El-lugha wel-theme
-- EN/AR + light/dark men fo2 (bet-etzakar).
+### Theme and language
+- Light and dark mode are remembered. The language switch (**عربي | EN**) is in the header of **every** page (Dashboard, Analytics, Reports, Docking, Support, Updates, Employees, Admin, License, Live wall, Login, Station, Privacy). See the next section.
+
+### English / Arabic on the whole website
+- **Choice:** the chosen language is remembered in the browser (`localStorage` key `bwc-lang` plus the cookie `vglang`) and applies to every page, including the login page and the Live wall window (if you change the language on one page, the other open windows follow). The first time, the site opens in Arabic if the browser is Arabic, otherwise in English.
+- **Arabic is right to left:** the whole page is mirrored (menu, tables, forms, charts, the flow diagram). Digits are Western (0-9), dates are Gregorian and the clock is 24 h in both languages. Camera IDs and units (MB, GB) stay Latin.
+- **Where the words live:** `server/public/i18n.js` (the engine and shared words), `server/public/i18n/<page>.js` (each page, English and Arabic with the same keys), `server/lang/errors.js` (API replies), `server/lang/texts.js` (insights, the written analysis, push notices, e-mails). **A new text is a new key in both languages**: the test `server/test/i18n.test.js` fails if a key exists in one language and not the other, or if the server has a new error without a translation.
+- **The server answers in the user's language:** the browser sends the cookie `vglang`; the mobile app sends the header `x-lang`. API errors, the written analysis, push notifications (each device in its own language) and support e-mails (in the language of the person who wrote the ticket, or `SUPPORT_EMAIL_LANG=en|ar` in `.env` so the support desk always receives one language) follow it.
+- **Deliberately not translated:** CSV exports (headers and codes stay English for Excel and the audit hashes), the browser's own date pickers, and anything people typed (company names, notices...).
 
 ---
 
-## 6. Saf7et el-Analytics (`/analytics.html`)
-Betefta7 ba3d el-login. Gauges (online / recording / open alarms / avg response), donuts (fleet status, alarms, cameras by company aw group), SOS 7 ayyam, flow chart (Camera → Server → Control room). Betet-gadded kol 10 sawani. Zorar **Open Live Dashboard**.
-El-company beshoof arqamha bas.
-
----
+## 6. The Analytics page (`/analytics.html`)
+Opens after login. Gauges (online / recording / open alarms / average response), donuts (fleet status, alarms, cameras by company or group), SOS for 7 days, a flow chart (Camera > Server > Control room). It refreshes every 10 seconds. The **Open Live Dashboard** button goes back to the map. A company sees only its own numbers.
 
 ### 6.b The PDF report (one day, or any range up to 92 days)
-Analytics > card **Reports**: pick **From** and **To** (or a shortcut: Today, Yesterday, Last 7 days, Last 30 days, This month, Last month) > **Download PDF**. Smart Way administrators can pick a **company** or "All companies"; a company only gets its own.
-The report has: banner, 4 KPIs (active cameras, SOS, recorded time, distance), the fleet donut, **activity by hour** (one day) or **recorded time by day with the SOS count** (several days), the SOS table with response times, a **Day by day** table (several days), **Camera custody** (who took which camera, when, how long, from the check-out station), camera activity, control-room actions and a timeline. Days are cut in **your own time zone** (the browser sends it).
+Analytics > the **Reports** card: pick **From** and **To** (or a shortcut: Today, Yesterday, Last 7 days, Last 30 days, This month, Last month) > **Download PDF**. Smart Way administrators can pick a **company** or "All companies"; a company only gets its own.
+The report has: a banner, 4 KPIs (active cameras, SOS, recorded time, distance), the fleet donut, **activity by hour** (one day) or **recorded time by day with the SOS count** (several days), the SOS table with response times, a **Day by day** table (several days), **Camera custody** (who took which camera, when, how long, from the check-out station), camera activity, control-room actions and a timeline. Days are cut in **your own time zone** (the browser sends it).
 * Endpoint: `/api/report?from=YYYY-MM-DD&to=YYYY-MM-DD&tz=<minutes>&company=<id>` (the old `?date=` still means one day). Every download is written to the audit trail.
-* Events (online/offline, recording, PTT, messages) are logged **from the moment of that update**; earlier days have SOS + GPS + control-room actions only.
-* Arabic in company/camera names is dropped in the PDF (Latin font only): use English names.
+* Events (online/offline, recording, PTT, messages) are logged **from the moment of that update**; earlier days have SOS, GPS and control-room actions only.
+* **Arabic PDF:** with the website in Arabic the report is downloaded in Arabic (the language comes from the same switch; `?lang=ar` forces it): right to left, mirrored layout, Arabic month and day names, Arabic names kept. In the English report Arabic names are still dropped (Latin font). Arabic font: DejaVu Sans in `server/fonts/` (licence file beside it; `server/report.js` does the mirroring and the Arabic/number ordering, words in `server/lang/report-text.js`). A nicer Arabic font (Noto Naskh, Cairo) can replace the two files if wanted.
 
 ---
 
-## 7. El-camera app (SWG-BWC-04)
+## 7. The camera app (SWG-BWC-04)
 
-**El-shasha**: sora full-screen + HUD: logo, `LINK` (el-ittisal bel-server), `GPS`, esm el-camera, REAR/FRONT, el-gawda (1080P), el-sa3a, **REC timer**.
-**Zorar el-safahat**: chat · crop (wide/full) · torch · **night vision** (hilal) · switch camera.
-**Taht**: zoom · photo · **REC** (abyad, el-mo3arra3 ahmar; moraba3 wa2t el-record) · **SOS** (2 sawani) · **PTT** (maskooh).
+**Screen:** full-screen picture with a HUD: logo, `LINK` (the connection to the server), `GPS`, camera name, REAR/FRONT, quality (1080P), clock, **REC timer**.
+**Side buttons:** chat, crop (wide/full), torch, **night vision** (moon), switch camera.
+**Bottom:** zoom, photo, **REC** (white, red inner circle; a square while recording), **SOS** (2 seconds), **PTT** (hold).
 
-- **Night vision** (zorar el-hilal): beyeshta8al 3 7agat sawa: motor el-**IR-cut** + **IR LEDs** + sora **abyad w eswed**. Ta7t el-tayyar el-ta2ees: el-sora bet2oll shwaya (el-lens beyshoof el-infrared).
-- **Switch camera**: el-gehaz mesh beyesma7 ghair b-camera **wa7da maftoo7a fel-wa2t**. El-app el-adeem kan beyefsha ba3d awwel switch (el-camera el-adeema kanet batba2a maftoo7a). Etsala7 w ekhtabarto: 4 switches wara ba3d byeshta8alo.
-- **ID el-camera + server + token**: mesh gowwa el-app. Kol camera feha `config.json` (`/sdcard/Android/data/com.swg.swg_bwc/files/config.json`) beyetkatib men `cameras.json` bel-script (khotwa 8).
-- **GPS**: el-chip beyeb2a "GPS..." bel-asfar lama mafeesh fix (3adatan gowwa el-mabna), "GPS" akhdar lama yedhar.
-- **El-recording**: kol video beyetsagel 3ala el-camera nafsaha (`SWG_BWC` folder) + beyetba3at live lel-server. El-gawda nafsaha lel-itnein.
+- **Night vision** (the moon button) does three things together: the **IR-cut** motor, the **IR LEDs** and a **black-and-white** picture. Under artificial light the picture gets a little darker (the lens sees infrared).
+- **Switch camera:** the device allows only **one open camera at a time**. The old app froze after the first switch (the old camera was still open). Fixed and tested: 4 switches in a row work.
+- **Camera ID, server and token** are not inside the app. Each camera has a `config.json` (`/sdcard/Android/data/com.swg.swg_bwc/files/config.json`) written by the provisioning scripts. One APK serves every camera.
+- **GPS:** the chip shows a yellow "GPS..." when there is no fix (usually indoors) and a green "GPS" when there is one.
+- **Recording:** every video is recorded on the camera itself (folder `SWG_BWC`) and streamed live to the server. The quality is the same for both.
+- **Address:** a camera still set to `http://<ip>:3000` switches itself to the HTTPS domain at start-up when the domain answers (section 8.3k).
 
 ---
 
-## 8. Tahdeeth el-cameras (el-7aga el-mohemma)
+## 8. Updating the cameras (the important part)
 
-> El-camera el-adeema (abl el-OTA) mesh hateqbal update online — **awwel marra lazem USB** (aw el-docking station). Ba3d keda online.
+> An old camera (from before the OTA update) does not accept online updates: **the first time it needs USB** (or the docking station). After that it updates online.
 
-### 8.1 El-camera el-gedeeda / awwel marra — b-USB (aw el-dock)
-1. Wassel el-camera/el-dock bel-laptop. Check:
+### 8.1 A new camera / the first time, by USB (or the dock)
+1. Connect the camera or the dock to the laptop. Check:
    ```powershell
    .\tools\update-cameras.ps1 -List
    ```
-   (law zahar el-serial = tamam. El-dock elly ma3ana **beyewarri el-cameras 3ala el-USB**: etgarrab m3 4 cameras marra wa7da.)
-2. Camera wa7da gedeeda (ID gedeed):
+   (If the serial shows, it works. The dock **shows the cameras on USB**: try it with 4 cameras at once.)
+2. One new camera (new ID):
    ```powershell
    .\tools\update-cameras.ps1 -Provision -Serial <SERIAL> -Id BWC-08-RIY
    ```
-   - `-Id` beyetsagel fe `cameras.json` lel-marrat el-gaya.
-   - `-Provision` = el-setup el-marra el-wa7da (te7t).
-3. **El-docking station / kaza camera marra wa7da** (bey-update kol el-mawgood, ta7t 10 b-parallel):
+   - `-Id` is saved in `cameras.json` for next time.
+   - `-Provision` = the one-time setup (below).
+3. **The docking station / several cameras at once** (updates everything connected, up to 10 in parallel):
    ```powershell
    .\tools\update-cameras.ps1 -SkipBuild -Provision
    ```
-   El-cameras elly mesh fe `cameras.json` beyetgahalo w beyetsayyal esmo3ha (3ashan tdeef el-ID).
-4. Update camera wa7da bas: `... -Serial <SERIAL>` (el-serial men `-List`).
-5. Flags: `-SkipBuild` (3awwed el-APK el-ekhir), `-Parallel 5` (3adad el-camerat sawa), `-Unprovision` (te7t).
+   Cameras not in `cameras.json` are skipped and their names listed (so you can add the ID).
+4. Update one camera only: `... -Serial <SERIAL>` (the serial from `-List`).
+5. Flags: `-SkipBuild` (reuse the latest APK), `-Parallel 5` (cameras at once), `-Unprovision` (undo).
 
-### 8.2 Provisioning (`-Provision`) — beye3mel eh bel-zabt?
-1. Beyemsa7 el-**Guest user** el-fady (Android bey-refod device owner law fee user tany).
-2. Beyegh3al el-app **Device Owner** → el-install bey-ba2a **sa2et** (mafeesh "Install" 3al shasha).
-3. Beyegh3al el-app **Home app** → Android byeshaghalo men gedeed ba3d el-update/crash/reboot.
-4. **Beyewa2af** el-launcher el-asli (3shan ma-yerga3sh heyya).
-5. Beyedaf el-app lel-**DuraSpeed whitelist** (el-limiter bta3 MediaTek).
+On a Mac use `tools/provision-camera.sh` and `tools/provision-batch.sh` (sections 9.1 and 9.2).
 
-Law el-camera 3aleha account → mumken yerfod; el-script beyeqolak.
-**El-ta3ameel**: `.\tools\update-cameras.ps1 -Unprovision` (adb bas) beyerga3 el-camera zay ma kanet.
+### 8.2 Provisioning (`-Provision`): what exactly does it do?
+1. Removes the empty **Guest user** (Android refuses device owner when another user exists).
+2. Makes the app **Device Owner**: installs become **silent** (no "Install" on the screen).
+3. Makes the app the **Home app**: Android starts it again after an update, crash or reboot.
+4. **Stops** the original launcher (so it does not come back).
+5. Adds the app to the **DuraSpeed whitelist** (the MediaTek limiter).
 
-### 8.3 Tahdeeth online (el-OTA) — el-tareeqa el-yawmiya
-1. Ba3d ay ta3deel fel-camera app:
+If the camera has an account on it, Android may refuse; the script tells you.
+**Undo:** `.\tools\update-cameras.ps1 -Unprovision` (adb only) puts the camera back as it was.
+
+### 8.3 Online updates (OTA): the everyday way
+1. After any change to the camera app:
    ```powershell
    .\tools\publish-build.ps1
    ```
-   (build + upload lel-server; beyes2al el-admin username/password. `-SkipBuild` law el-build gahez.)
+   (builds and uploads to the server; asks for an admin username and password. `-SkipBuild` if the build is ready.)
 2. Dashboard > **Updates** (`/updates.html`):
-   - el-camera el-3andaha build adeem btetsamma **Outdated**.
-   - **Update all outdated** aw e5tar cameras (filter region/company) > **Update selected**.
-   - "Update even while recording" = law mesh 3ayz teantazer.
-3. El-camera: **Downloading %** → **Installing** → betet-restart wa7daha → **Up to date** (~9 sawani, kol el-cameras sawa).
-4. Law camera betsagel: betestanna yekhallas el-record (ella law 3mal tick "even while recording").
-5. Law **Failed** — el-sabab beyetktab 7awaleha (internet / checksum / install).
+   - A camera with an old build is marked **Outdated**.
+   - **Update all outdated**, or choose cameras (filter by region or company) > **Update selected**.
+   - "Update even while recording" if you do not want to wait.
+3. On the camera: **Downloading %** > **Installing** > restarts by itself > **Up to date** (about 9 seconds, all cameras together).
+4. A camera that is recording waits for the recording to end (unless "even while recording" is ticked).
+5. If it says **Failed**, the reason is written next to it (internet / checksum / install).
 
-El-build identifier = SHA-256 lel-APK. El-camera beteb3at el-build bta3ha lel-server 3and kol ittisal.
+The build identifier is the SHA-256 of the APK. The camera sends its build to the server on every connection.
 
 ### 8.3a Telling customers about an update, and cameras that are far from a dock
 **The customer's side is one thing: put the cameras on the docking station.** After you publish a build, open **Updates**:
@@ -199,16 +219,18 @@ El-build identifier = SHA-256 lel-APK. El-camera beteb3at el-build bta3ha lel-se
 * A camera is asked only when it is online, not recording or live, not on a dock (the dock updates it in seconds) and has at least 30 % battery or is charging. A failed download is retried after 10 min, 30 min, 2 h and 6 h; a camera that refuses the build is not asked again and the client's page tells them to use the dock.
 * *Over Wi-Fi*: the camera never touches the SIM, also when the Wi-Fi goes away halfway (what arrived is kept and the download goes on when Wi-Fi is back). It needs the newest camera app: put such a camera on a docking station once; until then the page says "needs the newest app first". *Over Wi-Fi and SIM* uses mobile data, about 55 MB per camera and update.
 * The update installs without anybody touching the camera (it is the device owner). Tried on a real camera: Wi-Fi off = waiting for Wi-Fi, Wi-Fi on = download, Wi-Fi lost at 30 % = paused, then it went on, silent install, back on the new build.
+
 Settings (environment): `ROLLOUT_PROVE_MS` (default 5 min), `ROLLOUT_CANARY_MS` (30 min), `ROLLOUT_PARALLEL` (3), `ROLLOUT_MIN_BATTERY` (30). Code: `server/updates.js`, `server/rollout.js`, `app/lib/core/services/app_updater.dart`. API for the apps: `GET /api/updates`, `GET /api/updates/badge`, `POST /api/updates/seen`.
 
 ### 8.3b Recording size (camera app 2026-11)
 Recordings are 720p H.264 at 2 Mbps (about **0.9 GB per hour**; before: 1080p at 5.2 Mbps = 2.3 GB/h). 1080p, if chosen, is capped at 3.5 Mbps. A recording is cut into files of **10 minutes** (about 150 MB each): the camera and the live stream keep running and the next file starts on the next key frame, so at most about one second can sit at a boundary (measured under 1 s on a real camera). Small files upload, retry and expire independently.
-Publish a new build from a Mac: `tools/publish-build.sh https://server --build`.
+Publish a new build from a Mac: `tools/publish-build.sh https://visionguard.smartwaygroup.com.sa --build`.
 
 ### 8.3c Push to cloud or keep on the dock (Docking > Files)
 The Dock Agent no longer uploads everything. It **copies** each camera's videos and photos to the dock PC (folder `~/VisionGuard-Dock/<camera>/`, or `DOCK_STORAGE`), verifies them by SHA-256, and lists them under **Docking > Files**. For each file, or a whole selection:
 * **Push to cloud**: the agent uploads it from the dock (one at a time, within seconds, even if the camera has been taken away);
 * **Keep on dock storage**: it stays on the dock PC (it can still be pushed to the cloud later).
+
 Above the list, **What should happen to new files?** sets the automatic behaviour (administrators): *Ask me* (default), *Automatic · Cloud*, *Automatic · Dock storage*. Upload quality is *Original* for now (lower qualities for the cloud copy come later). The *Files* tab shows how many files wait for a choice.
 
 ### 8.3d The audit trail (Analytics > Audit trail)
@@ -225,6 +247,25 @@ Quick answers, and **tickets**: a customer opens a ticket (subject, topic, prior
 Every camera shows its **battery wherever it is**: the camera reports its own (live) and the dock adds its USB reading while it charges. The dashboard list, the map bubble, the live-wall tiles, the info panel, Analytics (*Low battery* gauge, Camera health) and the mobile apps all show it, with a bolt when it is charging.
 **Under 20 % and not charging** raises an alert: an amber line in the Alarms list (with *Dismiss*), a soft beep, a *Low battery* chip in the header, a push notice (when push is configured) and an Insights line. **Under 10 %** it becomes critical and rings again even if it was dismissed. The alert clears by itself when the camera charges or is back above 25 % (so 19-21 % does not flap). Change the levels with `BATTERY_LOW` / `BATTERY_CRITICAL`. Cameras report with `camera_battery {cameraId, battery, charging}` (camera app update, see CHECKOUT.md section 5).
 
+### 8.3g-2 Geofencing (zones on the map)
+Draw an area on the dashboard map and get an alert when a camera leaves it, enters it, or does not pass by in time.
+* **Where:** the **Geofences** button on the map (top right). **+ New zone**, pick *Circle* (click the centre, move out, click again) or *Polygon* (click each corner, **Finish**), then fill in the form. The size of a circle can be typed in metres.
+* **Four kinds:** *Allowed area* (alert when a camera leaves it), *Forbidden area* (alert when it enters), *Both ways*, and *Checkpoint* (a camera must pass by at least every N minutes; no visit = alert, for patrol rounds).
+* **Who and when:** all cameras of the company, or chosen cameras, groups or regions; every day, or chosen days and a time window (22:00 to 06:00 runs overnight). *Urgent* makes the alert red and loud.
+* **What you see:** the alert appears in the Alarms list (with a beep and a notice), on the Alerts tab of the mobile app, and as a push notice on a locked phone. The zone turns red on the map until the camera is back in line; the alert then closes by itself. *Dismiss* only acknowledges it. The Geofences panel also lists the last 7 days.
+* **Each camera on its own:** in the zone's edit dialog, the section *Each camera on its own* lists the company's cameras. Every camera can follow the zone ("Same as the zone"), be left out ("Not watched here"), or get its own rule: *Allowed*, *Forbidden*, *Both ways* or *Checkpoint*. The ⚙ button opens that camera's own urgency, its own checkpoint interval and its own days and hours. So in one zone one camera can be allowed, another forbidden, another a checkpoint, and another left out. A camera with a rule of its own is watched even when the zone's "Which cameras" does not include it. The type *No default rule* makes the zone watch only the cameras you set there.
+* **Calm by design:** a change of side counts only after about 15 seconds and two fixes, a fix closer to the edge than its own accuracy is ignored, "left the zone" needs the camera to have been inside first, and a camera on a docking station is not judged. Tunable with `GEOFENCE_DEBOUNCE_MS` and `GEOFENCE_GRACE_MS` (grace after a checkpoint is due, default 2 minutes).
+* **Who may:** everyone with the *Geofencing* feature can see zones; managers (and users given *Manage zones*) can draw, edit and delete. Zones are per company; Smart Way staff pick the company when they draw one. Every change is in the audit log (`geofence_created`, `geofence_edited`, `geofence_removed`, `geo_exit`, `geo_enter`, `checkpoint_missed`).
+* **In the mobile app** the same zones show on the map, and managers can draw, edit and delete them (Cameras > map > Zones); per-camera rules are changed on the web.
+* Limits: 200 zones per company, 100 corners per polygon, radius 10 m to 50 km. Zones follow the device clock of the person who draws them for the time zone (Riyadh = +3).
+
+### 8.3g-3 Live captions (what a streaming camera hears, as text)
+
+* **What:** while a camera streams, its speech appears as subtitles at the bottom of the stream picture (live wall tile, the big view and the wall page) and as a list under the camera's panel. The text follows the speaker about a second behind (a draft that is rewritten while they talk) and is final about two seconds after they pause. The text is kept for 30 days (`TRANSCRIPT_DAYS`) so it can be read back; the audio itself is never stored by this feature.
+* **Who:** off for everyone until Smart Way ticks **Live captions** for the company (Admin > company > Access); the company's managers then have it and can give it to others (Profile and access). The camera's own company decides: a camera that belongs to a company without the permission is never listened to. Voices are personal data (Saudi PDPL): get the customer's agreement first. Every time a camera starts being transcribed it is written to the audit trail (`transcription_started`).
+* **How it runs:** a separate service (`transcriber/`, Whisper through `faster-whisper`) does the speech-to-text so the VisionGuard server is not slowed down. See `transcriber/README.md` and `deploy/docker-compose.transcribe.yml`; without `TRANSCRIBE_URL` and `TRANSCRIBE_TOKEN` the feature is simply absent.
+* **Limits (measured on a laptop, not yet on the server or a real camera in the street):** Arabic and English; accuracy drops with street noise and strong dialects; only while the camera streams (a camera that only records to its own card is transcribed after the dock uploads it, which is not built yet); every stream in parallel needs processor time (the service is limited to 2 CPUs and 4 streams by default).
+
 ### 8.3h The live wall on a second screen
 Live Dashboard > Live wall: **4x4** layout, **Full screen**, and **Open in its own window** (the icon with the arrow). The new window is a clean wall (`/wall.html`): drag it onto the extended screen and press **Full screen** (or F). With two screens Chrome asks once to place it on the other one automatically. Inside the wall: **drag a picture onto another to swap them**, drag a camera from the dashboard list onto a tile, *Add camera*, *Fill with live*, layouts 1 / 2x2 / 3x2 / 3x3 / 4x4 (keys 1-4), expand one tile (the arrows), listen, fit/crop. An SOS puts that camera on the wall and turns its tile red. While the wall window is open, the cameras you pick on the dashboard appear there, so the main screen keeps the map and alarms. The wall remembers its layout.
 
@@ -234,12 +275,22 @@ Each employee has a username and password; at the **check-out station** (`/stati
 ### 8.3j Licence (self-hosted customers)
 Customers who run VisionGuard on their own server need a licence you issue (3, 6, 12, 24 or 36 months) and renew; the system degrades gently (grace, then limited mode, safety never stops). Full guide: **LICENSING.md**; page **License** (administrators).
 
+### 8.3k Newer features (2026-11)
+* **Profile and access** (button in the top bar; mobile app: More > Profile and access): shows the user's role, company and exactly which features and actions the account has. Answers "why can't I see this button?".
+* **What a company administrator can do is capped by Smart Way** (section 3).
+* **Stop recording** (Live dashboard, the Stop button on a recording camera): ends an officer's recording from the control room (section 5). The cross only closes the viewing window.
+* **Dock storage per company** (Docking > Settings): each company has its own "ask me / cloud / keep on dock" policy and its own folder. "Choose folder" browses the dock computer through the Dock Agent (restart the Dock Agent after updating it; on a Mac: `launchctl kickstart -k gui/$(id -u)/com.visionguard.dock-agent`, and `launchctl bootout` / `bootstrap` after editing its `.plist`). The folder path is hidden from customers.
+* **Owner app:** play and download recordings and dock files (save to Photos or Files, AirDrop), role-aware buttons.
+* **Cameras use HTTPS.** The camera app moves itself from `http://<ip>:3000` to `https://visionguard.smartwaygroup.com.sa` at start-up when the domain answers `/healthz`, and rewrites its `config.json`. New cameras are provisioned with the domain by default. The Dock Agent uses the domain too (`DOCK_SERVER`).
+* **Health and load:** `/healthz`, a Docker healthcheck, `tools/health-watch.sh` (outside watcher) and `tools/loadtest.js` (3000 pretend cameras, only against a throwaway server).
+
 ### 8.4 The docking station updates the cameras by itself (Dock Agent 1.6)
 Publish the new camera app once (`tools/publish-build.ps1`, or Dashboard > Updates). From then on, every camera that is put on the dock is checked **the moment it is docked** (within a couple of seconds, before its recordings are copied) and then again every cycle (about 30 s):
 * installed app = latest build -> nothing happens;
 * older build -> the agent installs the latest one over USB (only when the camera is **not recording**, and it is powered by the dock or has **>= 20% battery**; change the level with `DOCK_UPDATE_MIN_BATTERY`), then starts the app. The bay shows *Updating app*;
 * camera signed with an older key -> **"needs migration"** (see CAMERA_SIGNING.md); nothing is changed on it;
 * camera without the app -> "provision this camera first" (needs its camera id and token, section 9).
+
 Every cycle the agent also makes sure **GPS is ready** on each docked camera (location switched on, location permission granted) and fixes it if not, and again right after every install.
 Switch off with `--no-update`; `--update-only` updates apps without copying recordings.
 
@@ -247,119 +298,134 @@ Switch off with `--no-update`; `--update-only` updates apps without copying reco
 
 ---
 
-## 9. Camera gedeeda (BWC gedeed men el-shirka) — step by step
-1. Charge el-camera (el-battery el-wetia beteb2a 8-15% law sebta).
-2. Ta2akkad en **USB debugging** shaghal 3ala el-camera (el-cameras elly shaghalnaha kolaha kanet shaghala; law camera gedeeda mesh bet-zhar fe `-List` yebqa el-setting dee heyya el-sabab).
-3. `.\tools\update-cameras.ps1 -List` → e3mel serial.
+## 9. A new camera (a new BWC from the manufacturer): step by step
+1. Charge the camera (battery at 8-15 % if it was left).
+2. Make sure **USB debugging** is on (every camera used so far had it on; if a new camera does not appear in `-List`, this setting is the reason).
+3. `.\tools\update-cameras.ps1 -List` and note the serial.
 4. `.\tools\update-cameras.ps1 -Provision -Serial <SERIAL> -Id BWC-xx-RIY`
-5. Efta7 el-dashboard — el-camera betzhar online ba3d sawani. **Companies** page: e5tar el-company + el-region.
-6. Ta2akkad: ▶ → el-live beyeshta8al.
+5. Open the dashboard: the camera appears online after a few seconds. On the **Companies** page choose its company and region.
+6. Check: ▶ and the live view works.
 
 ### 9.1 Adding a camera from a Mac (no PowerShell)
-1. Dashboard > Companies > **Issue** for the new camera id (e.g. `BWC-08-RIY`): copy the token (shown once).
-2. Charge the camera to 15%+, plug it into the dock/USB (USB debugging on). `adb devices` shows its serial.
-3. `tools/provision-camera.sh <serial> BWC-08-RIY <token>` (installs the app, device owner + Home app, writes id/token/server).
+1. Dashboard > Companies > **Issue** for the new camera id (for example `BWC-08-RIY`): copy the token (shown once).
+2. Charge the camera to 15 % or more, plug it into the dock or USB (USB debugging on). `adb devices` shows its serial.
+3. `tools/provision-camera.sh <serial> BWC-08-RIY <token>` (installs the app, device owner and Home app, writes id, token and the HTTPS server address).
    A camera that already runs the new app and only needs a token: `tools/provision-camera.sh --config-only <serial> <id> <token>`.
 4. Within seconds it shows *Link* on the camera screen and online on the dashboard; set its company, region and holder there.
 
+### 9.2 Many new cameras in a row (`tools/provision-batch.sh`)
+`tools/provision-batch.sh --watch` asks for an admin login once, then for each new camera you plug in (USB or dock, USB debugging on, "Allow" tapped on the camera) it picks the next free name (`BWC-07-RIY`, ...), issues its own token, installs the app and writes the HTTPS address. Press Ctrl+C when you are done; without `--watch` it handles the cameras plugged in now and stops.
+* A camera that already has the app and a `config.json` is never touched, and names already on the server are never reused (that would replace a working camera's token).
+* Tokens are not printed or saved; `~/.visionguard-provisioned.csv` lists serial, name and date.
+* `--dry-run` shows the names without changing anything; `--prefix`, `--suffix`, `--start` change the naming; `--help` shows the options.
+* Afterwards set company, region and holder in the dashboard.
+
 ---
 
-## 10. Moshkelat sha2e3a
+## 10. Common problems
 
-| El-3ard | El-sabab el-mo7tamal | El-7al |
+| Symptom | Likely cause | Fix |
 |---|---|---|
-| El-camera offline fel-dashboard | el-app mesh shaghal / mafeesh Wi-Fi / el-token ghalat | efta7 el-app (el-camera app = Home app fel-provisioned); check `cameras.json` token = `BWC_TOKEN` |
-| ▶ mafeesh live | el-camera offline | ✓ chip "LINK" 3al-camera; el-dashboard beyeqollak "Camera is offline" |
-| Live beyetla3 lag/3alay | gawda 3alya + shabaka da3eefa | Video quality → 720p/480p |
-| El-sora ma3akoosa/soghayyara | stream tool 9:16 3ala shasha 16:9 | Expand (shasha el-mehwar el-tawel) aw Fit |
-| Front camera maqloob 3ala shashet el-camera nafsaha | (etsala7 fe build 2026-10-15) el-app kan beyla2eeha 180° | e3mel update lel-camera |
-| Switch camera ma-byeshta8alsh | (etsala7) law ranna: restart el-app | `adb shell am force-stop com.swg.swg_bwc` + efta7 |
-| Update: "Failed: checksum" | el-APK atba3at b2a 8eir el-mawgood | e3mel `publish-build.ps1` tany |
-| Update: el-camera mesh betrga3 teshta8al | mesh provisioned | `-Provision` b USB (marra) |
-| `-Provision`: "NOT enabled: ... several users" | Guest user | el-script beyemsa7o ta2eeyan; law lessa: `adb shell pm list users` |
-| `-Provision`: "... accounts" | account 3ala el-camera | emsa7 el-account el-awwal |
-| El-dock mesh bey-zhar el-cameras | el-dock charge/data bas | el-update online (mesh lazem el-dock) |
-| "Failed to start" el-server | port 3000 mashghool | `Get-NetTCPConnection -LocalPort 3000` w e2fel el-node el-adeem |
+| Camera offline in the dashboard | App not running / no Wi-Fi / wrong token | Open the app (on provisioned cameras the camera app is the Home app); check that the token in `cameras.json` equals the server token (or the camera's own token). |
+| ▶ shows no live | The camera is offline | The `LINK` chip on the camera; the dashboard says "Camera is offline". |
+| Live is laggy or slow | High quality and a weak network | Video quality > 720p or 480p. |
+| Picture mirrored or small | A 9:16 stream on a 16:9 screen | Expand (portrait screen) or Fit. |
+| Front camera upside down on the camera's own screen | (fixed in build 2026-10-15) the app rotated it by 180 degrees | Update the camera. |
+| Switch camera does not work | (fixed) if it happens: restart the app | `adb shell am force-stop com.swg.swg_bwc` and open it. |
+| Update: "Failed: checksum" | The uploaded APK differs from the file on the server | Run `publish-build.ps1` (or `.sh`) again. |
+| Update: the camera does not start again | Not provisioned | `-Provision` by USB (once). |
+| `-Provision`: "NOT enabled: ... several users" | Guest user | The script removes it; if still there: `adb shell pm list users`. |
+| `-Provision`: "... accounts" | An account on the camera | Remove the account first. |
+| The dock does not show the cameras | The dock only charges / copies data | Online update works without the dock. |
+| "Failed to start" (server) | Port 3000 is busy | `Get-NetTCPConnection -LocalPort 3000` and stop the old node process. |
+| A button is missing for a user | The company or the user has no such permission | Open **Profile and access** for that user; Smart Way ticks actions per company (section 3). |
 
-Logs el-server: `%TEMP%\bwc-server.log` law ba3d-et fel-hidden window.
-
----
-
-## 11. Amn (Security) w 7udood
-
-- Cameras kolaha b-**token wa7ed** (`BWC_TOKEN`). Camera mokhtaraqa te2dar te-act ka camera tanya. (El-7al el-mostaqbal: token le kol camera.)
-- El-server **HTTP** (mesh HTTPS) 3ala el-shabaka el-dakhliya. Lel-internet el-mafto7: HTTPS + VPN.
-- **Backup**: e2fel el-server w en2el `server/data/` (bwc.db + .wal + .shm + updates/) w `cameras.json`.
-- `cameras.json` feeh el-token — mesh bey-etraf3 3ala git (ignored).
-- Provisioning mesh sahl yet-3ayyar 3akso men 8eir `-Unprovision` (aw factory reset).
-- Mafeesh "company admin" (el-3ameel yedeer el-users bta3to) lessa.
-- El-dock software (bta3 el-sherka el-mosana3a) mesh ma3roof — el-data offload bta3o mesh mowasal bel-app.
-- Test: el-sho8l el-gedeed el-mohem etgarrab abl 3ala server tagrobi (`PORT=3100 DATA_DIR=<folder fady> RTMP_PORT=1936 FLV_PORT=8100 node server.js`) 3ashan matetkharbash el-database el-asliya.
+Server log (local run): `%TEMP%\bwc-server.log` if it was started in a hidden window. In production: `sudo docker compose -p visionguard logs --tail 200` (run in `/opt/visionguard/deploy`).
 
 ---
 
-## 12. Awamer sarie3a (cheat sheet)
+## 11. Security and limits
+
+- **Per-camera tokens** are in use (section 14). The old shared token (`BWC_TOKEN`) still works until `ALLOW_SHARED_TOKEN=false` is set; do that once every camera has its own token.
+- Cameras, Dock Agents, the mobile apps and browsers reach the server over **HTTPS** (the domain). Plain HTTP port 3000 is not published. **RTMP video (port 1935) is not encrypted yet**, and publishing to it is not yet checked with the camera token (follow-up, section 14).
+- **Backup:** a backup must cover `server/data/` (`bwc.db`, `.wal`, `.shm`, `updates/`, recordings) and `cameras.json`, and be kept **outside the server** (another machine or an object store) with a restore test. Do not rely on a backup service that nobody has tested: check the last successful backup date and try a restore.
+- `cameras.json` contains tokens: it is never committed to git (ignored).
+- Provisioning cannot easily be reversed except with `-Unprovision` (or a factory reset).
+- Company administrators exist: a customer's administrator manages their own users inside the ceiling Smart Way set for the company (section 3).
+- The Dock Agent (`dock-agent/`) runs on the PC next to the docking station and copies the recordings to it (section 8.4). Only copy-only mode is used unless deletion is explicitly enabled.
+- Test new work on a test server first, so the real database is never touched (section 2).
+
+---
+
+## 12. Quick commands (cheat sheet)
 
 ```powershell
-# el-server
+# the server (local run)
 cd server; $env:BWC_TOKEN="yoursecret"; node server.js
 
-# el-cameras
-.\tools\update-cameras.ps1 -List                              # eh el-mowaslin
-.\tools\update-cameras.ps1 -SkipBuild -Provision             # el-dock/koll el-cameras
+# the cameras
+.\tools\update-cameras.ps1 -List                              # what is connected
+.\tools\update-cameras.ps1 -SkipBuild -Provision             # the dock / all cameras
 .\tools\update-cameras.ps1 -SkipBuild -Serial KS16255032500468
 .\tools\update-cameras.ps1 -Provision -Serial <S> -Id BWC-08-RIY
-.\tools\update-cameras.ps1 -Unprovision                      # te7t
-.\tools\publish-build.ps1                                    # build + upload lel-OTA
+.\tools\update-cameras.ps1 -Unprovision                      # undo
+.\tools\publish-build.ps1                                    # build and upload for the OTA
 ```
 
-El-audit (meen 3amal eh):
+```bash
+# Mac / Linux
+tools/publish-build.sh https://visionguard.smartwaygroup.com.sa --build
+tools/provision-camera.sh <serial> BWC-08-RIY <token>
+tools/provision-batch.sh --watch
+```
+
+The audit (who did what):
 ```powershell
 cd server; node -e "const {db}=require('./db');console.log(db.prepare('SELECT datetime(ts/1000,\'unixepoch\',\'localtime\') t,username,action,camera_id FROM audit ORDER BY id DESC LIMIT 30').all())"
 ```
 
 ---
 
-## 13. El-prompts elly te2dar tedeehalee (copy/paste)
+## 13. Prompts you can give the assistant (copy and paste)
 
-Edef el-gomla dee fi awwel el-prompt law el-session gedeeda: *"Efta7 `docs/GUIDE.md` w eqra el-memory abl ma tebda2."*
+Add this sentence at the start of a prompt when the session is new: *"Open `docs/GUIDE.md` and read the memory before you start."*
 
-**Docking station / kaza camera**
-- `Wassalt el-docking station bel-laptop. E3mel -List w e3mel update le kol el-cameras elly zaharet (el-gedeeda dedeha IDs BWC-08 w BWC-09) w a2olly el-natee2a le kol camera.`
-- `Update el-cameras el-fel-dock b-parallel w e3mel Provision w warrini el-battery le kol wa7da.`
+**Docking station / several cameras**
+- `I connected the docking station to the laptop. Run -List and update every camera that appears (give the new ones the IDs BWC-08 and BWC-09) and tell me the result for each camera.`
+- `Update the cameras on the dock in parallel, provision them, and show me each one's battery.`
 
-**Camera wa7da**
-- `Update camera el-serial bta3ha <SERIAL> bas (USB) w khalleha BWC-0X-RIY.`
-- `Camera BWC-05-RIY mesh betet-update online. Eshoof leh w e3mel update.`
+**One camera**
+- `Update only the camera with serial <SERIAL> (USB) and name it BWC-0X-RIY.`
+- `Camera BWC-05-RIY does not update online. Find out why and update it.`
 
 **Online update**
-- `Ana 3addelt el-camera app. E3mel build w publish lel-server w e3mel Update all outdated w betabe3 el-progress wa2olly meen nagah.`
-- `Update online le cameras region Riyadh bas.`
+- `I changed the camera app. Build it, publish it to the server, run Update all outdated, follow the progress and tell me which cameras succeeded.`
+- `Update online only the cameras of the Riyadh region.`
 
-**Camera / dashboard**
-- `Ed-delo camera gedeeda esmaha BWC-0X w e5talaf company X w region Dammam.`
-- `E3mel company gedeeda esmaha <esm> w user <user> w edeeni el-password w assign cameras BWC-04 w BWC-05.`
-- `Nazzaf el-dashboard: warreeni el-cameras elly offline w mesh etshafet men yom, w ana a2olak emsa7 meen.`
-- `El-camera BWC-04 el-live beyetla3 lag. E2ees el-bitrate w a2tare7 el-gawda el-monaseba.`
+**Cameras and the dashboard**
+- `Add a new camera named BWC-0X and assign it to company X and region Dammam.`
+- `Create a new company named <name> with a user <user>, give me the password and assign cameras BWC-04 and BWC-05.`
+- `Clean up the dashboard: show me the cameras that are offline and have not been seen for a day, and I will tell you which to remove.`
+- `Live from BWC-04 is laggy. Measure the bitrate and suggest the right quality.`
 
-**Camera app**
-- `E3mel feature gedeeda fel-camera app: <wasf>. E3mel build, update 3ala camera wa7da, w garrab 3alehaa 8eir ma te2olli test-ha ana.`
-- `Night vision mesh beyeshta8al 3ala camera X — eshoof el-logcat.`
+**The camera app**
+- `Build a new feature in the camera app: <description>. Build it, update one camera, and test it there without asking me to test it.`
+- `Night vision does not work on camera X. Look at the logcat.`
 
-**Sho8l 3am**
-- `Eshta8al 3ala el-branch el-3adi, e3mel commit w push, w edeeni link el-PR (el-gh mesh mawgood).`
-- `E3mel test shamel 3ala server tagrobi abl ma te3mel ay ta3deel 3ala el-asli.`
-- `Edeeni khalaset el-7ala: eh elly shaghal w eh elly lessa.`
+**General work**
+- `Work on the normal branch, commit and push to both remotes, and give me the pull request link (gh may not be available).`
+- `Run the full tests on a test server before you change anything on the real one.`
+- `Give me the status summary: what works and what is still open.`
 
-> Nasiha: 2ool leya **el-"definition of done"**: "e3mel test 3ala camera 7a2ee2ya w warreeni screenshot/log" — 3ashan a7aqeq 8eir ma a2ool "tamam".
+> Tip: tell the assistant the **definition of done**: "test on a real camera and show me a screenshot or log", so that it verifies instead of saying "done".
 
 ---
 
-## 14. Per-camera tokens (amn)
+## 14. Per-camera tokens (security)
 
-- Kol camera 3andaha token khas beha. El-server beyekhzen el-hash bas; el-token byezhar **marra wa7da**.
-- Dashboard > Companies > gadwal el-cameras > zorar **Issue / Rotate**: beyetla3 `{"id":..., "token":...}` — hatto fe `cameras.json` taht `"tokens": {"BWC-04-RIY": "<token>"}` w e3mel `update-cameras.ps1` (beyektebo fe config.json 3ala el-camera).
-- Camera b-token khas **mayenfa3sh te-act ka camera tanya** (el-server beyerfod ay event beyesmy camera tanya).
-- Rotate beyefsel el-camera el-adeem fawran; el-token el-adeem beyetwaqqaf.
-- El-token el-moshtarak el-adeem (`BWC_TOKEN`) lessa byeshta8al le-ghayat ma te2fel el-migration: lama kol el-cameras tekhod token khas, shaghghal el-server b `ALLOW_SHARED_TOKEN=false`.
-- Lessa: el-RTMP publish nafso lessa mesh monta3ad bel-token (follow-up).
+- Every camera has its own token. The server stores only its hash; the token is shown **once**.
+- Dashboard > Companies > the cameras table > **Issue / Rotate**: it returns `{"id":..., "token":...}`. Put it in `cameras.json` under `"tokens": {"BWC-04-RIY": "<token>"}` and run `update-cameras.ps1` (it writes it into `config.json` on the camera). On a Mac, `provision-camera.sh` and `provision-batch.sh` do this for you.
+- A camera with its own token **cannot act as another camera** (the server refuses any event naming another camera).
+- Rotating a token disconnects the old camera immediately; the old token stops working.
+- The old shared token (`BWC_TOKEN`) still works until the migration is finished: when every camera has its own token, run the server with `ALLOW_SHARED_TOKEN=false`.
+- Still open: RTMP publishing itself is not yet checked with the token (follow-up).

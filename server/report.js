@@ -1,6 +1,7 @@
 // Daily operations report (PDF) for a company or for all companies.
 const PDFDocument = require('pdfkit');
 const path = require('path');
+const TXT = require('./lang/report-text');
 
 const W = 595.28, H = 841.89, M = 38;
 const C = {
@@ -9,29 +10,37 @@ const C = {
     ok: '#00B87C', rec: '#FF3355', amber: '#FFB300',
 };
 const LOGO = path.join(__dirname, 'public', 'logo-dark.png');
+const FONT_AR = path.join(__dirname, 'fonts', 'DejaVuSans.ttf'), FONT_ARB = path.join(__dirname, 'fonts', 'DejaVuSans-Bold.ttf');
+// The report is built in one go (nothing waits inside build), so the language of the one being built can be a plain variable.
+let AR = false;
+const T = (k, ...a) => { const v = (AR ? TXT.ar : TXT.en)[k]; return typeof v === 'function' ? v(...a) : v; };
 
 // Fonts only cover Latin: anything else (e.g. Arabic names) is replaced so the page never shows broken glyphs.
 const latin = (s, fb = '-') => {
     const t = String(s ?? '').replace(/[^\x20-\x7E -ɏ]/g, '').trim();
     return t || fb;
 };
+// Names: the Latin font drops anything that is not Latin; the Arabic report keeps Arabic and Latin.
+const nm = (s, fb = '-') => (AR ? (String(s ?? '').replace(/[^\u0020-\u007E\u00A0-\u024F\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/g, '').trim() || fb) : latin(s, fb));
 const pad = (n) => String(n).padStart(2, '0');
-const hm = (ms) => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)}h ${pad(m % 60)}m`; };
+const hm = (ms) => { const m = Math.round(ms / 60000); return AR ? `${Math.floor(m / 60)} ${T('hUnitH')} ${pad(m % 60)} ${T('hUnitM')}` : `${Math.floor(m / 60)}h ${pad(m % 60)}m`; };
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // Clock times and dates in the reader's time zone (tz = Date.getTimezoneOffset(): minutes, UTC minus local) or, without it, the server's own.
 function zone(tz) {
     const sh = (ts) => new Date(Number.isFinite(tz) ? ts - tz * 60000 : ts - new Date(ts).getTimezoneOffset() * 60000); // its UTC fields read as the local clock
-    const date = (ts) => { const d = sh(ts); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]}`; };
+    const mon = (i) => (AR ? TXT.MON_AR : MON)[i];
+    const date = (ts) => { const d = sh(ts); return `${d.getUTCDate()} ${mon(d.getUTCMonth())}`; };
     const clock = (ts) => { const d = sh(ts); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; };
     return {
         clock, date, hour: (ts) => sh(ts).getUTCHours(), dateClock: (ts) => `${date(ts)} ${clock(ts)}`,
-        long: (ts) => sh(ts).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
-        short: (ts) => { const d = sh(ts); return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; },
-        weekday: (ts) => sh(ts).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }),
+        long: (ts) => { if (!AR) return sh(ts).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }); const d = sh(ts); return `${TXT.DAY_AR[d.getUTCDay()]}، ${d.getUTCDate()} ${mon(d.getUTCMonth())} ${d.getUTCFullYear()}`; },
+        short: (ts) => { const d = sh(ts); return `${d.getUTCDate()} ${mon(d.getUTCMonth())} ${d.getUTCFullYear()}`; },
+        weekday: (ts) => (AR ? TXT.DAY_AR[sh(ts).getUTCDay()] : sh(ts).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })),
     };
 }
-const km = (m) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`);
-const secs = (s) => (s == null ? '-' : s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${pad(s % 60)}s` : `${(s / 3600).toFixed(1)}h`);
+const km = (m) => (m < 1000 ? `${Math.round(m)} ${T('unitM')}` : `${(m / 1000).toFixed(1)} ${T('unitKm')}`);
+const secs = (s) => (s == null ? '-' : AR ? (s < 60 ? `${s} ${T('unitS')}` : s < 3600 ? `${Math.floor(s / 60)} ${T('hUnitM')} ${pad(s % 60)} ${T('unitS')}` : `${(s / 3600).toFixed(1)} ${T('hUnitH')}`)
+    : s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m ${pad(s % 60)}s` : `${(s / 3600).toFixed(1)}h`);
 
 function haversine(a, b) {
     const R = 6371000, rad = Math.PI / 180;
@@ -127,34 +136,34 @@ function gather(db, cameras, from, to, Z) {
     }
 
     // control-room actions
-    const label = (a) => (a === 'remote_stream_start' ? 'Live view started remotely' : a === 'remote_stream_stop' ? 'Remote live view stopped'
-        : a.startsWith('set_quality_') ? `Video quality set to ${a.slice(12)}` : a.startsWith('update_app_') ? 'App update sent' : a);
+    const label = (a) => (a === 'remote_stream_start' ? T('aLive') : a === 'remote_stream_stop' ? T('aLiveStop')
+        : a === 'remote_record_stop' ? T('aRecStop') : a.startsWith('set_quality_') ? T('aQuality', a.slice(12)) : a.startsWith('update_app_') ? T('aUpdate') : a);
     for (const a of audit) out.actions.push({ ts: a.ts, who: a.username, camera: a.camera_id, text: label(a.action) });
 
     // timeline of notable moments
     const tl = [];
     for (const a of alarms) {
-        tl.push({ ts: a.ts, kind: 'sos', cam: a.camera_id, text: 'SOS alarm raised' });
-        if (a.ack_ts) tl.push({ ts: a.ack_ts, kind: 'ack', cam: a.camera_id, text: `SOS acknowledged by ${latin(a.ack_by, 'dispatcher')}` });
+        tl.push({ ts: a.ts, kind: 'sos', cam: a.camera_id, text: T('tSos') });
+        if (a.ack_ts) tl.push({ ts: a.ack_ts, kind: 'ack', cam: a.camera_id, text: T('tAck', nm(a.ack_by, T('dispatcher'))) });
     }
     for (const e of events) {
-        if (e.type === 'online') tl.push({ ts: e.ts, kind: 'on', cam: e.camera_id, text: 'Camera came online' });
-        else if (e.type === 'offline') tl.push({ ts: e.ts, kind: 'off', cam: e.camera_id, text: 'Camera went offline' });
+        if (e.type === 'online') tl.push({ ts: e.ts, kind: 'on', cam: e.camera_id, text: T('tOn') });
+        else if (e.type === 'offline') tl.push({ ts: e.ts, kind: 'off', cam: e.camera_id, text: T('tOff') });
     }
     for (const r of out.recs) {
-        tl.push({ ts: r.start, kind: 'rec', cam: r.cam, text: r.end ? `Recording ${Z.clock(r.start)} - ${Z.clock(r.end)}  (${hm(r.end - r.start)})` : `Recording since ${Z.clock(r.start)}  (in progress)` });
+        tl.push({ ts: r.start, kind: 'rec', cam: r.cam, text: r.end ? T('tRec', Z.clock(r.start), Z.clock(r.end), hm(r.end - r.start)) : T('tRecOpen', Z.clock(r.start)) });
     }
-    for (const a of out.actions) tl.push({ ts: a.ts, kind: 'act', cam: a.camera, text: `${a.text} (${latin(a.who)})` });
+    for (const a of out.actions) tl.push({ ts: a.ts, kind: 'act', cam: a.camera, text: `${a.text} (${nm(a.who)})` });
 
     // who carried which camera (the check-out station): table exists once the check-out feature has run
     try {
         const rows = db.prepare(`SELECT camera_id,username,name,employee_no,issued_ts,picked_ts,returned_ts,status FROM assignments
             WHERE status != 'cancelled' AND issued_ts < ? AND COALESCE(returned_ts, ?) >= ? AND camera_id IN (${ph}) ORDER BY issued_ts`).all(to, Date.now(), from, ...ids);
         for (const r of rows) {
-            const who = `${latin(r.name || r.username, 'employee')}${r.employee_no ? ' #' + latin(r.employee_no, '') : ''}`;
+            const who = `${nm(r.name || r.username, T('employee'))}${r.employee_no ? ' #' + nm(r.employee_no, '') : ''}`;
             out.shifts.push({ cam: r.camera_id, who, out: r.picked_ts || r.issued_ts, back: r.returned_ts || null, status: r.status });
-            tl.push({ ts: r.picked_ts || r.issued_ts, kind: 'shift', cam: r.camera_id, text: `Camera taken by ${who}` });
-            if (r.returned_ts && r.returned_ts >= from && r.returned_ts < to) tl.push({ ts: r.returned_ts, kind: 'shift', cam: r.camera_id, text: `Camera returned by ${who}` });
+            tl.push({ ts: r.picked_ts || r.issued_ts, kind: 'shift', cam: r.camera_id, text: T('tTaken', who) });
+            if (r.returned_ts && r.returned_ts >= from && r.returned_ts < to) tl.push({ ts: r.returned_ts, kind: 'shift', cam: r.camera_id, text: T('tReturned', who) });
         }
     } catch (e) { /* no assignments table yet */ }
     out.timeline = tl.sort((a, b) => a.ts - b.ts);
@@ -254,15 +263,76 @@ function donut(doc, cx, cy, r, thick, parts, centerTop, centerBottom) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Right to left. The page is drawn exactly as authored (left to right) inside a mirrored coordinate system, so every card, bar and
+// table column lands on the mirrored side; text is then put back the right way round at its mirrored place, with the Arabic
+// letters joined (fontkit) and the order of Arabic and Latin/number runs worked out here.
+// ---------------------------------------------------------------------------------------------
+const AR_CH = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+const LT_RUN = /[A-Za-z0-9]+(?:[-_.:\/#%+@'][A-Za-z0-9]+)*/y;
+const MIRROR = { '(': ')', ')': '(', '[': ']', ']': '[', '<': '>', '>': '<' };
+function bidiRuns(str) {
+    const toks = []; let i = 0;
+    while (i < str.length) {
+        const ch = str[i];
+        if (AR_CH.test(ch)) { let j = i; while (j < str.length && AR_CH.test(str[j])) j++; toks.push({ k: 'ar', s: str.slice(i, j) }); i = j; }
+        else if (/[A-Za-z0-9]/.test(ch)) { LT_RUN.lastIndex = i; const m = LT_RUN.exec(str); const t = m ? m[0] : ch; toks.push({ k: 'lt', s: t }); i += t.length; }
+        else { let j = i; while (j < str.length && !AR_CH.test(str[j]) && !/[A-Za-z0-9]/.test(str[j])) j++; toks.push({ k: 'ne', s: str.slice(i, j) }); i = j; }
+    }
+    // a neutral run between two runs of one kind joins them (spaces inside Arabic, spaces between Latin words)
+    for (let n = 1; n < toks.length - 1; n++) {
+        const a = toks[n - 1], b = toks[n], c = toks[n + 1];
+        if (b.k === 'ne' && a.k === c.k && a.k !== 'ne' && (a.k === 'ar' ? !/[()\[\]<>|·]/.test(b.s) : /^ +$/.test(b.s))) { a.s += b.s + c.s; toks.splice(n, 2); n--; }
+    }
+    return toks;
+}
+// Replaces doc.text / doc.font for the Arabic report. Returns a function that undoes nothing: the document is built once.
+function rtlText(doc) {
+    const baseText = doc.text.bind(doc), baseFont = doc.font.bind(doc);
+    doc.font = (f, ...r) => baseFont(/Bold/.test(String(f)) ? 'ARB' : 'AR', ...r);
+    const baseSize = doc.fontSize.bind(doc); doc.fontSize = (n) => baseSize(n * 0.88);   // the Arabic font is wider than Helvetica: the same columns hold the same sentences
+    doc.text = (str, x, y, o = {}) => {
+        let t = String(str ?? '');
+        const wmax = o.width;
+        const wd = (q) => doc.widthOfString(q);
+        if (wmax && wd(t) > wmax) { while (t.length > 1 && wd(t + '…') > wmax) t = t.slice(0, -1); t += '…'; }
+        // visual order, left to right: the runs reversed; inside an Arabic run the words reversed; each word is drawn on its own
+        // (fontkit mislays the spaces of a whole Arabic phrase), the spaces are just advances
+        const parts = [];
+        for (const k of bidiRuns(t).reverse()) {
+            if (k.k === 'ar') k.s.split(' ').reverse().forEach((w, i) => { if (i) parts.push({ s: ' ' }); if (w) parts.push({ s: w }); });
+            else if (k.k === 'lt') k.s.split(' ').forEach((w, i) => { if (i) parts.push({ s: ' ' }); if (w) parts.push({ s: w }); });
+            else (k.s.replace(/[()\[\]<>]/g, (c) => MIRROR[c]).match(/ +| *[^ ]+/g) || []).forEach((c) => c.split(/( )/).filter(Boolean).forEach((x) => parts.push({ s: x })));
+        }
+        const sp = wd(' ');
+        const wOf = (p) => (p.s === ' ' ? sp : wd(p.s));
+        const tw = parts.reduce((acc, p) => acc + wOf(p), 0);
+        const ex = o.align === 'center' && wmax ? x + (wmax - tw) / 2 : o.align === 'right' && wmax ? x + wmax - tw : x;
+        let px = W - ex - tw;                       // where the mirrored extent starts, in page coordinates
+        doc.save(); doc.transform(-1, 0, 0, 1, W, 0);   // undo the page mirror for the glyphs
+        for (const p of parts) { if (p.s !== ' ') baseText(p.s, px, y, { lineBreak: false }); px += wOf(p); }
+        doc.restore();
+        return doc;
+    };
+}
+
+// ---------------------------------------------------------------------------------------------
 // Report
 // ---------------------------------------------------------------------------------------------
-function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz, compress = true }, res) {
+function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz, compress = true, lang = 'en' }, res) {
+    AR = lang === 'ar';
     const Z = zone(tz);
     const d = gather(db, cameras, from, to, Z);
     const nDays = d.days.length, multi = nDays > 1;
-    const dayLabel = multi ? `${Z.short(from)}  to  ${Z.short(to - 1)}` : Z.long(from);
-    const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true, compress, info: { Title: `VisionGuard ${multi ? 'operations' : 'daily'} report - ${scopeLabel} - ${multi ? Z.short(from) + ' to ' + Z.short(to - 1) : Z.short(from)}`, Author: 'VisionGuard', Subject: title } });
+    const dayLabel = multi ? T('range', Z.short(from), Z.short(to - 1)) : Z.long(from);
+    const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true, compress, info: { Title: T('titleInfo', multi, nm(scopeLabel, T('allCompanies')), multi ? Z.short(from) + ' - ' + Z.short(to - 1) : Z.short(from)), Author: 'VisionGuard', Subject: title } });
     doc.pipe(res);
+    if (AR) {
+        doc.registerFont('AR', FONT_AR); doc.registerFont('ARB', FONT_ARB);
+        rtlText(doc);
+        const mirror = () => doc.save().transform(-1, 0, 0, 1, W, 0);    // every page starts mirrored (the footer, drawn later, is mirrored too)
+        const addPage = doc.addPage.bind(doc); doc.addPage = (...a) => { const r = addPage(...a); mirror(); return r; };
+        mirror();
+    }
 
     const isToday = to > Date.now() && from <= Date.now();
     const sos = d.alarms.length, acked = d.alarms.filter((a) => a.ack_ts).length;
@@ -270,31 +340,34 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
     const avgResp = resp.length ? Math.round(resp.reduce((s, a) => s + a.resp, 0) / resp.length) : null;
     const online = cameras.filter((c) => c.online).length;
     const when = multi ? Z.dateClock : Z.clock;          // single day: 14:05, several days: 9 Nov 14:05
-    const period = multi ? 'in this period' : 'today';
+    const period = T('period', multi);
 
     // ---- page 1: banner
     banner(doc, 215, true);
-    try { doc.image(LOGO, M, 28, { height: 24 }); } catch (e) { /* logo optional */ }
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#FFFFFF').opacity(0.85).text(multi ? 'OPERATIONS REPORT' : 'DAILY OPERATIONS REPORT', M, 78, { characterSpacing: 3, lineBreak: false }).opacity(1);
-    doc.font('Helvetica-Bold').fontSize(30).fillColor('#FFFFFF').text(latin(scopeLabel, 'All companies'), M, 94, { width: W - 2 * M - 120, lineBreak: false, ellipsis: true });
+    try {
+        if (AR) { const im = doc.openImage(LOGO), w = im.width * (24 / im.height); doc.save().transform(-1, 0, 0, 1, W, 0).image(LOGO, W - M - w, 28, { height: 24 }).restore(); }   // the logo is not mirrored
+        else doc.image(LOGO, M, 28, { height: 24 });
+    } catch (e) { /* logo optional */ }
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#FFFFFF').opacity(0.85).text(multi ? T('titleMulti') : T('titleDay'), M, 78, { characterSpacing: AR ? 0 : 3, lineBreak: false }).opacity(1);
+    doc.font('Helvetica-Bold').fontSize(30).fillColor('#FFFFFF').text(nm(scopeLabel, T('allCompanies')), M, 94, { width: W - 2 * M - 120, lineBreak: false, ellipsis: true });
     doc.font('Helvetica').fontSize(13).fillColor('#FFFFFF').opacity(0.92).text(dayLabel, M, 136, { lineBreak: false }).opacity(1);
-    doc.save().fillOpacity(0.18).roundedRect(M, 160, multi ? 226 : 168, 20, 10).fill('#FFFFFF').restore();
-    doc.font('Helvetica-Bold').fontSize(7.8).fillColor('#FFFFFF').text(multi ? `${nDays} DAYS${isToday ? ', LIVE UP TO ' + Z.clock(d.end) : ', FULL DAYS'}` : `${isToday ? 'LIVE DAY, UP TO ' + Z.clock(d.end) : 'FULL DAY 00:00 - 23:59'}`, M + 12, 166, { characterSpacing: 0.8, lineBreak: false });
+    doc.save().fillOpacity(0.18).roundedRect(M, 160, multi ? 226 : (AR ? 190 : 168), 20, 10).fill('#FFFFFF').restore();
+    doc.font('Helvetica-Bold').fontSize(7.8).fillColor('#FFFFFF').text(multi ? T('badgeMulti', nDays, isToday, Z.clock(d.end)) : T('badgeDay', isToday, Z.clock(d.end)), M + 12, 166, { characterSpacing: AR ? 0 : 0.8, lineBreak: false });
 
     // ---- KPI cards
     const cw = (W - 2 * M - 3 * 10) / 4, ky = 188;
-    kpi(doc, M, ky, cw, 78, 'Active cameras', `${d.totals.active}`, `of ${cameras.length} · ${online} online now`, 'cam', C.violet, C.blue);
-    kpi(doc, M + (cw + 10), ky, cw, 78, 'SOS alarms', `${sos}`, sos ? `${acked} answered · avg ${secs(avgResp)}` : `no emergency ${period}`, 'sos', '#FF7A59', C.rec);
-    kpi(doc, M + 2 * (cw + 10), ky, cw, 78, 'Recorded time', d.totals.recMs ? hm(d.totals.recMs) : '0h 00m', `${d.totals.recSessions} session${d.totals.recSessions === 1 ? '' : 's'}`, 'rec', C.rec, C.amber);
-    kpi(doc, M + 3 * (cw + 10), ky, cw, 78, 'Distance covered', km(d.totals.km), `${d.totals.ptt} PTT · ${d.totals.msgs + d.totals.voice} messages`, 'pin', C.teal, C.ok);
+    kpi(doc, M, ky, cw, 78, T('kActive'), `${d.totals.active}`, T('kActiveSub', cameras.length, online), 'cam', C.violet, C.blue);
+    kpi(doc, M + (cw + 10), ky, cw, 78, T('kSos'), `${sos}`, sos ? T('kSosSub', acked, secs(avgResp)) : T('kSosNone', period), 'sos', '#FF7A59', C.rec);
+    kpi(doc, M + 2 * (cw + 10), ky, cw, 78, T('kRec'), d.totals.recMs ? hm(d.totals.recMs) : hm(0), T('sessions', d.totals.recSessions), 'rec', C.rec, C.amber);
+    kpi(doc, M + 3 * (cw + 10), ky, cw, 78, T('kDist'), km(d.totals.km), T('kDistSub', d.totals.ptt, d.totals.msgs + d.totals.voice), 'pin', C.teal, C.ok);
 
     // ---- fleet donut + hourly activity
     let y = 292;
     shadowCard(doc, M, y, 200, 160);
-    heading(doc, M + 14, y + 12, 'Fleet right now');
+    heading(doc, M + 14, y + 12, T('fleet'));
     const rec = cameras.filter((c) => c.recording).length, idle = Math.max(0, online - rec), off = cameras.length - online;
-    donut(doc, M + 62, y + 98, 38, 12, [{ v: rec, c: C.rec }, { v: idle, c: C.ok }, { v: off, c: '#B9C4D6' }], cameras.length, 'cameras');
-    [['Recording', rec, C.rec], ['Online, idle', idle, C.ok], ['Offline', off, '#B9C4D6']].forEach(([l, v, c], i) => {
+    donut(doc, M + 62, y + 98, 38, 12, [{ v: rec, c: C.rec }, { v: idle, c: C.ok }, { v: off, c: '#B9C4D6' }], cameras.length, T('cameras'));
+    [[T('recording'), rec, C.rec], [T('idle'), idle, C.ok], [T('offline'), off, '#B9C4D6']].forEach(([l, v, c], i) => {
         doc.roundedRect(M + 118, y + 70 + i * 22, 9, 9, 3).fill(c);
         doc.font('Helvetica').fontSize(8.6).fillColor(C.ink).text(l, M + 133, y + 70 + i * 22 + 0.5, { lineBreak: false });
         doc.font('Helvetica-Bold').fontSize(9).fillColor(C.ink).text(String(v), M + 118, y + 70 + i * 22 + 0.5, { width: 70, align: 'right', lineBreak: false });
@@ -305,17 +378,17 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
     const cx0 = bx + 18, cwid = bw - 36, base = y + 138, ch = 84;
     for (let g = 0; g <= 3; g++) doc.save().lineWidth(0.4).dash(2, { space: 2 }).moveTo(cx0, base - (ch * g) / 3).lineTo(cx0 + cwid, base - (ch * g) / 3).stroke('#E3E9F2').undash().restore();
     if (!multi) {
-        heading(doc, bx + 14, y + 12, 'Cameras reporting by hour', 'distinct cameras with activity');
+        heading(doc, bx + 14, y + 12, T('byHour'), T('byHourSub'));
         const maxH = Math.max(1, ...d.hours), bwid = cwid / 24;
         d.hours.forEach((v, i) => {
             const h = v ? Math.max(3, (v / maxH) * ch) : 1.5;
             doc.roundedRect(cx0 + i * bwid + 1.5, base - h, bwid - 3, h, 2).fill(v ? grad(doc, 0, base - h, 0, base, [[0, C.violet], [1, C.blue]]) : '#E8EDF5');
             if (i % 3 === 0) doc.font('Helvetica').fontSize(6.8).fillColor(C.mut).text(pad(i), cx0 + i * bwid - 2, base + 4, { width: bwid + 4, align: 'center', lineBreak: false });
         });
-        if (d.hours.every((v) => v === 0)) doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text('No activity recorded for this day.', bx, y + 80, { width: bw, align: 'center', lineBreak: false });
+        if (d.hours.every((v) => v === 0)) doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text(T('noDay'), bx, y + 80, { width: bw, align: 'center', lineBreak: false });
     } else {
         // several days: one bar per day = time recorded, with the day's SOS count in red above it
-        heading(doc, bx + 14, y + 12, 'Recorded time by day', 'red = SOS alarms that day');
+        heading(doc, bx + 14, y + 12, T('byDay'), T('byDaySub'));
         const maxR = Math.max(1, ...d.days.map((x) => x.recMs)), bwid = cwid / nDays, step = Math.max(1, Math.ceil(nDays / 12));
         d.days.forEach((x, i) => {
             const h = x.recMs ? Math.max(3, (x.recMs / maxR) * (ch - 10)) : 1.5;
@@ -323,7 +396,7 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
             if (x.sos && bwid >= 5) doc.font('Helvetica-Bold').fontSize(7).fillColor(C.rec).text(String(x.sos), cx0 + i * bwid - 4, base - h - 10, { width: bwid + 8, align: 'center', lineBreak: false });
             if (i % step === 0 || i === nDays - 1) doc.font('Helvetica').fontSize(6.6).fillColor(C.mut).text(Z.date(x.start).replace(/ .*/, ''), cx0 + i * bwid - 6, base + 4, { width: bwid + 12, align: 'center', lineBreak: false });
         });
-        if (d.days.every((x) => !x.recMs && !x.sos)) doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text('No activity recorded in this period.', bx, y + 80, { width: bw, align: 'center', lineBreak: false });
+        if (d.days.every((x) => !x.recMs && !x.sos)) doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text(T('noPeriod'), bx, y + 80, { width: bw, align: 'center', lineBreak: false });
     }
 
     // ---- helper for flowing sections
@@ -332,7 +405,7 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
     const newPage = () => {
         doc.addPage(); page++;
         banner(doc, 46, false);
-        doc.font('Helvetica-Bold').fontSize(10).fillColor('#FFFFFF').text(`VisionGuard  |  ${latin(scopeLabel, 'All companies')}  |  ${dayLabel}`, M, 18, { characterSpacing: 0.6, lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(10).fillColor('#FFFFFF').text(`VisionGuard  |  ${nm(scopeLabel, T('allCompanies'))}  |  ${dayLabel}`, M, 18, { characterSpacing: AR ? 0 : 0.6, lineBreak: false });
         y = 68;
     };
     const need = (h) => { if (y + h > bottom) newPage(); };
@@ -340,17 +413,17 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
     // ---- SOS alarms
     y = 474;
     need(60);
-    heading(doc, M, y, 'SOS alarms', `${sos} ${period}`);
+    heading(doc, M, y, T('sosTitle'), T('sosSub', sos, period));
     y += 24;
     if (!d.alarms.length) {
         shadowCard(doc, M, y, W - 2 * M, 38);
         doc.circle(M + 22, y + 19, 8).fill(grad(doc, M + 14, y + 11, M + 30, y + 27, [[0, C.ok], [1, C.teal]]));
-        doc.font('Helvetica-Bold').fontSize(9.5).fillColor(C.ink).text('No SOS alarms were raised.', M + 40, y + 11, { lineBreak: false });
-        doc.font('Helvetica').fontSize(8.5).fillColor(C.mut).text(multi ? 'A quiet period for your fleet.' : 'A quiet day for your fleet.', M + 40, y + 24, { lineBreak: false });
+        doc.font('Helvetica-Bold').fontSize(9.5).fillColor(C.ink).text(T('sosNone'), M + 40, y + 11, { lineBreak: false });
+        doc.font('Helvetica').fontSize(8.5).fillColor(C.mut).text(T('quiet', multi), M + 40, y + 24, { lineBreak: false });
         y += 52;
     } else {
         const colX = multi ? [M + 14, M + 86, M + 186, M + 300, M + 394] : [M + 14, M + 70, M + 170, M + 290, M + 390];
-        const head = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); ['TIME', 'CAMERA', 'REGION', 'RESPONSE', 'STATUS'].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.4).fillColor(C.mut).text(t, colX[i], y + 7, { characterSpacing: 0.8, lineBreak: false })); y += 24; };
+        const head = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); [T('hTime'), T('hCamera'), T('hRegion'), T('hResponse'), T('hStatus')].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.4).fillColor(C.mut).text(t, colX[i], y + 7, { characterSpacing: AR ? 0 : 0.8, lineBreak: false })); y += 24; };
         head();
         const cap = multi ? 150 : 60;
         d.alarms.slice(0, cap).forEach((a, i) => {
@@ -358,25 +431,25 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
             if (i % 2) doc.roundedRect(M, y - 3, W - 2 * M, 21, 5).fill('#F8FAFD');
             const cam = byIdSafe(cameras, a.camera_id);
             doc.font('Helvetica-Bold').fontSize(8.8).fillColor(C.ink).text(when(a.ts), colX[0], y + 2, { lineBreak: false });
-            doc.font('Helvetica').fontSize(8.8).fillColor(C.ink).text(latin(nameOf(cam), a.camera_id), colX[1], y + 2, { width: 90, lineBreak: false, ellipsis: true });
-            doc.fillColor(C.mut).text(latin(regionOf(cam), '-'), colX[2], y + 2, { width: 106, lineBreak: false, ellipsis: true });
-            doc.fillColor(C.ink).text(a.resp == null ? 'waiting' : secs(a.resp), colX[3], y + 2, { lineBreak: false });
+            doc.font('Helvetica').fontSize(8.8).fillColor(C.ink).text(nm(nameOf(cam), a.camera_id), colX[1], y + 2, { width: 90, lineBreak: false, ellipsis: true });
+            doc.fillColor(C.mut).text(nm(regionOf(cam), '-'), colX[2], y + 2, { width: 106, lineBreak: false, ellipsis: true });
+            doc.fillColor(C.ink).text(a.resp == null ? T('waiting') : secs(a.resp), colX[3], y + 2, { lineBreak: false });
             const ok = !!a.ack_ts;
             doc.roundedRect(colX[4], y - 0.5, 74, 14, 7).fill(ok ? '#DDF7EE' : '#FFE1E6');
-            doc.font('Helvetica-Bold').fontSize(7.4).fillColor(ok ? '#008F62' : '#D01F3C').text(ok ? 'ACKNOWLEDGED' : 'OPEN', colX[4], y + 3.2, { width: 74, align: 'center', characterSpacing: 0.5, lineBreak: false });
+            doc.font('Helvetica-Bold').fontSize(7.4).fillColor(ok ? '#008F62' : '#D01F3C').text(ok ? T('acked') : T('open'), colX[4], y + 3.2, { width: 74, align: 'center', characterSpacing: AR ? 0 : 0.5, lineBreak: false });
             y += 21;
         });
-        if (d.alarms.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(`+ ${d.alarms.length - cap} more alarms (see the audit trail)`, M + 14, y + 2, { lineBreak: false }); y += 18; }
+        if (d.alarms.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(T('moreAlarms', d.alarms.length - cap), M + 14, y + 2, { lineBreak: false }); y += 18; }
         y += 14;
     }
 
     // ---- day by day (only when the report covers several days)
     if (multi) {
         need(90);
-        heading(doc, M, y, 'Day by day', `${nDays} days`);
+        heading(doc, M, y, T('dayByDay'), T('days', nDays));
         y += 24;
         const dc = [M + 14, M + 104, M + 196, M + 290, M + 390];
-        const dayHead = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); ['DAY', 'ACTIVE CAMERAS', 'RECORDED', 'DISTANCE', 'SOS'].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.2).fillColor(C.mut).text(t, dc[i], y + 7, { characterSpacing: 0.7, lineBreak: false })); y += 24; };
+        const dayHead = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); [T('hDay'), T('hActive'), T('hRecorded'), T('hDistance'), T('hSos')].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.2).fillColor(C.mut).text(t, dc[i], y + 7, { characterSpacing: AR ? 0 : 0.7, lineBreak: false })); y += 24; };
         dayHead();
         d.days.forEach((x, i) => {
             if (y + 19 > bottom) { newPage(); dayHead(); }
@@ -393,12 +466,12 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
 
     // ---- camera activity
     need(80);
-    heading(doc, M, y, 'Camera activity', `${cameras.length} cameras`);
+    heading(doc, M, y, T('activity'), T('nCameras', cameras.length));
     y += 24;
     const cols = [M + 12, M + 128, M + 205, M + 278, M + 352, M + 410, M + 454, M + 498];
     const camHead = () => {
         doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9');
-        ['CAMERA', 'REGION', 'ONLINE', 'RECORDED', 'DISTANCE', 'SOS', 'PTT', 'MSGS'].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.2).fillColor(C.mut).text(t, cols[i], y + 7, { characterSpacing: 0.7, lineBreak: false }));
+        [T('hCamera'), T('hRegion'), T('hOnline'), T('hRecorded'), T('hDistance'), T('hSos'), T('hPtt'), T('hMsgs')].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.2).fillColor(C.mut).text(t, cols[i], y + 7, { characterSpacing: AR ? 0 : 0.7, lineBreak: false }));
         y += 24;
     };
     camHead();
@@ -409,8 +482,8 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
         const cam = byIdSafe(cameras, p.id);
         if (i % 2) doc.roundedRect(M, y - 4, W - 2 * M, 24, 5).fill('#F8FAFD');
         doc.circle(M + 6, y + 6, 2.6).fill(cam?.recording ? C.rec : cam?.online ? C.ok : '#B9C4D6');
-        doc.font('Helvetica-Bold').fontSize(8.8).fillColor(C.ink).text(latin(nameOf(cam), p.id), cols[0], y + 1, { width: 112, lineBreak: false, ellipsis: true });
-        doc.font('Helvetica').fontSize(8.4).fillColor(C.mut).text(latin(regionOf(cam), '-'), cols[1], y + 1.4, { width: 72, lineBreak: false, ellipsis: true });
+        doc.font('Helvetica-Bold').fontSize(8.8).fillColor(C.ink).text(nm(nameOf(cam), p.id), cols[0], y + 1, { width: 112, lineBreak: false, ellipsis: true });
+        doc.font('Helvetica').fontSize(8.4).fillColor(C.mut).text(nm(regionOf(cam), '-'), cols[1], y + 1.4, { width: 72, lineBreak: false, ellipsis: true });
         doc.fillColor(C.ink).text(p.onlineMs ? hm(p.onlineMs) : '-', cols[2], y + 1.4, { lineBreak: false });
         doc.fillColor(C.ink).text(p.recMs ? hm(p.recMs) : '-', cols[3], y + 1.4, { lineBreak: false });
         if (p.recMs) doc.roundedRect(cols[3], y + 12, 62 * (p.recMs / maxRec), 3, 1.5).fill(grad(doc, cols[3], 0, cols[3] + 62, 0, [[0, C.rec], [1, C.amber]]));
@@ -425,49 +498,49 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
     // ---- who carried which camera (check-out station)
     if (d.shifts.length) {
         need(80);
-        heading(doc, M, y, 'Camera custody', `${d.shifts.length} check-out${d.shifts.length === 1 ? '' : 's'}`);
+        heading(doc, M, y, T('custody'), T('nCheckouts', d.shifts.length));
         y += 24;
         const sc = [M + 14, M + 118, M + 270, M + 366, M + 462];
-        const shiftHead = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); ['CAMERA', 'EMPLOYEE', 'TAKEN', 'RETURNED', 'TIME OUT'].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.2).fillColor(C.mut).text(t, sc[i], y + 7, { characterSpacing: 0.7, lineBreak: false })); y += 24; };
+        const shiftHead = () => { doc.roundedRect(M, y, W - 2 * M, 20, 6).fill('#EEF2F9'); [T('hCamera'), T('hEmployee'), T('hTaken'), T('hReturned'), T('hTimeOut')].forEach((t, i) => doc.font('Helvetica-Bold').fontSize(7.2).fillColor(C.mut).text(t, sc[i], y + 7, { characterSpacing: AR ? 0 : 0.7, lineBreak: false })); y += 24; };
         shiftHead();
         const cap = 150;
         d.shifts.slice(0, cap).forEach((s, i) => {
             if (y + 19 > bottom) { newPage(); shiftHead(); }
             if (i % 2) doc.roundedRect(M, y - 3, W - 2 * M, 19, 5).fill('#F8FAFD');
-            doc.font('Helvetica-Bold').fontSize(8.6).fillColor(C.ink).text(latin(nameOf(byIdSafe(cameras, s.cam)), s.cam), sc[0], y + 1, { width: 98, lineBreak: false, ellipsis: true });
+            doc.font('Helvetica-Bold').fontSize(8.6).fillColor(C.ink).text(nm(nameOf(byIdSafe(cameras, s.cam)), s.cam), sc[0], y + 1, { width: 98, lineBreak: false, ellipsis: true });
             doc.font('Helvetica').fillColor(C.ink).text(s.who, sc[1], y + 1, { width: 148, lineBreak: false, ellipsis: true });
             doc.text(Z.dateClock(s.out), sc[2], y + 1, { lineBreak: false });
-            doc.fillColor(s.back ? C.ink : C.rec).text(s.back ? Z.dateClock(s.back) : 'still out', sc[3], y + 1, { lineBreak: false });
+            doc.fillColor(s.back ? C.ink : C.rec).text(s.back ? Z.dateClock(s.back) : T('stillOut'), sc[3], y + 1, { lineBreak: false });
             doc.fillColor(C.mut).text(hm((s.back || d.end) - s.out), sc[4], y + 1, { lineBreak: false });
             y += 19;
         });
-        if (d.shifts.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(`+ ${d.shifts.length - cap} more check-outs`, M + 14, y + 2, { lineBreak: false }); y += 18; }
+        if (d.shifts.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(T('moreCheckouts', d.shifts.length - cap), M + 14, y + 2, { lineBreak: false }); y += 18; }
         y += 12;
     }
 
     // ---- control-room actions
     if (d.actions.length) {
         need(70);
-        heading(doc, M, y, 'Control-room actions', `${d.actions.length} ${period}`);
+        heading(doc, M, y, T('actions'), `${d.actions.length} ${period}`);
         y += 24;
         const cap = multi ? 60 : 25;
         d.actions.slice(0, cap).forEach((a) => {
             if (y + 16 > bottom) newPage();
             doc.font('Helvetica-Bold').fontSize(8.4).fillColor(C.ink).text(when(a.ts), M + 6, y, { width: 70, lineBreak: false });
             doc.font('Helvetica').fillColor(C.ink).text(`${a.text}`, M + 80, y, { width: 228, lineBreak: false, ellipsis: true });
-            doc.fillColor(C.mut).text(`${latin(nameOf(byIdSafe(cameras, a.camera)), a.camera || '-')}   by ${latin(a.who)}`, M + 310, y, { width: W - M - 310 - M, lineBreak: false, ellipsis: true });
+            doc.fillColor(C.mut).text(`${nm(nameOf(byIdSafe(cameras, a.camera)), a.camera || '-')}   ${T('by', nm(a.who))}`, M + 310, y, { width: W - M - 310 - M, lineBreak: false, ellipsis: true });
             y += 16;
         });
-        if (d.actions.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(`+ ${d.actions.length - cap} more actions (see the audit trail)`, M + 6, y, { lineBreak: false }); y += 16; }
+        if (d.actions.length > cap) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(T('moreActions', d.actions.length - cap), M + 6, y, { lineBreak: false }); y += 16; }
         y += 10;
     }
 
     // ---- timeline
     need(80);
-    heading(doc, M, y, 'Timeline', `${d.timeline.length} event${d.timeline.length === 1 ? '' : 's'}`);
+    heading(doc, M, y, T('timeline'), T('nEvents', d.timeline.length));
     y += 26;
     if (!d.timeline.length) {
-        doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text('Events are logged from the moment this version of VisionGuard started recording them.', M + 6, y, { lineBreak: false });
+        doc.font('Helvetica-Oblique').fontSize(9).fillColor(C.mut).text(T('noEvents'), M + 6, y, { lineBreak: false });
         y += 20;
     } else {
         const colors = { sos: C.rec, ack: C.ok, rec: C.amber, recstop: '#E0A100', on: C.blue, off: '#9AA8BD', act: C.violet, shift: C.teal };
@@ -479,10 +552,10 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
             doc.circle(M + 68, y + 6, 4.6).fill('#FFFFFF');
             doc.circle(M + 68, y + 6, 3.4).fill(colors[e.kind] || C.mut);
             doc.font('Helvetica').fontSize(8.8).fillColor(C.ink).text(e.text, M + 84, y + 2, { width: 250, lineBreak: false, ellipsis: true });
-            doc.fillColor(C.mut).text(latin(nameOf(byIdSafe(cameras, e.cam)), e.cam || ''), M + 340, y + 2, { width: W - M - 340 - M, lineBreak: false, ellipsis: true });
+            doc.fillColor(C.mut).text(nm(nameOf(byIdSafe(cameras, e.cam)), e.cam || ''), M + 340, y + 2, { width: W - M - 340 - M, lineBreak: false, ellipsis: true });
             y += 20;
         });
-        if (d.timeline.length > shown.length) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(`+ ${d.timeline.length - shown.length} more events`, M + 84, y + 2, { lineBreak: false }); y += 18; }
+        if (d.timeline.length > shown.length) { doc.font('Helvetica-Oblique').fontSize(8.4).fillColor(C.mut).text(T('moreEvents', d.timeline.length - shown.length), M + 84, y + 2, { lineBreak: false }); y += 18; }
     }
 
     // ---- footer on every page
@@ -490,9 +563,9 @@ function build(db, { title, scopeLabel, cameras, from, to, regionOf, nameOf, tz,
     for (let i = 0; i < range.count; i++) {
         doc.switchToPage(range.start + i);
         doc.rect(0, H - 34, W, 1.6).fill(grad(doc, 0, 0, W, 0, [[0, C.violet], [0.5, C.blue], [1, C.teal]]));
-        doc.font('Helvetica').fontSize(7.6).fillColor(C.mut).text('VisionGuard  |  Powered by Smart Way Group  |  Confidential: for the named company only', M, H - 24, { lineBreak: false });
-        doc.font('Helvetica-Bold').text(`${i + 1} / ${range.count}`, W - M - 60, H - 24, { width: 60, align: 'right', lineBreak: false });
-        doc.font('Helvetica').fillColor(C.mut).text(`Generated ${Z.short(Date.now())} ${Z.clock(Date.now())}`, M, H - 14, { lineBreak: false });
+        doc.font('Helvetica').fontSize(7.6).fillColor(C.mut).text(T('footer'), M, H - 24, { lineBreak: false });
+        doc.font('Helvetica-Bold').text(`${i + 1}${AR ? '/' : ' / '}${range.count}`, W - M - 60, H - 24, { width: 60, align: 'right', lineBreak: false });
+        doc.font('Helvetica').fillColor(C.mut).text(T('generated', `${Z.short(Date.now())} ${Z.clock(Date.now())}`), M, H - 14, { lineBreak: false });
     }
     doc.end();
 }

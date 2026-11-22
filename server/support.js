@@ -3,6 +3,7 @@
 //   E-mail needs SMTP_HOST (+ SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM); without it tickets are still stored and shown to staff, and the page says so.
 const nodemailer = require('nodemailer');
 const auditlog = require('./auditlog');
+const i18n = require('./i18n');
 
 const CATEGORIES = ['question', 'camera', 'docking', 'live', 'alerts', 'account', 'app', 'other'];
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
@@ -41,7 +42,10 @@ function register(app, ctx) {
     const shape = (t) => ({ id: t.id, ref: refOf(t.id), subject: t.subject, category: t.category, priority: t.priority, cameraId: t.camera_id, status: t.status, by: t.username,
         company: t.company_id ? companyName(t.company_id) : null, created: t.created, updated: t.updated, emailed: !!t.emailed, mailNote: t.mail_note || null,
         replies: db.prepare('SELECT COUNT(*) n FROM ticket_messages WHERE ticket_id = ?').get(t.id).n - 1 });
-    const link = (t) => (publicUrl ? `\n\nOpen: ${publicUrl.replace(/\/$/, '')}/help.html#t=${t.id}` : '');
+    // The e-mails go to the support desk. They are written in the language of the person who wrote the ticket, unless SUPPORT_EMAIL_LANG
+    // fixes one (en or ar) for the desk. The ticket's own text is whatever the person typed.
+    const mailLang = (req) => (['en', 'ar'].includes(process.env.SUPPORT_EMAIL_LANG) ? process.env.SUPPORT_EMAIL_LANG : req.lang || 'en');
+    const link = (t, lang) => (publicUrl ? `\n\n${i18n.tr(lang, 'mail.open')}: ${publicUrl.replace(/\/$/, '')}/help.html#t=${t.id}` : '');
 
     app.get('/api/support/info', needUser, (req, res) => res.json({ email: mailer.to, emailConfigured: mailer.configured, staff: isStaff(req.user), categories: CATEGORIES, priorities: PRIORITIES }));
 
@@ -59,8 +63,9 @@ function register(app, ctx) {
             .run(u.id, u.username, u.companyId || null, subject, category, priority, cameraId, now, now).lastInsertRowid);
         db.prepare('INSERT INTO ticket_messages(ticket_id,author,staff,body,ts) VALUES(?,?,?,?,?)').run(id, u.name || u.username, isStaff(u) ? 1 : 0, description, now);
         auditlog.add(db, u.username, 'ticket_created', cameraId, { ref: refOf(id), subject, priority, category });
-        const r = await mailer.send(`[${refOf(id)}] ${priority.toUpperCase()}: ${subject}`,
-            `New support ticket ${refOf(id)}\n\nFrom: ${u.name || u.username} (${u.username})\nCompany: ${u.companyId ? companyName(u.companyId) : 'Smart Way'}\nCategory: ${category}\nPriority: ${priority}\nCamera: ${cameraId || '-'}\n\n${description}${link({ id })}`);
+        const L = mailLang(req), T = (k, p) => i18n.tr(L, k, p);
+        const r = await mailer.send(`[${refOf(id)}] ${L === 'en' ? priority.toUpperCase() : T('mail.pri.' + priority)}: ${subject}`,
+            `${T('mail.newTicket', { ref: refOf(id) })}\n\n${T('mail.from')}: ${u.name || u.username} (${u.username})\n${T('mail.company')}: ${u.companyId ? companyName(u.companyId) : 'Smart Way'}\n${T('mail.category')}: ${L === 'en' ? category : T('mail.cat.' + category)}\n${T('mail.priority')}: ${L === 'en' ? priority : T('mail.pri.' + priority)}\n${T('mail.camera')}: ${cameraId || '-'}\n\n${description}${link({ id }, L)}`);
         db.prepare('UPDATE tickets SET emailed = ?, mail_note = ? WHERE id = ?').run(r.sent ? 1 : 0, r.sent ? null : r.reason, id);
         res.json({ ok: true, ref: refOf(id), id, emailed: r.sent, note: r.sent ? null : r.reason });
     });
@@ -85,7 +90,7 @@ function register(app, ctx) {
         const status = staff ? (t.status === 'open' ? 'in_progress' : t.status) : (['resolved', 'closed'].includes(t.status) ? 'open' : t.status);   // a customer's reply reopens it
         db.prepare('UPDATE tickets SET updated = ?, status = ? WHERE id = ?').run(now, status, t.id);
         auditlog.add(db, u.username, staff ? 'ticket_answered' : 'ticket_reply', t.camera_id, { ref: refOf(t.id) });
-        if (!staff) await mailer.send(`[${refOf(t.id)}] Reply: ${t.subject}`, `${u.name || u.username} (${t.company_id ? companyName(t.company_id) : 'Smart Way'}) replied:\n\n${body}${link(t)}`);
+        if (!staff) { const L = mailLang(req); await mailer.send(`[${refOf(t.id)}] ${i18n.tr(L, 'mail.reply')}: ${t.subject}`, `${i18n.tr(L, 'mail.replied', { who: u.name || u.username, company: t.company_id ? companyName(t.company_id) : 'Smart Way' })}\n\n${body}${link(t, L)}`); }
         res.json({ ok: true, status });
     });
     app.post('/api/tickets/:id/status', needUser, (req, res) => {

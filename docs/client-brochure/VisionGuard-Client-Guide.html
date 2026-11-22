@@ -36,7 +36,7 @@
   figure img { width: 100%; display: block; border: 1px solid var(--line); border-radius: 2.5mm; box-shadow: 0 1.5mm 4mm rgba(22,32,58,.10); }
   figcaption { font-size: 8.5pt; color: var(--mut); margin-top: 1.5mm; }
   .phones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
-  .w80 { width: 80%; margin-left: auto; margin-right: auto; } .w75 { width: 75%; margin-left: auto; margin-right: auto; } .w40 { width: 40%; margin-left: auto; margin-right: auto; } .w60 { width: 60%; margin-left: auto; margin-right: auto; } .w50 { width: 50%; margin-left: auto; margin-right: auto; } .w70 { width: 70%; margin-left: auto; margin-right: auto; }
+  .w80 { width: 80%; margin-left: auto; margin-right: auto; } .w75 { width: 75%; margin-left: auto; margin-right: auto; } .w50 { width: 50%; margin-left: auto; margin-right: auto; } .w25 { width: 25%; margin-left: auto; margin-right: auto; } .w40 { width: 40%; margin-left: auto; margin-right: auto; } .w60 { width: 60%; margin-left: auto; margin-right: auto; } .w50 { width: 50%; margin-left: auto; margin-right: auto; } .w70 { width: 70%; margin-left: auto; margin-right: auto; }
   h2 { break-after: avoid; }
   .phones figure { margin: 0; } .phones img { border-radius: 5mm; }
   .tag { display: inline-block; font-size: 8pt; font-weight: 700; padding: .6mm 2.4mm; border-radius: 10mm; background: #fff3d1; color: #8a5a00; }
@@ -77,15 +77,15 @@
     <div>1 · How VisionGuard works<span>3</span></div>
     <div>2 · The body-worn camera<span>4</span></div>
     <div>3 · The docking station<span>5</span></div>
-    <div>4 · Live control room<span>7</span></div>
-    <div>5 · SOS alarms and battery alerts<span>9</span></div>
-    <div>6 · Who carries which camera<span>10</span></div>
-    <div>7 · Analytics<span>11</span></div>
-    <div>8 · Reports<span>12</span></div>
-    <div>9 · The mobile app<span>13</span></div>
-    <div>10 · Your team and your account<span>14</span></div>
-    <div>11 · Trust, security and evidence<span>15</span></div>
-    <div>12 · Getting started<span>16</span></div>
+    <div>4 · Live control room<span>8</span></div>
+    <div>5 · SOS alarms and battery alerts<span>10</span></div>
+    <div>6 · Who carries which camera<span>11</span></div>
+    <div>7 · Analytics<span>12</span></div>
+    <div>8 · Reports<span>13</span></div>
+    <div>9 · The mobile app<span>14</span></div>
+    <div>10 · Your team and your account<span>15</span></div>
+    <div>11 · Trust, security and evidence<span>16</span></div>
+    <div>12 · Getting started<span>17</span></div>
   </div>
   <h2>VisionGuard at a glance</h2>
   <div class="grid3">
@@ -181,19 +181,32 @@
   <div class="note">The dock station runs with a small program on the PC next to it. If the PC loses the internet, nothing is lost: files stay on the dock and go to the cloud as soon as the connection returns.</div>
 </section>
 
+<!-- 3b · ALWAYS UP TO DATE -->
+<section class="page">
+  <div class="kicker">3 · Hardware</div>
+  <h1>Always up to date</h1>
+  <p class="lead">You never update a camera by hand. When a new version is ready, each camera takes it by itself, while it sits on the dock or when it is connected and idle.</p>
+  <figure class="w80"><img src="img/dock_updating.jpg" alt=""><figcaption>The docking screen while cameras update. Each bay shows "Updating app", the camera, its battery and free space.</figcaption></figure>
+  <figure class="w25"><img src="img/cam_updating.jpg" alt=""><figcaption>On the camera: "Updating the camera software. Please wait." with a progress bar. When it finishes, the camera restarts and carries on by itself.</figcaption></figure>
+  <div class="grid2">
+    <div class="card"><h3>Safe by design</h3><ul><li>Only software signed by Smart Way is accepted</li><li>An automatic update never interrupts an officer.s recording</li><li>A camera on an old version is updated the next time it connects</li></ul></div>
+    <div class="card"><h3>Always reachable</h3><p>Cameras connect to VisionGuard through its secure web address (HTTPS). Cameras set up earlier switch to it automatically with the update. Nothing has to be done on site.</p></div>
+  </div>
+</section>
+
 <!-- 6 · DOCK 2 -->
 <section class="page">
   <div class="kicker">3 · Hardware</div>
   <h1>Files: you decide what happens</h1>
   <p class="lead">After a camera is copied, its files wait for your choice. This protects both your storage and your privacy.</p>
-  <figure class="w60"><img src="img/docks_files.jpg" alt=""><figcaption>Files copied from the cameras, waiting for a decision. Select some or all, then send them to the cloud or keep them on the dock.</figcaption></figure>
+  <figure class="w50"><img src="img/docks_files.jpg" alt=""><figcaption>Files copied from the cameras, waiting for a decision. Select some or all, then send them to the cloud or keep them on the dock.</figcaption></figure>
   <div class="grid3">
     <div class="card"><h3>Push to cloud</h3><p>The file goes to your secure cloud library, where authorised people can play and download it.</p></div>
-    <div class="card"><h3>Keep on dock</h3><p>The file stays on the dock PC. You can still push it to the cloud later.</p></div>
+    <div class="card"><h3>Keep on dock</h3><p>The file stays on the dock PC, in a folder you choose from the dashboard. You can still push it to the cloud later.</p></div>
     <div class="card"><h3>Automatic</h3><p>Choose "ask me", "always cloud" or "always keep on dock" for new files.</p></div>
   </div>
   <h2>The cloud library</h2>
-  <figure class="w60"><img src="img/docks_data.jpg" alt=""><figcaption>Every recording in the cloud: camera, time, size and its unique fingerprint. Play or download with one click. Once a file is safe you can also ask the dock to remove it from the camera, so there is always room to record.</figcaption></figure>
+  <figure class="w50"><img src="img/docks_data.jpg" alt=""><figcaption>Every recording in the cloud: camera, time, size and its unique fingerprint. Play or download with one click. Once a file is safe you can also ask the dock to remove it from the camera, so there is always room to record.</figcaption></figure>
 </section>
 
 <!-- 7 · LIVE 1 -->
@@ -217,7 +230,7 @@
     <div class="card"><h3>Live wall</h3>
       <ul><li>Show 1, 4, 9 or 16 cameras at once</li><li>Full screen, or open the wall in its own window to put it on a second monitor</li><li>Drag a picture onto another to swap them</li><li>Listen to a camera's sound</li><li>Enlarge any camera</li></ul></div>
     <div class="card"><h3>Start live from the control room</h3>
-      <p>Press play next to any online camera. The camera starts streaming by itself, the officer does not need to do anything. Stop the stream just as easily; a recording the officer started is never interrupted.</p></div>
+      <p>Press play next to any online camera. The camera starts streaming by itself, the officer does not need to do anything. Stop the stream just as easily. A recording the officer started is not interrupted by closing the window. Authorised people can also press <b>Stop</b> to end the officer's recording from the control room. It is refused while an SOS is open, and it is always written to the audit trail.</p></div>
     <div class="card"><h3>Talk to your officers</h3>
       <p>Send a message or a voice note to one camera or to everyone. Officers can also talk to the control room using the Talk button.</p></div>
     <div class="card"><h3>Video quality</h3>
@@ -279,7 +292,7 @@
   <figure class="w80"><img src="img/full_reports.jpg" alt=""><figcaption>The Reports page. Quick buttons for today, yesterday, last 7 days, last 30 days, this month and last month.</figcaption></figure>
   <table>
     <tr><th style="width:42mm">Report</th><th>What it contains</th></tr>
-    <tr><td><b>Operations report</b> (PDF)</td><td>Alarms, recorded time, distance, activity by hour, who carried which camera and a timeline. For one day or up to 92 days.</td></tr>
+    <tr><td><b>Operations report</b> (PDF)</td><td>Alarms, recorded time, distance, activity by hour, who carried which camera and a timeline. For one day or up to 92 days. The PDF follows the site language: in Arabic it is laid out right to left.</td></tr>
     <tr><td><b>SOS alarms</b></td><td>Every SOS: when, which camera, who carried it, who answered and how fast.</td></tr>
     <tr><td><b>Cameras right now</b></td><td>Every camera: online, recording, battery, who has it, last seen and position.</td></tr>
     <tr><td><b>Low-battery history</b></td><td>Every time a camera fell under 20 %, how low, and when it recovered.</td></tr>
@@ -302,7 +315,7 @@
     <figure><img src="img/m_more.jpg" alt=""><figcaption>More</figcaption></figure>
   </div>
   <div class="grid2" style="margin-top:4mm">
-    <div class="card"><h3>On the go</h3><ul><li>Live video of any camera</li><li>A live wall of 1 to 16 cameras, also in full screen</li><li>Acknowledge alarms</li><li>Recordings and reports</li></ul></div>
+    <div class="card"><h3>On the go</h3><ul><li>Live video of any camera</li><li>A live wall of 1 to 16 cameras, also in full screen</li><li>Acknowledge alarms</li><li>Recordings and reports, with play and download (save to Photos or Files, or share with AirDrop)</li><li>Your profile and what you are allowed to do, under More</li></ul></div>
     <div class="card"><h3>Same account, same rules</h3><p>You sign in with the same account as on the computer, and you only see what you are allowed to see.</p></div>
   </div>
 </section>
@@ -312,16 +325,18 @@
   <div class="kicker">10 · Your organisation</div>
   <h1>Your team and your account</h1>
   <p class="lead">You manage your own people. Each person gets only the access they need.</p>
-  <figure class="w40"><img src="img/full_employees.jpg" alt=""><figcaption>Team page: dashboard users with their role, and employees who take cameras at the station.</figcaption></figure>
+  <figure class="w25"><img src="img/full_employees.jpg" alt=""><figcaption>Team page: dashboard users with their role, and employees who take cameras at the station.</figcaption></figure>
   <table>
     <tr><th style="width:36mm">Role</th><th>What they can do</th></tr>
-    <tr><td><b>Administrator</b></td><td>Everything in your company: watch, answer alarms, manage users and employees, delete files.</td></tr>
+    <tr><td><b>Administrator</b></td><td>Manages your company: users, employees and files. What it can do beyond the everyday actions (stop a recording, zones, delete) is switched on for your company by Smart Way.</td></tr>
     <tr><td><b>Operator</b></td><td>Watch live, answer alarms, chat, choose what happens to files. Cannot delete.</td></tr>
     <tr><td><b>Viewer</b></td><td>Watch only.</td></tr>
     <tr><td><b>Employee</b></td><td>Takes and returns a camera at the station. Cannot open the dashboard.</td></tr>
   </table>
+  <h2>Know your own access</h2>
+  <p>Every person has a <b>Profile and access</b> page (on the website and in the mobile app) showing the role and what the account may do. The site, the app and the PDF reports work in English and Arabic.</p>
   <h2>Support, when you need it</h2>
-  <figure class="w40"><img src="img/full_help.jpg" alt=""><figcaption>Help and Support: quick answers and a ticket system. Open a ticket, follow the conversation, reply or close it. Your subscription end date is always shown at the top of the screen, with a reminder 30 days before it ends.</figcaption></figure>
+  <figure class="w25"><img src="img/full_help.jpg" alt=""><figcaption>Help and Support: quick answers and a ticket system. Open a ticket, follow the conversation, reply or close it. Your subscription end date is always shown at the top of the screen, with a reminder 30 days before it ends.</figcaption></figure>
 </section>
 
 <!-- 15 · TRUST -->
@@ -334,7 +349,7 @@
     <div class="card"><h3>A sealed audit trail</h3><p>Every step is recorded: file copied, who decided what to do with it, uploaded, downloaded, deleted from the camera, settings changed. The record cannot be edited or erased, and any tampering is detected.</p></div>
     <div class="card"><h3>Your data is yours</h3><p>Your users see only your cameras, alarms, recordings and messages. Access is checked on the server for every request.</p></div>
     <div class="card"><h3>Protected access</h3><p>Personal logins with roles. Passwords are stored securely, repeated wrong attempts are blocked, and a person's access ends immediately when their account is switched off.</p></div>
-    <div class="card"><h3>Secure connection</h3><p>The system is reached over an encrypted connection. Video links are time-limited, so a copied link stops working.</p></div>
+    <div class="card"><h3>Secure connection</h3><p>The system, the cameras and the mobile apps reach VisionGuard over an encrypted (HTTPS) connection. Video links are time-limited, so a copied link stops working.</p></div>
     <div class="card"><h3>Always recording, never blocked</h3><p>Alarms and recordings keep arriving even if a subscription has ended, so safety never depends on a payment date.</p></div>
   </div>
   <div class="note">You decide how long recordings are kept. Files can stay forever, or be removed automatically after a number of days.</div>

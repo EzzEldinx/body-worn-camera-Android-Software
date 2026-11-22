@@ -9,13 +9,15 @@ import 'features/auth/login_screen.dart';
 import 'features/docking/docking_screen.dart';
 import 'features/docking/dock_files_screen.dart';
 import 'features/support/support_screen.dart';
+import 'features/analytics/analytics_screen.dart';
+import 'features/chat/chat_screen.dart';
 import 'features/more/more_screens.dart';
 import 'features/fleet/camera_detail.dart';
 import 'features/fleet/fleet_screen.dart';
 import 'features/live/live_screen.dart';
-import 'features/map/map_screen.dart';
 import 'features/recordings/recordings_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/settings/profile_screen.dart';
 import 'features/shell/app_shell.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -42,10 +44,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _, shell) => AppShell(shell: shell),
         branches: [
           StatefulShellBranch(routes: [GoRoute(path: '/fleet', builder: (_, _) => const FleetScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/map', builder: (_, s) => MapScreen(focusCam: s.uri.queryParameters['cam']))]),
           StatefulShellBranch(routes: [GoRoute(path: '/live', builder: (_, _) => const FeatureGate(feature: 'live', child: LiveScreen()))]),
           StatefulShellBranch(routes: [GoRoute(path: '/dock', builder: (_, _) => const FeatureGate(feature: 'docks', child: DockingScreen()))]),
           StatefulShellBranch(routes: [GoRoute(path: '/alerts', builder: (_, _) => const AlertsScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/chats', builder: (_, _) => const FeatureGate(feature: 'talk', child: ChatScreen(embedded: true)))]),
           StatefulShellBranch(routes: [GoRoute(path: '/more', builder: (c, _) => MoreScreen(onOpen: (r) => c.push(r)))]),
         ],
       ),
@@ -57,11 +59,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/support', builder: (_, _) => const SupportScreen()),
       GoRoute(path: '/reports', builder: (_, _) => const FeatureGate(feature: 'reports', child: ReportsScreen())),
       GoRoute(path: '/checkout', builder: (_, _) => const FeatureGate(feature: 'checkout', child: CheckoutScreen())),
+      GoRoute(path: '/chat', builder: (_, s) => FeatureGate(feature: 'talk', child: ChatScreen(camera: s.uri.queryParameters['cam']))),
+      GoRoute(path: '/analytics', builder: (_, _) => const FeatureGate(feature: 'analytics', child: AnalyticsScreen())),
       GoRoute(path: '/team', builder: (_, _) => const TeamScreen()),
       GoRoute(path: '/admin', builder: (_, _) => const AdminScreen()),
       GoRoute(path: '/dock/files', builder: (_, _) => const FeatureGate(feature: 'recordings', child: DockFilesScreen())),
       GoRoute(path: '/docking', builder: (_, _) => const FeatureGate(feature: 'docks', child: DockingScreen())),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+      GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
     ],
   );
 });

@@ -3,12 +3,16 @@
 const fs = require('fs');
 const auditlog = require('./auditlog');
 const { isLow, LOW, CRITICAL } = require('./battery');
+const i18n = require('./i18n');
 
 const DAY = 86400000, HOUR = 3600000;
 const dayStart = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const label = (t) => new Date(t).toLocaleDateString('en', { month: 'short', day: 'numeric' });
 
-function build({ db, cameras, recordingsDir, staff, now = Date.now() }) {
+// lang: 'en' or 'ar'. Every sentence below is written in it (the keys are in lang/texts.js); the numbers and names are the same in both.
+function build({ db, cameras, recordingsDir, staff, now = Date.now(), lang = 'en' }) {
+    const T = (key, params) => i18n.tr(lang, key, params);
+    const when = (ts) => (lang === 'ar' ? new Date(ts).toLocaleString('ar-SA-u-ca-gregory-nu-latn') : new Date(ts).toLocaleString('en'));
     const ids = new Set(cameras.map((c) => c.cameraId));
     const inScope = (id) => ids.has(id);
 
@@ -17,7 +21,7 @@ function build({ db, cameras, recordingsDir, staff, now = Date.now() }) {
     const recDays = [];
     for (let i = 13; i >= 0; i--) {
         const from = dayStart(now - i * DAY), rs = recRows.filter((r) => r.ts >= from && r.ts < from + DAY);
-        recDays.push({ day: label(from), count: rs.length, bytes: rs.reduce((a, r) => a + r.size, 0) });
+        recDays.push({ day: label(from), ts: from, count: rs.length, bytes: rs.reduce((a, r) => a + r.size, 0) });
     }
     const allRec = db.prepare('SELECT camera_id,size FROM recordings').all().filter((r) => inScope(r.camera_id));
     const cloudBytes = allRec.reduce((a, r) => a + r.size, 0);
@@ -38,7 +42,7 @@ function build({ db, cameras, recordingsDir, staff, now = Date.now() }) {
     const byHour = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
     alarms.forEach((a) => { byHour[new Date(a.ts).getHours()].count++; });
     const alarmDays = [];
-    for (let i = 13; i >= 0; i--) { const from = dayStart(now - i * DAY); alarmDays.push({ day: label(from), count: alarms.filter((a) => a.ts >= from && a.ts < from + DAY).length }); }
+    for (let i = 13; i >= 0; i--) { const from = dayStart(now - i * DAY); alarmDays.push({ day: label(from), ts: from, count: alarms.filter((a) => a.ts >= from && a.ts < from + DAY).length }); }
     const resp = (list) => { const k = list.filter((a) => a.ack_ts != null); return k.length ? Math.round(k.reduce((s, a) => s + (a.ack_ts - a.ts), 0) / k.length / 1000) : null; };
     const thisWeek = alarms.filter((a) => a.ts > now - 7 * DAY), lastWeek = alarms.filter((a) => a.ts <= now - 7 * DAY && a.ts > now - 14 * DAY);
     const unacked = alarms.filter((a) => a.ack_ts == null && now - a.ts > 5 * 60000);
@@ -70,31 +74,32 @@ function build({ db, cameras, recordingsDir, staff, now = Date.now() }) {
     // ---- findings
     const out = [];
     const add = (severity, id, title, detail, extra) => out.push({ severity, id, title, detail, ...(extra || {}) });
-    if (!audit.ok) add('critical', 'audit', 'The audit trail does not verify', `A line was changed or removed near entry #${audit.firstBadId}. Treat this as a security incident and keep a copy of the database.`);
-    if (unacked.length) add('critical', 'sos', `${unacked.length} SOS alarm${unacked.length === 1 ? ' has' : 's have'} not been acknowledged`, 'An alarm older than 5 minutes is still open. Open the live dashboard and acknowledge it.');
-    if (pipeline.failed.n) add('critical', 'failed', `${pipeline.failed.n} file${pipeline.failed.n === 1 ? '' : 's'} failed to upload`, 'The dock retries automatically. If it keeps failing, check the dock PC\'s connection to the server.');
+    const names = (list) => list.slice(0, 5).map((h) => h.name).join(lang === 'ar' ? '، ' : ', ') + (list.length > 5 ? '…' : '');
+    if (!audit.ok) add('critical', 'audit', T('ins.audit.title'), T('ins.audit.detail', { id: audit.firstBadId }));
+    if (unacked.length) add('critical', 'sos', T('ins.sos.title', { n: unacked.length }), T('ins.sos.detail'));
+    if (pipeline.failed.n) add('critical', 'failed', T('ins.failed.title', { n: pipeline.failed.n }), T('ins.failed.detail'));
     const ageH = oldestAwaiting ? Math.round((now - oldestAwaiting) / HOUR) : 0;
-    if (pipeline.awaiting.n) add(ageH >= 24 ? 'warning' : 'info', 'awaiting', `${pipeline.awaiting.n} file${pipeline.awaiting.n === 1 ? ' is' : 's are'} waiting for your decision`, `${(pipeline.awaiting.bytes / 1e9).toFixed(1)} GB on the dock${ageH >= 1 ? `; the oldest has waited ${ageH} h` : ''}. Open Docking > Files to push to the cloud or keep on the dock, or switch on an automatic mode.`);
-    health.filter((h) => h.flags.includes('low_battery')).forEach((h) => add(h.battery < 10 ? 'critical' : 'warning', 'bat_' + h.id, `${h.name} battery is ${h.battery}%`, `Last read ${h.batteryAgeMin == null ? 'a while' : h.batteryAgeMin + ' min'} ago. Put it on the dock to charge.`, { camera: h.id }));
-    health.filter((h) => h.flags.includes('offline_24h')).forEach((h) => add('warning', 'off_' + h.id, `${h.name} has been offline for over a day`, `Last seen ${new Date(h.lastSeen).toLocaleString('en')}. Check that it is charged and has a network.`, { camera: h.id }));
-    health.filter((h) => h.flags.includes('unstable')).forEach((h) => add('warning', 'flap_' + h.id, `${h.name} keeps dropping offline`, `${h.offlineEvents7d} disconnections in 7 days. Likely a weak network or a failing SIM/Wi-Fi.`, { camera: h.id }));
+    if (pipeline.awaiting.n) add(ageH >= 24 ? 'warning' : 'info', 'awaiting', T('ins.awaiting.title', { n: pipeline.awaiting.n }), T(ageH >= 1 ? 'ins.awaiting.detailAge' : 'ins.awaiting.detail', { gb: (pipeline.awaiting.bytes / 1e9).toFixed(1), h: ageH }));
+    health.filter((h) => h.flags.includes('low_battery')).forEach((h) => add(h.battery < 10 ? 'critical' : 'warning', 'bat_' + h.id, T('ins.bat.title', { name: h.name, pct: h.battery }), h.batteryAgeMin == null ? T('ins.bat.detailWhile') : T('ins.bat.detail', { min: h.batteryAgeMin }), { camera: h.id }));
+    health.filter((h) => h.flags.includes('offline_24h')).forEach((h) => add('warning', 'off_' + h.id, T('ins.off.title', { name: h.name }), T('ins.off.detail', { when: when(h.lastSeen) }), { camera: h.id }));
+    health.filter((h) => h.flags.includes('unstable')).forEach((h) => add('warning', 'flap_' + h.id, T('ins.flap.title', { name: h.name }), T('ins.flap.detail', { n: h.offlineEvents7d }), { camera: h.id }));
     const noGps = health.filter((h) => h.flags.includes('no_gps'));
-    if (noGps.length) add('info', 'gps', `${noGps.length} online camera${noGps.length === 1 ? ' has' : 's have'} no recent GPS fix`, `${noGps.slice(0, 5).map((h) => h.name).join(', ')}${noGps.length > 5 ? '…' : ''}. Indoors or on the dock this is normal; outdoors it needs a look.`);
+    if (noGps.length) add('info', 'gps', T('ins.gps.title', { n: noGps.length }), T('ins.gps.detail', { names: names(noGps) }));
     const today = alarmDays[13].count, prevAvg = alarmDays.slice(7, 13).reduce((a, d) => a + d.count, 0) / 6;
-    if (today >= 3 && today > prevAvg * 2) add('warning', 'spike', `SOS alarms are up today (${today} vs ${prevAvg.toFixed(1)}/day)`, 'More than double the recent daily average.');
+    if (today >= 3 && today > prevAvg * 2) add('warning', 'spike', T('ins.spike.title', { today, avg: prevAvg.toFixed(1) }), T('ins.spike.detail'));
     const rw = resp(thisWeek), rl = resp(lastWeek);
-    if (rw != null && rl != null && rl > 0 && rw > rl * 1.5 && rw > 60) add('warning', 'resp', `Alarm response is slower (${rw}s vs ${rl}s last week)`, 'Review who is on duty at the control room.');
-    if (disk && disk.freeBytes / disk.totalBytes < 0.15) add('critical', 'disk', `Server storage is ${Math.round((1 - disk.freeBytes / disk.totalBytes) * 100)}% full`, `${(disk.freeBytes / 1e9).toFixed(0)} GB free.`);
-    else if (daysLeft != null && daysLeft < 14) add('warning', 'disk_days', `Storage may run out in about ${daysLeft} days`, 'At the current recording growth. Use "Keep on dock storage" or a shorter retention.');
+    if (rw != null && rl != null && rl > 0 && rw > rl * 1.5 && rw > 60) add('warning', 'resp', T('ins.resp.title', { now: rw, before: rl }), T('ins.resp.detail'));
+    if (disk && disk.freeBytes / disk.totalBytes < 0.15) add('critical', 'disk', T('ins.disk.title', { pct: Math.round((1 - disk.freeBytes / disk.totalBytes) * 100) }), T('ins.disk.detail', { gb: (disk.freeBytes / 1e9).toFixed(0) }));
+    else if (daysLeft != null && daysLeft < 14) add('warning', 'disk_days', T('ins.diskDays.title', { n: daysLeft }), T('ins.diskDays.detail'));
     const idle = health.filter((h) => h.online && !h.recordings7d && !pipeline.awaiting.n && h.alarms30d === 0);
-    if (idle.length && cameras.length > 1) add('info', 'idle', `${idle.length} camera${idle.length === 1 ? '' : 's'} sent nothing to the cloud this week`, `${idle.slice(0, 5).map((h) => h.name).join(', ')}. They may be unused or their files are kept on the dock.`);
-    if (audit.ok && audit.checked) add('good', 'audit_ok', 'Audit trail verified', `${audit.checked} recorded steps checked, none changed or removed.`);
-    if (cameras.length && healthy === cameras.length) add('good', 'all_good', 'Every camera looks healthy', 'Battery, connection and GPS are fine on all cameras.');
+    if (idle.length && cameras.length > 1) add('info', 'idle', T('ins.idle.title', { n: idle.length }), T('ins.idle.detail', { names: names(idle) }));
+    if (audit.ok && audit.checked) add('good', 'audit_ok', T('ins.auditOk.title'), T('ins.auditOk.detail', { n: audit.checked }));
+    if (cameras.length && healthy === cameras.length) add('good', 'all_good', T('ins.allGood.title'), T('ins.allGood.detail'));
     let subs = []; try { if (staff) subs = db.prepare('SELECT name, sub_end FROM companies WHERE sub_end IS NOT NULL').all(); } catch (e) { /* no companies table */ }
     for (const c of subs) {   // subscriptions about to end (Smart Way sees every company)
         const d = Math.ceil((c.sub_end - now) / DAY);
-        if (d < 0) add('critical', 'sub_' + c.name, `${c.name}: subscription ended ${-d} day${d === -1 ? '' : 's'} ago`, 'Renew it in Companies, or the company is told it has ended.');
-        else if (d <= 30) add(d <= 7 ? 'warning' : 'info', 'sub_' + c.name, `${c.name}: subscription ends in ${d} day${d === 1 ? '' : 's'}`, `Ends on ${new Date(c.sub_end).toISOString().slice(0, 10)}. Extend it in Companies; the company already sees a notice.`);
+        if (d < 0) add('critical', 'sub_' + c.name, T('ins.subEnded.title', { name: c.name, n: -d }), T('ins.subEnded.detail'));
+        else if (d <= 30) add(d <= 7 ? 'warning' : 'info', 'sub_' + c.name, T('ins.subEnds.title', { name: c.name, n: d }), T('ins.subEnds.detail', { date: new Date(c.sub_end).toISOString().slice(0, 10) }));
     }
     const rank = { critical: 0, warning: 1, info: 2, good: 3 };
     out.sort((a, b) => rank[a.severity] - rank[b.severity]);
@@ -114,20 +119,21 @@ function build({ db, cameras, recordingsDir, staff, now = Date.now() }) {
 }
 
 /** A written summary even without an AI key: the findings in plain language. */
-function plainSummary(a) {
+function plainSummary(a, lang = 'en') {
+    const T = (key, params) => i18n.tr(lang, key, params), sep = T('plain.sep');
     const lines = [];
-    lines.push(`Fleet health score ${a.score ?? '-'}% across ${a.scope.cameras} camera${a.scope.cameras === 1 ? '' : 's'}.`);
+    lines.push(T('plain.score', { score: a.score ?? '-', n: a.scope.cameras }));
     const crit = a.insights.filter((i) => i.severity === 'critical'), warn = a.insights.filter((i) => i.severity === 'warning');
-    if (crit.length) lines.push('Needs attention now: ' + crit.map((i) => i.title).join('; ') + '.');
-    if (warn.length) lines.push('Watch: ' + warn.slice(0, 5).map((i) => i.title).join('; ') + '.');
-    if (!crit.length && !warn.length) lines.push('Nothing needs attention.');
-    lines.push(`Evidence: ${a.pipeline.cloud.n} files in the cloud, ${a.pipeline.local.n} kept on the dock, ${a.pipeline.awaiting.n} waiting for a decision.`);
+    if (crit.length) lines.push(T('plain.now', { list: crit.map((i) => i.title).join(sep) }));
+    if (warn.length) lines.push(T('plain.watch', { list: warn.slice(0, 5).map((i) => i.title).join(sep) }));
+    if (!crit.length && !warn.length) lines.push(T('plain.none'));
+    lines.push(T('plain.evidence', { cloud: a.pipeline.cloud.n, local: a.pipeline.local.n, waiting: a.pipeline.awaiting.n }));
     return lines.join('\n');
 }
 
 /** Optional written analysis by Claude. Only aggregated numbers and camera names are sent, never video, file names or users. Off unless ANTHROPIC_API_KEY is set. */
-async function aiNarrative(a, { fetchImpl = fetch, env = process.env } = {}) {
-    if (!env.ANTHROPIC_API_KEY) return { ai: false, text: plainSummary(a) };
+async function aiNarrative(a, { fetchImpl = fetch, env = process.env, lang = 'en' } = {}) {
+    if (!env.ANTHROPIC_API_KEY) return { ai: false, text: plainSummary(a, lang) };
     const facts = {
         healthScorePercent: a.score, cameras: a.scope.cameras,
         cameraHealth: a.health.map((h) => ({ camera: h.name, online: h.online, battery: h.battery, flags: h.flags, alarms30d: h.alarms30d, recordings7d: h.recordings7d, offlineEvents7d: h.offlineEvents7d })),
@@ -139,14 +145,14 @@ async function aiNarrative(a, { fetchImpl = fetch, env = process.env } = {}) {
         method: 'POST', headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({
             model: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5', max_tokens: 700,
-            system: 'You are the operations analyst of a body-worn-camera platform. From the JSON facts, write a short briefing for the fleet owner: 1) a two-sentence overall assessment, 2) the three most important things to do, most urgent first, each with the reason, 3) one pattern or risk you notice in the numbers. Use only the facts given, never invent numbers, no markdown headings, plain short sentences.',
+            system: 'You are the operations analyst of a body-worn-camera platform. From the JSON facts, write a short briefing for the fleet owner: 1) a two-sentence overall assessment, 2) the three most important things to do, most urgent first, each with the reason, 3) one pattern or risk you notice in the numbers. Use only the facts given, never invent numbers, no markdown headings, plain short sentences. ' + i18n.tr(lang, 'ai.askLang'),
             messages: [{ role: 'user', content: JSON.stringify(facts) }],
         }),
     });
-    if (!r.ok) return { ai: false, text: plainSummary(a), error: `AI service answered ${r.status}` };
+    if (!r.ok) return { ai: false, text: plainSummary(a, lang), error: `AI service answered ${r.status}` };
     const j = await r.json();
     const text = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
-    return text ? { ai: true, model: j.model || env.ANTHROPIC_MODEL || 'claude-sonnet-5-5', text } : { ai: false, text: plainSummary(a) };
+    return text ? { ai: true, model: j.model || env.ANTHROPIC_MODEL || 'claude-sonnet-5-5', text } : { ai: false, text: plainSummary(a, lang) };
 }
 
 module.exports = { build, plainSummary, aiNarrative };

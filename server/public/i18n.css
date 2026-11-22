@@ -1,0 +1,21 @@
+/* VisionGuard languages: the switch, the Arabic type, and the rules every right-to-left page needs. Every page loads this after its own CSS. */
+
+/* the English / Arabic switch (one component, in the header of every page) */
+.vg-lang{display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--raise);flex:none}
+.vg-lang button{height:28px;min-width:36px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--mut);font:inherit;font-size:12.5px;font-weight:700;line-height:1;cursor:pointer;transition:.15s}
+.vg-lang button:hover{color:var(--text)}
+.vg-lang button[aria-pressed="true"]{background:var(--panel);color:var(--text);box-shadow:0 1px 2px rgba(15,27,45,.14),inset 0 -2px 0 var(--sel,#FFB300)}
+.vg-lang button:focus-visible{outline:2px solid var(--sel,#FFB300);outline-offset:1px}
+@media (max-width:900px){.vg-lang{padding:2px}.vg-lang button{height:26px;min-width:30px;padding:0 7px;font-size:12px}}
+
+/* Arabic type. Letters of a word are joined: any letter-spacing would break them apart. */
+:root[lang="ar"]{font-family:"Segoe UI",Tahoma,"SF Arabic","Geeza Pro","Noto Sans Arabic","Noto Naskh Arabic",system-ui,sans-serif}
+:root[dir="rtl"] *{letter-spacing:0!important}
+:root[dir="rtl"] bdi,:root[dir="rtl"] .ltr{unicode-bidi:isolate}
+.ltr{direction:ltr;unicode-bidi:isolate}
+/* an id, an address, a number: always reads left to right, and sits at the start edge of its cell */
+:root[dir="rtl"] .ltr{text-align:right}
+:root[dir="rtl"] input[dir="ltr"],:root[dir="rtl"] textarea[dir="ltr"]{text-align:right}
+:root[dir="rtl"] input[dir="ltr"]::placeholder{text-align:right}
+/* a direction arrow in a button (→) points the other way */
+:root[dir="rtl"] .flip{transform:scaleX(-1)}

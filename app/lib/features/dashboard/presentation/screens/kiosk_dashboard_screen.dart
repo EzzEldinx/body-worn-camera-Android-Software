@@ -205,6 +205,12 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         _toggleRecording(silent: true);
       } else if (a == 'stop' && isRecording && _remoteStarted) {
         _toggleRecording(silent: true);
+      } else if (a == 'stop_force' && isRecording) {
+        // The control room ended a recording the officer started (the server checked who may, and that no SOS is waiting).
+        // The officer is told, then the file is closed and saved as for any stop.
+        HapticFeedback.heavyImpact();
+        _toast('Recording stopped by the control room');
+        _toggleRecording(silent: true);
       }
     });
 
@@ -319,6 +325,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         );
 
         await _controller!.initialize().timeout(const Duration(seconds: 10));
+        _controller!.addListener(_onCameraValue);
 
         // Zoom is digital (screen only): this plugin has no native zoom.
         _minZoomLevel = 1.0;
@@ -564,8 +571,66 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     }
   }
 
+  // ---- The camera stopped delivering pictures ------------------------------
+  // The native view checks the camera every 3 seconds. While recording or streaming it cannot repair it by itself and sends "camera_stalled":
+  // the recording that exists is saved, the camera is closed and opened again, and the recording and live stream start again (same origin).
+  // After 3 recoveries in 10 minutes something is really wrong and the app restarts (the kiosk Home app comes back by itself).
+  final List<DateTime> _recoveries = <DateTime>[];
+  void _onCameraValue() {
+    if (_controller?.value.errorDescription == 'camera_stalled') _recoverCamera();
+  }
+
+  Future<void> _recoverCamera() async {
+    if (_switching || !mounted) return;
+    final DateTime now = DateTime.now();
+    _recoveries.removeWhere((DateTime t) => now.difference(t) > const Duration(minutes: 10));
+    if (_recoveries.length >= 3) {
+      _report('CAMERA STALLED again and again: restarting the app');
+      await SelfHeal.restartNow(where: 'camera stalled', report: _report);
+      return;
+    }
+    _recoveries.add(now);
+    final bool wasRecording = isRecording;
+    final bool remote = _remoteStarted;
+    _report('CAMERA STALLED: reopening the camera${wasRecording ? ' and the recording' : ''}');
+    _switching = true;
+    try {
+      if (wasRecording) await _toggleRecording(silent: true);
+      await _releaseCamera();
+      await _initCamera();
+      if (wasRecording && _isCameraInitialized) {
+        _switching = false;
+        _remoteStarted = remote;
+        await _toggleRecording(silent: true);
+      }
+    } finally {
+      _switching = false;
+    }
+  }
+
   // ---- Record + live stream ---------------------------------------------
+  // Two commands can arrive together (two dashboards asking for the live stream, a double press on the button): while one start or stop
+  // is running the other is ignored, so two starts never fight over the same camera.
+  // A start or stop that takes more than 60 seconds is given up (the guard is released), so a hung camera call can never leave the button dead.
+  bool _toggleBusy = false;
+  DateTime _toggleStartedAt = DateTime(2000);
   Future<void> _toggleRecording({bool silent = false}) async {
+    if (_toggleBusy && DateTime.now().difference(_toggleStartedAt) < const Duration(seconds: 60)) {
+      debugPrint('toggle ignored: another start or stop is still running');
+      return;
+    }
+    _toggleBusy = true;
+    _toggleStartedAt = DateTime.now();
+    try {
+      await _toggleRecordingNow(silent: silent).timeout(const Duration(seconds: 60));
+    } on TimeoutException {
+      _report('REC TIMEOUT: the start or stop took more than 60 s and was given up');
+    } finally {
+      _toggleBusy = false;
+    }
+  }
+
+  Future<void> _toggleRecordingNow({bool silent = false}) async {
     final c = _controller;
     if (c == null || c.value.isInitialized != true) return;
     final link = ref.read(centralLinkProvider);
@@ -573,7 +638,7 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
     if (isRecording) {
       _timer?.cancel();
       try {
-        await c.stopEverything();
+        await c.stopEverything().timeout(const Duration(seconds: 10));
         _lastStopAt = DateTime.now();
         _report('SAVED: ${_currentFile?.split('/').last}');
       } catch (e) {
@@ -592,7 +657,14 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
         await Future.delayed(const Duration(milliseconds: 1500) - since);
       }
       final dir = await _mediaDir();
-      final path = '$dir/VID_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      // Every attempt gets its OWN file name: a failed attempt may already have created its file, and the plugin refuses to overwrite
+      // ("fileExists"), which is what used to end a quality change with "REC FAILED" and a camera that would not stream any more.
+      var seq = 0;
+      String freshPath() => '$dir/VID_${DateTime.now().millisecondsSinceEpoch}${seq++ == 0 ? '' : '_$seq'}.mp4';
+      Future<void> dropEmpty(String p) async {
+        try { final f = File(p); if (await f.exists() && await f.length() == 0) await f.delete(); } catch (_) {/* a partial file with data stays: it is evidence */}
+      }
+      var path = freshPath();
       _currentFile = path;
 
       var streamed = true;
@@ -601,15 +673,37 @@ class _KioskDashboardScreenState extends ConsumerState<KioskDashboardScreen> {
           path,
           CentralConfig.rtmpUrl,
           bitrate: _quality.bitrate,
-        );
+        ).timeout(const Duration(seconds: 20));   // a start that never answers is a failure, not a frozen camera
       } catch (e) {
-        // Evidence must never depend on the network: fall back to local only.
-        streamed = false;
         debugPrint('Stream failed: $e');
+        try { await c.stopEverything(); } catch (_) {}
+        await dropEmpty(path);
+        // The server may still be closing the previous stream (a quality change just ended one): wait and try to stream once more.
+        // When the problem was the CAMERA (it could not be opened), the camera is closed and opened again first: the same controller would fail the same way.
+        var cam = c;
+        if (e is TimeoutException || '$e'.contains('camera')) {
+          await _releaseCamera();
+          await _initCamera();
+          final fresh = _controller;
+          if (fresh == null || !_isCameraInitialized) rethrow;
+          cam = fresh;
+        } else {
+          await Future.delayed(const Duration(seconds: 2));
+        }
+        path = freshPath();
+        _currentFile = path;
         try {
-          await c.stopEverything();
-        } catch (_) {}
-        await c.startVideoRecording(path);
+          await cam.startVideoRecordingAndStreaming(path, CentralConfig.rtmpUrl, bitrate: _quality.bitrate).timeout(const Duration(seconds: 20));
+        } catch (e2) {
+          // Evidence must never depend on the network: fall back to local only.
+          streamed = false;
+          debugPrint('Stream failed again: $e2');
+          try { await cam.stopEverything(); } catch (_) {}
+          await dropEmpty(path);
+          path = freshPath();
+          _currentFile = path;
+          await cam.startVideoRecording(path);
+        }
       }
 
       if (mounted) {

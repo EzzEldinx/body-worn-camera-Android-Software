@@ -13,6 +13,7 @@ const packages = require('./packages');
 const auditlog = require('./auditlog');
 const features = require('./features');
 const insights = require('./insights');
+const i18n = require('./i18n');
 const support = require('./support');
 const deviceTokens = require('./tokens');
 
@@ -32,6 +33,7 @@ function authCamera(token) {
 }
 // Live-stream play URLs are signed per request; the secret only lives in memory.
 const STREAM_SECRET = process.env.STREAM_SECRET || crypto.randomBytes(24).toString('hex');
+const publishKey = require('./publishkey').init({ dataDir: process.env.DATA_DIR || path.join(__dirname, 'data'), streamSecret: STREAM_SECRET });
 const DAY = 86400000;
 
 // ---------- First run: create the admin account ----------
@@ -76,7 +78,7 @@ const can = (u, f) => u.features.includes(f);
 const isManager = (u) => isSuper(u) || u.role === 'manager';
 const canWrite = (u) => u.role !== 'viewer';
 const needWrite = (req, res, next) => (canWrite(req.user) ? next() : res.status(403).json({ error: 'Your account is read only.' }));
-const needDelete = (req, res, next) => (isManager(req.user) || (canWrite(req.user) && can(req.user, 'delete')) ? next() : res.status(403).json({ error: 'You are not allowed to delete files.' }));
+const needDelete = (req, res, next) => (canWrite(req.user) && can(req.user, 'delete') ? next() : res.status(403).json({ error: 'You are not allowed to delete files.' }));
 const needFiles = (req, res, next) => (canWrite(req.user) && can(req.user, 'files') ? next() : res.status(403).json({ error: 'You are not allowed to decide on recordings.' }));
 // A company's subscription: notice 30 days before it ends, and after.
 const subscriptionOf = (companyId) => {
@@ -131,6 +133,9 @@ function publish(id, patch) {
         cameraId: id, name: id, grp: '', online: false, recording: false, lat: null, lng: null, ts: 0, companyId: null,
         ...cams.get(id), ...patch,
     };
+    // "Last seen": any message from a camera that is online (status, battery, GPS...) or the dock seeing it over USB refreshes it. Before, only a GPS fix did,
+    // so a camera that was connected but indoors without a fix read "13 h ago" in the list.
+    if (patch.online === true && patch.ts === undefined) state.ts = Date.now();
     if (state.online && !prev?.online) state.onlineSince = Date.now();   // how long it has stayed connected (a new build only counts as proven on a camera that does)
     if (!!prev?.online !== !!state.online) logEvent(id, state.online ? 'online' : 'offline');
     if (!!prev?.recording !== !!state.recording) logEvent(id, state.recording ? 'rec_start' : 'rec_stop');
@@ -144,6 +149,9 @@ const recentAlarms = (u) => (isStaff(u)
     : db.prepare(`SELECT a.id,a.camera_id,a.lat,a.lng,a.ts,a.ack_ts,a.holder,a.holder_no FROM alarms a
         JOIN cameras c ON c.id = a.camera_id WHERE c.company_id = ? ORDER BY a.id DESC LIMIT 100`).all(u.companyId)
 ).map(alarmRow);
+// An SOS nobody has answered yet. While one is open (and not older than SOS_GUARD_MS) nobody may cut that camera's recording from the dashboard.
+const SOS_GUARD_MS = Number(process.env.STOPREC_SOS_GUARD_MS) || 2 * 3600000;
+const sosOpen = (camId) => !!db.prepare('SELECT 1 FROM alarms WHERE camera_id = ? AND ack_ts IS NULL AND ts > ? LIMIT 1').get(camId, Date.now() - SOS_GUARD_MS);
 
 // Package limits: how many cameras a company owns and how many may stream live at once.
 const companyLimits = (id) => (id ? db.prepare('SELECT max_cameras AS maxCameras, max_live AS maxLive FROM companies WHERE id = ?').get(id) : null);
@@ -167,6 +175,7 @@ const server = http.createServer(app);
 const io = new Server(server, { maxHttpBufferSize: 15e6 }); // voice notes travel as Base64 (default cap is 1 MB)
 app.disable('x-powered-by');
 app.use(securityHeaders);
+app.use(i18n.middleware);                                              // req.lang from the language the page or the app asked for; the API's own error texts come back in it
 app.use(express.json());
 
 // ---------- Licence (self-hosted installations; off on Smart Way's own servers, see license.js and docs/LICENSING.md) ----------
@@ -255,8 +264,56 @@ const battery = require('./battery').create({
     audit: (action, id, detail) => auditlog.add(db, 'system', action, id, detail),
     notify: (alert, c) => push.notifyAlert(alert, c.name || c.cameraId, c.companyId || null),
 });
+// Geofencing: zones on the map, alerts for leaving / entering / missed checkpoints (see geofence.js). Alerts share the battery alerts' table and screens.
+const geofence = require('./geofence').create({
+    db, cams, toCam,
+    audit: (action, id, detail) => auditlog.add(db, 'system', action, id, detail),
+    notify: (alert, c) => push.notifyAlert(alert, c.name || c.cameraId, c.companyId || null),
+    changed: (companyId) => io.to(companyId ? [`room:company_${companyId}`, 'room:admin'] : ['room:admin']).emit('geofences_changed'),
+});
+const needZones = (req, res, next) => (isManager(req.user) || (canWrite(req.user) && can(req.user, 'zones')) ? next() : res.status(403).json({ error: 'You are not allowed to change zones.' }));
+const zoneOwner = (req) => (isStaff(req.user) ? (Number.isInteger(req.body?.companyId) ? req.body.companyId : null) : req.user.companyId);
+const zoneVisible = (u, z) => (isStaff(u) ? true : z.companyId === u.companyId);
+app.get('/api/geofences', needUser, (req, res) => {
+    const only = isStaff(req.user) && req.query.company !== undefined ? (req.query.company === '' || req.query.company === 'none' ? null : Number(req.query.company)) : undefined;
+    res.json({ zones: geofence.list({ staff: isStaff(req.user), companyId: req.user.companyId, only }), canEdit: isManager(req.user) || (canWrite(req.user) && can(req.user, 'zones')) });
+});
+app.get('/api/geofences/alerts', needUser, (req, res) => res.json({ alerts: geofence.history((id) => canSee(req.user, id), { days: Number(req.query.days) || 7 }) }));
+app.get('/api/geofences/:id/status', needUser, (req, res) => {
+    const z = geofence.get(req.params.id);
+    if (!z || !zoneVisible(req.user, z)) return res.status(404).json({ error: 'Zone not found.' });
+    res.json(geofence.status(z.id, (id) => canSee(req.user, id)));
+});
+app.post('/api/geofences', needUser, needZones, (req, res) => {
+    const r = geofence.add(req.body, { username: req.user.username, companyId: zoneOwner(req) });
+    r.error ? res.status(400).json({ error: r.error }) : res.status(201).json(r);
+});
+app.put('/api/geofences/:id', needUser, needZones, (req, res) => {
+    const z = geofence.get(req.params.id);
+    if (!z || !zoneVisible(req.user, z)) return res.status(404).json({ error: 'Zone not found.' });
+    const r = geofence.update(z.id, req.body, { username: req.user.username });
+    r.error ? res.status(r.status || 400).json({ error: r.error }) : res.json(r);
+});
+app.delete('/api/geofences/:id', needUser, needZones, (req, res) => {
+    const z = geofence.get(req.params.id);
+    if (!z || !zoneVisible(req.user, z)) return res.status(404).json({ error: 'Zone not found.' });
+    res.json(geofence.remove(z.id, { username: req.user.username }));
+});
 app.get('/api/alerts', needUser, (req, res) => res.json({ alerts: battery.open((id) => canSee(req.user, id)), low: battery.LOW, critical: battery.CRITICAL }));
 app.post('/api/alerts/:id/ack', needUser, (req, res) => (battery.ack(req.params.id, req.user.username, (id) => canSee(req.user, id)) ? res.json({ ok: true }) : res.status(404).json({ error: 'Alert not found.' })));
+
+// ---------- Health check (public, no data): for an uptime monitor and the Docker healthcheck. 503 = something is wrong. ----------
+const HEALTH_MIN_FREE = Number(process.env.HEALTH_MIN_FREE_PCT) || 5;   // % of the data disk that must stay free
+app.get('/healthz', (req, res) => {
+    const out = { ok: true, uptimeSec: Math.round(process.uptime()), checks: {} };
+    try { db.prepare('SELECT 1').get(); out.checks.db = 'ok'; } catch (e) { out.checks.db = 'failed'; out.ok = false; }
+    try {
+        const f = fs.statfsSync(process.env.DATA_DIR || path.join(__dirname, 'data')), free = Math.round((f.bavail / f.blocks) * 100);
+        out.checks.diskFreePct = free; if (free < HEALTH_MIN_FREE) out.ok = false;
+    } catch (e) { out.checks.disk = 'unknown'; }
+    out.camerasOnline = [...cams.values()].filter((c) => c.online).length;
+    res.status(out.ok ? 200 : 503).json(out);
+});
 
 // ---------- Mobile apps (iOS / Android) ----------
 // Public: lets the app check it can talk to this server and whether it must be updated (no data is exposed).
@@ -280,11 +337,12 @@ app.post('/api/mobile/logout', needUser, (req, res) => {
 });
 // Push registration: the app hands over its FCM/APNs token so SOS alerts can reach a locked phone (see push.js).
 db.exec('CREATE TABLE IF NOT EXISTS push_devices(token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, platform TEXT NOT NULL, session TEXT, created INTEGER NOT NULL)');
+if (!db.prepare('PRAGMA table_info(push_devices)').all().some((c) => c.name === 'lang')) db.exec('ALTER TABLE push_devices ADD COLUMN lang TEXT');   // the language the app is in: SOS and alert notices are written in it
 app.post('/api/mobile/push', needUser, (req, res) => {
     const token = String(req.body?.token || ''), platform = req.body?.platform;
     if (!/^[\w:.\-]{20,4096}$/.test(token) || !['ios', 'android'].includes(platform)) return res.status(400).json({ error: 'Bad push token.' });
-    db.prepare('INSERT INTO push_devices(token,user_id,platform,session,created) VALUES(?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id, platform=excluded.platform, session=excluded.session')
-        .run(token, req.user.id, platform, bearer(req.headers.authorization), Date.now());
+    db.prepare('INSERT INTO push_devices(token,user_id,platform,session,created,lang) VALUES(?,?,?,?,?,?) ON CONFLICT(token) DO UPDATE SET user_id=excluded.user_id, platform=excluded.platform, session=excluded.session, lang=excluded.lang')
+        .run(token, req.user.id, platform, bearer(req.headers.authorization), Date.now(), i18n.norm(req.body?.lang || req.lang));
     res.json({ ok: true });
 });
 app.delete('/api/mobile/push', needUser, (req, res) => {
@@ -294,18 +352,18 @@ app.delete('/api/mobile/push', needUser, (req, res) => {
 const needCompanyManager = (req, res, next) => (req.user.companyId && req.user.role === 'manager' ? next() : res.status(403).json({ error: 'Only your company\'s administrators manage users.' }));
 const ownUser = (req) => db.prepare("SELECT * FROM users WHERE id = ? AND company_id = ? AND role IN ('manager','client','viewer')").get(Number(req.params.id), req.user.companyId);
 const companyFeaturesRaw = (companyId) => db.prepare('SELECT features FROM companies WHERE id = ?').get(companyId)?.features ?? null;
-const companyAvail = (companyId) => features.parse(companyFeaturesRaw(companyId)) || [...features.KEYS];   // the features a company has
+const companyAvail = (companyId) => features.ceiling(companyFeaturesRaw(companyId));   // the features and actions a company has at most
 // What an administrator ticked for a user: features only if the company has them, any action; the same as the role's default = nothing stored (NULL).
 const permsToStore = (list, companyId, role) => {
     if (!Array.isArray(list)) return undefined;
-    const avail = companyAvail(companyId), l = features.clean(list.filter((k) => features.ACTION_KEYS.includes(k) || avail.includes(k)));
+    const avail = companyAvail(companyId), l = features.clean(list.filter((k) => avail.includes(k)));
     const dflt = features.effective({ role, companyFeatures: companyFeaturesRaw(companyId), perms: null });
     return l.length === dflt.length && l.every((k) => dflt.includes(k)) ? null : JSON.stringify(l);
 };
 // A user row as the administrators see it: `access` = everything the person may see and do right now.
 const withAccess = ({ perms, ...u }, companyId) => ({ ...u, access: features.effective({ manager: u.role === 'manager', role: u.role, companyFeatures: companyFeaturesRaw(companyId), perms }), custom: perms != null });
 app.get('/api/company/users', needUser, needCompanyManager, (req, res) => res.json({ users: db.prepare("SELECT id,username,name,role,perms,avatar_ts AS avatarTs FROM users WHERE company_id = ? AND role IN ('manager','client','viewer') ORDER BY username").all(req.user.companyId).map((u) => withAccess(u, req.user.companyId)),
-    available: [...companyAvail(req.user.companyId), ...features.ACTION_KEYS], catalog: features.ALL, defaults: Object.fromEntries(['manager', 'client', 'viewer'].map((r) => [r, features.effective({ manager: r === 'manager', role: r, companyFeatures: companyFeaturesRaw(req.user.companyId) })])) }));
+    available: companyAvail(req.user.companyId), catalog: features.ALL, defaults: Object.fromEntries(['manager', 'client', 'viewer'].map((r) => [r, features.effective({ manager: r === 'manager', role: r, companyFeatures: companyFeaturesRaw(req.user.companyId) })])) }));
 app.post('/api/company/users', needUser, needCompanyManager, (req, res) => {
     const username = String(req.body?.username ?? '').trim(), password = String(req.body?.password ?? ''), name = String(req.body?.name ?? '').trim().slice(0, 60) || username, role = String(req.body?.role || 'client');
     if (!ROLES.includes(role)) return res.status(400).json({ error: 'Pick Administrator, Operator or Viewer.' });
@@ -342,6 +400,18 @@ app.delete('/api/company/users/:id', needUser, needCompanyManager, (req, res) =>
     auditlog.add(db, req.user.username, 'user_removed', null, { user: u.name, company: req.user.company });
     res.json({ ok: true });
 });
+// The profile card in the header: who this is and exactly what they may see and do, with the reason for each thing they may not.
+app.get('/api/me/access', needUser, (req, res) => {
+    const u = req.user, staff = !u.companyId, have = new Set(u.features), plan = staff ? null : new Set(companyAvail(u.companyId));
+    const items = features.ALL.map((f) => {
+        const ok = have.has(f.key);
+        let why = null;
+        if (!ok) why = u.role === 'viewer' && f.kind === 'action' ? 'viewer' : ((f.kind === 'feature' && plan && !plan.has(f.key)) || (f.needs || []).some((n) => !have.has(n))) ? 'plan' : 'admin';
+        return { key: f.key, kind: f.kind, group: f.group, label: f.label, hint: f.hint, allowed: ok, why };
+    });
+    res.json({ id: u.id, username: u.username, name: u.name, role: staff ? (u.role === 'admin' ? 'staff_admin' : 'staff_viewer') : u.role, company: u.company || null,
+        subscription: staff ? null : subscriptionOf(u.companyId), items });
+});
 app.get('/api/me', needUser, (req, res) => res.json({ ...req.user, featureList: features.FEATURES, staff: isStaff(req.user), super: isSuper(req.user), license: license.summary(req.user), subscription: subscriptionOf(req.user.companyId), updates: updatesMod.badge(req.user) }));
 
 app.patch('/api/cameras/:id', needUser, needAdmin, (req, res) => {
@@ -367,7 +437,7 @@ app.delete('/api/cameras/:id', needUser, needAdmin, (req, res) => {
     if (!id || !cams.has(id)) return res.status(404).json({ error: 'Camera not found.' });
     const rooms = roomsFor(id);
     auditlog.add(db, req.user.username, 'camera_removed', id, { name: cams.get(id).name });
-    battery.forget(id);
+    battery.forget(id); geofence.forget(id);
     db.prepare('DELETE FROM cameras WHERE id = ?').run(id);
     db.prepare('INSERT OR REPLACE INTO deleted_cameras(id,ts) VALUES(?,?)').run(id, Date.now());
     deleted.add(id);
@@ -383,6 +453,38 @@ app.get('/api/stream/:id', needUser, (req, res) => {
     const exp = Math.floor(Date.now() / 1000) + 6 * 3600;
     const hash = crypto.createHash('md5').update(`/live/${id}-${exp}-${STREAM_SECRET}`).digest('hex');
     res.json({ sign: `${exp}-${hash}` });
+});
+
+// ---------- Live captions (text of what a streaming camera hears; the speech-to-text service is separate, see /transcriber) ----------
+const transcribe = require('./transcribe').init({ db, audit: (action, cam) => auditlog.add(db, 'system', action, cam || null, null) });
+const signedPlayPath = (id) => { const exp = Math.floor(Date.now() / 1000) + 6 * 3600; return `/live/${id}?sign=${exp}-${crypto.createHash('md5').update(`/live/${id}-${exp}-${STREAM_SECRET}`).digest('hex')}`; };
+// Only cameras of a company that has the `transcribe` action (or cameras that belong to nobody, i.e. Smart Way's own) are ever listened to.
+const transcribeAllowed = (id) => { const c = cams.get(id); if (!c) return false; return !c.companyId || features.ceiling(companyFeaturesRaw(c.companyId)).includes('transcribe'); };
+const transcribeStart = (id) => {
+    if (!transcribe.enabled || !transcribeAllowed(id)) return;
+    transcribe.start(id, {
+        playUrl: `rtmp://${process.env.TRANSCRIBE_RTMP_HOST || '127.0.0.1'}:${Number(process.env.RTMP_PORT) || 1935}${signedPlayPath(id)}`,
+        callback: `${process.env.TRANSCRIBE_CALLBACK_BASE || `http://127.0.0.1:${PORT}`}/api/internal/transcript`,
+    });
+};
+// The service posts each sentence here. The shared token is the only key: it never reaches a browser.
+app.post('/api/internal/transcript', (req, res) => {
+    if (!transcribe.tokenOk(req.headers['x-transcribe-token'])) return res.status(401).json({ error: 'unauthorised' });
+    const id = str(req.body?.cameraId);
+    if (!id || !cams.has(id) || !transcribeAllowed(id)) return res.status(404).json({ error: 'Camera not found.' });
+    const line = transcribe.record({ cameraId: id, text: req.body?.text, lang: req.body?.lang, ts: Number(req.body?.ts), partial: req.body?.partial === true, utt: Number(req.body?.utt) });
+    if (!line) return res.status(400).json({ error: 'empty' });
+    for (const s of io.sockets.sockets.values()) {            // only people who may see this camera AND may read captions
+        const u = s.data.user;
+        if (s.data.role === 'dashboard' && u && canSee(u, id) && can(u, 'transcribe')) s.emit('transcript', line);
+    }
+    res.json({ ok: true });
+});
+app.get('/api/transcripts/:id', needUser, (req, res) => {
+    const id = str(req.params.id);
+    if (!can(req.user, 'transcribe')) return res.status(403).json({ error: 'Live captions are not included in your account.', code: 'feature' });
+    if (!id || !cams.has(id) || !canSee(req.user, id)) return res.status(404).json({ error: 'Camera not found.' });
+    res.json({ enabled: transcribe.enabled, lines: transcribe.history(id, { after: Number(req.query.after) || 0, limit: Number(req.query.limit) || 100 }) });
 });
 
 // ---------- PDF report: one day, or any range of days (from - to, both included, up to 92 days) ----------
@@ -402,7 +504,7 @@ app.get('/api/report', needUser, license.gate('reports'), (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="VisionGuard-Report-${String(label).replace(/[^\w.-]+/g, '_')}-${stamp}.pdf"`);
     report.build(db, {
         title: range.days > 1 ? 'Operations report' : 'Daily operations report', scopeLabel: label, cameras, from: range.from, to: range.to, tz: range.tz,
-        regionOf: (c) => c?.region, nameOf: (c) => (c && c.name) || c?.cameraId,
+        regionOf: (c) => c?.region, nameOf: (c) => (c && c.name) || c?.cameraId, lang: req.lang === 'ar' ? 'ar' : 'en',
     }, res);
 });
 
@@ -519,7 +621,7 @@ app.get('/api/analytics', needUser, (req, res) => {
     for (let i = 6; i >= 0; i--) {
         const d = new Date(now - i * DAY); d.setHours(0, 0, 0, 0);
         const from = d.getTime();
-        days.push({ day: d.toLocaleDateString('en', { weekday: 'short' }), count: alarms.filter((a) => a.ts >= from && a.ts < from + DAY).length });
+        days.push({ day: d.toLocaleDateString('en', { weekday: 'short' }), ts: from, count: alarms.filter((a) => a.ts >= from && a.ts < from + DAY).length });
     }
     const groups = {};
     list.forEach((c) => { const g = c.grp || '-'; groups[g] = (groups[g] || 0) + 1; });
@@ -534,33 +636,33 @@ app.get('/api/analytics', needUser, (req, res) => {
             offline: list.filter((c) => !c.online).length,
         },
         alarms: { total: alarms.length, open: alarms.filter((a) => a.ack_ts == null).length, acked: acked.length, avgResponseSec: avgResponse, days },
-        groups: Object.entries(groups).map(([name, count]) => ({ name, count })),
+        groups: Object.entries(groups).map(([name, count]) => ({ name, count, ...(name === '-' ? { none: true } : {}) })),
         gpsPoints24h: gps,
     };
     if (isStaff(u)) {
         const names = new Map(db.prepare('SELECT id,name FROM companies').all().map((c) => [c.id, c.name]));
         const per = {};
         list.forEach((c) => { const n = c.companyId ? names.get(c.companyId) : 'Unassigned'; per[n || 'Unassigned'] = (per[n || 'Unassigned'] || 0) + 1; });
-        out.companies = Object.entries(per).map(([name, count]) => ({ name, count }));
+        out.companies = Object.entries(per).map(([name, count]) => ({ name, count, ...(name === 'Unassigned' ? { unassigned: true } : {}) }));
         out.totals = { companies: names.size, users: db.prepare('SELECT COUNT(*) n FROM users').get().n };
     }
     res.json(out);
 });
 
-const insightsFor = (u) => {
+const insightsFor = (u, lang = 'en') => {
     const cameras = visibleCams(u);
-    return { ...insights.build({ db, cameras, recordingsDir: path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'recordings'), staff: isStaff(u) }), shifts: checkout.summary(cameras) };
+    return { ...insights.build({ db, cameras, recordingsDir: path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'recordings'), staff: isStaff(u), lang }), shifts: checkout.summary(cameras) };
 };
-app.get('/api/analytics/insights', needUser, (req, res) => res.json(insightsFor(req.user)));
+app.get('/api/analytics/insights', needUser, (req, res) => res.json(insightsFor(req.user, req.lang)));
 const aiCache = new Map(), aiLast = new Map();
 app.post('/api/analytics/ai', needUser, license.gate('ai'), async (req, res) => {
-    const key = isStaff(req.user) ? 'staff' : `c${req.user.companyId}`, now = Date.now();
+    const key = (isStaff(req.user) ? 'staff' : `c${req.user.companyId}`) + ':' + req.lang, now = Date.now();
     const hit = aiCache.get(key);
     if (hit && now - hit.at < 10 * 60000 && !req.body?.refresh) return res.json({ ...hit.v, cached: true });
     if (now - (aiLast.get(req.user.id) || 0) < 15000) return res.status(429).json({ error: 'Please wait a few seconds before asking again.' });
     aiLast.set(req.user.id, now);
     try {
-        const v = { ...(await insights.aiNarrative(insightsFor(req.user))), generatedAt: now };
+        const v = { ...(await insights.aiNarrative(insightsFor(req.user, req.lang), { lang: req.lang })), generatedAt: now };
         aiCache.set(key, { at: now, v });
         auditlog.add(db, req.user.username, v.ai ? 'ai_analysis_generated' : 'summary_generated', null);
         res.json(v);
@@ -636,7 +738,7 @@ app.post('/api/admin/companies', adminOnly, (req, res) => {
     try {
         const pkg = packages.parsePackage(req.body?.maxCameras, req.body?.maxLive);
         if (pkg.error) return res.status(400).json({ error: pkg.error });
-        const r = db.prepare('INSERT INTO companies(name,created,max_cameras,max_live,features) VALUES(?,?,?,?,?)').run(name, Date.now(), pkg.maxCameras, pkg.maxLive, Array.isArray(req.body?.features) ? features.store(req.body.features) : null);
+        const r = db.prepare('INSERT INTO companies(name,created,max_cameras,max_live,features) VALUES(?,?,?,?,?)').run(name, Date.now(), pkg.maxCameras, pkg.maxLive, Array.isArray(req.body?.features) ? features.store(req.body.features, true) : null);
         const id = Number(r.lastInsertRowid);
         // optionally with the company's administrator account (the person who manages its users, employees and pictures)
         const au = String(req.body?.adminUsername ?? '').trim(), ap = String(req.body?.adminPassword ?? '');
@@ -679,7 +781,7 @@ app.put('/api/admin/companies/:id/features', adminOnly, (req, res) => {
     if (!c) return res.status(404).json({ error: 'Company not found.' });
     if (!Array.isArray(req.body?.features)) return res.status(400).json({ error: 'Send the list of features.' });
     const list = features.clean(req.body.features);
-    db.prepare('UPDATE companies SET features = ? WHERE id = ?').run(list.length === features.KEYS.length ? null : JSON.stringify(list), id);
+    db.prepare('UPDATE companies SET features = ? WHERE id = ?').run(features.store(list, true), id);
     auditlog.add(db, req.user.username, 'company_features_set', null, { company: c.name, features: list.join(',') || 'none' });
     kickUsers(db.prepare('SELECT id FROM users WHERE company_id = ?').all(id).map((r) => r.id));   // their open pages reload with the new menu
     res.json({ ok: true, features: list });
@@ -956,6 +1058,7 @@ setInterval(() => { eventRate.prune(); voiceRate.prune(); rateWarned.clear(); },
 const SOS_COALESCE_MS = process.env.SOS_COALESCE_MS === undefined ? 3000 : Math.max(0, Number(process.env.SOS_COALESCE_MS) || 0);
 const lastSos = new Map();
 
+const lastRemoteStart = new Map();   // cameraId -> when a remote start was last sent to it
 io.on('connection', (socket) => {
     console.log(`${socket.data.role} connected:`, socket.id);
 
@@ -1046,16 +1149,32 @@ io.on('connection', (socket) => {
             if (!id || !['start', 'stop'].includes(action) || !canSee(user, id)) return;
             const c = cams.get(id);
             if (!c?.online) return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'offline' });
-            if (action === 'stop' && !c.remote) return; // never cut a recording the officer started
+            // A recording the officer started is never cut by accident. It ends only when somebody asks for exactly that (recording: true), may do it,
+            // the camera can obey (it reports 'remote-stop') and no SOS of that camera is still waiting for an answer.
+            const endRec = action === 'stop' && !c.remote && d?.recording === true;
+            if (action === 'stop' && !c.remote && !endRec) return;
+            if (endRec) {
+                const refuse = (reason) => socket.emit('remote_stream_result', { cameraId: id, ok: false, reason, action });
+                if (!canWrite(user) || !can(user, 'stoprec')) return refuse('not_allowed');
+                if (!c.recording) return refuse('not_recording');
+                if (!Array.isArray(c.caps) || !c.caps.includes('remote-stop')) return refuse('needs_update');
+                if (sosOpen(id)) return refuse('sos_open');
+            }
             // Package live cap: refuse a NEW live stream beyond the company's limit (officer-started SOS/recording is never blocked).
             if (action === 'start' && !c.recording && !c.remote && c.companyId && !packages.canGoLive(companyLimits(c.companyId), liveCount(c.companyId))) {
                 return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'live_limit' });
             }
             if (action === 'start' && !c.recording && !c.remote && !license.allow('live').ok) return socket.emit('remote_stream_result', { cameraId: id, ok: false, reason: 'live_limit' });   // the installation's licensed number of live streams
-            auditlog.add(db, user.username, `remote_stream_${action}`, id);
-            io.to(`room:camera_${id}`).emit('remote_stream', { action });
+            // Two dashboards (or two clicks) asking for the same start within a few seconds: the camera is told once.
+            if (action === 'start') {
+                if (Date.now() - (lastRemoteStart.get(id) || 0) < 6000) return socket.emit('remote_stream_result', { cameraId: id, ok: true, action });
+                lastRemoteStart.set(id, Date.now());
+                if (lastRemoteStart.size > 2000) lastRemoteStart.clear();
+            }
+            auditlog.add(db, user.username, endRec ? 'remote_record_stop' : `remote_stream_${action}`, id);
+            io.to(`room:camera_${id}`).emit('remote_stream', endRec ? { action, force: true } : { action });
             if (action === 'start') publish(id, { remote: true });
-            socket.emit('remote_stream_result', { cameraId: id, ok: true, action });
+            socket.emit('remote_stream_result', { cameraId: id, ok: true, action, ...(endRec ? { recording: true } : {}) });
         });
         // Super admin tells cameras to download and install the latest APK.
         on('update_cameras', (d) => {
@@ -1090,6 +1209,7 @@ io.on('connection', (socket) => {
             db.prepare('UPDATE alarms SET ack_by=?, ack_ts=? WHERE id=? AND ack_ts IS NULL')
                 .run(user.username, Date.now(), id);
             toCam(a.camera_id, 'dashboard_alarm_ack', { id });
+            io.to(`room:camera_${a.camera_id}`).emit('dashboard_alarm_ack', { id });   // and the officer is told somebody is answering
         });
         return;
     }
@@ -1099,6 +1219,7 @@ io.on('connection', (socket) => {
         live.set(id, socket.id);
         socket.join(`room:camera_${id}`);
         socket.join(`room:public_${cams.get(id)?.companyId || 0}`);
+        if (socket.data.keyFor !== id) { socket.data.keyFor = id; socket.emit('push_key', { cameraId: id, key: publishKey.keyOf(id) }); }   // the camera adds it to its RTMP address (publishkey.js)
         if (socket.data.assignFor !== id) { socket.data.assignFor = id; socket.emit('assignment', checkout.payload(id)); }   // who carries this camera now (the camera stamps it on the picture)
     };
     on('get_assignment', () => { if (socket.data.cameraId) socket.emit('assignment', checkout.payload(socket.data.cameraId)); });
@@ -1116,11 +1237,17 @@ io.on('connection', (socket) => {
         const acc = Number.isFinite(d?.acc) && d.acc > 0 && d.acc < 100000 ? Math.round(d.acc * 10) / 10 : null;
         const fixTs = Number.isFinite(d?.fixTs) && d.fixTs > now - 3600000 && d.fixTs <= now + 60000 ? d.fixTs : now;
         if (acc !== null && acc > 100) { publish(id, { online: true }); return; }
+        // A camera that reports how good its fix was (satellites used, mean signal in dB-Hz) is not believed with fewer than 4 satellites or a weak signal:
+        // indoors the chip claims an accuracy of a few metres while the position wanders hundreds of metres. (The camera app already filters; this
+        // protects against a camera that does not, and against a bad value of an older build that sends these fields.)
+        const sats = Number.isFinite(d?.sats) ? d.sats : null, cn0 = Number.isFinite(d?.cn0) ? d.cn0 : null;
+        if ((sats !== null && sats < 4) || (cn0 !== null && cn0 > 0 && cn0 < 18)) { publish(id, { online: true, gpsSats: sats, gpsCn0: cn0 }); return; }
         if (now - (lastPos.get(id) || 0) >= 5000) { // keep a trail, one point per 5 s
             db.prepare('INSERT INTO positions(camera_id,lat,lng,ts,acc) VALUES(?,?,?,?,?)').run(id, lat, lng, now, acc);
             lastPos.set(id, now);
         }
-        publish(id, { lat, lng, acc, fixTs, online: true, ts: now, posSrc: null });
+        publish(id, { lat, lng, acc, fixTs, online: true, ts: now, posSrc: null, gpsSats: sats, gpsCn0: cn0 });
+        geofence.position(id, lat, lng, { acc, ts: now, fixTs: Number.isFinite(d?.fixTs) ? fixTs : null });   // fixTs: only a fix the camera really made counts, not its repeats
         if (d.battery !== undefined) battery.set(id, { battery: d.battery, charging: d.charging });
     });
 
@@ -1180,6 +1307,7 @@ io.on('connection', (socket) => {
         const r = db.prepare('INSERT INTO alarms(camera_id,lat,lng,ts,holder,holder_no) VALUES(?,?,?,?,?,?)').run(id, lat, lng, ts, carrier?.holder || null, carrier?.holderNo || null);
         const alarm = { id: Number(r.lastInsertRowid), cameraId: id, lat, lng, ts, ack: false, holder: carrier?.holder || null, holderNo: carrier?.holderNo || null };
         toCam(id, 'dashboard_sos', alarm);
+        io.to(`room:camera_${id}`).emit('dashboard_sos', alarm);   // the officer's camera is told the control room has it (it shows "SOS received")
         push.notifyAlarm(alarm, cams.get(id)?.companyId || null); // locked phones: no-op until FCM_SERVICE_ACCOUNT is set
     });
 
@@ -1201,18 +1329,23 @@ server.headersTimeout = 60 * 1000;
 server.listen(PORT, () => console.log(`Central Dashboard is running on: http://localhost:${PORT}`));
 
 // RTMP media server. Stream key = cameraId, e.g. rtmp://HOST:1935/live/BWC-01
-// Playing needs a signed URL from /api/stream/:id (publishing stays open for the cameras).
+// Playing needs a signed URL from /api/stream/:id. Pushing needs the camera's own key (publishkey.js, RTMP_PUBLISH_AUTH).
 const nms = new NodeMediaServer({
     rtmp: { port: Number(process.env.RTMP_PORT) || 1935, chunk_size: 60000, gop_cache: true, ping: 10, ping_timeout: 20 },
     http: { port: Number(process.env.FLV_PORT) || 8000, allow_origin: '*' },
-    auth: { play: true, publish: false, secret: STREAM_SECRET },
+    auth: { play: true, publish: publishKey.enforce, secret: STREAM_SECRET },   // publish: see publishkey.js (the camera's own key, checked in prePublish)
 });
 // When a camera (re)starts its stream (quality / camera switch / restart) tell the dashboards, so an open
 // live tile reconnects by itself instead of staying frozen until it is closed and opened again.
-nms.on('postPublish', (sid, streamPath) => {
-    const id = String(streamPath || '').split('/').pop();
-    if (id) toCam(id, 'stream_up', { cameraId: id, ts: Date.now() });
+const pathOf = (a, b) => String((a && typeof a === 'object' ? a.streamPath : b) || '');   // node-media-server 4 passes the session, version 2 passed (id, path)
+nms.on('prePublish', (a) => { publishKey.check(a); });
+nms.on('postPublish', (a, b) => {
+    const id = pathOf(a, b).split('/').pop();
+    if (!id) return;
+    toCam(id, 'stream_up', { cameraId: id, ts: Date.now() });
+    setTimeout(() => transcribeStart(id), 2500).unref();     // the stream is playable a moment after it is announced
 });
+nms.on('donePublish', (a, b) => { const id = pathOf(a, b).split('/').pop(); if (id) transcribe.stop(id); });
 nms.run();
 
 // SIGTERM (every deploy, every "docker stop"): stop taking connections, tell cameras and dashboards, close the database, exit 0.

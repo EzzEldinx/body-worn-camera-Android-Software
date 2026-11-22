@@ -37,19 +37,21 @@ The station signs the person out after 90 seconds without a touch, locks a usern
 
 ## 5. What the camera does (built in the camera app, `app/`)
 
-Implemented: the stamp is drawn by the camera's GL pipeline (`setOverlayText` in the `rtmp_broadcaster` plugin), so it is in the live stream, every recording segment and photos, bottom right, updated every second. `NO USER` shows when nobody has checked the camera out. Battery is sent every 10 s check (on change, and at least every 2 minutes).
+**Implemented and verified on a real camera (2026-11-12).** The stamp is drawn by the camera's GL pipeline (`setOverlayText` in the `rtmp_broadcaster` plugin, text from `stampText()` in `central_link.dart`), so it is in the live stream, in every recording segment and in photos, and is updated every second:
+```
+2026-11-09 14:32:05
+CAM BWC-05-RIY  USER 0147
+GPS 24.71234, 46.67345          (GPS NO FIX when there is no recent fix)
+<company name, if any>
+```
+`NO USER` is shown when nobody has checked the camera out. The employee number is used, or the username when there is none. Arabic names are kept in the server records, not on the picture.
 
+How the camera gets its information:
 
-The server already tells the camera everything it needs:
-
-* **`assignment`** (server → camera, on connect, on every change, and on `get_assignment`):
-  `{ active: true, id, userId, username, name, employeeNo, since, status: "reserved"|"in_use", serverTime }` or `{ active: false, serverTime }`.
-* **Stamp** burned into the live stream **and** the recording, top-left, updated every second:
-  `2026-11-09 14:32:05  CAM BWC-05-RIY  USER 0147` (name on a second line only if it is Latin; Arabic names are kept in the server records).
-  No assignment: `NO USER`.
-* **Clock:** use `serverTime` to correct the device clock (offset), so the stamp is right even if the camera's clock is wrong.
-* **Battery:** send `camera_battery { cameraId, battery: 0-100, charging: bool }` (also accepted inside `camera_status` and `camera_gps_update`) whenever it changes by a point or two and at least every few minutes. Under 20 % and not charging raises the dashboard alert; the dock's USB reading is used while docked.
-* **No network at the dock:** the Dock Agent can read `GET /api/dock/assignments` (header `x-dock-token`) and copy the assignment onto the camera over USB.
+* **`assignment`** (server to camera, on connect, on every change and on `get_assignment`): `{ active: true, id, userId, username, name, employeeNo, since, status: "reserved"|"in_use", serverTime }` or `{ active: false, serverTime }`.
+* **Clock:** the camera uses `serverTime` to correct its own clock (offset), so the stamp is right even if the camera's clock is wrong.
+* **Battery:** the camera sends `camera_battery { cameraId, battery: 0-100, charging: bool }` (also accepted inside `camera_status` and `camera_gps_update`) on change and at least every 2 minutes. Under 20 % and not charging raises the dashboard alert; the dock's USB reading is used while docked.
+* **No network at the dock:** the Dock Agent can read `GET /api/dock/assignments` (header `x-dock-token`) and copy the assignment onto the camera over USB. This part is **not built yet** (the camera currently needs its own connection to receive the assignment).
 
 ## 6. API
 

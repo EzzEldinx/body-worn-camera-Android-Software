@@ -9,6 +9,7 @@
 
 const DEFAULT_NOTICE = {
     title: 'New camera update',
+    titleAr: 'تحديث جديد للكاميرات',
     body: 'A new update is ready for your cameras. Please put all your cameras on the docking station. They update by themselves as soon as they are connected, and you do not need to do anything else.',
     bodyAr: 'يوجد تحديث جديد لكاميراتكم. يرجى وضع جميع الكاميرات على محطة الإرساء (Docking Station)، وستتحدّث تلقائياً فور توصيلها، ولا يلزم أي إجراء آخر منكم.',
 };
@@ -22,16 +23,17 @@ const WHY = { offline: 'Offline. It updates when it is online', recording: 'Wait
 
 function create({ db, cams, latest, rollout, docked = () => new Map(), now = Date.now }) {
     db.exec('CREATE TABLE IF NOT EXISTS update_notices(id INTEGER PRIMARY KEY AUTOINCREMENT, build TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, body_ar TEXT, created INTEGER NOT NULL, by TEXT NOT NULL)');
+    if (!db.prepare('PRAGMA table_info(update_notices)').all().some((c) => c.name === 'title_ar')) db.exec('ALTER TABLE update_notices ADD COLUMN title_ar TEXT');   // the notice title in Arabic (customers read the title in their own language)
     db.exec('CREATE TABLE IF NOT EXISTS update_notice_seen(user_id INTEGER NOT NULL, notice_id INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, notice_id))');
-    const shape = (r, staff) => r && ({ id: r.id, build: r.build.slice(0, 12), title: r.title, body: r.body, bodyAr: r.body_ar || '', created: r.created, ...(staff ? { by: r.by } : {}) });
+    const shape = (r, staff) => r && ({ id: r.id, build: r.build.slice(0, 12), title: r.title, titleAr: r.title_ar || '', body: r.body, bodyAr: r.body_ar || '', created: r.created, ...(staff ? { by: r.by } : {}) });
     const latestNotice = () => db.prepare('SELECT * FROM update_notices ORDER BY id DESC LIMIT 1').get() || null;
     const managed = (c) => c.updateMode === 'wifi' || c.updateMode === 'any';
 
-    function add({ title, body, bodyAr, by }) {
+    function add({ title, titleAr, body, bodyAr, by }) {
         const m = latest();
         if (!m) return { status: 409, error: 'Publish a build first.' };
-        const t = clean(title, 80) || DEFAULT_NOTICE.title, b = clean(body, 700) || DEFAULT_NOTICE.body, a = clean(bodyAr, 700) || DEFAULT_NOTICE.bodyAr;
-        const id = Number(db.prepare('INSERT INTO update_notices(build,title,body,body_ar,created,by) VALUES(?,?,?,?,?,?)').run(m.build, t, b, a, now(), clean(by, 80)).lastInsertRowid);
+        const t = clean(title, 80) || DEFAULT_NOTICE.title, b = clean(body, 700) || DEFAULT_NOTICE.body, a = clean(bodyAr, 700) || DEFAULT_NOTICE.bodyAr, ta = clean(titleAr, 80) || DEFAULT_NOTICE.titleAr;
+        const id = Number(db.prepare('INSERT INTO update_notices(build,title,title_ar,body,body_ar,created,by) VALUES(?,?,?,?,?,?,?)').run(m.build, t, ta, b, a, now(), clean(by, 80)).lastInsertRowid);
         return { ok: true, notice: shape(db.prepare('SELECT * FROM update_notices WHERE id = ?').get(id), true) };
     }
 
@@ -98,7 +100,7 @@ function register(app, { updates, rollout, db, cams, needUser, adminOnly, isSupe
 
     const must = (req, res, next) => (isSuper(req.user) ? next() : res.status(403).json({ error: 'Only Smart Way administrators can do this.' }));
     app.post('/api/admin/update/notice', ...adminOnly, must, (req, res) => {
-        const r = updates.add({ title: req.body?.title, body: req.body?.body, bodyAr: req.body?.bodyAr, by: req.user.username });
+        const r = updates.add({ title: req.body?.title, titleAr: req.body?.titleAr, body: req.body?.body, bodyAr: req.body?.bodyAr, by: req.user.username });
         if (r.error) return res.status(r.status).json({ error: r.error });
         audit(req.user.username, 'update_notice_sent', null, { build: r.notice.build, title: r.notice.title });
         res.json(r);

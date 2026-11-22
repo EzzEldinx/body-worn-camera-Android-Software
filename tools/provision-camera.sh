@@ -7,7 +7,7 @@
 set -euo pipefail
 ADB="${ADB:-$HOME/Library/Android/sdk/platform-tools/adb}"; PKG=com.swg.swg_bwc
 CONFIG_ONLY=0; [ "${1:-}" = "--config-only" ] && { CONFIG_ONLY=1; shift; }
-S="${1:?serial}"; ID="${2:?camera id}"; TOKEN="${3:?token}"; SERVER="${4:-${VG_SERVER:-http://178.162.235.21:3000}}"
+S="${1:?serial}"; ID="${2:?camera id}"; TOKEN="${3:?token}"; SERVER="${4:-${VG_SERVER:-https://visionguard.smartwaygroup.com.sa}}"
 APK="$(cd "$(dirname "$0")/.." && pwd)/app/build/app/outputs/flutter-apk/app-release.apk"
 D="/sdcard/Android/data/$PKG/files"
 a() { "$ADB" -s "$S" "$@"; }

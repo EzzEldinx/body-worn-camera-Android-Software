@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
 
     <!-- Foreground service (GPS/streaming keep running off-screen) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -27,7 +29,8 @@
     <application
         android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true"
-        android:label="swg_bwc"
+        android:label="VisionGuard"
+        android:icon="@mipmap/ic_launcher"
         android:name="${applicationName}">
         <activity
             android:name=".MainActivity"

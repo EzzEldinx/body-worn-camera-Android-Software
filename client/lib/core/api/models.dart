@@ -8,7 +8,7 @@ String? _text(dynamic v) => v is String && v.trim().isNotEmpty ? v.trim() : null
 class Camera {
   Camera({
     required this.id, required this.name, required this.group, required this.online, required this.recording, required this.remote,
-    required this.ptt, required this.ts, this.lat, this.lng, this.acc, this.fixTs, this.speed, this.company, this.region, this.quality, this.battery, this.batteryTs, this.holder, this.holderNo, this.custody, this.batterySrc, this.charging = false, this.atDock = false, this.qualityAuto = false,
+    required this.ptt, required this.ts, this.caps = const [], this.lat, this.lng, this.acc, this.fixTs, this.speed, this.company, this.region, this.quality, this.battery, this.batteryTs, this.holder, this.holderNo, this.custody, this.batterySrc, this.charging = false, this.atDock = false, this.qualityAuto = false,
   });
 
   final String id, name, group;
@@ -16,6 +16,7 @@ class Camera {
   final int ts;
   final double? lat, lng, acc, speed;
   final int? fixTs, battery, batteryTs;
+  final List<String> caps; // what the camera's app can do (e.g. remote-stop: the control room may end a recording)
   final String? company, region, quality, holder, holderNo, custody, batterySrc; // holderNo = employee number, custody = reserved | in_use (check-out), batterySrc = camera | dock
 
   factory Camera.fromJson(Map j) => Camera(
@@ -26,6 +27,7 @@ class Camera {
         recording: j['recording'] == true,
         remote: j['remote'] == true,
         ptt: j['ptt'] == true,
+        caps: j['caps'] is List ? [for (final c in j['caps'] as List) '$c'] : const [],
         ts: (j['ts'] as num?)?.toInt() ?? 0,
         lat: (j['lat'] as num?)?.toDouble(),
         lng: (j['lng'] as num?)?.toDouble(),
@@ -73,18 +75,23 @@ class Alarm {
   Alarm acked() => Alarm(id: id, cameraId: cameraId, ts: ts, ack: true, lat: lat, lng: lng, holder: holder, holderNo: holderNo);
 }
 
-/// A low-battery alert (under 20 % and not charging; critical under 10 %). The server clears it when the camera charges or recovers.
+/// An alert of a camera that is not an SOS: low battery (under 20 % and not charging; critical under 10 %), or a geofence alert
+/// (left a zone, entered one, missed a checkpoint; `zone` is the zone's name). The server clears it when the camera recovers.
 class BatteryAlert {
-  BatteryAlert({required this.id, required this.cameraId, required this.level, required this.value, required this.ts, required this.ack});
+  BatteryAlert({required this.id, required this.cameraId, required this.level, required this.value, required this.ts, required this.ack, this.kind = 'low_battery', this.zone = ''});
   final int id, value, ts;
   final String cameraId, level; // level: warning | critical
   final bool ack;
+  final String kind; // low_battery | geo_exit | geo_enter | checkpoint_missed
+  final String zone;
   bool get critical => level == 'critical';
+  bool get isGeo => kind == 'geo_exit' || kind == 'geo_enter' || kind == 'checkpoint_missed';
 
   factory BatteryAlert.fromJson(Map j) => BatteryAlert(
         id: (j['id'] as num).toInt(), cameraId: '${j['cameraId']}', level: '${j['level']}', value: (j['value'] as num?)?.toInt() ?? 0, ts: (j['ts'] as num?)?.toInt() ?? 0, ack: j['ack'] == true,
+        kind: j['kind'] is String ? j['kind'] as String : 'low_battery', zone: j['zone'] is String ? j['zone'] as String : '',
       );
-  BatteryAlert acked() => BatteryAlert(id: id, cameraId: cameraId, level: level, value: value, ts: ts, ack: true);
+  BatteryAlert acked() => BatteryAlert(id: id, cameraId: cameraId, level: level, value: value, ts: ts, ack: true, kind: kind, zone: zone);
 }
 
 /// The licence notice of a self-hosted server (server/license.js). Only shown when the server says `show`.
@@ -192,11 +199,11 @@ class DockState {
 
 /// A video or photo the dock copied from a camera, and what is to be done with it (see server/dock.js: dock_files).
 class DockFile {
-  DockFile({required this.id, required this.cameraId, required this.filename, required this.size, required this.bucket, this.recordedTs, this.addedTs, this.updatedTs, this.message, this.camDelete = false, this.camDeletedTs, this.auto = false});
+  DockFile({required this.id, required this.cameraId, required this.filename, required this.size, required this.bucket, this.recordedTs, this.addedTs, this.updatedTs, this.message, this.recordingId, this.camDelete = false, this.camDeletedTs, this.auto = false});
   final int id, size;
   final String cameraId, filename;
   final String bucket; // awaiting | queued | local | cloud | failed
-  final int? recordedTs, addedTs, updatedTs, camDeletedTs;
+  final int? recordedTs, addedTs, updatedTs, camDeletedTs, recordingId;   // recordingId: the copy in the cloud (play and download need it)
   final String? message;
   final bool camDelete, auto;
   bool get isVideo => filename.toLowerCase().endsWith('.mp4');
@@ -205,7 +212,7 @@ class DockFile {
   factory DockFile.fromJson(Map j) => DockFile(
         id: (j['id'] as num).toInt(), cameraId: '${j['cameraId']}', filename: '${j['filename']}', size: (j['size'] as num?)?.toInt() ?? 0, bucket: '${j['bucket']}',
         recordedTs: (j['recordedTs'] as num?)?.toInt(), addedTs: (j['addedTs'] as num?)?.toInt(), updatedTs: (j['updatedTs'] as num?)?.toInt(), message: j['message'] as String?,
-        camDelete: (j['camDelete'] as num?) == 1, camDeletedTs: (j['camDeletedTs'] as num?)?.toInt(), auto: j['chosenBy'] == 'auto',
+        camDelete: (j['camDelete'] as num?) == 1, camDeletedTs: (j['camDeletedTs'] as num?)?.toInt(), auto: j['chosenBy'] == 'auto', recordingId: (j['recordingId'] as num?)?.toInt(),
       );
 }
 

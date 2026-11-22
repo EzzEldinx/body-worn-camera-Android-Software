@@ -36,7 +36,7 @@ const onDock = (id, extra = {}) => ({ serial: 'S-' + id, port: 'usb-' + id, came
 
 let company;
 test('an administrator creates a company and employees, with a sheet of logins', async () => {
-    company = (await json(await api('/api/admin/companies', 'POST', { name: 'Riyadh Patrol' }, admin))).id;
+    company = (await json(await api('/api/admin/companies', 'POST', { name: 'Riyadh Patrol', features: require('../features').ALL.map((f) => f.key) }, admin))).id;
     const r = await json(await api(`/api/admin/companies/${company}/employees`, 'POST', { employees: [
         { name: 'Ahmed Hassan', employeeNo: '0147' }, { name: 'Sara Ali', employeeNo: '0200', username: 'sara.ali', password: 'a-good-password' },
         { name: 'Duplicate', employeeNo: '0147' }, { name: '', employeeNo: '1' }, { name: 'Bad Name', employeeNo: 'x y' },

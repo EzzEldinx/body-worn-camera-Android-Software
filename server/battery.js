@@ -20,7 +20,7 @@ function create({ db, cams, publish, toCam, audit = () => {}, notify = () => {},
     db.exec('CREATE INDEX IF NOT EXISTS alerts_open ON alerts(kind, camera_id, resolved_ts)');
     const saved = new Map();   // camera -> { battery, ts } last written to the database
 
-    const shape = (r) => ({ id: r.id, kind: r.kind, cameraId: r.camera_id, level: r.level, value: r.value, ts: r.ts, ack: r.ack_ts != null });
+    const shape = (r) => ({ id: r.id, kind: r.kind, cameraId: r.camera_id, level: r.level, value: r.value, ts: r.ts, ack: r.ack_ts != null, ...(r.zone_name ? { zone: r.zone_name, zoneId: r.zone_id } : {}) });
     const openRow = (id) => db.prepare("SELECT * FROM alerts WHERE kind = 'low_battery' AND camera_id = ? AND resolved_ts IS NULL ORDER BY id DESC LIMIT 1").get(id);
 
     function persist(id, patch) {

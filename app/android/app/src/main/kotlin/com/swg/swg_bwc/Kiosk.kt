@@ -41,6 +41,25 @@ object Kiosk {
     }
 
     /**
+     * Location, always: a device owner can grant the location permissions itself (also "all the time"), so nobody has to tap "Allow" and the
+     * GPS keeps working when the screen is off. Safe to call every start.
+     */
+    fun grantLocation(ctx: Context) {
+        if (!AppInstaller.isDeviceOwner(ctx)) return
+        try {
+            val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val admin = ComponentName(ctx, BwcAdminReceiver::class.java)
+            for (p in listOf("android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_BACKGROUND_LOCATION")) {
+                try { dpm.setPermissionGrantState(admin, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED) }
+                catch (e: Exception) { Log.w("BWC", "grant $p failed: $e") }
+            }
+            Log.i("BWC", "kiosk: location permissions granted")
+        } catch (e: Exception) {
+            Log.w("BWC", "location grant failed: $e")
+        }
+    }
+
+    /**
      * Maintenance: stop being the Home app, so that after the administrator leaves with the PIN nothing starts the camera app again
      * (Android would otherwise relaunch it at once). Opening the app again calls [applyHome] and everything is back.
      */

@@ -26,6 +26,28 @@ class SelectedCam extends Notifier<String?> {
 
 final selectedCamProvider = NotifierProvider<SelectedCam, String?>(SelectedCam.new);
 
+/// The map lives inside the Cameras screen. [focus] is the camera the map should centre on; [open] is the phone's list/map switch.
+class MapFocus extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void set(String? id) => state = id;
+}
+final mapFocusProvider = NotifierProvider<MapFocus, String?>(MapFocus.new);
+
+class MapOpen extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void set(bool v) => state = v;
+}
+final mapOpenProvider = NotifierProvider<MapOpen, bool>(MapOpen.new);
+
+/// Show a camera on the map (from an alarm or from the detail view): back to the Cameras screen with the map on that camera.
+void showOnMap(WidgetRef ref, String cameraId) {
+  ref.read(selectedCamProvider.notifier).select(null);
+  ref.read(mapFocusProvider.notifier).set(cameraId);
+  ref.read(mapOpenProvider.notifier).set(true);
+}
+
 /// How many cameras the live wall shows at once. A phone offers 1, 2, 4 or 6; a tablet 1, 4, 6, 9 or 16 (the same choices as the web wall).
 class WallLayout extends Notifier<int> {
   @override

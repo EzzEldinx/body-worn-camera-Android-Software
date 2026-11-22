@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in - VisionGuard</title>
+<title data-i18n="lg.pageTitle">Sign in - VisionGuard</title>
+<script src="/i18n.js"></script>
+<script src="/i18n/login.js"></script>
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
@@ -31,8 +33,9 @@ h2 span{background:linear-gradient(90deg,#FFC857,#FF8A3D);-webkit-background-cli
 /* ================= LOGIN (right) ================= */
 .side{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;background:var(--bg)}
 .tools{position:absolute;top:20px;right:24px;display:flex;gap:8px}
-.tools button{height:36px;min-width:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
-.tools button:hover{color:var(--text);box-shadow:var(--glow)}
+.tools{align-items:center}
+.tools #theme{height:36px;min-width:36px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--mut);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.tools #theme:hover{color:var(--text);box-shadow:var(--glow)}
 form{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:38px 34px 30px;box-shadow:0 24px 60px rgba(15,27,45,.14)}
 .vg-lock{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 auto 18px}
 .vg-lock strong{font-size:26px;font-weight:800;letter-spacing:.3px}
@@ -76,6 +79,7 @@ input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-sha
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
+<link rel="stylesheet" href="/i18n.css">
 </head>
 <body>
 
@@ -83,61 +87,47 @@ input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-sha
   <div class="hero-img"></div>
   <div class="hero-main">
     <div class="bar"></div>
-    <h2><span data-i="h1a">See every moment.</span><br><span data-i="h1b" style="background:none;-webkit-background-clip:initial;color:#fff">Secure every evidence.</span></h2>
-    <p class="tag" data-i="brand">Powered by Smart Way Group &middot; Solution for Secure Future</p>
+    <h2><span data-i18n="lg.h1a">See every moment.</span><br><span data-i18n="lg.h1b" style="background:none;-webkit-background-clip:initial;color:#fff">Secure every evidence.</span></h2>
+    <p class="tag" data-i18n="lg.brand">Powered by Smart Way Group &middot; Solution for Secure Future</p>
   </div>
 </section>
 
 <section class="side">
   <div class="tools">
-    <button id="lang" type="button" aria-label="Language">عربي</button>
-    <button id="theme" type="button" aria-label="Toggle theme">◐</button>
+    <span id="langSlot"></span>
+    <button id="theme" type="button" aria-label="Toggle theme" data-i18n-aria="hdr.theme">◐</button>
   </div>
 
   <form id="f">
     <div class="vg-lock"><img class="vg-logo big logo-light" src="/brand/visionguard-logo-sm.png" alt="VisionGuard"><img class="vg-logo big logo-dark" src="/brand/visionguard-logo-light.png" alt="VisionGuard"></div>
-    <h1 data-i="title">Welcome back</h1>
-    <p class="sub" data-i="sub">Sign in to your VisionGuard account.</p>
+    <h1 data-i18n="lg.title">Welcome back</h1>
+    <p class="sub" data-i18n="lg.sub">Sign in to your VisionGuard account.</p>
 
-    <label for="u" data-i="user">Username</label>
+    <label for="u" data-i18n="lg.user">Username</label>
     <div class="field">
       <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <input id="u" autocomplete="username" required autofocus>
+      <input id="u" dir="ltr" autocomplete="username" required autofocus>
     </div>
 
-    <label for="p" data-i="pass">Password</label>
+    <label for="p" data-i18n="lg.pass">Password</label>
     <div class="field">
       <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
-      <input id="p" type="password" autocomplete="current-password" required>
-      <button class="eye" type="button" id="eye" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <input id="p" dir="ltr" type="password" autocomplete="current-password" required>
+      <button class="eye" type="button" id="eye" aria-label="Show password" data-i18n-aria="lg.showPw"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
     </div>
 
-    <button id="b" data-i="signin">Sign in</button>
+    <button id="b" data-i18n="lg.signin">Sign in</button>
     <div id="err" role="alert"></div>
-    <div class="secure"><svg viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><path d="M9 12l2 2 4-4"/></svg><span data-i="secure">Encrypted, authorized access only</span></div>
+    <div class="secure"><svg viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><path d="M9 12l2 2 4-4"/></svg><span data-i18n="lg.secure">Encrypted, authorized access only</span></div>
   </form>
 
-  <div class="copy">Powered by <img class="logo-light" src="/logo-light.png" alt="Smart Way" style="height:12px;vertical-align:middle"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way" style="height:12px;vertical-align:middle"> &middot; &copy; 2026 Smart Way Group</div>
+  <div class="copy"><span data-i18n="lg.poweredBy">Powered by</span> <img class="logo-light" src="/logo-light.png" alt="Smart Way" style="height:12px;vertical-align:middle"><img class="logo-dark" src="/logo-dark.png" alt="Smart Way" style="height:12px;vertical-align:middle"> &middot; <span data-i18n="lg.copy">&copy; 2026 Smart Way Group</span></div>
 </section>
 
 <script>
-const T = {
-  en: { h1a:'See every moment.', h1b:'Secure every evidence.', brand:'Powered by Smart Way Group · Solution for Secure Future',
-    title:'Welcome back', sub:'Sign in to your VisionGuard account.', user:'Username', pass:'Password',
-    signin:'Sign in', secure:'Encrypted, authorized access only', fail:'Sign in failed.', net:'Cannot reach the server. Check your connection.' },
-  ar: { h1a:'شاهد كل لحظة.', h1b:'أمّن كل دليل.', brand:'بدعم من مجموعة سمارت واي · حلول لمستقبل آمن',
-    title:'مرحباً بعودتك', sub:'سجّل الدخول إلى حسابك في VisionGuard.', user:'اسم المستخدم', pass:'كلمة المرور',
-    signin:'تسجيل الدخول', secure:'دخول مشفّر ومصرّح به فقط', fail:'فشل تسجيل الدخول.', net:'تعذّر الوصول إلى الخادم. تحقق من الاتصال.' }
-};
-let L = 'en';
-try { L = localStorage.getItem('bwc-lang') || 'en'; } catch (e) {}
-function apply() {
-  document.documentElement.lang = L; document.documentElement.dir = L === 'ar' ? 'rtl' : 'ltr';
-  document.querySelectorAll('[data-i]').forEach((el) => { el.textContent = T[L][el.dataset.i]; });
-  document.getElementById('lang').textContent = L === 'ar' ? 'EN' : 'عربي';
-}
-apply();
-document.getElementById('lang').onclick = () => { L = L === 'ar' ? 'en' : 'ar'; try { localStorage.setItem('bwc-lang', L); } catch (e) {} apply(); };
+// The words and the language switch are the shared ones (i18n.js); the choice is kept for every page.
+VG.mountSwitch('#langSlot');
+VG.onLang(() => { /* the static texts were already redrawn by VG.apply; nothing else on this page depends on the language */ });
 document.getElementById('theme').onclick = () => {
   const n = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   document.documentElement.dataset.theme = n; try { localStorage.setItem('bwc-theme', n); } catch (e) {}
@@ -152,8 +142,8 @@ document.getElementById('f').addEventListener('submit', async (e) => {
     const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) });
     if (r.ok) return (location.href = '/analytics.html'); // landing page: analytics, then the live dashboard
-    err.textContent = (await r.json()).error || T[L].fail;
-  } catch (x) { err.textContent = T[L].net; }
+    err.textContent = (await r.json()).error || VG.t('lg.fail');
+  } catch (x) { err.textContent = VG.t('lg.net'); }
   b.disabled = false;
 });
 </script>

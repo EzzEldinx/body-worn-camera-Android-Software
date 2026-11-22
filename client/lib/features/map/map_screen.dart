@@ -2,24 +2,32 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_map/flutter_map.dart' as fm;
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../core/api/fleet.dart';
 import '../../core/api/models.dart';
+import '../../core/api/zones.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../live/watch.dart';
+import 'desktop_map.dart';
+import 'zone_editor.dart';
 
-/// Live map: same OpenFreeMap style as the web dashboard, one coloured dot per camera.
-class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key, this.focusCam});
+/// Live map: same OpenFreeMap style as the web dashboard, one coloured dot per camera. It sits inside the Cameras screen
+/// (beside the list on a tablet, behind the list/map switch on a phone), so it has no app bar of its own.
+class MapPane extends ConsumerStatefulWidget {
+  const MapPane({super.key, this.focusCam});
   final String? focusCam;
   @override
-  ConsumerState<MapScreen> createState() => _MapScreenState();
+  ConsumerState<MapPane> createState() => _MapPaneState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
+class _MapPaneState extends ConsumerState<MapPane> {
   MapLibreMapController? _c;
+  final _dm = fm.MapController(); // the desktop (macOS / Windows / Linux) map
+  bool _dmReady = false;
   Timer? _debounce;
   String? _selected;
   bool _fitted = false;
@@ -27,20 +35,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final _bySymbol = <String, String>{}; // label id -> camera id
 
   @override
-  void initState() { super.initState(); _selected = widget.focusCam; }
+  void initState() {
+    super.initState();
+    _selected = widget.focusCam;
+    if (useDesktopMap) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) { _dmReady = true; _draw(); } });
+  }
 
   @override
-  void didUpdateWidget(MapScreen old) {
+  void didUpdateWidget(MapPane old) {
     super.didUpdateWidget(old);
     if (widget.focusCam != null && widget.focusCam != old.focusCam) { _selected = widget.focusCam; _focus(); }
   }
 
   @override
-  void dispose() { _debounce?.cancel(); super.dispose(); }
+  void dispose() { _debounce?.cancel(); _dm.dispose(); super.dispose(); }
 
   String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
   Future<void> _draw() async {
+    if (useDesktopMap) { // the desktop map redraws itself from the providers; only the first fit and the focus are done here
+      if (!_dmReady) return;
+      final cams = ref.read(fleetProvider).cams.values.where((x) => x.hasPosition).toList();
+      if (cams.isNotEmpty && !_fitted) { _fitted = true; _fitAll(cams); }
+      if (widget.focusCam != null && _selected == widget.focusCam) _focus();
+      return;
+    }
     final c = _c;
     if (c == null) return;
     final cams = ref.read(fleetProvider).cams.values.where((x) => x.hasPosition).toList();
@@ -48,8 +67,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final sos = {for (final a in ref.read(fleetProvider).alarms.where((a) => !a.ack)) a.cameraId};
     await c.clearCircles();
     await c.clearSymbols();
+    await c.clearFills();
+    await c.clearLines();
     _byCircle.clear();
     _bySymbol.clear();
+    await _drawZones(c);
+    await _drawDraft(c);
     if (cams.isEmpty) return;
     final opts = [
       for (final cam in cams) CircleOptions(
@@ -75,7 +98,46 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (widget.focusCam != null && _selected == widget.focusCam) _focus();
   }
 
+  // Geofence zones (read only): a soft fill and an outline in the colour of the rule, red while a camera is breaking it, with the name in the middle.
+  Future<void> _drawZones(MapLibreMapController c) async {
+    final zones = (ref.read(zonesProvider).value?.zones ?? const <Zone>[]).where((z) => z.active).toList();
+    if (zones.isEmpty) return;
+    final v = context.vg;
+    final broken = {for (final a in ref.read(fleetProvider).alerts.where((a) => a.isGeo)) a.zone};
+    Color colour(Zone z) => broken.contains(z.name) ? v.rec : switch (z.mode) { 'forbidden' => v.rec, 'allowed' => v.ok, 'checkpoint' => v.sel, _ => v.blue };
+    for (final z in zones) {
+      final pts = [for (final p in z.ring) LatLng(p.lat, p.lng)];
+      final hot = broken.contains(z.name);
+      await c.addFill(FillOptions(geometry: [pts], fillColor: _hex(colour(z)), fillOpacity: hot ? .30 : .16, fillOutlineColor: _hex(colour(z))));
+      await c.addLine(LineOptions(geometry: [...pts, pts.first], lineColor: _hex(colour(z)), lineWidth: hot ? 3.5 : 2.2, lineOpacity: .95));
+    }
+    await c.addSymbols([
+      for (final z in zones) SymbolOptions(
+        geometry: LatLng(z.centre.lat, z.centre.lng), textField: z.name, textSize: 12, textColor: _hex(colour(z)), textHaloColor: '#FFFFFF', textHaloWidth: 2,
+        fontNames: const ['Noto Sans Bold'], textMaxWidth: 10, textJustify: 'center',
+      ),
+    ]);
+  }
+
+  // The zone being drawn: its corners, or its centre and radius, in the brand colour.
+  Future<void> _drawDraft(MapLibreMapController c) async {
+    final d = ref.read(zoneDraftProvider);
+    if (d == null || d.pts.isEmpty) return;
+    final col = _hex(context.vg.brand);
+    List<LatLng> ring = d.pts;
+    if (d.shape == 'circle' && d.pts.length >= 2) ring = [for (final p in Zone.circlePoints(d.pts[0].latitude, d.pts[0].longitude, d.radius!)) LatLng(p.lat, p.lng)];
+    if (ring.length >= 3) await c.addFill(FillOptions(geometry: [ring], fillColor: col, fillOpacity: .18, fillOutlineColor: col));
+    if (ring.length >= 2) await c.addLine(LineOptions(geometry: d.shape == 'polygon' && ring.length >= 3 ? [...ring, ring.first] : (d.shape == 'circle' && ring.length > 2 ? [...ring, ring.first] : ring), lineColor: col, lineWidth: 3, lineOpacity: .95));
+    await c.addCircles([for (final p in d.pts) CircleOptions(geometry: p, circleRadius: 7, circleColor: col, circleStrokeColor: '#FFFFFF', circleStrokeWidth: 3)]);
+  }
+
   void _fitAll(List<Camera> cams) {
+    if (useDesktopMap) {
+      if (cams.isEmpty || !_dmReady) return;
+      if (cams.length == 1) { _dm.move(ll.LatLng(cams.first.lat!, cams.first.lng!), 14); return; }
+      _dm.fitCamera(fm.CameraFit.coordinates(coordinates: [for (final c in cams) ll.LatLng(c.lat!, c.lng!)], padding: const EdgeInsets.fromLTRB(60, 100, 60, 180), maxZoom: 16));
+      return;
+    }
     if (cams.length == 1) { _c?.animateCamera(CameraUpdate.newLatLngZoom(LatLng(cams.first.lat!, cams.first.lng!), 14)); return; }
     final lats = cams.map((e) => e.lat!), lngs = cams.map((e) => e.lng!);
     _c?.animateCamera(CameraUpdate.newLatLngBounds(
@@ -86,6 +148,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _focus() {
     final cam = ref.read(fleetProvider).cams[_selected];
+    if (useDesktopMap) { if (cam != null && cam.hasPosition && _dmReady) _dm.move(ll.LatLng(cam.lat!, cam.lng!), 15); return; }
     if (cam != null && cam.hasPosition) _c?.animateCamera(CameraUpdate.newLatLngZoom(LatLng(cam.lat!, cam.lng!), 15));
   }
 
@@ -94,26 +157,36 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(fleetProvider.select((s) => s.cams), (_, _) => _schedule());
+    ref.listen(zonesProvider, (_, _) => _schedule());
+    ref.listen(zoneDraftProvider, (_, _) => _draw());
+    final drawing = ref.watch(zoneDraftProvider) != null;
+    ref.listen(fleetProvider.select((s) => s.alerts), (_, _) => _schedule());
     final v = context.vg;
     final cam = ref.watch(fleetProvider.select((s) => s.cams[_selected]));
-    return Scaffold(
-      appBar: BrandBar(title: context.tr('tab_map'), actions: [
-        IconButton(icon: const Icon(Icons.center_focus_strong_rounded), onPressed: () => _fitAll(ref.read(fleetProvider).cams.values.where((x) => x.hasPosition).toList())),
-      ]),
-      body: Stack(children: [
-        MapLibreMap(
+    return ClipRect(
+      child: Stack(children: [
+        if (useDesktopMap)
+          DesktopMap(
+            selected: _selected, controller: _dm,
+            onSelect: (id) => setState(() => _selected = id),
+          )
+        else MapLibreMap(
           styleString: 'https://tiles.openfreemap.org/styles/liberty',
           initialCameraPosition: const CameraPosition(target: LatLng(24.7136, 46.6753), zoom: 9),
           compassEnabled: false, attributionButtonPosition: AttributionButtonPosition.bottomLeft,
           onMapCreated: (c) {
             _c = c;
-            c.onSymbolTapped.add((sym) { final id = _bySymbol[sym.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
-            c.onCircleTapped.add((circle) { final id = _byCircle[circle.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
+            c.onSymbolTapped.add((sym) { if (ref.read(zoneDraftProvider) != null) return; final id = _bySymbol[sym.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
+            c.onCircleTapped.add((circle) { if (ref.read(zoneDraftProvider) != null) return; final id = _byCircle[circle.id]; if (id != null) { setState(() => _selected = id); _draw(); } });
           },
           onStyleLoadedCallback: _draw,
-          onMapClick: (_, _) { if (_selected != null) { setState(() => _selected = null); _draw(); } },
+          onMapClick: (_, ll) {
+            if (ref.read(zoneDraftProvider) != null) { ref.read(zoneDraftProvider.notifier).tap(ll); return; }
+            if (_selected != null) { setState(() => _selected = null); _draw(); }
+          },
         ),
-        if (cam != null)
+        const ZoneTools(),
+        if (cam != null && !drawing)
           Positioned(
             left: 12, right: 12, bottom: 12,
             child: VgCard(
@@ -135,6 +208,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ]),
             ),
           ),
+        Positioned(
+          top: 10, right: 10,
+          child: Material(
+            color: v.panel, shape: const CircleBorder(), elevation: 2,
+            child: IconButton(icon: const Icon(Icons.center_focus_strong_rounded), tooltip: context.tr('fit_all'), onPressed: () => _fitAll(ref.read(fleetProvider).cams.values.where((x) => x.hasPosition).toList())),
+          ),
+        ),
       ]),
     );
   }

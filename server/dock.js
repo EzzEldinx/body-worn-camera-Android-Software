@@ -35,7 +35,8 @@ function register(app, ctx) {
     // Policy: what happens to files the dock has just copied. ask = the user decides per file (or in bulk); auto_cloud / auto_local = automatic.
     const MODES = new Set(['ask', 'auto_cloud', 'auto_local']);
     const getSetting = (k, d) => db.prepare('SELECT value FROM dock_settings WHERE key = ?').get(k)?.value ?? d;
-    const policy = () => ({ mode: MODES.has(getSetting('mode', 'ask')) ? getSetting('mode', 'ask') : 'ask', uploadQuality: 'original' });
+    // One default for everybody (Smart Way sets it) and, when a company's administrator chose, one per company: what happens to files the dock copied for that company's cameras.
+    const policy = (companyId) => { const m = (companyId && getSetting('mode:' + companyId, null)) || getSetting('mode', 'ask'); return { mode: MODES.has(m) ? m : 'ask', uploadQuality: 'original', own: !!(companyId && getSetting('mode:' + companyId, null)) }; };
     // A camera's physical dock port (USB location) always lands in the same bay: first free bay on first sight.
     db.exec('CREATE TABLE IF NOT EXISTS dock_slots(dock_id TEXT NOT NULL, port TEXT NOT NULL, slot INTEGER NOT NULL, PRIMARY KEY(dock_id, port))');
     const SLOTS = Math.max(1, Math.min(64, Number(process.env.DOCK_SLOTS) || 10));
@@ -161,8 +162,8 @@ function register(app, ctx) {
                 if (!cam) continue;
                 const ownFresh = cam.posSrc !== 'dock' && cam.fixTs && now - cam.fixTs < 120000;
                 if (ownFresh) continue;
-                if (cam.posSrc === 'dock' && cam.lat === loc.lat && cam.lng === loc.lng && now - (cam.fixTs || 0) < 30000) continue; // refresh every 30 s, not every report
-                publish(c.cameraId, { lat: loc.lat, lng: loc.lng, acc, fixTs: now, posSrc: 'dock' });
+                if (cam.posSrc === 'dock' && cam.lat === loc.lat && cam.lng === loc.lng && now - (cam.fixTs || 0) < 10000) continue; // refresh every 10 s, not every report
+                publish(c.cameraId, { lat: loc.lat, lng: loc.lng, acc, fixTs: now, ts: now, posSrc: 'dock' });
             }
         }
         docks.set(dockId, { ts: Date.now(), storage: req.body?.storage && typeof req.body.storage === 'object' ? { dir: String(req.body.storage.dir || '').slice(0, 200), freeBytes: num(req.body.storage.freeBytes), usedBytes: num(req.body.storage.usedBytes) } : null, agent: String(req.body?.agent || '').slice(0, 20), mode: req.body?.deleteAfter ? 'move' : 'copy', cameras: list });
@@ -244,34 +245,67 @@ function register(app, ctx) {
             recordings: db.prepare('SELECT COUNT(*) n FROM recordings WHERE camera_id = ?').get(id).n }));
         const fc = { awaiting: 0, local: 0, queued: 0, cloud: 0, failed: 0 };
         for (const r of db.prepare('SELECT camera_id,state,choice FROM dock_files').all()) if (mine(req.user, r.camera_id)) fc[r.state === 'cloud' ? 'cloud' : r.state === 'failed' ? 'failed' : r.choice === null ? 'awaiting' : r.choice === 'local' ? 'local' : 'queued']++;
-        res.json({ slots: SLOTS, calibration: [...calibrating].map(([id, c]) => ({ dock: id, next: c.next })), enabled: !!DOCK_TOKEN, policy: policy(), fileCounts: fc, docks: list, cameras: known,
+        res.json({ slots: SLOTS, calibration: [...calibrating].map(([id, c]) => ({ dock: id, next: c.next })), enabled: !!DOCK_TOKEN, policy: policy(req.user.companyId), storageDir: req.user.companyId ? getSetting('dir:' + req.user.companyId, null) : null, fileCounts: fc, docks: list, cameras: known,
             storage: { retentionDays: RETENTION_DAYS, recordings: rec.n, recordingsBytes: rec.bytes, todayCount: td.n, todayBytes: td.bytes, ...(disk || {}) } });
     });
 
     // ---------- what to do with the files a dock has copied ----------
-    app.get('/api/dock/policy', needDock, (req, res) => res.json(policy()));
-    app.get('/api/admin/dock/policy', needUser, (req, res) => res.json(policy()));
-    app.put('/api/admin/dock/policy', needUser, needAdmin, (req, res) => {
-        const mode = String(req.body?.mode || '');
+    // Where each camera's files are kept on the dock computer when its company chose a folder (cameraId -> folder).
+    const dirsFor = () => { const o = {}; for (const [id, c] of cams) { const d = c.companyId && getSetting('dir:' + c.companyId, null); if (d) o[id] = d; } return o; };
+    app.get('/api/dock/policy', needDock, (req, res) => res.json({ ...policy(), dirs: dirsFor() }));
+    app.get('/api/admin/dock/policy', needUser, (req, res) => res.json(policy(req.user.companyId)));
+    // Smart Way sets the default (or one company's choice: companyId); a company's administrator with "Decide on recordings" sets his own company's.
+    app.put('/api/admin/dock/policy', needUser, (req, res) => {
+        const u = req.user, mode = String(req.body?.mode || '');
         if (!MODES.has(mode)) return res.status(400).json({ error: 'mode must be ask, auto_cloud or auto_local.' });
-        const was = policy().mode;
-        db.prepare('INSERT INTO dock_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('mode', mode);
-        audit(req.user.username, `dock_policy_${mode}`, null, { mode, was });
-        res.json(policy());
+        const staff = !u.companyId;
+        if (staff ? u.role !== 'admin' : !(u.role === 'manager' && (u.features || []).includes('files'))) return res.status(403).json({ error: 'You are not allowed to decide on recordings.' });
+        const cid = staff ? (Number.isInteger(Number(req.body?.companyId)) && Number(req.body?.companyId) > 0 ? Number(req.body.companyId) : null) : u.companyId;
+        const key = cid ? 'mode:' + cid : 'mode', was = policy(cid).mode;
+        db.prepare('INSERT INTO dock_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, mode);
+        audit(u.username, `dock_policy_${mode}`, null, { mode, was, companyId: cid });
+        res.json(policy(cid));
+    });
+
+    // Browsing the dock computer's folders: the dashboard asks, the Dock Agent (polling every 1.5 s) answers. Only folders, only under the agent's own allowed places.
+    const browse = new Map(); let browseSeq = 0;
+    const askAgent = (type, p) => new Promise((resolve) => { const id = ++browseSeq; browse.set(id, { id, type, path: p, taken: false, resolve }); setTimeout(() => { if (browse.delete(id)) resolve(null); }, 20000); });
+    const mayChoose = (u) => (!u.companyId ? u.role === 'admin' : u.role === 'manager' && (u.features || []).includes('files'));
+    app.get('/api/dock/browse-pending', needDock, (req, res) => { const out = [...browse.values()].filter((r) => !r.taken); out.forEach((r) => { r.taken = true; }); res.json({ requests: out.map(({ id, type, path: p }) => ({ id, type, path: p })) }); });
+    app.post('/api/dock/browse-result', needDock, (req, res) => { const r = browse.get(Number(req.body?.id)); if (r) { browse.delete(r.id); r.resolve(req.body); } res.json({ ok: true }); });
+    app.post('/api/dock/browse', needUser, async (req, res) => {
+        if (!mayChoose(req.user)) return res.status(403).json({ error: 'You are not allowed to decide on recordings.' });
+        const r = await askAgent('list', String(req.body?.path || '').slice(0, 500));
+        if (!r) return res.status(504).json({ error: 'The dock computer did not answer. Is the Dock Agent running and up to date?' });
+        res.json({ ok: !!r.ok, path: r.path || '', parent: r.parent || null, dirs: Array.isArray(r.dirs) ? r.dirs.slice(0, 300) : [], error: r.error || null });
+    });
+    // The folder a company keeps its files in on the dock computer: checked by the agent (created and written to) before it is saved.
+    app.put('/api/admin/dock/storage', needUser, async (req, res) => {
+        const u = req.user;
+        if (!mayChoose(u)) return res.status(403).json({ error: 'You are not allowed to decide on recordings.' });
+        const cid = u.companyId || (Number(req.body?.companyId) > 0 ? Number(req.body.companyId) : null), p = String(req.body?.path || '').slice(0, 500);
+        if (!cid) return res.status(400).json({ error: 'Pick the company.' });
+        if (!p) return res.status(400).json({ error: 'Pick a folder.' });
+        const r = await askAgent('check', p);
+        if (!r) return res.status(504).json({ error: 'The dock computer did not answer. Is the Dock Agent running and up to date?' });
+        if (!r.ok) return res.status(400).json({ error: String(r.error || 'The dock computer cannot use that folder.').slice(0, 160) });
+        db.prepare('INSERT INTO dock_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run('dir:' + cid, r.path);
+        audit(u.username, 'dock_storage_set', null, { companyId: cid, dir: r.path });
+        res.json({ ok: true, dir: r.path });
     });
 
     // The agent announces files that are now safe on the dock's own storage; the answer says what to do with each.
     app.post('/api/dock/catalog', needDock, (req, res) => {
         const dockId = String(req.body?.dockId || 'dock').slice(0, 40);
         const files = Array.isArray(req.body?.files) ? req.body.files.slice(0, 1000) : [];
-        const mode = policy().mode, now = Date.now(), out = [];
+        const now = Date.now(), out = [];
         const ins = db.prepare(`INSERT INTO dock_files(camera_id,filename,size,sha256,recorded_ts,dock_id,state,choice,chosen_by,added_ts,updated_ts)
             VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(camera_id,sha256) DO UPDATE SET dock_id = excluded.dock_id, updated_ts = excluded.updated_ts`);
         for (const f of files) {
             const cameraId = str(f.cameraId), name = String(f.name || ''), sha = String(f.sha256 || '').toLowerCase(), size = Number(f.size);
             if (!cameraId || !NAME_RE.test(name) || !/^[0-9a-f]{64}$/.test(sha) || !Number.isInteger(size) || size < 1) continue;
             const onCloud = !!db.prepare('SELECT 1 FROM recordings WHERE camera_id = ? AND sha256 = ?').get(cameraId, sha);
-            const auto = mode === 'auto_cloud' ? 'cloud' : mode === 'auto_local' ? 'local' : null;
+            const mode = policy(cams.get(cameraId)?.companyId).mode, auto = mode === 'auto_cloud' ? 'cloud' : mode === 'auto_local' ? 'local' : null;
             const existed = !!db.prepare('SELECT 1 FROM dock_files WHERE camera_id = ? AND sha256 = ?').get(cameraId, sha);
             ins.run(cameraId, name, size, sha, Number(f.recordedTs) || null, dockId, onCloud ? 'cloud' : 'on_dock', onCloud ? 'cloud' : auto, auto && !onCloud ? 'auto' : null, now, now);
             if (!existed) audit(`dock:${dockId}`, 'dock_file_copied', cameraId, { file: name, size, dock: dockId, copiedAndVerified: true }, sha);
@@ -305,7 +339,7 @@ function register(app, ctx) {
         const counts = { awaiting: { n: 0, bytes: 0 }, local: { n: 0, bytes: 0 }, queued: { n: 0, bytes: 0 }, cloud: { n: 0, bytes: 0 }, failed: { n: 0, bytes: 0 } };
         for (const r of rows) { const b = bucket(r); counts[b].n++; counts[b].bytes += r.size; }
         const files = rows.filter((r) => !state || bucket(r) === state).slice(0, 500).map((r) => ({ ...r, bucket: bucket(r) }));
-        res.json({ policy: policy(), counts, files });
+        res.json({ policy: policy(req.user.companyId), storageDir: req.user.companyId ? getSetting('dir:' + req.user.companyId, null) : null, counts, files });
     });
     // The user's decision: push to the cloud, or keep on the dock's own storage. Works on a list of files or on everything waiting.
     app.post('/api/dock/files/choose', needUser, needWrite, (req, res) => {

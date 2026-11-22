@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api.dart';
 import '../../core/api/models.dart';
@@ -7,6 +8,7 @@ import '../../core/l10n/strings.dart';
 import '../../core/theme/vg_theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../auth/auth_controller.dart';
+import '../../core/save_file.dart';
 
 /// The files the dock copied from the cameras, polled every 3 s while the screen is open.
 final dockFilesProvider = StreamProvider.autoDispose.family<DockFiles, String>((ref, bucket) async* {
@@ -37,7 +39,10 @@ class _DockFilesScreenState extends ConsumerState<DockFilesScreen> {
   final _sel = <int>{};
   bool _busy = false;
 
-  bool get _admin => ref.read(sessionProvider)?.user.role == 'admin';
+  // The same rules as the web page: choosing and deleting follow the actions the person really has; the automatic mode is for Smart Way staff and the company administrator.
+  bool get _admin => ref.read(sessionProvider)?.user.can('files') == true && ref.read(sessionProvider)?.user.role != 'viewer';
+  bool get _canDelete => ref.read(sessionProvider)?.user.can('delete') == true && _admin;
+  bool get _canPolicy { final u = ref.read(sessionProvider)?.user; return u != null && _admin && (u.role == 'admin' || u.role == 'manager'); }
   Api get _api => ref.read(sessionProvider)!.api;
 
   Future<void> _run(Future<void> Function() job) async {
@@ -94,9 +99,9 @@ class _DockFilesScreenState extends ConsumerState<DockFilesScreen> {
               flex: wide ? 1 : 0,
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-                onTap: !_admin || on ? null : () => _run(() => _api.setDockPolicy(m.$1)),
+                onTap: !_canPolicy || on ? null : () => _run(() => _api.setDockPolicy(m.$1)),
                 child: Container(
-                  margin: wide ? const EdgeInsets.only(right: 8) : const EdgeInsets.only(bottom: 8),
+                  margin: wide ? const EdgeInsetsDirectional.only(end: 8) : const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: on ? v.sel : v.line, width: on ? 2 : 1), color: on ? v.sel.withValues(alpha: .08) : null),
                   child: Row(children: [
@@ -120,7 +125,7 @@ class _DockFilesScreenState extends ConsumerState<DockFilesScreen> {
                 Text(context.tr('dk_policy').toUpperCase(), style: TextStyle(color: v.mut, fontWeight: FontWeight.w800, fontSize: 11.5, letterSpacing: .8)),
                 const SizedBox(height: 10),
                 wide ? Row(children: [for (final m in modes) modeTile(m)]) : Column(children: [for (final m in modes) modeTile(m)]),
-                if (!_admin) Text(context.tr('dk_admin_only'), style: TextStyle(color: v.mut, fontSize: 12)),
+                if (!_canPolicy) Text(context.tr('dk_admin_only'), style: TextStyle(color: v.mut, fontSize: 12)),
               ]),
             ),
             const SizedBox(height: 12),
@@ -155,7 +160,7 @@ class _DockFilesScreenState extends ConsumerState<DockFilesScreen> {
             Text('${_sel.length} ${context.tr('dk_selected')}', style: const TextStyle(fontWeight: FontWeight.w800)),
             FilledButton.icon(onPressed: _busy ? null : () => _run(() => _api.chooseDockFiles(_sel.toList(), 'cloud')), icon: const Icon(Icons.cloud_upload_rounded, size: 18), label: Text(context.tr('dk_push_cloud'))),
             OutlinedButton.icon(onPressed: _busy ? null : () => _run(() => _api.chooseDockFiles(_sel.toList(), 'local')), icon: const Icon(Icons.sd_storage_rounded, size: 18), label: Text(context.tr('dk_keep_dock'))),
-            OutlinedButton.icon(
+            if (_canDelete) OutlinedButton.icon(
               style: OutlinedButton.styleFrom(foregroundColor: v.rec, side: BorderSide(color: v.rec.withValues(alpha: .5))),
               onPressed: _busy ? null : () {
                 final rows = (ref.read(dockFilesProvider(_bucket)).value?.files ?? const <DockFile>[]).where((f) => _sel.contains(f.id) && !f.removed).toList();
@@ -204,6 +209,13 @@ class _FileTile extends StatelessWidget {
             else if (file.camDelete) Text(context.tr('dk_removal_queued'), style: TextStyle(color: v.mut, fontSize: 11.5)),
           ])),
           StatusPill(label: label, color: color),
+          if (file.bucket == 'cloud' && file.recordingId != null && !file.removed) Consumer(builder: (ctx, ref, _) {
+            final s = ref.watch(sessionProvider);
+            return Row(mainAxisSize: MainAxisSize.min, children: [
+              if (file.isVideo) IconButton(tooltip: context.tr('play'), icon: const Icon(Icons.play_circle_outline_rounded), onPressed: s == null ? null : () => context.push('/recordings/play', extra: Recording(id: file.recordingId!, cameraId: file.cameraId, filename: file.filename, size: file.size, ts: file.recordedTs ?? file.addedTs ?? 0, sha256: ''))),
+              Builder(builder: (bctx) => IconButton(tooltip: context.tr('download'), icon: const Icon(Icons.download_rounded), onPressed: s == null ? null : () => saveRecording(bctx, s, file.recordingId!, file.filename))),
+            ]);
+          }),
         ]),
       ),
     );

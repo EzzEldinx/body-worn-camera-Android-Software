@@ -28,19 +28,21 @@ One server, one web dashboard, one mobile app, multi-company from day one.
 
 | | |
 |---|---|
-| **Live view** | Watch any camera in the browser or the mobile app, a flexible live wall for many cameras at once, and remote start/stop without asking the officer. |
+| **Live view** | Watch any camera in the browser or the mobile app, a flexible live wall for many cameras at once, and remote start/stop without asking the officer. Authorised people can also stop an officer's recording from the control room (audited, refused during an open SOS). |
 | **SOS and alerts** | Instant SOS alarms with acknowledgement, battery alerts, and push notifications to a locked phone. |
 | **GPS and fleet** | Positions on a map, shifts, camera health and a fleet overview. |
+| **Geofencing** | Draw zones on the map (circle or polygon): alerts when a camera leaves an allowed area, enters a forbidden one, or misses a patrol checkpoint. Per company, with schedules, on the dashboard, the mobile app and push. |
 | **Push-to-talk** | Voice and text messages between the control room and each camera. |
 | **Recordings** | Docking stations offload recordings over USB with SHA-256 verification at three points (camera, dock PC, server). |
-| **Analytics and reports** | Fleet analytics, an optional written AI analysis (only aggregated numbers are sent), and PDF reports. |
+| **Analytics and reports** | Fleet analytics, an optional written AI analysis (only aggregated numbers are sent), and PDF reports in English or Arabic. |
 | **Multi-company** | Each company sees only its own cameras, alarms and recordings. Packages cap cameras and concurrent live streams. |
-| **Access control** | Smart Way chooses what each company can use. Each company administrator chooses what each user can see and do. Enforced on the server, not only hidden in the UI. |
+| **Access control** | Smart Way chooses which features and actions each company can use (its ceiling). Each company administrator chooses what each user can see and do, within that ceiling. Every person can open **Profile and access** to see exactly what their account may do. Enforced on the server, not only hidden in the UI. |
+| **English and Arabic** | The whole website, the mobile app and the PDF report work in English and Arabic (right to left), switchable on every page. |
 | **Employee check-out** | Employees check cameras in and out, with a full audit trail. |
 | **Mobile app** | iPhone, iPad and Android app for owners and supervisors, with the same accounts and permissions as the web. |
 | **Licensing** | Offline-verifiable signed licences for installations on a customer's own server. |
 | **Camera updates** | Docking stations update a camera the moment it is docked and show the work on its screen. Customers are told once (a notice and a pulsing heart) and only have to dock their cameras. Cameras far from a dock update over Wi-Fi or SIM, one canary first. |
-| **Operations** | Audit log, automatic recording retention, Docker deployment. |
+| **Operations** | Sealed audit log, automatic recording retention, Docker deployment, a health endpoint (`/healthz`), an outside watcher and a load-test tool. |
 
 <p align="center">
   <img src="docs/client-brochure/img/docks.jpg" alt="Docking page" width="430">
@@ -66,7 +68,7 @@ One server, one web dashboard, one mobile app, multi-company from day one.
 | [`dock-agent/`](dock-agent) | Offloads recordings at a docking station | Node.js, `adb` |
 | [`deploy/`](deploy) | Docker Compose, nginx, systemd, setup script | Docker |
 | [`tools/`](tools) | Fleet tools, build publishing, licence signing | PowerShell, shell, Node.js |
-| [`docs/`](docs) | Guides and the client brochure | Markdown |
+| [`docs/`](docs) | All guides and the client brochure | Markdown, HTML, PDF |
 
 ## Quick start
 
@@ -100,7 +102,7 @@ cd server && npm test
 ```bash
 cd app
 flutter pub get
-flutter run --dart-define=BWC_SERVER=http://<server-ip>:3000 \
+flutter run --dart-define=BWC_SERVER=https://<your-server> \
             --dart-define=BWC_ID=BWC-01 \
             --dart-define=BWC_TOKEN=<token>
 ```
@@ -113,7 +115,7 @@ flutter pub get
 flutter run
 ```
 
-See [docs/MOBILE_APP.md](docs/MOBILE_APP.md) for the API, push notifications and store builds.
+See [docs/MOBILE_APP.md](docs/MOBILE_APP.md) for the API, status and push notifications, and [docs/STORE_PUBLISHING.md](docs/STORE_PUBLISHING.md) for store builds.
 
 ### Docking station
 
@@ -145,22 +147,26 @@ Production runs on Docker behind nginx with TLS.
 
 ```bash
 cd deploy
-docker compose -p visionguard -f docker-compose.yml up -d --build
+docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml up -d --build
 ```
 
-Full checklist (DNS, TLS, firewall, systemd alternative): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Full steps (what runs where, deploying a version, health, backups, DNS, TLS, firewall, systemd alternative): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Documentation
+
+All guides are in [docs/](docs); [docs/README.md](docs/README.md) is the index.
 
 | Guide | Topic |
 |---|---|
 | [docs/GUIDE.md](docs/GUIDE.md) | Operations guide |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment |
-| [docs/MOBILE_APP.md](docs/MOBILE_APP.md) | Mobile app and API |
-| [docs/LICENSING.md](docs/LICENSING.md) | Licences for customer-hosted installations |
-| [docs/CHECKOUT.md](docs/CHECKOUT.md) | Employee check-out |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment, health, backups |
+| [docs/CAMERA_APP.md](docs/CAMERA_APP.md) | Camera app: build, configuration, release |
 | [docs/CAMERA_SIGNING.md](docs/CAMERA_SIGNING.md) | Signing camera builds |
-| [dock-agent/README.md](dock-agent/README.md) | Docking station agent |
+| [docs/DOCK_AGENT.md](docs/DOCK_AGENT.md) | Docking station agent |
+| [docs/CHECKOUT.md](docs/CHECKOUT.md) | Employee check-out |
+| [docs/LICENSING.md](docs/LICENSING.md) | Licences for customer-hosted installations |
+| [docs/MOBILE_APP.md](docs/MOBILE_APP.md) | Mobile app and API |
+| [docs/STORE_PUBLISHING.md](docs/STORE_PUBLISHING.md) · [docs/STORE_LISTING.md](docs/STORE_LISTING.md) | Putting the owner app in the stores |
 | [docs/client-brochure](docs/client-brochure) | Client guide (PDF and source) |
 
 ## Security
