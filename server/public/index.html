@@ -127,6 +127,7 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px
 .icon-btn.has-lbl:hover{color:var(--text)}
 /* The header fits itself (fitHeader in the script): it measures and, step by step, hides what does not fit. Fixed screen widths could not
    know the language, the user's name or the browser's font, so the page came out wider than the window (Chrome and Safari alike). */
+header.fitting,header.fitting *{transition:none!important}   /* while measuring: an animated width (icon-btn has transition:.15s) gave Chrome the old width and the header flipped every second */
 header.fit1 .icon-btn.has-lbl .bl{display:none}header.fit1 .icon-btn.has-lbl{width:38px;padding:0}
 header.fit2 .brand-sep,header.fit2 .clock{display:none}header.fit2 .stat{min-width:0;padding-inline-end:12px}
 header.fit3 .stat div>span{display:none}
@@ -1610,20 +1611,28 @@ const pillVars = () => { const r = document.documentElement.style; r.setProperty
 VG.mountSwitch('#langSlot'); pillVars();
 // Fit the header to the window: undo every step, then add steps (fit1..fit5, see the CSS) until nothing sticks out. Runs on every change of size,
 // language, user name or font, so it is right in any browser and at any zoom. The phone layout (<= 900 px) has its own rules.
-function fitHeader() {
+function fitHeader(force) {
   const h = document.getElementById('top'); if (!h) return;
+  // what decides the layout: the width, the language and the header's words, not the clock (it ticks every second and must not start a measurement)
+  const clock = h.querySelector('.clock');
+  const key = h.clientWidth + '|' + document.documentElement.lang + '|' + (h.textContent || '').replace(clock ? clock.textContent : '', '');
+  if (!force && key === fitKey) return;
+  fitKey = key;
   const steps = ['fit1', 'fit2', 'fit3', 'fit4', 'fit5'];
+  h.classList.add('fitting');
   h.classList.remove(...steps);
   const right = h.querySelector('.hdr-right');
   const over = () => h.scrollWidth > h.clientWidth + 1 || (right && right.scrollWidth > right.clientWidth + 1);
   for (const s of steps) { if (!over()) break; h.classList.add(s); }
+  void h.offsetWidth;   // settle the layout before the animations come back
+  setTimeout(() => h.classList.remove('fitting'), 0);
 }
-let fitQueued = false;
+let fitQueued = false, fitKey = '';
 const fitSoon = () => { if (fitQueued) return; fitQueued = true; setTimeout(() => { fitQueued = false; fitHeader(); }, 30); };   // a timer, not requestAnimationFrame: a hidden tab pauses that
-addEventListener('load', fitSoon); document.addEventListener('visibilitychange', fitSoon);
+addEventListener('load', () => fitHeader(true)); document.addEventListener('visibilitychange', fitSoon);
 addEventListener('resize', fitSoon);
 if (window.ResizeObserver) new ResizeObserver(fitSoon).observe(document.getElementById('top'));
-if (document.fonts?.ready) document.fonts.ready.then(fitSoon);
+if (document.fonts?.ready) document.fonts.ready.then(() => fitHeader(true));
 new MutationObserver(fitSoon).observe(document.getElementById('top'), { subtree: true, childList: true, characterData: true });
 fitSoon();
 VG.onLang(() => {   // the dashboard redraws itself in the new language without reloading (the pictures keep playing)
