@@ -1,6 +1,12 @@
 # Putting the VisionGuard owner app in the stores
 
-**Status (2026-11-18): the owner app is not in any store yet.** It runs on a registered iPad from a development build (the iOS development profile includes only that iPad and expires 2027-11-08). This guide is for when the store accounts are ready.
+**Status (2026-11-22): everything that does not need a paid account is ready.** Version 1.1.0 (3). The Android upload key exists, the signed bundle builds, the iOS release build compiles, the release guard passes, the privacy texts and the screenshots are done. What is left is in "After you pay" below.
+
+## After you pay (in this order)
+1. **Apple Developer Program** (US$99/year; an organisation needs a D-U-N-S number) and **Google Play Console** (US$25 once).
+2. **Google:** create the app `sa.com.smartwaygroup.visionguard`, turn on *Play App Signing*, upload `client/build/app/outputs/bundle/release/app-release.aab` (rebuild with the command below first), paste the listing from `STORE_LISTING.md`, the images from `client/store/`, the Data safety answers below, then *Closed testing* first.
+3. **Apple:** in App Store Connect create the app with bundle id `sa.com.smartwaygroup.visionguard`; in Xcode pick the team for Runner > Signing; `flutter build ipa --release` and upload with Transporter; paste the listing, the screenshots and the App Privacy answers below; choose *Custom App* (private) or public.
+4. **Both:** create the demo account for the reviewers on the production server and put it in the review notes.
 
 The owner/supervisor app (`client/`) is for Google Play and the App Store. The **camera app (`app/`) is not**: it runs as the device owner on the company's cameras and updates itself from the server and the docking stations.
 
@@ -43,7 +49,9 @@ tool/release_guard.sh https://your-domain          # must say: release guard: OK
 flutter build appbundle --release --dart-define=VG_SERVER=https://your-domain    # Android -> build/app/outputs/bundle/release/app-release.aab
 flutter build ipa --release --dart-define=VG_SERVER=https://your-domain          # iOS -> build/ios/ipa/*.ipa, upload with Xcode Organizer or Transporter
 ```
-Raise the number after `+` in `pubspec.yaml` (`version: 1.0.1+2`) for every upload.
+Raise the number after `+` in `pubspec.yaml` (now `version: 1.1.0+3`) for every upload.
+
+The upload key was made with `client/tool/make-upload-key.sh` (it asks for the password in the terminal and writes `android/key.properties`). Back up `~/.visionguard/visionguard-owner-upload.jks` and its password in two safe places.
 
 ## Test builds (plain HTTP to a test server)
 ```bash
@@ -53,7 +61,11 @@ tool/ios-allow-http.sh on      # iOS test build; run `tool/ios-allow-http.sh off
 Never upload these. The release guard fails while the iOS exception is on.
 
 ## Store answers (to review before submitting)
-* **Data collected** (Apple privacy label / Google Data safety): name and user id of the signed-in person, linked to the person, used only for the app's functions; no tracking, no ads, no third-party sharing. Camera data shown in the app belongs to the person's company.
-* **Permissions:** Android asks for internet and biometrics only; iOS for Face ID (unlock).
+* **Data collected** (Apple privacy label / Google Data safety), all linked to the person, used only for the app's functions, not used for tracking, not shared with third parties, sent over HTTPS, stored on the company's VisionGuard server:
+  * Name and user id of the signed-in person (*Contact info: Name* / *Identifiers: User ID*).
+  * **Audio:** voice notes the user records for an officer (*Audio data: Voice or sound recordings*). Only while the user holds the record button.
+  * **User content:** chat messages and support tickets (*Other user content* / *Messages: Other in-app messages*).
+  * Camera data shown in the app belongs to the person's company and is not collected from the phone.
+* **Permissions:** Android: internet, biometrics, microphone (voice notes). iOS: Face ID (unlock), microphone (voice notes). The app never uses the phone's location, contacts or photos.
 * **Content rating:** no violent, sexual or user-generated social content; business tool.
 * **Encryption:** the app uses standard HTTPS only (answer "standard encryption, exempt" on Apple's export question).

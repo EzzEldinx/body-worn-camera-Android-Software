@@ -24,8 +24,14 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Unlock VisionGuard with Face ID.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VisionGuard uses the microphone to record a voice note to an officer.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -66,9 +72,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>VisionGuard uses the microphone to record a voice note to an officer.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Unlock VisionGuard with Face ID.</string>
 </dict>
 </plist>

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/fleet.dart';
+import '../../core/api/models.dart';
 import '../auth/auth_controller.dart';
 
 /// The chat history of this run of the app (the server relays messages, it does not keep them; the web dashboard works the same way).
@@ -52,3 +53,14 @@ class ChatFocus extends Notifier<String?> {
 }
 
 final chatFocusProvider = NotifierProvider<ChatFocus, String?>(ChatFocus.new);
+
+/// Who wrote a message, as people know them: the camera's name and the officer carrying it ("Unit 02 · Main Lobby · Omar"), not the camera's
+/// technical id that the server puts in senderName (the web dashboard shows the name too). Messages from the control room keep their sender.
+String chatSenderLabel(Map<String, Camera> cams, ChatMessage m) {
+  final cam = cams[m.senderId] ?? cams[m.sender];
+  if (cam == null) return m.sender.isEmpty ? m.target : m.sender;
+  final name = cam.name.trim();
+  final holder = cam.holder?.trim() ?? '';
+  final label = name.isEmpty ? m.sender : name;
+  return holder.isEmpty ? label : '$label · $holder';
+}

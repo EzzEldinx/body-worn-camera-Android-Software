@@ -132,11 +132,16 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
     void go(int i) {
       HapticFeedback.selectionClick();
-      if (i == _chatTab) ref.read(chatUnreadProvider.notifier).clear();
+      if (i == _chatTab && ref.read(chatUnreadProvider) > 0) {
+        // unread messages: open the conversation of the newest one (a private one sits in its camera's thread, not under "Everybody")
+        final last = ref.read(chatProvider).lastWhere((m) => !m.mine, orElse: () => ChatMessage(chatType: 'PUBLIC', target: 'ALL', sender: '', text: '', ts: 0, mine: true));
+        if (!last.mine) ref.read(chatFocusProvider.notifier).show(last.chatType == 'PRIVATE' ? last.target : 'ALL');
+      }
+      if (i == _chatTab) { ref.read(chatUnreadProvider.notifier).clear(); _hideBanner(); }   // the conversation itself is now on screen
       shell.goBranch(i, initialLocation: i == shell.currentIndex);
     }
     // the notice of a new message sits over whatever screen is open
-    Widget withBanner(Widget child) => Stack(children: [child, if (_banner != null) _ChatBanner(m: _banner!, onTap: _openBanner, onClose: _hideBanner)]);
+    Widget withBanner(Widget child) => Stack(children: [child, if (_banner != null) _ChatBanner(m: _banner!, who: chatSenderLabel(ref.watch(fleetProvider.select((f) => f.cams)), _banner!), onTap: _openBanner, onClose: _hideBanner)]);
 
     if (wide) {
       return Scaffold(
@@ -196,7 +201,8 @@ class _LicenseBar extends ConsumerWidget {
 
 /// The notice of a new message: a card at the top of the screen (over everything), with the sender and the first words; tap to open the chat.
 class _ChatBanner extends StatelessWidget {
-  const _ChatBanner({required this.m, required this.onTap, required this.onClose});
+  const _ChatBanner({required this.m, required this.who, required this.onTap, required this.onClose});
+  final String who;
   final ChatMessage m;
   final VoidCallback onTap, onClose;
   @override
@@ -222,7 +228,7 @@ class _ChatBanner extends StatelessWidget {
                       Container(width: 40, height: 40, decoration: BoxDecoration(color: v.ok.withValues(alpha: .18), shape: BoxShape.circle), child: Icon(m.isVoice ? Icons.mic_rounded : Icons.chat_bubble_rounded, color: v.ok, size: 22)),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                        Text(m.sender.isEmpty ? m.target : m.sender, style: TextStyle(color: v.sel, fontWeight: FontWeight.w800, fontSize: 14)),
+                        Text(who, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: v.sel, fontWeight: FontWeight.w800, fontSize: 14)),
                         const SizedBox(height: 2),
                         Text(m.isVoice ? context.tr('chat_voice_note') : m.text, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14.5, height: 1.3)),
                       ])),

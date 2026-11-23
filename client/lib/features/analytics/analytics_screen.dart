@@ -74,7 +74,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               Text(user?.name ?? '', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
               Text([(d.stats['scope'] as Map)['company'] ?? 'Smart Way', '$total ${context.tr('an_cameras')}'].join(' · '), style: TextStyle(color: v.mut)),
               const SizedBox(height: 14),
-              Wrap(spacing: 10, runSpacing: 10, children: [
+              LayoutBuilder(builder: (c, box) {
+                // the cards share the width: 2 on a phone, more on a tablet or the Mac (a fixed width left an empty strip)
+                final cols = (box.maxWidth / 170).floor().clamp(2, 6);
+                final w = (box.maxWidth - 10 * (cols - 1)) / cols;
+                return Wrap(spacing: 10, runSpacing: 10, children: [for (final card in <Widget>[
                 _Stat(label: context.tr('an_online'), value: '${f['online']} / $total', color: v.ok, frac: total == 0 ? 0 : (f['online'] as num) / total),
                 _Stat(label: context.tr('an_recording'), value: '${f['recording']}', color: v.rec, frac: total == 0 ? 0 : (f['recording'] as num) / total),
                 _Stat(label: context.tr('an_open_sos'), value: '${a['open']}', color: v.sel, frac: (a['total'] as num) == 0 ? 0 : (a['open'] as num) / (a['total'] as num), sub: '${a['total']} ${context.tr('an_in30')}'),
@@ -82,7 +86,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 if (score != null) _Stat(label: context.tr('an_health'), value: '$score%', color: score >= 80 ? v.ok : score >= 50 ? v.sel : v.rec, frac: score / 100),
                 _Stat(label: context.tr('an_low_bat'), value: '${bat['low']}', color: (bat['critical'] as num) > 0 ? v.rec : (bat['low'] as num) > 0 ? v.sel : v.ok, frac: (bat['known'] as num) == 0 ? 0 : (bat['low'] as num) / (bat['known'] as num)),
                 if (shifts != null) _Stat(label: context.tr('an_duty'), value: '${shifts['out']} / ${shifts['total']}', color: v.blue, frac: (shifts['total'] as num) == 0 ? 0 : (shifts['out'] as num) / (shifts['total'] as num)),
-              ]),
+              ]) SizedBox(width: w, child: card)]);
+              }),
               const SizedBox(height: 16),
               if (insights.isNotEmpty) ...[
                 _Title(context.tr('an_attention')),
@@ -168,7 +173,7 @@ class _Stat extends StatelessWidget {
   final String? sub;
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: 158,
+        width: double.infinity,
         child: VgCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: TextStyle(color: context.vg.mut, fontSize: 12, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),

@@ -117,7 +117,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         Expanded(
           child: msgs.isEmpty
               ? EmptyState(icon: Icons.chat_bubble_outline_rounded, title: context.tr('chat_empty'))
-              : ListView.builder(controller: _scroll, padding: const EdgeInsets.all(12), itemCount: msgs.length, itemBuilder: (c, i) => _Bubble(m: msgs[i], showSender: _camera == null)),
+              : ListView.builder(controller: _scroll, padding: const EdgeInsets.all(12), itemCount: msgs.length, itemBuilder: (c, i) => _Bubble(m: msgs[i], who: chatSenderLabel(cams, msgs[i]), showSender: _camera == null)),
         ),
         SafeArea(
           top: false,
@@ -148,7 +148,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.m, required this.showSender});
+  const _Bubble({required this.m, required this.who, required this.showSender});
+  final String who;
   final ChatMessage m;
   final bool showSender;
   @override
@@ -164,7 +165,7 @@ class _Bubble extends StatelessWidget {
         constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .78),
         decoration: BoxDecoration(color: m.mine ? v.brand.withValues(alpha: .18) : v.panel, borderRadius: BorderRadius.circular(14), border: Border.all(color: m.mine ? v.brand.withValues(alpha: .4) : v.line)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          if (!m.mine && (showSender || m.sender.isNotEmpty)) Text(m.sender, style: TextStyle(color: v.sel, fontWeight: FontWeight.w800, fontSize: 12.5)),
+          if (!m.mine && (showSender || m.sender.isNotEmpty)) Text(who, style: TextStyle(color: v.sel, fontWeight: FontWeight.w800, fontSize: 12.5)),
           if (m.isVoice) VoiceBubble(dataUrl: m.audio!) else Text(m.text, style: const TextStyle(fontSize: 15, height: 1.35)),
           const SizedBox(height: 2),
           Align(alignment: AlignmentDirectional.centerEnd, child: Text(hm, style: TextStyle(color: v.mut, fontSize: 11))),

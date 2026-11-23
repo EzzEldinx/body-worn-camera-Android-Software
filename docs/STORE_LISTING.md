@@ -19,6 +19,9 @@ VisionGuard is the mobile app for owners and supervisors of body-worn camera fle
 See what matters, wherever you are:
 - Live view: watch any of your cameras live, with the quality adjusting to your network.
 - Alarms: SOS and battery alerts appear at once, and you can acknowledge them.
+- Chat: write to one officer or to everybody, send voice notes, and see a notice the moment an officer writes.
+- Analytics: what needs attention, SOS per day and hour, camera health and a written summary.
+- Live captions (when your company has them): what a streaming camera hears, as subtitles.
 - Map: see where every camera is.
 - Fleet: online status, who carries each camera, battery level and recording state.
 - Docking stations: the real layout of the dock, which camera sits in which slot, and what it is doing.
@@ -36,7 +39,7 @@ Accounts are created by your company administrator. The app does not create acco
 
 **Keywords (Apple, 96 characters):** body camera,security,live video,fleet,GPS,SOS,patrol,guards,surveillance,monitoring
 
-**What's new (first version):** First release of the VisionGuard mobile app.
+**What's new (1.1.0, first store version):** Live view, alarms, map and geofence zones, chat with voice notes, analytics, docking stations and recordings, in English and Arabic.
 
 ## العربية
 
@@ -54,6 +57,9 @@ VisionGuard هو تطبيق الجوال لملّاك ومشرفي أساطيل 
 تابع ما يهمك أينما كنت:
 - البث المباشر: شاهد أي كاميرا من كاميراتك مباشرة، وتتكيّف الجودة مع شبكتك.
 - التنبيهات: تظهر تنبيهات الطوارئ (SOS) وتنبيهات البطارية فوراً، ويمكنك الإقرار بها.
+- المحادثة: راسل ضابطاً واحداً أو الجميع، وأرسل ملاحظات صوتية، ويظهر لك إشعار فور أن يكتب أي ضابط.
+- التحليلات: ما يحتاج انتباهك، وإنذارات SOS حسب اليوم والساعة، وحالة الكاميرات، وملخص مكتوب.
+- الترجمة النصية المباشرة (إذا كانت مفعّلة لشركتك): ما تسمعه الكاميرا أثناء البث، كترجمة على الشاشة.
 - الخريطة: اعرف مكان كل كاميرا.
 - الأسطول: حالة الاتصال، ومن يحمل كل كاميرا، ومستوى البطارية، وحالة التسجيل.
 - محطات الإرساء: التخطيط الحقيقي للمحطة، وأي كاميرا في أي خانة، وماذا تفعل.
@@ -91,6 +97,16 @@ VisionGuard هو تطبيق الجوال لملّاك ومشرفي أساطيل 
 > The demo company has a few cameras so every screen can be seen. Live video shows only while a camera is streaming.
 > Contact: sdpt@smart-way.com.sa
 
+## Ready in the repository
+| | Where |
+|---|---|
+| iPhone 6.9" screenshots (1320x2868), 8 | `client/store/screenshots/iphone-6.9/en/` |
+| iPad 13" screenshots (2064x2752), 4 | `client/store/screenshots/ipad-13/en/` (also fine for Google tablet) |
+| Google phone screenshots (1434x2868, exactly 2:1), 8 | `client/store/screenshots/android-phone/en/` |
+| Google feature graphic 1024x500, icon 512 | `client/store/google-play/` |
+
+All screenshots use a fictional demo fleet (no customer data): `Unit 01 · North Gate` ... with fictional officer names, taken on simulators against a local test server.
+
 ## Still needed for the listing
-- Screenshots: iPhone 6.9" (1320x2868), iPad 13" (2064x2752), and for Google phone and tablet. They are taken after the demo account exists.
-- The demo company and account on the production server (a company user with a manager role, a few cameras).
+- The demo company and account on the production server for the reviewers (a company user with a manager role and a few cameras), filled into the notes above.
+- Optional: Arabic screenshots (the English ones can be used for the Arabic listing too).
