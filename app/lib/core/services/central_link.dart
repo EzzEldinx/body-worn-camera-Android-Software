@@ -21,6 +21,8 @@ class CentralConfig {
   /// This camera's own key for pushing its live stream (the server sends it over the socket, event `push_key`; kept in config.json so a
   /// recording started before the socket is up still has it). Without it a server with RTMP_PUBLISH_AUTH=on refuses the stream.
   static String pushKey = '';
+  /// The port of the server's RTMPS front door (0 = none): sent with the push key; then the live video goes out encrypted.
+  static int rtmpsPort = 0;
 
   /// ... overridden per camera by config.json in the app's files folder, which
   /// tools/update-cameras.ps1 writes: {"id": "BWC-05-RIY", "server": "http://...:3000", "token": "..."}.
@@ -37,6 +39,7 @@ class CentralConfig {
       if (j['server'] is String && (j['server'] as String).isNotEmpty) serverUrl = j['server'] as String;
       if (j['token'] is String && (j['token'] as String).isNotEmpty) token = j['token'] as String;
       if (j['pushKey'] is String) pushKey = j['pushKey'] as String;
+      if (j['rtmpsPort'] is int) rtmpsPort = j['rtmpsPort'] as int;
       await _moveToHttps(f, Map<String, dynamic>.from(j));
     } catch (e) {
       debugPrint('config.json ignored: $e');
@@ -66,13 +69,22 @@ class CentralConfig {
     }
   }
 
-  static String get rtmpUrl =>
-      'rtmp://${Uri.parse(serverUrl).host}:1935/live/$cameraId${pushKey.isEmpty ? '' : '?key=$pushKey'}';
+  /// Encrypted (rtmps) when the server runs the RTMPS front door and this camera talks to it by its HTTPS domain, because the
+  /// certificate is for that domain. Otherwise plain RTMP on 1935, as before.
+  static String get rtmpUrl {
+    final String host = Uri.parse(serverUrl).host;
+    final String query = pushKey.isEmpty ? '' : '?key=$pushKey';
+    if (rtmpsPort > 0 && serverUrl.startsWith('https://')) return 'rtmps://$host:$rtmpsPort/live/$cameraId$query';
+    return 'rtmp://$host:1935/live/$cameraId$query';
+  }
 
-  /// Remembers the push key the server sent (only when it changed).
-  static Future<void> savePushKey(String key) async {
-    if (key == pushKey || !RegExp(r'^[0-9a-f]{32}$').hasMatch(key)) return;
+  /// Remembers the push key and the RTMPS port the server sent (only when one of them changed).
+  static Future<void> savePushKey(String key, {int rtmps = 0}) async {
+    if (!RegExp(r'^[0-9a-f]{32}$').hasMatch(key)) return;
+    if (rtmps < 0 || rtmps > 65535) rtmps = 0;
+    if (key == pushKey && rtmps == rtmpsPort) return;
     pushKey = key;
+    rtmpsPort = rtmps;
     try {
       final dir = await getExternalStorageDirectory();
       if (dir == null) return;
@@ -80,6 +92,7 @@ class CentralConfig {
       final j = await f.exists() ? jsonDecode(await f.readAsString()) : <String, dynamic>{};
       if (j is! Map) return;
       j['pushKey'] = key;
+      j['rtmpsPort'] = rtmps;
       await f.writeAsString(jsonEncode(j));
     } catch (e) {
       debugPrint('push key not saved: $e');
@@ -353,7 +366,7 @@ class CentralLink {
         }
       })
       ..on('push_key', (d) {
-        if (d is Map && d['key'] is String && (d['cameraId'] == null || d['cameraId'] == CentralConfig.cameraId)) CentralConfig.savePushKey(d['key'] as String);
+        if (d is Map && d['key'] is String && (d['cameraId'] == null || d['cameraId'] == CentralConfig.cameraId)) CentralConfig.savePushKey(d['key'] as String, rtmps: d['rtmpsPort'] is int ? d['rtmpsPort'] as int : 0);
       })
       ..on('join_group', (d) {
         if (d is Map && d['groupId'] != null) {

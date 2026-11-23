@@ -71,6 +71,12 @@ class Api {
     final user = await Api(server, token: sid).me();
     return {'token': sid, 'expiresAt': DateTime.now().millisecondsSinceEpoch + 7 * 86400000, 'user': user.toJson()};
   }
+  /// Second step of a two-step sign-in: the challenge from [login] and the 6-digit code (or a recovery code). Returns {token, expiresAt, user}.
+  Future<Map> loginMfa(String challenge, String code) async => (await _post('/api/mobile/login/mfa', {'challenge': challenge, 'code': code})) as Map;
+  Future<Map> mfaStatus() async => (await _get('/api/me/mfa')) as Map;
+  Future<Map> mfaSetup() async => (await _post('/api/me/mfa/setup')) as Map;
+  Future<Map> mfaEnable(String code) async => (await _post('/api/me/mfa/enable', {'code': code})) as Map;
+  Future<void> mfaDisable(String password, String code) async => _post('/api/me/mfa/disable', {'password': password, 'code': code});
   Future<void> logout() async { try { await _post('/api/mobile/logout'); } catch (_) {} }
   Future<Map> access() async => (await _get('/api/me/access')) as Map;   // who this is and what they may see and do, with the reason for every no
   Future<User> me() async => User.fromJson((await _get('/api/me')) as Map);

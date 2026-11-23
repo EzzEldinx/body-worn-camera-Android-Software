@@ -111,7 +111,7 @@ function renderUsers() {
     return `<div class="ucard ${openU.has(u.id) ? 'open' : ''}" data-uid="${u.id}"><div class="user"><div class="av">${avatarInner('user', u.id, u.avatarTs, u.username[0].toUpperCase())}</div><div><b>${esc(u.username)}</b><small>${esc(u.name)}</small></div>
     <div class="sp"><select data-u="role">${Object.entries(ROLE).map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
       <button class="btn sm" data-u="pic">${t('em.photo')}</button><button class="chip-a" data-u="acc" title="${esc(t('em.accessTitle'))}"><i class="flip">▸</i>${esc(t('em.access', { what: u.role === 'manager' ? t('em.accessFull') : t('em.accessN', { n, total: AV.length }) }))}</button>
-      <button class="btn sm" data-u="pw">${t('em.reset')}</button><button class="btn sm danger" data-u="del">${t('em.remove')}</button></div></div>
+      ${u.mfa ? `<button class="btn sm" data-u="mfa" title="${t('em.mfaOn')}">${t('em.mfaReset')}</button>` : ''}<button class="btn sm" data-u="pw">${t('em.reset')}</button><button class="btn sm danger" data-u="del">${t('em.remove')}</button></div></div>
     <div class="acc">${u.role === 'manager' ? `<div class="full">${t('em.adminFull')}</div>`
       : `<div data-box>${featBoxes(sel, 'data-p')}<div class="fbar"><span class="fcount">${esc(t('em.selected', { n, total: AV.length }))}</span><button class="btn sm" data-u="all">${t('em.selectAll')}</button><button class="btn sm" data-u="none">${t('em.clear')}</button><button class="btn sm pri" data-u="save">${t('em.saveAccess')}</button></div></div>`}</div></div>`;
   }).join('') || `<div class="empty">${t('em.noUsers')}</div>`;
@@ -126,6 +126,7 @@ $('#ulist').addEventListener('click', (e) => {
   if (b.dataset.u === 'acc') { card.classList.toggle('open'); card.classList.contains('open') ? openU.add(Number(id)) : openU.delete(Number(id)); return; }
   if (b.dataset.u === 'all' || b.dataset.u === 'none') { box.querySelectorAll('[data-p]:not(:disabled)').forEach((c) => { c.checked = b.dataset.u === 'all'; }); sync(box, 'data-p'); return; }
   if (b.dataset.u === 'save') return api('PATCH', `/api/company/users/${id}`, { perms: ticked(box, 'data-p') }).then(() => { toast(t('em.accessSaved')); return loadUsers(); }).catch(fail);
+  if (b.dataset.u === 'mfa') { if (confirm(t('em.mfaConfirm'))) api('POST', `/api/users/${id}/mfa-reset`).then(() => { toast(t('em.mfaDone')); return loadUsers(); }).catch(fail); return; }
   if (b.dataset.u === 'pw') { const pw = prompt(t('em.promptPw'), genPw()); if (pw) api('POST', `/api/company/users/${id}/password`, { password: pw }).then(() => toast(t('em.pwChanged'))).catch(fail); }
   else if (confirm(t('em.confirmUser'))) api('DELETE', `/api/company/users/${id}`).then(loadUsers).catch(fail);
 });

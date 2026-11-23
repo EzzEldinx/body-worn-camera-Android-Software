@@ -58,6 +58,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with TickerProviderSt
       HapticFeedback.heavyImpact();
       await _burst.forward();                 // the iris opens wide...
       notifier.commit(session);               // ...and the app appears
+    } on MfaNeeded catch (m) {
+      final session = await _askCode(notifier, m);
+      if (session == null || !mounted) return;
+      HapticFeedback.heavyImpact();
+      await _burst.forward();
+      notifier.commit(session);
     } on ApiError catch (e) {
       if (!mounted) return;
       HapticFeedback.vibrate();
@@ -66,6 +72,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with TickerProviderSt
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Two-step sign-in: asks for the code until it is right, the challenge runs out, or the person cancels.
+  Future<Session?> _askCode(AuthController notifier, MfaNeeded m) async {
+    String? err;
+    while (mounted) {
+      final c = TextEditingController();
+      final code = await showDialog<String>(context: context, barrierDismissible: false, builder: (d) => AlertDialog(
+        title: Text(context.tr('mfa_title')),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(context.tr('mfa_enter')),
+          const SizedBox(height: 12),
+          TextField(controller: c, autofocus: true, keyboardType: TextInputType.visiblePassword, textInputAction: TextInputAction.done, autofillHints: const [AutofillHints.oneTimeCode],
+            textDirection: TextDirection.ltr, decoration: InputDecoration(hintText: context.tr('mfa_code'), errorText: err, errorMaxLines: 3), onSubmitted: (v) => Navigator.pop(d, v)),
+          const SizedBox(height: 8),
+          Text(context.tr('mfa_recovery_hint'), style: const TextStyle(fontSize: 12)),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: Text(context.tr('cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(d, c.text), child: Text(context.tr('mfa_verify'))),
+        ],
+      ));
+      if (code == null || code.trim().isEmpty) return null;
+      try {
+        return await notifier.authenticateMfa(m, code);
+      } on ApiError catch (e) {
+        if (!mounted) return null;
+        HapticFeedback.vibrate();
+        if (e.status != 401 || e.offline) { setState(() => _error = e.offline ? context.tr('no_server') : e.message); return null; }
+        err = e.message;   // wrong code (the server's words, in the app's language): try again
+      }
+    }
+    return null;
   }
 
   // Hidden: long-press the logo to point the app at another server (staging, on-premise customers).

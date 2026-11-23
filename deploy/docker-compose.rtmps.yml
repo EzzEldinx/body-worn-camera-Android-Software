@@ -1,0 +1,26 @@
+# Encrypted live video (RTMPS). Adds a small nginx that takes the cameras' RTMPS on port 1936 (TLS, the site's Let's Encrypt certificate),
+# and passes plain RTMP to VisionGuard inside the private Docker network. The server then tells every camera to use rtmps://<domain>:1936
+# (RTMPS_PUBLIC_PORT); cameras on an older app keep using plain RTMP on 1935 until they update.
+#   docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.transcribe.yml -f docker-compose.rtmps.yml up -d --build
+# Needs in .env: RTMP_BIND_IP (as for 1935) and RTMPS_DOMAIN (the domain the certificate is for). The certificate is read from
+# /etc/letsencrypt on the host (read only) and reloaded every 12 hours, so certbot renewals are picked up without a restart.
+services:
+  visionguard:
+    environment:
+      RTMPS_PUBLIC_PORT: ${RTMPS_PUBLIC_PORT:-1936}
+  rtmps:
+    image: nginx:1.27-alpine
+    container_name: visionguard-rtmps
+    restart: unless-stopped
+    depends_on: [visionguard]
+    environment:
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx
+      RTMPS_CERT: /etc/letsencrypt/live/${RTMPS_DOMAIN:?set RTMPS_DOMAIN in .env}/fullchain.pem
+      RTMPS_KEY: /etc/letsencrypt/live/${RTMPS_DOMAIN:?set RTMPS_DOMAIN in .env}/privkey.pem
+      RTMPS_UPSTREAM: visionguard:1935
+    volumes:
+      - ./rtmps-nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      - ${RTMPS_CERT_DIR:-/etc/letsencrypt}:/etc/letsencrypt:ro
+    command: ["/bin/sh", "-c", "/docker-entrypoint.sh nginx -g 'daemon off;' & while sleep 43200; do nginx -s reload || exit 1; done"]
+    ports:
+      - "${RTMP_BIND_IP:-0.0.0.0}:${RTMPS_PUBLIC_PORT:-1936}:1936"

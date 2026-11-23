@@ -10,6 +10,7 @@
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("bwc-theme")||"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
 <style>
+form[hidden]{display:none}
 :root{--bg:#EEF2F8;--panel:#fff;--raise:#F2F5FA;--line:#DAE2EC;--text:#0F1B2D;--mut:#62738C;--brand:#5E4A9E;--sel:#FFB300;--sel-ink:#1A1405;--rec:#E5384F;--ok:#00B87C;
 --glow:0 0 0 1px rgba(255,179,0,.55),0 4px 18px rgba(255,179,0,.38);
 font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;color-scheme:light}
@@ -55,10 +56,10 @@ input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-sha
 .eye svg{position:static;transform:none}
 .eye:hover{color:var(--text)}
 #p{padding-right:44px}
-#b{width:100%;margin-top:26px;padding:14px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--sel),#FF9D00);color:var(--sel-ink);font:inherit;font-size:15.5px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(255,179,0,.42);transition:.15s}
-#b:hover{transform:translateY(-1px);filter:brightness(1.04)}
-#b:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
-#b:disabled{opacity:.6;cursor:default;transform:none}
+#b,#mb{width:100%;margin-top:26px;padding:14px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--sel),#FF9D00);color:var(--sel-ink);font:inherit;font-size:15.5px;font-weight:800;cursor:pointer;box-shadow:0 8px 22px rgba(255,179,0,.42);transition:.15s}
+#b:hover,#mb:hover{transform:translateY(-1px);filter:brightness(1.04)}
+#b:focus-visible,#mb:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+#b:disabled,#mb:disabled{opacity:.6;cursor:default;transform:none}
 #err{min-height:20px;margin-top:14px;color:var(--rec);font-size:14px;text-align:center}
 .secure{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;color:var(--mut);font-size:12px}
 .secure svg{width:14px;height:14px;fill:none;stroke:var(--ok);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
@@ -117,6 +118,20 @@ input:focus{outline:none;background:var(--panel);border-color:var(--sel);box-sha
     </div>
 
     <button id="b" data-i18n="lg.signin">Sign in</button>
+  </form>
+  <form id="mf" hidden>
+    <div class="vg-lock"><img class="vg-logo big logo-light" src="/brand/visionguard-logo-sm.png" alt="VisionGuard"><img class="vg-logo big logo-dark" src="/brand/visionguard-logo-light.png" alt="VisionGuard"></div>
+    <h1 data-i18n="lg.mfaTitle">Two-step sign-in</h1>
+    <p class="sub" data-i18n="lg.mfaSub">Enter the 6-digit code from your authenticator app.</p>
+    <label for="c" data-i18n="lg.mfaCode">Code</label>
+    <div class="field">
+      <svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      <input id="c" dir="ltr" inputmode="numeric" autocomplete="one-time-code" maxlength="11" required>
+    </div>
+    <p class="sub" style="margin-top:10px;font-size:13px" data-i18n="lg.mfaRec">Lost your phone? Type one of your recovery codes instead.</p>
+    <button id="mb" data-i18n="lg.mfaGo">Verify</button>
+    <button id="back" type="button" class="link" style="background:none;border:0;color:var(--mut);margin-top:10px;cursor:pointer;width:100%" data-i18n="lg.mfaBack">Back</button>
+    <div id="merr" role="alert" style="min-height:20px;margin-top:14px;color:var(--rec);font-size:14px;text-align:center"></div>
     <div id="err" role="alert"></div>
     <div class="secure"><svg viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 4.6 3.1 8.3 7.5 10 4.4-1.7 7.5-5.4 7.5-10v-6z"/><path d="M9 12l2 2 4-4"/></svg><span data-i18n="lg.secure">Encrypted, authorized access only</span></div>
   </form>
@@ -141,8 +156,36 @@ document.getElementById('f').addEventListener('submit', async (e) => {
   try {
     const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.mfa) { challenge = j.challenge; step(true); b.disabled = false; return; }   // two-step sign-in: the code comes next
     if (r.ok) return (location.href = '/analytics.html'); // landing page: analytics, then the live dashboard
-    err.textContent = (await r.json()).error || VG.t('lg.fail');
+    err.textContent = j.error || VG.t('lg.fail');
+  } catch (x) { err.textContent = VG.t('lg.net'); }
+  b.disabled = false;
+});
+
+// Two-step sign-in: the password was right; the session only comes with the code (or a recovery code).
+let challenge = null;
+const step = (code) => {
+  document.getElementById('f').hidden = code; document.getElementById('mf').hidden = !code;
+  document.getElementById('merr').textContent = ''; const c = document.getElementById('c'); c.value = '';
+  if (code) c.focus(); else { challenge = null; document.getElementById('p').value = ''; document.getElementById('p').focus(); }
+};
+document.getElementById('back').onclick = () => step(false);
+document.getElementById('mf').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const b = document.getElementById('mb'), err = document.getElementById('merr');
+  b.disabled = true; err.textContent = '';
+  try {
+    const r = await fetch('/api/login/mfa', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge, code: document.getElementById('c').value.trim() }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) {
+      if (typeof j.recoveryLeft === 'number') alert(VG.t('lg.mfaLeft', { n: j.recoveryLeft }));
+      return (location.href = '/analytics.html');
+    }
+    err.textContent = j.error || VG.t('lg.fail');
+    if (j.code === 'mfa_expired' || j.code === 'mfa_locked') setTimeout(() => step(false), 2500);
   } catch (x) { err.textContent = VG.t('lg.net'); }
   b.disabled = false;
 });

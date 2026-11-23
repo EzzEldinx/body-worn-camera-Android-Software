@@ -2,6 +2,13 @@
 // the English text stays the contract (the dock agent and the apps still read it); a browser or app that asks for Arabic gets the Arabic one.
 // test/i18n.test.js reads the server's source and fails when a message is missing here, so a new error cannot slip through untranslated.
 const ERRORS = {
+    'You cannot change this user.': 'لا يمكنك تعديل هذا المستخدم.',
+    'This sign-in step has run out. Sign in again.': 'انتهت مهلة خطوة الدخول هذه. سجّل الدخول من جديد.',
+    'Too many wrong codes. Sign in again.': 'رموز خاطئة كثيرة. سجّل الدخول من جديد.',
+    'Wrong code. Check that the time on your phone is right and try again.': 'رمز غير صحيح. تأكد أن الوقت في جوالك صحيح ثم حاول مرة أخرى.',
+    'Start the set-up again: no code was waiting.': 'ابدأ الإعداد من جديد: لا يوجد رمز بانتظار التأكيد.',
+    'Two-step sign-in is already on. Switch it off first to move it to a new phone.': 'التحقق بخطوتين مفعّل بالفعل. أوقفه أولاً لنقله إلى جوال جديد.',
+    'Enter your password and a current code from your app to switch two-step sign-in off.': 'أدخل كلمة المرور ورمزاً حالياً من تطبيقك لإيقاف التحقق بخطوتين.',
     '"From" must not be after "To".': '«من» يجب ألا يكون بعد «إلى».',
     '"To" cannot be in the future.': '«إلى» لا يمكن أن يكون في المستقبل.',
     'A checkpoint must be passed every 5 to 720 minutes.': 'يجب المرور بنقطة المرور كل 5 إلى 720 دقيقة.',

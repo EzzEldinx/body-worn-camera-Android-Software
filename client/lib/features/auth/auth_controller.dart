@@ -5,6 +5,12 @@ import '../../core/api/api.dart';
 import '../../core/api/models.dart';
 import '../../core/env.dart';
 
+/// The password was right and the account has two-step sign-in: the code is asked next ([AuthController.authenticateMfa]).
+class MfaNeeded implements Exception {
+  MfaNeeded(this.server, this.challenge);
+  final String server, challenge;
+}
+
 class Session {
   Session({required this.server, required this.token, required this.user});
   final String server, token;
@@ -40,6 +46,14 @@ class AuthController extends AsyncNotifier<Session?> {
   Future<Session> authenticate(String username, String password, {String? server}) async {
     final base = (server ?? kDefaultServer).replaceAll(RegExp(r'/+$'), '');
     final j = await Api(base).login(username.trim(), password);
+    if (j['mfa'] == true) throw MfaNeeded(base, '${j['challenge']}');
+    return _save(base, j);
+  }
+
+  /// Second step: the code from the authenticator app (or a recovery code) turns the challenge into a session.
+  Future<Session> authenticateMfa(MfaNeeded m, String code) async => _save(m.server, await Api(m.server).loginMfa(m.challenge, code.trim()));
+
+  Future<Session> _save(String base, Map j) async {
     final user = User.fromJson(j['user'] as Map);
     await _store.write(key: 'vg_token', value: j['token'] as String);
     await _store.write(key: 'vg_server', value: base);

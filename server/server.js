@@ -34,6 +34,9 @@ function authCamera(token) {
 // Live-stream play URLs are signed per request; the secret only lives in memory.
 const STREAM_SECRET = process.env.STREAM_SECRET || crypto.randomBytes(24).toString('hex');
 const publishKey = require('./publishkey').init({ dataDir: process.env.DATA_DIR || path.join(__dirname, 'data'), streamSecret: STREAM_SECRET });
+// RTMPS: when the TLS front door runs (deploy/docker-compose.rtmps.yml) the cameras are told its port and push their video encrypted
+// (rtmps://<domain>:<port>); a camera app that does not know it keeps plain RTMP on 1935.
+const RTMPS_PUBLIC_PORT = (() => { const n = Number(process.env.RTMPS_PUBLIC_PORT); return Number.isInteger(n) && n > 0 && n < 65536 ? n : 0; })();
 const DAY = 86400000;
 
 // ---------- First run: create the admin account ----------
@@ -243,12 +246,27 @@ function dropSession(token) {
     db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
     for (const s of io.sockets.sockets.values()) if (s.data.session === token) s.disconnect(true);
 }
+// Two-step sign-in (mfa.js): a person with MFA on gets a short challenge after the password, and the session only after the code.
+const mfa = require('./mfa').init(db);
+const MFA_ERRORS = { mfa_expired: 'This sign-in step has run out. Sign in again.', mfa_locked: 'Too many wrong codes. Sign in again.',
+    mfa_wrong: 'Wrong code. Check that the time on your phone is right and try again.', mfa_no_setup: 'Start the set-up again: no code was waiting.' };
+const webSession = (res, req, user) => {
+    const token = newSession(user.id, 7 * DAY);
+    res.setHeader('Set-Cookie', `sid=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 86400}${req.secure ? '; Secure' : ''}`);   // Secure whenever the site is reached over HTTPS
+};
 app.post('/api/login', async (req, res) => {
     const r = await checkLogin(req);
     if (r.error) return res.status(r.status).json({ error: r.error });
-    const token = newSession(r.user.id, 7 * DAY);
-    res.setHeader('Set-Cookie', `sid=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 86400}${req.secure ? '; Secure' : ''}`);   // Secure whenever the site is reached over HTTPS
+    if (mfa.enabled(r.user)) return res.json({ mfa: true, challenge: mfa.challenge(r.user.id, 'web') });
+    webSession(res, req, r.user);
     res.json({ ok: true });
+});
+app.post('/api/login/mfa', (req, res) => {
+    const v = mfa.verify(req.body?.challenge, req.body?.code, 'web');
+    if (v.reason) return res.status(v.status).json({ error: MFA_ERRORS[v.reason], code: v.reason, left: v.left });
+    auditlog.add(db, v.user.username, v.usedRecovery ? 'login_mfa_recovery' : 'login_mfa', null, v.usedRecovery ? { recoveryLeft: v.recoveryLeft } : null);
+    webSession(res, req, v.user);
+    res.json({ ok: true, recoveryLeft: v.recoveryLeft });
 });
 app.post('/api/logout', (req, res) => {
     dropSession(parseCookie(req.headers.cookie).sid);
@@ -322,13 +340,58 @@ app.get('/api/mobile/config', (req, res) => res.json({
     name: 'VisionGuard', api: MOBILE_API, minAppVersion: process.env.MIN_APP_VERSION || '1.0.0', maintenance: process.env.MAINTENANCE === '1',
     license: license.summary(null),
 }));
+const mobileSession = (res, userId, extra) => {
+    const ttl = 30 * DAY, token = newSession(userId, ttl);
+    const u = userBySession(token);
+    auditlog.add(db, u.username, 'mobile_login', null, extra || null);
+    res.json({ token, expiresAt: Date.now() + ttl, user: { ...u, staff: isStaff(u), super: isSuper(u) } });
+};
 app.post('/api/mobile/login', async (req, res) => {
     const r = await checkLogin(req);
     if (r.error) return res.status(r.status).json({ error: r.error });
-    const ttl = 30 * DAY, token = newSession(r.user.id, ttl);
-    const u = userBySession(token);
-    auditlog.add(db, u.username, 'mobile_login', null);
-    res.json({ token, expiresAt: Date.now() + ttl, user: { ...u, staff: isStaff(u), super: isSuper(u) } });
+    if (mfa.enabled(r.user)) return res.json({ mfa: true, challenge: mfa.challenge(r.user.id, 'mobile') });
+    mobileSession(res, r.user.id);
+});
+app.post('/api/mobile/login/mfa', (req, res) => {
+    const v = mfa.verify(req.body?.challenge, req.body?.code, 'mobile');
+    if (v.reason) return res.status(v.status).json({ error: MFA_ERRORS[v.reason], code: v.reason, left: v.left });
+    mobileSession(res, v.user.id, { mfa: v.usedRecovery ? 'recovery' : 'code', ...(v.usedRecovery ? { recoveryLeft: v.recoveryLeft } : {}) });
+});
+
+// ---------- Two-step sign-in: each person switches it on for themself; an administrator can switch it off for someone who lost their phone ----------
+app.get('/api/me/mfa', needUser, (req, res) => res.json(mfa.status(req.user.id)));
+app.post('/api/me/mfa/setup', needUser, (req, res) => {
+    if (mfa.status(req.user.id).enabled) return res.status(400).json({ error: 'Two-step sign-in is already on. Switch it off first to move it to a new phone.' });
+    const b = mfa.begin(req.user);
+    require('qrcode').toString(b.url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' })
+        .then((qr) => res.json({ ...b, qr }), () => res.json(b));   // the QR is a convenience: the secret as text always works
+});
+app.post('/api/me/mfa/enable', needUser, (req, res) => {
+    const r = mfa.confirm(req.user.id, req.body?.code);
+    if (r.reason) return res.status(r.status).json({ error: MFA_ERRORS[r.reason], code: r.reason });
+    auditlog.add(db, req.user.username, 'mfa_enabled', null);
+    res.json({ ok: true, recoveryCodes: r.codes });
+});
+app.post('/api/me/mfa/disable', needUser, async (req, res) => {
+    const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!u || !u.mfa_secret) return res.json({ ok: true });
+    if (!logins.enter(req.ip, u.username)) return res.status(429).json({ error: 'Too many attempts. Try again in a few minutes.' });
+    const pwOk = await verifyPasswordAsync(String(req.body?.password ?? '').slice(0, 256), u.pass);
+    const codeOk = pwOk && require('./mfa').match(u.mfa_secret, req.body?.code, Date.now(), u.mfa_last ?? -1) !== null;
+    logins.leave(req.ip, u.username, codeOk);
+    if (!codeOk) return res.status(401).json({ error: 'Enter your password and a current code from your app to switch two-step sign-in off.' });
+    mfa.disable(u.id);
+    auditlog.add(db, u.username, 'mfa_disabled', null);
+    res.json({ ok: true });
+});
+// Lost phone: Smart Way, or the person's own company administrator, switches it off; the person sets it up again after signing in.
+app.post('/api/users/:id/mfa-reset', needUser, (req, res) => {
+    const t = userTarget(req.params.id);
+    if (!t || t.id === req.user.id || !mayEditUser(req.user, t)) return res.status(403).json({ error: 'You cannot change this user.' });
+    mfa.disable(t.id);
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(t.id); kickUsers([t.id]);
+    auditlog.add(db, req.user.username, 'mfa_reset', null, { user: t.username });
+    res.json({ ok: true });
 });
 app.post('/api/mobile/logout', needUser, (req, res) => {
     const t = bearer(req.headers.authorization);
@@ -362,7 +425,7 @@ const permsToStore = (list, companyId, role) => {
 };
 // A user row as the administrators see it: `access` = everything the person may see and do right now.
 const withAccess = ({ perms, ...u }, companyId) => ({ ...u, access: features.effective({ manager: u.role === 'manager', role: u.role, companyFeatures: companyFeaturesRaw(companyId), perms }), custom: perms != null });
-app.get('/api/company/users', needUser, needCompanyManager, (req, res) => res.json({ users: db.prepare("SELECT id,username,name,role,perms,avatar_ts AS avatarTs FROM users WHERE company_id = ? AND role IN ('manager','client','viewer') ORDER BY username").all(req.user.companyId).map((u) => withAccess(u, req.user.companyId)),
+app.get('/api/company/users', needUser, needCompanyManager, (req, res) => res.json({ users: db.prepare("SELECT id,username,name,role,perms,avatar_ts AS avatarTs,(mfa_secret IS NOT NULL) AS mfa FROM users WHERE company_id = ? AND role IN ('manager','client','viewer') ORDER BY username").all(req.user.companyId).map((u) => withAccess(u, req.user.companyId)),
     available: companyAvail(req.user.companyId), catalog: features.ALL, defaults: Object.fromEntries(['manager', 'client', 'viewer'].map((r) => [r, features.effective({ manager: r === 'manager', role: r, companyFeatures: companyFeaturesRaw(req.user.companyId) })])) }));
 app.post('/api/company/users', needUser, needCompanyManager, (req, res) => {
     const username = String(req.body?.username ?? '').trim(), password = String(req.body?.password ?? ''), name = String(req.body?.name ?? '').trim().slice(0, 60) || username, role = String(req.body?.role || 'client');
@@ -700,7 +763,7 @@ app.get('/api/admin/companies', adminOnly, (req, res) => {
     const tokenIds = new Set(db.prepare('SELECT id FROM cameras WHERE token_hash IS NOT NULL').all().map((r) => r.id));
     const companies = db.prepare('SELECT id,name,max_cameras AS maxCameras,max_live AS maxLive,sub_end AS subEnd,features,logo_ts AS logoTs FROM companies ORDER BY name').all().map(({ features: f, ...c }) => ({
         ...c, features: companyAvail(c.id), allFeatures: f === null, subscription: subscriptionOf(c.id), camerasUsed: cameraCount(c.id), liveNow: liveCount(c.id),
-        users: db.prepare('SELECT id,username,name,role,employee_no AS employeeNo,active,perms,avatar_ts AS avatarTs FROM users WHERE company_id = ? ORDER BY role = \'officer\', username').all(c.id)
+        users: db.prepare('SELECT id,username,name,role,employee_no AS employeeNo,active,perms,avatar_ts AS avatarTs,(mfa_secret IS NOT NULL) AS mfa FROM users WHERE company_id = ? ORDER BY role = \'officer\', username').all(c.id)
             .map((u0) => withAccess(u0, c.id)).map((u) => ({ ...u, active: u.active !== 0, holding: u.role === 'officer' || u.role === 'client' ? (checkout.openOf(u.id) ? cams.get(checkout.openOf(u.id).camera_id)?.name || checkout.openOf(u.id).camera_id : null) : null })),
     }));
     const cameras = [...cams.values()].map((c) => ({ id: c.cameraId, name: c.name, companyId: c.companyId, region: c.region || null, online: c.online, hasToken: tokenIds.has(c.cameraId) }));
@@ -1219,7 +1282,7 @@ io.on('connection', (socket) => {
         live.set(id, socket.id);
         socket.join(`room:camera_${id}`);
         socket.join(`room:public_${cams.get(id)?.companyId || 0}`);
-        if (socket.data.keyFor !== id) { socket.data.keyFor = id; socket.emit('push_key', { cameraId: id, key: publishKey.keyOf(id) }); }   // the camera adds it to its RTMP address (publishkey.js)
+        if (socket.data.keyFor !== id) { socket.data.keyFor = id; socket.emit('push_key', { cameraId: id, key: publishKey.keyOf(id), ...(RTMPS_PUBLIC_PORT ? { rtmpsPort: RTMPS_PUBLIC_PORT } : {}) }); }   // the camera adds it to its RTMP address (publishkey.js)
         if (socket.data.assignFor !== id) { socket.data.assignFor = id; socket.emit('assignment', checkout.payload(id)); }   // who carries this camera now (the camera stamps it on the picture)
     };
     on('get_assignment', () => { if (socket.data.cameraId) socket.emit('assignment', checkout.payload(socket.data.cameraId)); });

@@ -18,3 +18,12 @@
 .pf-r small.why{color:var(--rec,#FF3355);font-weight:600}
 .pf-r .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .pf-f{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+
+/* two-step sign-in */
+.pf-mfa .pf-intro{margin:4px 0}
+.pf-qr{width:180px;height:180px;margin:8px 0;padding:8px;background:#fff;border-radius:12px}
+.pf-qr svg{width:100%;height:100%;display:block}
+.pf-key{font-size:13px;margin:6px 0}.pf-key code{font-size:13px;letter-spacing:.5px;word-break:break-all}
+.pf-in{display:block;width:100%;max-width:280px;margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line,#2A3547);background:var(--raise,transparent);color:var(--text,inherit);font:inherit;font-size:15px}
+.pf-codes{background:var(--raise,rgba(255,255,255,.05));border:1px solid var(--line,#2A3547);border-radius:10px;padding:10px 14px;font-size:14px;line-height:1.7;columns:2;max-width:320px}
+.pf-mfa-err{color:var(--rec,#FF3355);font-weight:600;font-size:13px;margin:6px 0}

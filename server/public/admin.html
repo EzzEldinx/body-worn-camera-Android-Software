@@ -205,7 +205,7 @@ function render() {
       <div class="users">${co.users.filter((u) => u.role !== 'officer').map((u) => `
         <div class="uw ${openU.has(u.id) ? 'open' : ''}" data-uid="${u.id}"><div class="user" data-uid="${u.id}"><div class="av">${avatarInner('user', u.id, u.avatarTs, u.username[0].toUpperCase())}</div>
           <div><b>${esc(u.username)}</b><small>${esc(u.name)} · ${ROLE(u.role)}</small></div>
-          <div class="sp"><button class="btn sm" data-act="upic">${t('em.photo')}</button><button class="btn sm" data-act="uacc">${esc(t('ad.accessOn', { what: u.role === 'manager' ? t('em.accessFull') : t('ad.on', { n: u.access.filter((k) => co.features.includes(k) || (data.catalog.find((f) => f.key === k) || {}).kind === 'action').length }) }))}</button><button class="btn sm" data-act="pw">${t('em.reset')}</button><button class="btn sm danger" data-act="deluser">${t('em.remove')}</button></div></div>
+          <div class="sp"><button class="btn sm" data-act="upic">${t('em.photo')}</button><button class="btn sm" data-act="uacc">${esc(t('ad.accessOn', { what: u.role === 'manager' ? t('em.accessFull') : t('ad.on', { n: u.access.filter((k) => co.features.includes(k) || (data.catalog.find((f) => f.key === k) || {}).kind === 'action').length }) }))}</button>${u.mfa ? `<button class="btn sm" data-act="mfa" title="${t('em.mfaOn')}">${t('em.mfaReset')}</button>` : ''}<button class="btn sm" data-act="pw">${t('em.reset')}</button><button class="btn sm danger" data-act="deluser">${t('em.remove')}</button></div></div>
           <div class="uacc">${u.role === 'manager' ? `<div class="muted" style="padding-top:12px;font-size:13px">${t('ad.adminFull')}</div>`
             : `<div data-ubox>${featBoxes(u.access, co.features, 'data-up', ['feature', 'action'])}<div class="fbar"><span class="fcount">${esc(t('ad.nSelected', { n: u.access.length }))}</span><button class="btn sm" data-act="uall">${t('em.selectAll')}</button><button class="btn sm" data-act="unone">${t('em.clear')}</button><button class="btn sm pri" data-act="usave">${t('em.saveAccess')}</button></div></div>`}</div></div>`).join('') || `<div class="empty">${t('em.noUsers')}</div>`}</div>
       ${lastCred[co.id] ? `<div class="cred">${t('ad.loginFor')} <code>${esc(lastCred[co.id].username)}</code> <code>${esc(lastCred[co.id].password)}</code>
@@ -309,6 +309,8 @@ $('#companies').addEventListener('click', (e) => {
     api('PATCH', `/api/admin/users/${u.id}`, { name, employeeNo: no }).then(() => { toast(t('em.saved')); return load(); }).catch(fail);
   } else if (act === 'deluser') {
     if (confirm(t('ad.c.delUser'))) api('DELETE', `/api/admin/users/${b.closest('.user').dataset.uid}`).then(load).catch(fail);
+  } else if (act === 'mfa') {
+    if (confirm(t('em.mfaConfirm'))) api('POST', `/api/users/${b.closest('.user').dataset.uid}/mfa-reset`).then(() => { toast(t('em.mfaDone')); return load(); }).catch(fail);
   } else if (act === 'pw') {
     const pw = prompt(t('em.promptPw'), genPw());
     if (pw) api('POST', `/api/admin/users/${b.closest('.user').dataset.uid}/password`, { password: pw })

@@ -14,6 +14,10 @@
     'pf.see': 'What you can see', 'pf.do': 'What you can do', 'pf.yes': 'Allowed', 'pf.no': 'Not allowed',
     'pf.why.viewer': 'Read-only account.', 'pf.why.plan': 'Not in the package of your company: ask Smart Way.', 'pf.why.admin': 'Your company administrator has not given you this: ask them.',
     'pf.sub': 'Subscription until {date}',
+    'pf.mfa': 'Two-step sign-in', 'pf.mfa.on': 'On since {date}. {n} recovery codes left.', 'pf.mfa.off': 'Off. Turn it on so a stolen password alone cannot open your account.',
+    'pf.mfa.setup': 'Turn on', 'pf.mfa.off.b': 'Turn off', 'pf.mfa.scan': 'Scan this code with an authenticator app (Google Authenticator, Microsoft Authenticator or Authy), or type the key by hand, then enter the 6-digit code it shows.',
+    'pf.mfa.key': 'Key', 'pf.mfa.code': '6-digit code', 'pf.mfa.confirm': 'Confirm', 'pf.mfa.done': 'Two-step sign-in is on. Keep these recovery codes somewhere safe: each one signs you in once if you lose your phone. They are shown only now.',
+    'pf.mfa.copy': 'Copy codes', 'pf.mfa.copied': 'Copied', 'pf.mfa.pw': 'Your password', 'pf.mfa.offAsk': 'To turn it off, enter your password and a current code from your app.', 'pf.mfa.cancel': 'Cancel',
   },
   ar: {
     'pf.title': 'ملفي وصلاحياتي', 'pf.open': 'الملف الشخصي والصلاحيات', 'pf.close': 'إغلاق', 'pf.pic': 'تغيير الصورة',
@@ -27,6 +31,10 @@
     'pf.see': 'ما يمكنك رؤيته', 'pf.do': 'ما يمكنك فعله', 'pf.yes': 'مسموح', 'pf.no': 'غير مسموح',
     'pf.why.viewer': 'حساب للقراءة فقط.', 'pf.why.plan': 'غير مشمول في باقة شركتك: اطلب من سمارت واي.', 'pf.why.admin': 'لم يمنحك مدير شركتك هذه الصلاحية: اطلبها منه.',
     'pf.sub': 'الاشتراك حتى {date}',
+    'pf.mfa': 'التحقق بخطوتين', 'pf.mfa.on': 'مفعّل منذ {date}. تبقّى {n} من رموز الاسترداد.', 'pf.mfa.off': 'غير مفعّل. فعّله حتى لا تكفي كلمة مرور مسروقة وحدها لفتح حسابك.',
+    'pf.mfa.setup': 'تفعيل', 'pf.mfa.off.b': 'إيقاف', 'pf.mfa.scan': 'امسح هذا الرمز بتطبيق مصادقة (Google Authenticator أو Microsoft Authenticator أو Authy)، أو اكتب المفتاح يدوياً، ثم أدخل الرمز المكوّن من 6 أرقام الذي يظهر.',
+    'pf.mfa.key': 'المفتاح', 'pf.mfa.code': 'رمز من 6 أرقام', 'pf.mfa.confirm': 'تأكيد', 'pf.mfa.done': 'التحقق بخطوتين مفعّل. احفظ رموز الاسترداد هذه في مكان آمن: كل رمز يُدخلك مرة واحدة إذا فقدت جوالك. لن تظهر مرة أخرى.',
+    'pf.mfa.copy': 'نسخ الرموز', 'pf.mfa.copied': 'تم النسخ', 'pf.mfa.pw': 'كلمة المرور', 'pf.mfa.offAsk': 'لإيقافه، أدخل كلمة المرور ورمزاً حالياً من تطبيقك.', 'pf.mfa.cancel': 'إلغاء',
   },
 }
 );

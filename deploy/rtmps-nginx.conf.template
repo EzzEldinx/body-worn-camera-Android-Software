@@ -1,0 +1,23 @@
+# RTMPS front door: the cameras push their live video over TLS to this port; nginx unwraps it and hands plain RTMP to the
+# VisionGuard container over the private Docker network. Rendered to /etc/nginx/nginx.conf by the nginx image (envsubst).
+worker_processes 1;
+error_log /dev/stderr warn;
+events { worker_connections 4096; }
+
+stream {
+    log_format rtmps '$remote_addr [$time_local] $status sent=$bytes_sent received=$bytes_received $session_time s';
+    access_log /dev/stdout rtmps;
+
+    server {
+        listen 1936 ssl;
+        ssl_certificate     ${RTMPS_CERT};
+        ssl_certificate_key ${RTMPS_KEY};
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_session_cache   shared:rtmps:10m;
+        ssl_handshake_timeout 15s;
+
+        proxy_pass          ${RTMPS_UPSTREAM};
+        proxy_connect_timeout 10s;
+        proxy_timeout       2h;      # a live stream is one long connection
+    }
+}
