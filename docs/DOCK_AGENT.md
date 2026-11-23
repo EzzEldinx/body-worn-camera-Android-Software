@@ -1,5 +1,7 @@
 # VisionGuard Dock Agent
 
+Last updated: 2026-11-23
+
 Code: `dock-agent/` (Node.js 22, `adb`). Tests: `node --test dock-agent/test/*.test.js`.
 
 Runs on the PC next to the docking station. Pulls recordings from every camera over USB, verifies them
@@ -11,6 +13,7 @@ DOCK_SERVER=https://visionguard.smartwaygroup.com.sa DOCK_TOKEN=<token> node age
 DOCK_SERVER=... DOCK_TOKEN=... node agent.js --delete --interval 30                              # keep running, free camera space
 ```
 Needs Node 22+ and `adb` (set `ADB=/path/to/adb` if it is not in PATH). Files modified in the last minute are never touched.
+Only cameras are handled: a USB device counts when its model is a known camera model (`DOCK_MODELS`, default `SDJW`) or it has the camera app installed. A phone or tablet plugged into the same computer (for example for app testing) is ignored.
 Recordings appear in the dashboard API at `/api/recordings` (company users only see their own cameras).
 
 ## The moment a camera is docked

@@ -1,7 +1,7 @@
 # VisionGuard (Smart Way Group BWC): Complete Operations Guide
 
 > Audience: the people who run, support and extend VisionGuard. Commands are given so they can be copied and pasted.
-> Last updated: 2026-11-18. Unless stated otherwise, PowerShell commands are run from the project root folder (`C:\Projects\swg-bwc-system`); the Mac and Linux equivalents are `tools/*.sh`.
+> Last updated: 2026-11-23. Unless stated otherwise, PowerShell commands are run from the project root folder (`C:\Projects\swg-bwc-system`); the Mac and Linux equivalents are `tools/*.sh`.
 
 ---
 
@@ -17,7 +17,8 @@
 |---|---|---|
 | **Server + Dashboard** | `server/` (Node.js) | `node server.js`: port **3000** (web), **1935** (RTMP video from the cameras), **8000** (video for the browser). In production it runs in Docker behind nginx and TLS (section 2.1). |
 | **Camera app** | `app/` (Flutter, package `com.swg.swg_bwc`) | Installed on each camera (USB, dock or online update). |
-| **Owner app** | `client/` (Flutter, iPhone / iPad / Android) | The customer's mobile app. See `MOBILE_APP.md`. |
+| **Owner app** | `client/` (Flutter, iPhone / iPad / Android / Mac) | The customer's app. See `MOBILE_APP.md`. |
+| **Live captions** | `transcriber/` (Python, Whisper) | Optional speech-to-text service next to the server (section 8.3g-3). |
 | **Dock Agent** | `dock-agent/` | Runs on the PC next to the docking station (section 8.4). |
 | **Tools** | `tools/` | `update-cameras.ps1`, `publish-build.ps1` / `.sh`, `provision-camera.sh`, `provision-batch.sh`, `health-watch.sh`, `loadtest.js`. |
 | **Database** | `server/data/bwc.db` | SQLite, created automatically. |
@@ -43,7 +44,7 @@ node server.js
 
 ### 2.1 Production server and deployment
 - Production runs in Docker (project `visionguard`, folder `/opt/visionguard`, compose files in `deploy/`) behind nginx with TLS, at `https://visionguard.smartwaygroup.com.sa`. Port 3000 is **not** published to the internet (closed 2026-11-18): cameras, Dock Agents, mobile apps and browsers all use the HTTPS domain. RTMP (1935) is open.
-- Deploy a new version: pack the repository (`git archive --format=tar.gz -o /tmp/visionguard.tar.gz HEAD`), copy it to the server, unpack it into `/opt/visionguard`, then in `/opt/visionguard/deploy` run `sudo docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml up -d --build`.
+- Deploy a new version: `git archive --format=tar.gz -o /tmp/vg-deploy.tgz HEAD server deploy transcriber`, copy it to the server, unpack it into `/opt/visionguard`, then in `/opt/visionguard/deploy` run `docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.transcribe.yml up -d --build` (the deploy account is in the `docker` group, no `sudo`). Details: `DEPLOYMENT.md` section 2.
 - Health: `GET /healthz` returns `{"ok":true,...}` (database, free disk, cameras online). The Docker image has a healthcheck; `tools/health-watch.sh --install <url>` installs an outside watcher that alerts when the site stops answering.
 - Load test: `tools/loadtest.js` simulates thousands of cameras. Run it only against a throwaway server of your own.
 - Backups: see section 11.
@@ -118,6 +119,7 @@ Where: dashboard > the building icon at the top, or `/admin.html` (super admin o
 - A company sees only its own chat; a **Staff broadcast** (Public, from Smart Way staff) reaches everyone.
 
 ### Theme and language
+- **The header always fits the window** (any screen, Safari and Chrome): it measures itself and folds step by step, first the labels of the less used buttons, then more, so nothing is cut off or overlaps.
 - Light and dark mode are remembered. The language switch (**عربي | EN**) is in the header of **every** page (Dashboard, Analytics, Reports, Docking, Support, Updates, Employees, Admin, License, Live wall, Login, Station, Privacy). See the next section.
 
 ### English / Arabic on the whole website
@@ -150,7 +152,8 @@ The report has: a banner, 4 KPIs (active cameras, SOS, recorded time, distance),
 - **Night vision** (the moon button) does three things together: the **IR-cut** motor, the **IR LEDs** and a **black-and-white** picture. Under artificial light the picture gets a little darker (the lens sees infrared).
 - **Switch camera:** the device allows only **one open camera at a time**. The old app froze after the first switch (the old camera was still open). Fixed and tested: 4 switches in a row work.
 - **Camera ID, server and token** are not inside the app. Each camera has a `config.json` (`/sdcard/Android/data/com.swg.swg_bwc/files/config.json`) written by the provisioning scripts. One APK serves every camera.
-- **GPS:** the chip shows a yellow "GPS..." when there is no fix (usually indoors) and a green "GPS" when there is one.
+- **GPS:** the chip shows a yellow "GPS..." when there is no fix (usually indoors) and a green "GPS" when there is one. The camera only believes a position with enough real satellites and signal, and a camera lying still keeps its place, so an idle camera indoors no longer wanders around the streets on the map (`CAMERA_APP.md`, GPS).
+- **Live stream key:** the camera gets its own key from the server and needs it to stream (section 11).
 - **Recording:** every video is recorded on the camera itself (folder `SWG_BWC`) and streamed live to the server. The quality is the same for both.
 - **Address:** a camera still set to `http://<ip>:3000` switches itself to the HTTPS domain at start-up when the domain answers (section 8.3k).
 
@@ -263,7 +266,7 @@ Draw an area on the dashboard map and get an alert when a camera leaves it, ente
 
 * **What:** while a camera streams, its speech appears as subtitles at the bottom of the stream picture (live wall tile, the big view and the wall page) and as a list under the camera's panel. The text follows the speaker about a second behind (a draft that is rewritten while they talk) and is final about two seconds after they pause. The text is kept for 30 days (`TRANSCRIPT_DAYS`) so it can be read back; the audio itself is never stored by this feature.
 * **Who:** off for everyone until Smart Way ticks **Live captions** for the company (Admin > company > Access); the company's managers then have it and can give it to others (Profile and access). The camera's own company decides: a camera that belongs to a company without the permission is never listened to. Voices are personal data (Saudi PDPL): get the customer's agreement first. Every time a camera starts being transcribed it is written to the audit trail (`transcription_started`).
-* **How it runs:** a separate service (`transcriber/`, Whisper through `faster-whisper`) does the speech-to-text so the VisionGuard server is not slowed down. See `transcriber/README.md` and `deploy/docker-compose.transcribe.yml`; without `TRANSCRIBE_URL` and `TRANSCRIBE_TOKEN` the feature is simply absent.
+* **How it runs:** a separate service (`transcriber/`, Whisper through `faster-whisper`) does the speech-to-text so the VisionGuard server is not slowed down. See `TRANSCRIBER.md` and `deploy/docker-compose.transcribe.yml`; without `TRANSCRIBE_URL` and `TRANSCRIBE_TOKEN` the feature is simply absent.
 * **Limits (measured on a laptop, not yet on the server or a real camera in the street):** Arabic and English; accuracy drops with street noise and strong dialects; only while the camera streams (a camera that only records to its own card is transcribed after the dock uploads it, which is not built yet); every stream in parallel needs processor time (the service is limited to 2 CPUs and 4 streams by default).
 
 ### 8.3h The live wall on a second screen
@@ -275,12 +278,20 @@ Each employee has a username and password; at the **check-out station** (`/stati
 ### 8.3j Licence (self-hosted customers)
 Customers who run VisionGuard on their own server need a licence you issue (3, 6, 12, 24 or 36 months) and renew; the system degrades gently (grace, then limited mode, safety never stops). Full guide: **LICENSING.md**; page **License** (administrators).
 
+### 8.3j-2 Two-step sign-in (MFA)
+Each person can turn on two-step sign-in for their own account: **Profile and access > Two-step sign-in > Turn on** (web and app). They scan the QR code (web) or add the key / tap *Open in authenticator app* (phone) in any standard authenticator app (Google Authenticator, Microsoft Authenticator, Authy), type the 6-digit code, and get **10 recovery codes**, shown once. From then on the sign-in asks for the code after the password, on the web and in the app.
+* A code works once; the code just before or after is accepted for a phone clock that is slightly off. After the password there are 5 minutes and 5 tries for the code.
+* **Lost phone:** the person types one recovery code instead (each works once), or their company administrator (or Smart Way) presses **Turn off two-step sign-in** next to the user (Team page or Admin). The person then signs in with the password and sets it up again.
+* Turning it off yourself needs the password and a current code. Every step is in the audit trail (`mfa_enabled`, `mfa_disabled`, `mfa_reset`, `login_mfa`, `login_mfa_recovery`). Code: `server/mfa.js`, tests `server/test/mfa.test.js`.
+* Not built yet: making it compulsory for a company, codes by SMS or e-mail, and push approval. Sign-in with a company directory (SSO) is in `SECURITY.md`.
+
 ### 8.3k Newer features (2026-11)
 * **Profile and access** (button in the top bar; mobile app: More > Profile and access): shows the user's role, company and exactly which features and actions the account has. Answers "why can't I see this button?".
 * **What a company administrator can do is capped by Smart Way** (section 3).
 * **Stop recording** (Live dashboard, the Stop button on a recording camera): ends an officer's recording from the control room (section 5). The cross only closes the viewing window.
 * **Dock storage per company** (Docking > Settings): each company has its own "ask me / cloud / keep on dock" policy and its own folder. "Choose folder" browses the dock computer through the Dock Agent (restart the Dock Agent after updating it; on a Mac: `launchctl kickstart -k gui/$(id -u)/com.visionguard.dock-agent`, and `launchctl bootout` / `bootstrap` after editing its `.plist`). The folder path is hidden from customers.
-* **Owner app:** play and download recordings and dock files (save to Photos or Files, AirDrop), role-aware buttons.
+* **Owner app:** play and download recordings and dock files (save to Photos or Files, AirDrop), role-aware buttons. Since 2026-11-19 also on the **Mac**, with a **Chat** tab (unread badge, and a banner when an officer writes), and a **Live** tab that starts only the cameras you picked (others show *Start live view*). In testing on TestFlight and Google Play (`STORE_PUBLISHING.md`).
+* **"Seen 13 h ago" fixed:** a connected camera is never shown as seen hours ago; any message from it, or a dock seeing it, refreshes its last-seen time.
 * **Cameras use HTTPS.** The camera app moves itself from `http://<ip>:3000` to `https://visionguard.smartwaygroup.com.sa` at start-up when the domain answers `/healthz`, and rewrites its `config.json`. New cameras are provisioned with the domain by default. The Dock Agent uses the domain too (`DOCK_SERVER`).
 * **Health and load:** `/healthz`, a Docker healthcheck, `tools/health-watch.sh` (outside watcher) and `tools/loadtest.js` (3000 pretend cameras, only against a throwaway server).
 
@@ -339,15 +350,17 @@ Switch off with `--no-update`; `--update-only` updates apps without copying reco
 | The dock does not show the cameras | The dock only charges / copies data | Online update works without the dock. |
 | "Failed to start" (server) | Port 3000 is busy | `Get-NetTCPConnection -LocalPort 3000` and stop the old node process. |
 | A button is missing for a user | The company or the user has no such permission | Open **Profile and access** for that user; Smart Way ticks actions per company (section 3). |
+| Camera online but live never starts; the server log says `without a valid camera key` | The camera runs a build older than the publish key (or was just flashed) | Dock it or update it over the network; it gets the current build and its key. |
+| A camera on the map jumps or wanders while indoors | An old build without the GPS filter | Update the camera (section 7, GPS). |
 
-Server log (local run): `%TEMP%\bwc-server.log` if it was started in a hidden window. In production: `sudo docker compose -p visionguard logs --tail 200` (run in `/opt/visionguard/deploy`).
+Server log (local run): `%TEMP%\bwc-server.log` if it was started in a hidden window. In production: `docker compose -p visionguard logs --tail 200` (run in `/opt/visionguard/deploy`).
 
 ---
 
 ## 11. Security and limits
 
 - **Per-camera tokens** are in use (section 14). The old shared token (`BWC_TOKEN`) still works until `ALLOW_SHARED_TOKEN=false` is set; do that once every camera has its own token.
-- Cameras, Dock Agents, the mobile apps and browsers reach the server over **HTTPS** (the domain). Plain HTTP port 3000 is not published. **RTMP video (port 1935) is not encrypted yet**, and publishing to it is not yet checked with the camera token (follow-up, section 14).
+- Cameras, Dock Agents, the mobile apps and browsers reach the server over **HTTPS** (the domain). Plain HTTP port 3000 is not published. **Live video can travel encrypted** (RTMPS on port 1936, `DEPLOYMENT.md` section 3.0.1); plain RTMP on 1935 stays for cameras on older apps until all are updated. Publishing is checked either way: each camera pushes with its own key, and production refuses a push without it (`RTMP_PUBLISH_AUTH=on` since 2026-11-19, `DEPLOYMENT.md` section 3.0).
 - **Backup:** a backup must cover `server/data/` (`bwc.db`, `.wal`, `.shm`, `updates/`, recordings) and `cameras.json`, and be kept **outside the server** (another machine or an object store) with a restore test. Do not rely on a backup service that nobody has tested: check the last successful backup date and try a restore.
 - `cameras.json` contains tokens: it is never committed to git (ignored).
 - Provisioning cannot easily be reversed except with `-Unprovision` (or a factory reset).
@@ -428,4 +441,4 @@ Add this sentence at the start of a prompt when the session is new: *"Open `docs
 - A camera with its own token **cannot act as another camera** (the server refuses any event naming another camera).
 - Rotating a token disconnects the old camera immediately; the old token stops working.
 - The old shared token (`BWC_TOKEN`) still works until the migration is finished: when every camera has its own token, run the server with `ALLOW_SHARED_TOKEN=false`.
-- Still open: RTMP publishing itself is not yet checked with the token (follow-up).
+- RTMP publishing is checked with a per-camera publish key since 2026-11-19 (`DEPLOYMENT.md` section 3.0). Still open: switching off the shared token (`ALLOW_SHARED_TOKEN=false`).

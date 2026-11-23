@@ -1,5 +1,7 @@
 # Store listing text (copy and paste)
 
+Last updated: 2026-11-23
+
 Fill in the two `<...>` values at the bottom first. Character limits: Apple name 30, subtitle 30, promotional text 170, keywords 100, description 4000. Google title 30, short description 80, full description 4000.
 
 ## English
@@ -95,7 +97,10 @@ VisionGuard هو تطبيق الجوال لملّاك ومشرفي أساطيل 
 > Username: `<demo username>`
 > Password: `<demo password>`
 > The demo company has a few cameras so every screen can be seen. Live video shows only while a camera is streaming.
+> The microphone is used only for voice notes in the chat, while the user holds the record button. Face ID only unlocks the app.
 > Contact: sdpt@smart-way.com.sa
+
+The same text goes into TestFlight > Test Information > Beta App Review Information. Leave the *License Agreement* empty: Apple's standard licence then applies. Type the demo username and password only into the store's own sign-in fields.
 
 ## Ready in the repository
 | | Where |
@@ -104,6 +109,7 @@ VisionGuard هو تطبيق الجوال لملّاك ومشرفي أساطيل 
 | iPad 13" screenshots (2064x2752), 4 | `client/store/screenshots/ipad-13/en/` (also fine for Google tablet) |
 | Google phone screenshots (1434x2868, exactly 2:1), 8 | `client/store/screenshots/android-phone/en/` |
 | Google feature graphic 1024x500, icon 512 | `client/store/google-play/` |
+| The same iPhone and iPad screenshots inside a drawn device frame, transparent background (for brochures and presentations, not for the stores) | `client/store/screenshots/framed/` |
 
 All screenshots use a fictional demo fleet (no customer data): `Unit 01 · North Gate` ... with fictional officer names, taken on simulators against a local test server.
 

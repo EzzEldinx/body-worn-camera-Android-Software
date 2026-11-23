@@ -1,5 +1,7 @@
 # Camera app signing and migration
 
+Last updated: 2026-11-18 (reviewed 2026-11-23: still current)
+
 The camera app (`com.swg.swg_bwc`) is the **device owner** and Home app of each body camera. Android only accepts an update
 signed with the **same key** as the installed app, and a device owner cannot be uninstalled. So the signing key is the
 most important secret of the camera fleet: **if it is lost, no camera can ever be updated without re-provisioning it.**

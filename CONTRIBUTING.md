@@ -1,5 +1,7 @@
 # Contributing
 
+Last updated: 2026-11-23
+
 - Branch from `main`: `feat/…`, `fix/…`, `chore/…`. No direct pushes to `main`.
 - Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`).
 - Open a PR; CI (server tests, Flutter analyze) must pass; one review required.

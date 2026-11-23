@@ -1,5 +1,7 @@
 # VisionGuard licensing
 
+Last updated: 2026-11-11 (reviewed 2026-11-23: still current)
+
 For installations that run **on the customer's own server** (a government body, a large company). Smart Way's own hosted servers need no licence
 (`LICENSE_MODE=off`, the default). Code: `server/license-core.js`, `server/license.js`, the vendor tool `tools/license/vg-license.js`, the page `/license.html`.
 

@@ -1,5 +1,7 @@
 # VisionGuard server
 
+Last updated: 2026-11-23
+
 Node.js 22 server and web dashboard. Run it locally:
 
 ```bash

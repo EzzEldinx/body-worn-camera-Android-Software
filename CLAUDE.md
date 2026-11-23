@@ -1,5 +1,7 @@
 # VisionGuard (Smart Way body-worn cameras)
 
+Last updated: 2026-11-23
+
 Cameras (SDJW-S1, Android 10, kiosk app) -> server (Node) -> dashboard (web) and owner app (Flutter: iPhone, iPad, Android, Mac). Docking stations copy recordings off the cameras (Dock Agent on a Mac). Docs start at `docs/README.md`.
 
 ## Layout
@@ -22,7 +24,8 @@ Cameras (SDJW-S1, Android 10, kiosk app) -> server (Node) -> dashboard (web) and
 - Owner app builds: `flutter build apk --release` (Android), `flutter run -d <ipad id> --release` (iPad, team PJX4KFYXFK), `flutter build macos`.
 - Camera app build: `cd app/android && JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home ./gradlew assembleRelease`, then the user publishes it: `tools/publish-build.sh https://<server domain>` (asks for the admin login). The Dock Agent then installs it on docked cameras.
 - Testing a camera build over USB: `kill -STOP <dock agent pid>` first (it reinstalls the published build), `kill -CONT` after. adb is at `~/Library/Android/sdk/platform-tools/adb`. Serials map: `...192`=BWC-01, `...135`=02, `...240`=03, `...221`=04, `...212`=05, `...468`=06. The Android tablet (Huawei, serial `5DJBB25A16200293`) runs the owner app, package `sa.com.smartwaygroup.visionguard`.
-- Server deploy (the user types the passphrase and sudo password): `git archive --format=tar.gz -o /tmp/vg-deploy.tgz HEAD server deploy transcriber`, `scp` it to the server, then `sudo tar -xzf ... -C /opt/visionguard && cd /opt/visionguard/deploy && sudo docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.transcribe.yml up -d --build`. See `docs/DEPLOYMENT.md`.
+- Server deploy (the user types the SSH key passphrase; no sudo needed, the deploy account owns `/opt/visionguard` and is in the docker group): `git archive --format=tar.gz -o /tmp/vg-deploy.tgz HEAD server deploy transcriber`, `scp` it to the server, then `tar -xzf /tmp/vg-deploy.tgz -C /opt/visionguard && cd /opt/visionguard/deploy && docker compose -p visionguard -f docker-compose.yml -f docker-compose.test.yml -f docker-compose.transcribe.yml up -d --build`. See `docs/DEPLOYMENT.md`.
+- Production has `RTMP_PUBLISH_AUTH=on`: a camera streams only with the key the server gives it, so a camera on an old build cannot stream until it is updated.
 
 ## Things learned the hard way
 - Camera GPS indoors lies (accuracy 1-10 m with 3-4 weak satellites): positions are filtered in `app/lib/core/services/gps_filter.dart`. Details in `docs/CAMERA_APP.md` and the project memory.

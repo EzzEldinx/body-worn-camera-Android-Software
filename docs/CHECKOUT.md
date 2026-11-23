@@ -1,5 +1,7 @@
 # Employees and camera check-out
 
+Last updated: 2026-11-18 (reviewed 2026-11-23: still current)
+
 Every employee has their own **username and password**. To take a camera they sign in at the **check-out station** next to the dock; the system picks a camera that
 is charged and ready, lights up its bay, and records who took it. The camera then stamps **date and time, camera ID and the employee's ID** on everything it records.
 Code: `server/checkout.js`, `server/public/station.html`, Docking → *Check-out*, Companies → *Employees*.

@@ -1,12 +1,23 @@
 # Putting the VisionGuard owner app in the stores
 
-**Status (2026-11-22): everything that does not need a paid account is ready.** Version 1.1.0 (3). The Android upload key exists, the signed bundle builds, the iOS release build compiles, the release guard passes, the privacy texts and the screenshots are done. What is left is in "After you pay" below.
+Last updated: 2026-11-23
 
-## After you pay (in this order)
-1. **Apple Developer Program** (US$99/year; an organisation needs a D-U-N-S number) and **Google Play Console** (US$25 once).
-2. **Google:** create the app `sa.com.smartwaygroup.visionguard`, turn on *Play App Signing*, upload `client/build/app/outputs/bundle/release/app-release.aab` (rebuild with the command below first), paste the listing from `STORE_LISTING.md`, the images from `client/store/`, the Data safety answers below, then *Closed testing* first.
-3. **Apple:** in App Store Connect create the app with bundle id `sa.com.smartwaygroup.visionguard`; in Xcode pick the team for Runner > Signing; `flutter build ipa --release` and upload with Transporter; paste the listing, the screenshots and the App Privacy answers below; choose *Custom App* (private) or public.
-4. **Both:** create the demo account for the reviewers on the production server and put it in the review notes.
+## Status (2026-11-23)
+Version **1.1.0 (3)** is uploaded to both stores **for testing only**. Nothing is public: the public release waits for the company's approval.
+
+| | Done | Still to do |
+|---|---|---|
+| **Google Play** (Smart Way's organisation account) | App `sa.com.smartwaygroup.visionguard` created, Play App Signing on (Google keeps the app signing key, our upload key is accepted), bundle 1.1.0 (3) rolled out to **internal testing** with a testers list | Store listing and the *App content* forms (privacy policy, app access with the demo account, ads, content rating, target audience, data safety). Then a production release when approved |
+| **Apple** (team `PJX4KFYXFK`) | App Store Connect record, build 1.1.0 (3) uploaded from Xcode (Organizer > Distribute App), TestFlight **internal testing** works on an iPhone; an **external group** was sent to Beta App Review so it can get a public link | Turn on the public link after the review. The App Store page: version 1.1.0, screenshots, texts, App Privacy, age rating, the demo account in App Review Information. Do **not** press *Add for Review* before approval |
+| **Both** | Listing text, screenshots, icon, privacy page, release guard | A demo account (demo company with a few cameras) on the production server for the reviewers; Firebase for push (optional) |
+
+Testers: Google needs Google (Gmail) accounts in the testers list; a company e-mail that is not a Google account is refused. Apple's public TestFlight link works for anyone with an iPhone, and the app still needs a VisionGuard account to sign in.
+
+## Steps (for reference)
+1. **Accounts:** Smart Way's Apple Developer Program and Google Play Console accounts.
+2. **Google:** create the app `sa.com.smartwaygroup.visionguard`, turn on *Play App Signing*, upload `client/build/app/outputs/bundle/release/app-release.aab` (rebuild with the command below first), paste the listing from `STORE_LISTING.md`, the images from `client/store/`, the Data safety answers below; internal or closed testing first.
+3. **Apple:** in App Store Connect create the app with bundle id `sa.com.smartwaygroup.visionguard`; in Xcode pick the team for Runner > Signing; archive and upload (Xcode Organizer, or `flutter build ipa --release` and Transporter); paste the listing, the screenshots and the App Privacy answers below; choose *Custom App* (private) or public.
+4. **Both:** create the demo account for the reviewers on the production server and put it in the review notes. Type its password only into the store forms, never into documents or chat.
 
 The owner/supervisor app (`client/`) is for Google Play and the App Store. The **camera app (`app/`) is not**: it runs as the device owner on the company's cameras and updates itself from the server and the docking stations.
 
